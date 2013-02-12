@@ -505,10 +505,10 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 "'. Treating style name as small text in parenthesis.";
             goto maybe_s;
         } else {
-            if (i->second.f_text) {
+            if (i->second.read().f_text) {
                 if (apply)
-                    *this += i->second.text;
-                if (replaceto) replaceto->assign(i->second.text.Print());
+                    *this += i->second.read().text;
+                if (replaceto) replaceto->assign(i->second.read().text.Print());
             } else
                 if (replaceto)
                     replaceto->clear();
@@ -1035,7 +1035,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        if (i->second.f_text) operator +=(i->second.text);
+        if (i->second.read().f_text) operator +=(i->second.read().text);
         return true;
     }
     if (a.EndsWith("color")) {

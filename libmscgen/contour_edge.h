@@ -38,9 +38,9 @@ namespace contour {
  */
 typedef enum {
     ALL_EQUAL,       ///<All three are identical.
-    A_EQUAL_B,       ///<Two of them are identical. 
+    A_EQUAL_B,       ///<Two of them are identical.
     A_EQUAL_C,       ///<Two of them are identical.
-    B_EQUAL_C,       ///<Two of them are identical. 
+    B_EQUAL_C,       ///<Two of them are identical.
     IN_LINE,         ///<Three separate points on a line.
     CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
     COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
@@ -49,12 +49,12 @@ typedef enum {
 ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
 /** A helper class describing how an edge arrives/leaves a crosspoint.
- * 
+ *
  * This is used to decide, which edge to continue the walk at contour
  * intersect/union operations. For straight edges this is just a direction,
- * but for curvy edges, we also need the radius of the curve, to differentiate 
+ * but for curvy edges, we also need the radius of the curve, to differentiate
  * between curvy edges that have the same tangent, but different radius.
- * We do not store a very precise angle here, this is just used to sort 
+ * We do not store a very precise angle here, this is just used to sort
  * rays at a crosspoint in clockwise order.
  * Note that the direction of the ray (incoming or outgoing) plays no
  * role in determining this angle. (This is since each edge crossing the crosspoint
@@ -71,33 +71,33 @@ struct RayAngle {
      * Note that the radian 0 is towards growing x axis ("right" you can say)
      * and increasing radian is clockwise (in a space where y grows "downwards").
      */
-    double angle;  
+    double angle;
     /** The curvature of the angle.
      *
-     * 0 is used for straight edges, positive values if the edge curves toward 
+     * 0 is used for straight edges, positive values if the edge curves toward
      * clockwise, larger positive values the smaller the turn radius is.
      */
-    double curve;  
+    double curve;
     RayAngle() {};
     explicit RayAngle(double a, double b=0) : angle(a), curve(b) {}
     bool IsSimilar(const RayAngle&o) const {return test_equal(angle, o.angle) && test_equal(curve, o.curve);}  ///<Compares two RayAngles
     bool Smaller(const RayAngle&o) const {return test_equal(angle, o.angle) ? test_smaller(curve, o.curve) : angle < o.angle;} ///<True we are smaller than `o`, that is, `o` is clockwise after us.
 };
 
-/** @} */ //addtogroup contour_internal 
+/** @} */ //addtogroup contour_internal
 
 /** Describew how edge joints shall be handled at an Expand operation.
  * @ingroup contour
- * 
- * This has effect only if the join is expansive, that is for 
+ *
+ * This has effect only if the join is expansive, that is for
  * - a convex vertex (with inner angle <180 degrees) at expansion (with a positive value).
  * - a concave vertex (with inner angle >180 degrees) at shrinkage (negative value).
  */
 typedef enum {
     /** The simplest: continue edges until they meet, if they dont: add a direct segment.
-     * 
-     * This method uses `miter_limit`, to limit the length of the tip for very 
-     * narrow angle vertices. `miter_limit` is understood as a multiple of the expansion 
+     *
+     * This method uses `miter_limit`, to limit the length of the tip for very
+     * narrow angle vertices. `miter_limit` is understood as a multiple of the expansion
      * gap: the length of edge increases at most `miter_limit*gap`.
      *
      * If we encounter parallel edges, which do not cross even if linearly extended,
@@ -113,24 +113,24 @@ typedef enum {
             :   |              :      +----------/
             :   |             :      /
             :   |             :      |
-       @endverbatim 
+       @endverbatim
      * If there is a miter_limit in effect the right figure becomes like this
      * @verbatim
                           ----->-----------
-                                           \--------+   
-                           ..>...+                  | 
-                                :                 --+            
+                                           \--------+
+                           ..>...+                  |
+                                :                 --+
                                :      +----------/
                               :      /
                               :      |
        @endverbatim     */
-    EXPAND_MITER,       
+    EXPAND_MITER,
     /** Same as EXPAND_MITER, but for parallel edges add a round join.
      *
      * Below see two edges with dots, and their and expanded version in solid lines.
      * The right example shows a straight edge and a half circle meeting.
      * @verbatim
-        -->-----+         ----->------+_ 
+        -->-----+         ----->------+_
                 |                       \
         .>..+   |          ..>...+       |
             :   |               :      _/
@@ -138,13 +138,13 @@ typedef enum {
             :   |             :      /
             :   |             :      |
        @endverbatim */
-    EXPAND_MITER_ROUND,  
+    EXPAND_MITER_ROUND,
     /** Same as EXPAND_MITER, but for parallel edges add a flat/direct join.
      *
      * Below see two edges with dots, and their and expanded version in solid lines.
      * The right example shows a straight edge and a half circle meeting.
      * @verbatim
-        -->-----+         ----->------+  
+        -->-----+         ----->------+
                 |                     |
         .>..+   |          ..>...+    |
             :   |               :     |
@@ -158,7 +158,7 @@ typedef enum {
      * Below see two edges with dots, and their and expanded version in solid lines.
      * The right example shows a straight edge and a half circle meeting.
      * @verbatim
-        -->-----+         ----->----------+ 
+        -->-----+         ----->----------+
                 |                         |
         .>..+   |          ..>...+        |
             :   |               :         |
@@ -172,7 +172,7 @@ typedef enum {
      * Below see two edges with dots, and their and expanded version in solid lines.
      * The right example shows a straight edge and a half circle meeting.
      * @verbatim
-        -->-+-           ----->------+_ 
+        -->-+-           ----->------+_
                \                        \
         .>..+   +          ..>...+       |
             :   |               :      _/
@@ -180,7 +180,7 @@ typedef enum {
             :   |             :      /
             :   |             :      |
        @endverbatim */
-    EXPAND_ROUND,        
+    EXPAND_ROUND,
     /** <At the line join add a direct line to connect the two edges.
      *
      * Below see two edges with dots, and their and expanded version in solid lines.
@@ -194,8 +194,30 @@ typedef enum {
             :   |             :      /
             :   |             :      |
        @endverbatim */
-    EXPAND_BEVEL       
+    EXPAND_BEVEL
 } EExpandType;
+
+/** Helper class to describe the arc part of a curvy edge */
+class EdgeArc
+{
+public:
+    /** Describes what type of an edge it is. */
+    typedef enum {
+        STRAIGHT=0,   ///<A straight edge. Should not be used: if an EdgeArc is allocated we are not straight.
+        FULL_CIRCLE=1,///<A curvy edge that is a full circle or ellipse.
+        ARC=2         ///<A curvy edge that is a section of a circle or ellipse.
+    } EEdgeType;
+
+    EdgeArc() {}
+    EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
+    EEdgeType   type;          ///<Type of the edge.
+    double      s;             ///<Starting radian of a curvy edge supposedly between [0..2pi). Unused for straight edges. For FULL_CIRCLE, it still has meaning.
+    double      e;             ///<Ending radian of a curvy edge supposedly between [0..2pi). Unused for straight and full circle edges.
+    bool        clockwise_arc; ///<True if a curvy edge goes clockwise from `s` to `e`. Unused for straight edges.
+    EllipseData ell;           ///<Descriptor of the ellipse for curvy edges.
+    Block       boundingBox;   ///< A bounding box for the edge.
+};
+
 
 /** A directed edge of a contour.
  * @ingroup contour_internal
@@ -205,7 +227,7 @@ typedef enum {
  * are not parallel with the x and y axises. We make a distinction between tilted and
  * non-tilted curvy edges, because you need more calculations for tilted ones.
  *
- * For straight edges we only use the two endpoints from the class. 
+ * For straight edges we only use the two endpoints from the class.
  * For curvy ones, we also use the EllipseData member.
  */
 class Edge
@@ -213,12 +235,6 @@ class Edge
     friend class SimpleContour;
     friend class ContoursHelper;
 public:
-    /** Describes what type of an edge it is. */
-    typedef enum {
-        STRAIGHT=0,   ///<A straight edge.
-        FULL_CIRCLE=1,///<A curvy edge that is a full circle or ellipse. 
-        ARC=2         ///<A curvy edge that is a section of a circle or ellipse.
-    } EEdgeType;
     /** Describes, how two expanded edges can relate to each other.
      */
     typedef enum {
@@ -232,40 +248,40 @@ public:
          * for clarification you can see the whole shape to the right in small. The edges in question
          * are in dots there.
          * @verbatim
-            ..<.....+         
-                |   :         
+            ..<.....+
+                |   :
             -<--o---:         +-------+
                 |   :         |       |
-                |   :         +...+   | 
+                |   :         +...+   |
                 |   :             :   |
                 |   :             +---+
            @endverbatim */
-        CP_REAL,        
-        /** They do not have a crosspoint, but if we extend them, they have 
+        CP_REAL,
+        /** They do not have a crosspoint, but if we extend them, they have
          *
-         * Note that "extension" for a straight edge means its a continuation in a straight line, 
+         * Note that "extension" for a straight edge means its a continuation in a straight line,
          * while for a curvy edge it is the continuation of the circle/ellipse.
          * This is the most common case for expansion.
          *
          * Below see two edges with dots, the expanded edges with solid lines and their extension
          * also using dots. The `o` marks the crosspoint of the extensions.
          * @verbatim
-            -->--...o         
-                    :         
-            .>..+   :         
-                :   |         
-                :   |              
-                :   |             
-                :   |             
+            -->--...o
+                    :
+            .>..+   :
+                :   |
+                :   |
+                :   |
+                :   |
            @endverbatim */
-        CP_EXTENDED,   
+        CP_EXTENDED,
         /** They do not have a crosspoint, neither if extended, but their linear extension have.
          *
          * A difference exists from CP_EXTENDED but only for curvy edges, since for straight edges
          * regular extension is linear. In the below example you can see a straight edge and
          * a concave arc (the arc is smaller than a half-circle, so they meet at a non-zero angle).
          * In the below figure `x` marks the end of the two expanded edges, and straigght lines
-         * represent their linear extension. The dotted extension shows the regular extension for the 
+         * represent their linear extension. The dotted extension shows the regular extension for the
          * circular edge and we can see it will never cross the extended straight edge.
          * The crosspoint of the linear extensions is marked by `o`.
          * @verbatim
@@ -292,92 +308,91 @@ public:
          * extensions.
          * @verbatim
             ----->-x------------------
-                                 
+
              ..>...+                              o
-                  :      
+                  :
                  :      -x----------------
-                :      /       
-                :      |        
+                :      /
+                :      |
            @endverbatim */
-        NO_CP_PARALLEL 
+        NO_CP_PARALLEL
     } EExpandCPType;
     ///<True if two expanded edges or their extrension has crosspoints.
     static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
 
 protected:
-    EEdgeType   type;          ///<Type of the edge.
     XY          start;         ///<Startpoint of the edge.
     XY          end;           ///<Endpoint of the edge, shall be different from `start`.
-    double      s;             ///<Starting radian of a curvy edge supposedly between [0..2pi). Unused for straight edges. For FULL_CIRCLE, it still has meaning.
-    double      e;             ///<Ending radian of a curvy edge supposedly between [0..2pi). Unused for straight and full circle edges.
-    bool        clockwise_arc; ///<True if a curvy edge goes clockwise from `s` to `e`. Unused for straight edges.
-    EllipseData ell;           ///<Descriptor of the ellipse for curvy edges.
-    Block       boundingBox;   ///< A bounding box for the edge.
-
+    EdgeArc     *arc;          ///<NULL if the edge is straight, arc data if curvy
 public:
     mutable bool visible;      ///<True if the edge shall be shown/drawn.
-    Edge() : type(STRAIGHT), visible(true) {boundingBox.MakeInvalid();}
-    Edge(const XY &s, const XY &e) : type(STRAIGHT), start(s), end(e), boundingBox(s, e), visible(true) {}
+    Edge() : arc(NULL), visible(true) {}
+    Edge(const XY &s, const XY &e) : start(s), end(e), arc(NULL), visible(true) {}
     Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
+    Edge(const Edge &o) : start(o.start), end(o.end), arc(o.arc ? new EdgeArc(*o.arc) : NULL) {}
+    Edge(Edge &&o) : start(o.start), end(o.end), arc(o.arc) {o.arc=NULL;}
 
-    EEdgeType GetType() const {return type;}    ///<Returns the type of the edge.
+    Edge &operator =(const Edge &o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc ? new EdgeArc(*o.arc) : NULL; return *this;}
+    Edge &operator =(Edge &&o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc; o.arc=NULL; return *this;}
+
+    EdgeArc::EEdgeType GetType() const {return arc ? EdgeArc::STRAIGHT : arc->type;}    ///<Returns the type of the edge.
     const XY & GetStart() const {return start;} ///<Returns the startpoint.
     const XY & GetEnd() const {return end;}     ///<Returns the endpoint.
-    const Block &GetBoundingBox() const {return boundingBox;} ///<Returns the bounding box.
+    Block CreateBoundingBox() const {if (arc) return arc->boundingBox; return Block(start, end);} ///<Returns a copy of the bounding box of the edge
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
     DistanceType Distance(const Edge &) const;    //always nonnegative
 
-    const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;} ///<Returns the ellipse data. Asserts for straight edges.
-    bool GetClockWise() const {_ASSERT(type!=STRAIGHT); return clockwise_arc;} ///<Returns if the edge goes clockwise around the ellipse. Asserts for straight edges.
+    const EllipseData &GetEllipseData() const {return arc->ell;} ///<Returns the ellipse data. Asserts for straight edges.
+    bool GetClockWise() const {return arc->clockwise_arc;} ///<Returns if the edge goes clockwise around the ellipse. Asserts for straight edges.
     double GetSpan() const;
-    double GetRadianE() const {_ASSERT(type!=STRAIGHT); return type==ARC ? e : s;} ///<Returns the ending radian. Asserts for straight edges.
-    double GetRadianS() const {_ASSERT(type!=STRAIGHT); return s;} ///<Returns the starting radian. Asserts for straight edges.
+    double GetRadianE() const {return arc->type==EdgeArc::ARC ? arc->e : arc->s;} ///<Returns the ending radian. Asserts for straight edges.
+    double GetRadianS() const {return arc->s;} ///<Returns the starting radian. Asserts for straight edges.
     double GetRadianMidPoint() const;
     XY Pos2Point(double pos) const;
-    void SetFullCircle() {_ASSERT(type!=STRAIGHT); type = FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();} ///<Makes the edge a full circle starting at 's`. Asserts for straight edges.
+    void SetFullCircle() {arc->type = EdgeArc::FULL_CIRCLE; end=start; arc->e=arc->s; CalculateBoundingBoxCurvy();} ///<Makes the edge a full circle starting at 's`. Asserts for straight edges.
 
     bool IsSane() const;
     bool IsSaneNoBoundingBox() const;
-    /** Helper for area calculation. 
-     * 
-     * Return the (directed) area between the y axis and the edge times 2, 
+    /** Helper for area calculation.
+     *
+     * Return the (directed) area between the y axis and the edge times 2,
      * minus start.x*start.y, plus end.x*end.y.
      */
-    double GetAreaAboveAdjusted() const {return type==STRAIGHT ? start.x*end.y-start.y*end.x : getAreaAboveAdjusted_curvy();}
-    double GetLength() const {return type==STRAIGHT ? (end-start).length() : type == FULL_CIRCLE ? ell.FullCircumference() : ell.SectorCircumference(s,e);} ///<Returns the length of the arc.
+    double GetAreaAboveAdjusted() const {return arc ? getAreaAboveAdjusted_curvy() : start.x*end.y-start.y*end.x;}
+    double GetLength() const {return arc ? arc->type == EdgeArc::FULL_CIRCLE ? arc->ell.FullCircumference() : arc->ell.SectorCircumference(arc->s,arc->e) : (end-start).length();} ///<Returns the length of the arc.
     //returns the centroid of the area above multipled by the (signed) area above
     XY GetCentroidAreaAboveUpscaled() const;
 
     bool Expand(double gap);
     void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
-    void Shift(const XY &wh) {start+=wh; end+=wh; boundingBox.Shift(wh); if (type!=STRAIGHT) ell.Shift(wh);} ///<Translate the edge.
-    void Scale(double sc) {start*=sc; end*=sc; boundingBox.Scale(sc); if (type!=STRAIGHT) ell.Scale(sc);}    ///<Scale the edge.
+    void Shift(const XY &wh) {start+=wh; end+=wh; if (arc) {arc->boundingBox.Shift(wh); arc->ell.Shift(wh);}} ///<Translate the edge.
+    void Scale(double sc) {start*=sc; end*=sc; if (arc) {arc->boundingBox.Scale(sc); arc->ell.Scale(sc);}}    ///<Scale the edge.
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
 
-    bool operator ==(const Edge& p) const {return start==p.start && end==p.end && type==p.type && (type==STRAIGHT || equal_curvy(p));}
-    bool operator < (const Edge& p) const {return start!=p.start ? start<p.start : end!=p.end ? end<p.end : type!=p.type ? type<p.type : type==STRAIGHT ? false : smaller_curvy(p);}
+    bool operator ==(const Edge& p) const {return start==p.start && end==p.end && (arc==NULL)==(p.arc==NULL) && (!arc || equal_curvy(p));}
+    bool operator < (const Edge& p) const {return start!=p.start ? start<p.start : end!=p.end ? end<p.end : (arc==NULL)!=(p.arc==NULL) ? arc==NULL ? true : p.arc==NULL ? false : arc->type < p.arc->type : smaller_curvy(p);}
 
-    void Invert() {std::swap(start, end); if (type!=STRAIGHT) {clockwise_arc = !clockwise_arc; std::swap(s, e);}} ///<Reverses the direction of the edge.
+    void Invert() {std::swap(start, end); if (arc) {arc->clockwise_arc = !arc->clockwise_arc; std::swap(arc->s, arc->e);}} ///<Reverses the direction of the edge.
     /** Calculates the angle of the edge at point `p`.
-     * 
+     *
      * @param [in] incoming If true the angle of the incoming segment is calculated (as if it were outgoing), if false the outgoing part.
      * @param [in] p The angle is calculated at this point (indifferent for straight edges)
      * @param [in] pos Should be the pos value corresponding to `p`.
      * @returns The angle of the edge
      */
-    RayAngle Angle(bool incoming, const XY &p, double pos) const {return type==STRAIGHT ? RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : angle(start, XY(start.x+100, start.y), end)) : angle_curvy(incoming, p, pos);} 
+    RayAngle Angle(bool incoming, const XY &p, double pos) const {return arc ? angle_curvy(incoming, p, pos) :  RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : angle(start, XY(start.x+100, start.y), end));}
 
     //Gives the intersecting points of me and another straight edge
     unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
     //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
-    const Block& CalculateBoundingBox() {boundingBox.MakeInvalid(); boundingBox += start; boundingBox += end; if (type!=STRAIGHT) calcbb_curvy(); return boundingBox;} ///<Calculates & returns the bounding box
+    void CalculateBoundingBoxCurvy();  ///<Calculates & returns the bounding box for curvy Edges. Fails for straight ones.
 
-    
-    void   PathTo(cairo_t *cr) const {if (type==STRAIGHT) cairo_line_to(cr, end.x, end.y); else pathto_curvy(cr);} ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
+
+    void   PathTo(cairo_t *cr) const {if (arc) pathto_curvy(cr); else cairo_line_to(cr, end.x, end.y);} ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
     void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
 
     //helpers for offsetbelow
@@ -391,14 +406,13 @@ protected:
     bool equal_curvy(const Edge &p) const;
     bool smaller_curvy(const Edge &p) const;
     void pathto_curvy(cairo_t *cr) const;
-    void calcbb_curvy();
     RayAngle angle_curvy(bool incoming, const XY &p, double pos) const;
 
     unsigned CrossingStraightStraight(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
 
     //Convert between pos (0..1) and coordinates
-    double pos2radian_full_circle(double r) const {return fmod_negative_safe(clockwise_arc ? s+r*2*M_PI : s-r*2*M_PI, 2*M_PI);} ///<Convert from a pos value of [0..1] to a radian value assuming full circle
-    double radian2pos_full_circle(double r) const {return fmod_negative_safe(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/(2*M_PI), 1.);} ///<Convert from a radian value to a pos value of [0..1] value assuming full circle
+    double pos2radian_full_circle(double r) const {return fmod_negative_safe(arc->clockwise_arc ? arc->s+r*2*M_PI : arc->s-r*2*M_PI, 2*M_PI);} ///<Convert from a pos value of [0..1] to a radian value assuming full circle
+    double radian2pos_full_circle(double r) const {return fmod_negative_safe(arc->clockwise_arc ? (r-arc->s)/(2*M_PI) : (arc->s-r)/(2*M_PI), 1.);} ///<Convert from a radian value to a pos value of [0..1] value assuming full circle
 
     //Convert between pos (0..1) and coordinates
     double pos2radian(double r) const;
@@ -442,14 +456,13 @@ protected:
  */
 inline double Edge::GetSpan() const
 {
-    _ASSERT(type!=STRAIGHT);
-    if (type==FULL_CIRCLE) return 2*M_PI;
-    if (clockwise_arc) {
-        if (s<e) return e-s;
-        else return e-s+2*M_PI;
+    if (arc->type==EdgeArc::FULL_CIRCLE) return 2*M_PI;
+    if (arc->clockwise_arc) {
+        if (arc->s < arc->e) return arc->e - arc->s;
+        else return arc->e - arc->s + 2*M_PI;
     } else {
-        if (s>e) return s-e;
-        else return s-e+2*M_PI;
+        if (arc->s > arc->e) return arc->s - arc->e;
+        else return arc->s - arc->e + 2*M_PI;
     }
 }
 
@@ -459,8 +472,8 @@ inline double Edge::GetSpan() const
  */
 inline XY Edge::PrevTangentPoint(double pos) const
 {
-    if (type!=STRAIGHT)
-        return ell.Tangent(pos2radian(pos), !clockwise_arc);
+    if (arc)
+        return arc->ell.Tangent(pos2radian(pos), !arc->clockwise_arc);
     if (pos<=0.5)
         return start*2-end;
     return start;
@@ -472,8 +485,8 @@ inline XY Edge::PrevTangentPoint(double pos) const
  */
 inline XY Edge::NextTangentPoint(double pos) const
 {
-    if (type!=STRAIGHT)
-        return ell.Tangent(pos2radian(pos), clockwise_arc);
+    if (arc)
+        return arc->ell.Tangent(pos2radian(pos), arc->clockwise_arc);
     if (pos>0.5)
         return end*2-start;
     return end;
@@ -486,43 +499,40 @@ inline XY Edge::NextTangentPoint(double pos) const
 inline Edge& Edge::SetEndLiberal(const XY &p, bool keep_full_circle)
 {
     end = p;
-    if (type==STRAIGHT) {
-        CalculateBoundingBox();
-        return *this;
-    }
-    const double r = ell.Point2Radian(p);
-    if (type==FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle))
-        type = ARC;
-    e = r;
-    CalculateBoundingBox();
+    if (!arc) return *this;
+    const double r = arc->ell.Point2Radian(p);
+    if (arc->type==EdgeArc::FULL_CIRCLE && !(test_equal(arc->s, r) && keep_full_circle))
+        arc->type = EdgeArc::ARC;
+    arc->e = r;
+    CalculateBoundingBoxCurvy();
     return *this;
 }
 
 /** Return the centroid of the area below the edge multiplied by the area.
- * 
- * We take the endpoints of the edge and draw a line from them to the x axis. 
+ *
+ * We take the endpoints of the edge and draw a line from them to the x axis.
  * The area bounded by these two lines, the edge itself and the x axis is
  * the subject area of this function. If the `start.x < end.s` the return is
- * negated. The return is also negated (perhaps 2nd time) if the edge is above 
- * the x axis (negative y values). 
+ * negated. The return is also negated (perhaps 2nd time) if the edge is above
+ * the x axis (negative y values).
  * The function returns the centroid of this area, scaled by the (signed)
  * area of this area.
  *
  * In more visual terms, showing the x axis and a straight edge and the area.
  * @verbatim
- ==========> =========>    
-  +++++        ------      
-  __+++        ------      
-  |\+++        \-----      
-    \++         \ ---      
-     \+          \---     
-      \           \--      
-                  _\|      
+ ==========> =========>
+  +++++        ------
+  __+++        ------
+  |\+++        \-----
+    \++         \ ---
+     \+          \---
+      \           \--
+                  _\|
  * @endverbatim
  * (Since in contour we treat y coordinates as growing downwards, we call these functions
- * "xxAreaAbove", meaning the area between edge & X axis.) 
+ * "xxAreaAbove", meaning the area between edge & X axis.)
  * The dotted area is the area above an edge. It is counted as positive in the first example;
- * and negative in the second. If we sum all such areas, we get the area of the contour 
+ * and negative in the second. If we sum all such areas, we get the area of the contour
  * (positive for clockwise and negative for counterclockwise), as it should be.
  *
  * Now, the formula for the above for an edge (X1,Y1)->(X2,Y2) is
@@ -534,12 +544,14 @@ inline Edge& Edge::SetEndLiberal(const XY &p, bool keep_full_circle)
  */
 inline XY Edge::GetCentroidAreaAboveUpscaled() const
 {
-    switch (type) {
-    default:
-    case STRAIGHT:    return getcentroidareaaboveupscaled_straight(start, end);
-    case FULL_CIRCLE: return ell.GetCenter() * ell.FullArea();
-    case ARC:         return getcentroidareaaboveupscaled_curvy();
+    if (!arc) return getcentroidareaaboveupscaled_straight(start, end);
+    switch (arc->type) {
+    case EdgeArc::FULL_CIRCLE: return arc->ell.GetCenter() * arc->ell.FullArea();
+    case EdgeArc::ARC:         return getcentroidareaaboveupscaled_curvy();
+    case EdgeArc::STRAIGHT:    break; //should not happen
     }
+    _ASSERT(0);
+    return XY();
 }
 
 namespace Edge_CreateExpand2D {
@@ -558,11 +570,11 @@ inline double comp_dbl(const double &a, const double &b, double g) {
  * ends and starts as below.
  * @verbatim
    +4  _+3 _  +2
-      |\ ^ /|           
-        \|/             
-   +1  <-0->  -1        
-        /|\             
-      |/ v \|           
+      |\ ^ /|
+        \|/
+   +1  <-0->  -1
+        /|\
+      |/ v \|
    -2   -3    -4
  * @endverbatim
  * The above picture describes, how the end is described,
@@ -576,7 +588,7 @@ inline double comp_dbl(const double &a, const double &b, double g) {
  */
 inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
 {
-    if (type!=STRAIGHT) return CreateExpand2DCurvy(gap, ret, stype, etype);
+    if (arc) return CreateExpand2DCurvy(gap, ret, stype, etype);
     ret.resize(ret.size()+1);
     Edge &e = *ret.rbegin();
     const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
@@ -610,11 +622,11 @@ inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool
 }
 
 /** Calculates the touchpoint of tangents drawn from a given point.
- * 
+ *
  * For curvy edges:
  *     Given the point `from` draw tangents to the edge (two can be drawn)
  *     and calculate where these tangents touch the it.
- *     In this context the *clockwise tangent* is the one which is traversed from 
+ *     In this context the *clockwise tangent* is the one which is traversed from
  *     `from` towards the ellipse touches the ellipse in the clockwise direction.
  * For straight edges:
  *     We return the `start` in both clockwise and counterclockwise.
@@ -627,15 +639,16 @@ inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool
  */
 inline bool Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
-    if (type==FULL_CIRCLE) return ell.TangentFrom(from, clockwise, cclockwise);
-    if (type==ARC && ell.TangentFrom(from, clockwise, cclockwise)) {
-        if (radianbetween(ell.Point2Radian(clockwise)))
+    if (arc && arc->type==EdgeArc::FULL_CIRCLE)
+        return arc->ell.TangentFrom(from, clockwise, cclockwise);
+    if (arc && arc->type==EdgeArc::ARC && arc->ell.TangentFrom(from, clockwise, cclockwise)) {
+        if (radianbetween(arc->ell.Point2Radian(clockwise)))
             clockwise  = minmax_clockwise(from, start, clockwise, true);
-        else 
+        else
             clockwise = start;
-        if (radianbetween(ell.Point2Radian(cclockwise)))
+        if (radianbetween(arc->ell.Point2Radian(cclockwise)))
             cclockwise = minmax_clockwise(from, start, cclockwise, false);
-        else 
+        else
             cclockwise = start;
     } else
         clockwise = cclockwise = start;

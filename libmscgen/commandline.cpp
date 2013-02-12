@@ -162,6 +162,31 @@ static void licence()
 "along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.\n");
 }
 
+void sizes() 
+{
+    std::cout << "Element:" << sizeof(Element) <<std::endl;
+    std::cout << "ArcBase:" << sizeof(ArcBase) <<std::endl;
+    std::cout << "ArcLabelled:" << sizeof(ArcLabelled) <<std::endl;
+    std::cout << "ArcDirArrow:" << sizeof(ArcDirArrow) <<std::endl;
+    std::cout << "ArcSelfArrow:" << sizeof(ArcSelfArrow) <<std::endl;
+    std::cout << "ArcBigArrow:" << sizeof(ArcBigArrow) <<std::endl;
+    std::cout << "ArcBox:" << sizeof(ArcBox) <<std::endl;
+    std::cout << "ArcBoxSeries:" << sizeof(ArcBoxSeries) <<std::endl;
+    std::cout << "ArcPipe:" << sizeof(ArcPipe) <<std::endl;
+    std::cout << "ArcPipeSeries:" << sizeof(ArcPipeSeries) <<std::endl;
+    std::cout << "ArcDivider:" << sizeof(ArcDivider) <<std::endl;
+    std::cout << "CommandEntity:" << sizeof(CommandEntity) <<std::endl;
+    std::cout << "EntityDef:" << sizeof(EntityDef) <<std::endl;
+    std::cout << "CommandNote:" << sizeof(CommandNote) <<std::endl;
+    std::cout << "CommandNewpage:" << sizeof(CommandNewpage) <<std::endl;
+    std::cout << "ArcParallel:" << sizeof(ArcParallel) <<std::endl;
+    std::cout << "Style:" << sizeof(MscStyle) <<std::endl;
+    std::cout << "ColorType:" << sizeof(ColorType) <<std::endl;
+    std::cout << "Contour:" << sizeof(Contour) <<std::endl;
+    std::cout << "SimpleContour:" << sizeof(contour::SimpleContour) <<std::endl;
+    std::cout << "Block:" << sizeof(Block) <<std::endl;
+}
+
 int do_main(const std::list<std::string> &args, const char *designs,
             string csh_textformat,
             MscProgress::ProgressCallback cb, void *param,

@@ -148,14 +148,14 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         const char *newname = a.name == "emphasis"?"box":"emptybox";
         if (a.name == "emphasis" || a.name == "emptyemphasis") {
             msc->Error.Warning(a.linenum_attr.start, "Stylename '" + a.name + "' is deprecated, using " + newname + " instead.");
-            operator +=(msc->Contexts.back().styles[newname]);
+            operator +=(msc->Contexts.back().styles[newname].read());
             return true;
         }
         if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        operator +=(msc->Contexts.back().styles[a.name]);
+        operator +=(msc->Contexts.back().styles[a.name].read());
         return true;
     }
     if (a.Is("line.width")) {
@@ -378,8 +378,19 @@ string MscStyle::Print(int) const
     return s;
 }
 
+
+MscStyle &StyleCoW::Copy()
+{
+    _ASSERT(p->ref_count>1);
+    p->ref_count--;
+    StyleCopy *p_new = new StyleCopy(p->style);
+    p = p_new;
+    return p->style;
+}
+
+
 /** Look up a style by name. Return the default style if not found.*/
-const MscStyle &StyleSet::GetStyle(const string &s) const
+const StyleCoW &StyleSet::GetStyle(const string &s) const
 {
     const_iterator i = find(s);
     if (i==end()) return defaultStyle;
@@ -563,134 +574,134 @@ void Context::Plain()
     colors["gray"]  = ColorType(150, 150, 150);
     colors["lgray"] = ColorType(200, 200, 200);
 
-    styles["arrow"].MakeCompleteButText();
-    styles["arrow"].compress.first = false;
-    styles["arrow"].numbering.first = false;
-    styles["arrow"].line.radius.second = -1;
+    styles["arrow"].write().MakeCompleteButText();
+    styles["arrow"].write().compress.first = false;
+    styles["arrow"].write().numbering.first = false;
+    styles["arrow"].write().line.radius.second = -1;
 
-    styles["->"].line.type.first = true;
-    styles["->"].line.type.second = LINE_SOLID;
-    styles[">"].line.type.first = true;
-    styles[">"].line.type.second = LINE_DOTTED;
-    styles[">>"].line.type.first = true;
-    styles[">>"].line.type.second = LINE_DASHED;
-    styles["=>"].line.type.first = true;
-    styles["=>"].line.type.second = LINE_DOUBLE;
+    styles["->"].write().line.type.first = true;
+    styles["->"].write().line.type.second = LINE_SOLID;
+    styles[">"].write().line.type.first = true;
+    styles[">"].write().line.type.second = LINE_DOTTED;
+    styles[">>"].write().line.type.first = true;
+    styles[">>"].write().line.type.second = LINE_DASHED;
+    styles["=>"].write().line.type.first = true;
+    styles["=>"].write().line.type.second = LINE_DOUBLE;
 
-    styles["blockarrow"].MakeCompleteButText();
-    styles["blockarrow"].compress.first = false;
-    styles["blockarrow"].numbering.first = false;
-    styles["blockarrow"].line.radius.second = -1;
+    styles["blockarrow"].write().MakeCompleteButText();
+    styles["blockarrow"].write().compress.first = false;
+    styles["blockarrow"].write().numbering.first = false;
+    styles["blockarrow"].write().line.radius.second = -1;
     styles["box_collapsed_arrow"] = styles["blockarrow"];
-    styles["box_collapsed_arrow"].arrow.midType.second = MSC_ARROW_DOT;
+    styles["box_collapsed_arrow"].write().arrow.midType.second = MSC_ARROW_DOT;
 
-    styles["block->"].line.type.first = true;
-    styles["block->"].line.type.second = LINE_SOLID;
-    styles["block>"].line.type.first = true;
-    styles["block>"].line.type.second = LINE_DOTTED;
-    styles["block>>"].line.type.first = true;
-    styles["block>>"].line.type.second = LINE_DASHED;
-    styles["block=>"].line.type.first = true;
-    styles["block=>"].line.type.second = LINE_DOUBLE;
+    styles["block->"].write().line.type.first = true;
+    styles["block->"].write().line.type.second = LINE_SOLID;
+    styles["block>"].write().line.type.first = true;
+    styles["block>"].write().line.type.second = LINE_DOTTED;
+    styles["block>>"].write().line.type.first = true;
+    styles["block>>"].write().line.type.second = LINE_DASHED;
+    styles["block=>"].write().line.type.first = true;
+    styles["block=>"].write().line.type.second = LINE_DOUBLE;
 
-    styles["vertical"].MakeCompleteButText();
-    styles["vertical"].compress.first = false;
-    styles["vertical"].numbering.first = false;
-    styles["vertical"].makeroom.second = false;
-    styles["vertical"].line.radius.second = -1;
+    styles["vertical"].write().MakeCompleteButText();
+    styles["vertical"].write().compress.first = false;
+    styles["vertical"].write().numbering.first = false;
+    styles["vertical"].write().makeroom.second = false;
+    styles["vertical"].write().line.radius.second = -1;
 
-    styles["vertical->"].line.type.first = true;
-    styles["vertical->"].line.type.second = LINE_SOLID;
-    styles["vertical>"].line.type.first = true; 
-    styles["vertical>"].line.type.second = LINE_DOTTED;
-    styles["vertical>>"].line.type.first = true;
-    styles["vertical>>"].line.type.second = LINE_DASHED;
-    styles["vertical=>"].line.type.first = true;
-    styles["vertical=>"].line.type.second = LINE_DOUBLE;
+    styles["vertical->"].write().line.type.first = true;
+    styles["vertical->"].write().line.type.second = LINE_SOLID;
+    styles["vertical>"].write().line.type.first = true; 
+    styles["vertical>"].write().line.type.second = LINE_DOTTED;
+    styles["vertical>>"].write().line.type.first = true;
+    styles["vertical>>"].write().line.type.second = LINE_DASHED;
+    styles["vertical=>"].write().line.type.first = true;
+    styles["vertical=>"].write().line.type.second = LINE_DOUBLE;
 
-    styles["vertical--"].arrow.startType.first = true;
-    styles["vertical--"].arrow.startType.second = MSC_ARROW_NONE;
-    styles["vertical--"].arrow.midType.first = true;
-    styles["vertical--"].arrow.midType.second = MSC_ARROW_NONE;
-    styles["vertical--"].arrow.endType.first = true;
-    styles["vertical--"].arrow.endType.second = MSC_ARROW_NONE;
-    styles["vertical--"].line.type.first = true;
-    styles["vertical--"].line.type.second = LINE_SOLID;
+    styles["vertical--"].write().arrow.startType.first = true;
+    styles["vertical--"].write().arrow.startType.second = MSC_ARROW_NONE;
+    styles["vertical--"].write().arrow.midType.first = true;
+    styles["vertical--"].write().arrow.midType.second = MSC_ARROW_NONE;
+    styles["vertical--"].write().arrow.endType.first = true;
+    styles["vertical--"].write().arrow.endType.second = MSC_ARROW_NONE;
+    styles["vertical--"].write().line.type.first = true;
+    styles["vertical--"].write().line.type.second = LINE_SOLID;
     styles["vertical++"] = styles["vertical--"];
-    styles["vertical++"].line.type.second = LINE_DASHED;
+    styles["vertical++"].write().line.type.second = LINE_DASHED;
     styles["vertical.."] = styles["vertical--"];
-    styles["vertical.."].line.type.second = LINE_DOTTED;
+    styles["vertical.."].write().line.type.second = LINE_DOTTED;
     styles["vertical=="] = styles["vertical--"];
-    styles["vertical=="].line.type.second = LINE_DOUBLE;
+    styles["vertical=="].write().line.type.second = LINE_DOUBLE;
 
-    styles["divider"].MakeCompleteButText();
-    styles["divider"].compress.first = false;
-    styles["divider"].numbering.first = false;
-    styles["divider"].vline.Empty();
-    styles["divider"].line.type.second = LINE_NONE;
+    styles["divider"].write().MakeCompleteButText();
+    styles["divider"].write().compress.first = false;
+    styles["divider"].write().numbering.first = false;
+    styles["divider"].write().vline.Empty();
+    styles["divider"].write().line.type.second = LINE_NONE;
 
-    styles["---"].line.type.first = true;
-    styles["---"].line.type.second = LINE_DOTTED;
-    styles["..."].vline.type.first = true;
-    styles["..."].vline.type.second = LINE_DOTTED;
-    styles["..."].text.Apply("\\mu(10)\\md(10)");
+    styles["---"].write().line.type.first = true;
+    styles["---"].write().line.type.second = LINE_DOTTED;
+    styles["..."].write().vline.type.first = true;
+    styles["..."].write().vline.type.second = LINE_DOTTED;
+    styles["..."].write().text.Apply("\\mu(10)\\md(10)");
 
-    styles["emptybox"].MakeCompleteButText();
-    styles["emptybox"].compress.first = false;
-    styles["emptybox"].numbering.first = false;
+    styles["emptybox"].write().MakeCompleteButText();
+    styles["emptybox"].write().compress.first = false;
+    styles["emptybox"].write().numbering.first = false;
     styles["box_collapsed"] = styles["emptybox"];
     styles["box"] = styles["emptybox"];
-    styles["box"].text.Apply("\\pl");
-    styles["box"].line.type.first = false;
+    styles["box"].write().text.Apply("\\pl");
+    styles["box"].write().line.type.first = false;
 
-    styles["--"].line.type.first = true;
-    styles["--"].line.type.second = LINE_SOLID;
-    styles["++"].line.type.first = true;
-    styles["++"].line.type.second = LINE_DASHED;
-    styles[".."].line.type.first = true;
-    styles[".."].line.type.second = LINE_DOTTED;
-    styles["=="].line.type.first = true;
-    styles["=="].line.type.second = LINE_DOUBLE;
+    styles["--"].write().line.type.first = true;
+    styles["--"].write().line.type.second = LINE_SOLID;
+    styles["++"].write().line.type.first = true;
+    styles["++"].write().line.type.second = LINE_DASHED;
+    styles[".."].write().line.type.first = true;
+    styles[".."].write().line.type.second = LINE_DOTTED;
+    styles["=="].write().line.type.first = true;
+    styles["=="].write().line.type.second = LINE_DOUBLE;
 
-    styles["pipe"].MakeCompleteButText();
-    styles["pipe"].compress.first = false;
-    styles["pipe"].numbering.first = false;
-    styles["pipe"].line.radius.second = 5;
+    styles["pipe"].write().MakeCompleteButText();
+    styles["pipe"].write().compress.first = false;
+    styles["pipe"].write().numbering.first = false;
+    styles["pipe"].write().line.radius.second = 5;
 
-    styles["pipe--"].line.type.first = true;
-    styles["pipe--"].line.type.second = LINE_SOLID;
-    styles["pipe++"].line.type.first = true;
-    styles["pipe++"].line.type.second = LINE_DASHED;
-    styles["pipe.."].line.type.first = true;
-    styles["pipe.."].line.type.second = LINE_DOTTED;
-    styles["pipe=="].line.type.first = true;
-    styles["pipe=="].line.type.second = LINE_DOUBLE;
+    styles["pipe--"].write().line.type.first = true;
+    styles["pipe--"].write().line.type.second = LINE_SOLID;
+    styles["pipe++"].write().line.type.first = true;
+    styles["pipe++"].write().line.type.second = LINE_DASHED;
+    styles["pipe.."].write().line.type.first = true;
+    styles["pipe.."].write().line.type.second = LINE_DOTTED;
+    styles["pipe=="].write().line.type.first = true;
+    styles["pipe=="].write().line.type.second = LINE_DOUBLE;
 
-    styles["entity"].MakeCompleteButText();
-    styles["entitygroup_collapsed"].MakeCompleteButText();
-    styles["entitygroup"].MakeCompleteButText();
-    styles["entitygroup"].line.type.second = LINE_DASHED;
+    styles["entity"].write().MakeCompleteButText();
+    styles["entitygroup_collapsed"].write().MakeCompleteButText();
+    styles["entitygroup"].write().MakeCompleteButText();
+    styles["entitygroup"].write().line.type.second = LINE_DASHED;
 
-    styles["indicator"].MakeCompleteButText();
-    styles["indicator"].line.width.second = 2;
+    styles["indicator"].write().MakeCompleteButText();
+    styles["indicator"].write().line.width.second = 2;
 
-    styles["symbol"].MakeCompleteButText();
+    styles["symbol"].write().MakeCompleteButText();
 
-    styles["note"].MakeCompleteButText();
-    styles["note"].numbering.first = false;
-    styles["note"].text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
+    styles["note"].write().MakeCompleteButText();
+    styles["note"].write().numbering.first = false;
+    styles["note"].write().text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
 
-    styles["comment"].MakeCompleteButText();
-    styles["comment"].numbering.first = false;
-    styles["comment"].text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+    styles["comment"].write().MakeCompleteButText();
+    styles["comment"].write().numbering.first = false;
+    styles["comment"].write().text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
 
-    styles["title"].MakeCompleteButText();
-    styles["title"].vline.type.second = LINE_NONE;
-    styles["title"].line.type.second = LINE_NONE;
-    styles["title"].fill.color.second = ColorType(0,0,0,0); //no fill
-    styles["title"].text += "\\mn(28)\\ms(18)\\B";
+    styles["title"].write().MakeCompleteButText();
+    styles["title"].write().vline.type.second = LINE_NONE;
+    styles["title"].write().line.type.second = LINE_NONE;
+    styles["title"].write().fill.color.second = ColorType(0,0,0,0); //no fill
+    styles["title"].write().text += "\\mn(28)\\ms(18)\\B";
     styles["subtitle"] = styles["title"];
-    styles["subtitle"].text += "\\mn(22)\\ms(14)\\B";
+    styles["subtitle"].write().text += "\\mn(22)\\ms(14)\\B";
     
     //Ok, now "weak" and "strong"
     MscStyle style = MscStyle(STYLE_STYLE); //has everything, but is empty

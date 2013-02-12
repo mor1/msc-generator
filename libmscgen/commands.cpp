@@ -464,7 +464,7 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         const EIterator ei = (*i_def)->itr;
         left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
         right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf(ei, false));
-        (*i_def)->parsed_label.Set((*ei)->label, canvas, (*ei)->running_style.text);
+        (*i_def)->parsed_label.Set((*ei)->label, canvas, (*ei)->running_style.read().text);
         double w = (*i_def)->Width();
         if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
@@ -503,7 +503,7 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
             //find leftmost and rightmost active entity 
             //and expand us by linewidth and space
             const EIterator j_ent = (*i)->itr;
-            double expand = chart->emphVGapInside + (*i)->style.line.LineWidth();
+            double expand = chart->emphVGapInside + (*i)->style.read().line.LineWidth();
             (*i)->left_ent = chart->FindWhoIsShowingInsteadOf(j_ent, true);
             (*i)->right_ent= chart->FindWhoIsShowingInsteadOf(j_ent, false);
             (*i)->left_offset = dist[(*(*i)->left_ent)->index].first += expand; 
@@ -1153,7 +1153,7 @@ CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
             chart->Error.Error(vpos.dline.start, "Symbol '...' can only have one horizontal position indicated. Ignoring second one.");
             vpos.src.clear();
         }
-        style.fill.color.second = style.line.color.second;
+        style.write().fill.color.second = style.read().line.color.second;
     }
 }
 
@@ -1201,7 +1201,7 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
         a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
         return true;
     }
-    if (style.AddAttribute(a, chart)) return true;
+    if (style.write().AddAttribute(a, chart)) return true;
     return ArcCommand::AddAttribute(a);
 }
 
@@ -1211,7 +1211,7 @@ void CommandSymbol::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
-    defaultDesign.styles.GetStyle("symbol").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("symbol").read().AttributeNames(csh);
 }
 
 bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
@@ -1229,7 +1229,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
-    if (defaultDesign.styles.GetStyle("symbol").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("symbol").read().AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -1313,7 +1313,7 @@ void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances)
 void CommandSymbol::Layout(Canvas &canvas, AreaList &cover)
 {
     //Calculate x positions
-    const double lw = style.line.LineWidth();
+    const double lw = style.read().line.LineWidth();
     double x1 = hpos1.CalculatePos(*chart);
     switch (hpos2.side) {
     case ExtVertXPos::NONE:
@@ -1365,11 +1365,11 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList &cover)
     CalculateAreaFromOuterEdge();
     area_important = area;
     chart->NoteBlockers.Append(this);
-    if (style.shadow.offset.second)
-        cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+    if (style.read().shadow.offset.second)
+        cover = area + area.CreateShifted(XY(style.read().shadow.offset.second, style.read().shadow.offset.second));
     else
         cover = area;
-    height = outer_edge.y.till + style.shadow.offset.second;
+    height = outer_edge.y.till + style.read().shadow.offset.second;
     LayoutComments(canvas, cover);
 }
 
@@ -1399,7 +1399,7 @@ void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
     else if (outer_edge.y.from == outer_edge.y.till)
         outer_edge.y.Expand(ysize.second/2);
 
-    outer_edge.y.Expand(style.line.LineWidth()/2);
+    outer_edge.y.Expand(style.read().line.LineWidth()/2);
 
     CalculateAreaFromOuterEdge();
 }
@@ -1412,7 +1412,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
                            outer_edge.y.Spans()/2);
             break;
         case RECTANGLE:
-            area = style.line.CreateRectangle_OuterEdge(outer_edge);
+            area = style.read().line.CreateRectangle_OuterEdge(outer_edge);
             break;
         case ELLIPSIS:
             const double r = outer_edge.x.Spans()/2;
@@ -1432,17 +1432,17 @@ void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
     switch (symbol_type) {
         case ARC:
         case ELLIPSIS:
-            canvas.Shadow(area, style.shadow);
-            canvas.Fill(area.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()),
-                        style.fill);
-            canvas.Line(area.CreateExpand(-style.line.LineWidth()/2), style.line);
+            canvas.Shadow(area, style.read().shadow);
+            canvas.Fill(area.CreateExpand(-style.read().line.LineWidth()/2-style.read().line.Spacing()),
+                        style.read().fill);
+            canvas.Line(area.CreateExpand(-style.read().line.LineWidth()/2), style.read().line);
             break;
         case RECTANGLE:
             //canvas operations on blocks take the midpoint
-            const Block mid = outer_edge.CreateExpand(-style.line.LineWidth()/2);
-            canvas.Shadow(mid, style.line, style.shadow);
-            canvas.Fill(mid, style.line, style.fill);
-            canvas.Line(mid, style.line);
+            const Block mid = outer_edge.CreateExpand(-style.read().line.LineWidth()/2);
+            canvas.Shadow(mid, style.read().line, style.read().shadow);
+            canvas.Fill(mid, style.read().line, style.read().fill);
+            canvas.Line(mid, style.read().line);
             break;
     }
 }
@@ -1476,8 +1476,8 @@ bool CommandNote::AddAttribute(const Attribute &a)
             //delete even the default orientation
             float_dir_x = float_dir_y = 0;
             float_dist.first=false;
-            style.note.def_float_dist.second = style.note.def_float_x.second = 
-                style.note.def_float_y.second = 0; 
+            style.write().note.def_float_dist.second = style.write().note.def_float_x.second = 
+                style.write().note.def_float_y.second = 0; 
         } else if (Convert(a.value, tmp)) {
             switch(tmp) {
             default:
@@ -1503,12 +1503,12 @@ bool CommandNote::AddAttribute(const Attribute &a)
 void CommandNote::AttributeNames(Csh &csh, bool is_float)
 {
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeNames(csh);
+    defaultDesign.styles.GetStyle(is_float ? "note" : "comment").read().AttributeNames(csh);
 }
 
 bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_float)
 {
-    if (defaultDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle(is_float ? "note" : "comment").read().AttributeValues(attr, csh)) return true;
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
@@ -1555,9 +1555,9 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
     if (al) {
         numberingStyle = al->numberingStyle;
         number_text = al->number_text;
-        style.numbering.second = al->style.numbering.second && number_text.length(); //skip numbering if target has no number
+        style.write().numbering.second = al->style.read().numbering.second && number_text.length(); //skip numbering if target has no number
     } else
-        style.numbering.second = false; //if target is not an ArcLabelled (e.g., EntityDef)
+        style.write().numbering.second = false; //if target is not an ArcLabelled (e.g., EntityDef)
     ArcLabelled::FinalizeLabels(canvas);
 }
 
@@ -1566,13 +1566,13 @@ void CommandNote::Width(Canvas &/*canvas*/, EntityDistanceMap &distances)
     if (!valid) return;
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
     if (is_float) {
-        halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
+        halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.read().line.LineWidth(), style.read().line.LineWidth());
     } else {
         //Here we only make space if the note is on the side
         const double w = parsed_label.getTextWidthHeight().x;
-        if (style.side.second == SIDE_LEFT)
+        if (style.read().side.second == SIDE_LEFT)
             distances.Insert(chart->LNote->index, DISTANCE_LEFT, w);
-        else if (style.side.second == SIDE_RIGHT)
+        else if (style.read().side.second == SIDE_RIGHT)
             distances.Insert(chart->RNote->index, DISTANCE_RIGHT, w);
     }
 }
@@ -1588,7 +1588,7 @@ void CommandNote::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
 Contour CommandNote::CoverBody(Canvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
 {
     _ASSERT(is_float);
-    return style.line.CreateRectangle_Midline(center-halfsize, center+halfsize);
+    return style.read().line.CreateRectangle_Midline(center-halfsize, center+halfsize);
 }
 
 const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
@@ -1596,16 +1596,16 @@ const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
 double CommandNote::pointer_width(double distance) const
 {
     _ASSERT(is_float);
-    switch (style.note.pointer.second) {
+    switch (style.read().note.pointer.second) {
     default: _ASSERT(0);
     case NoteAttr::NONE:
         return 0;
     case NoteAttr::CALLOUT:
         return std::min(pointer_width_max, pointer_width_min + distance/pointer_width_div);
     case NoteAttr::BLOCKARROW:
-        return style.arrow.getBigWidthHeight(style.arrow.endType.second, style.line).y;
+        return style.read().arrow.getBigWidthHeight(style.read().arrow.endType.second, style.read().line).y;
     case NoteAttr::ARROW:
-        return style.line.LineWidth();
+        return style.read().line.LineWidth();
     }
 }
 
@@ -1615,8 +1615,8 @@ Contour CommandNote::cover_pointer(Canvas &/*canvas*/, const XY &pointto, const 
     const double l = center.Distance(pointto);
     if (contour::test_zero(l)) return Contour();
     const double width = pointer_width(l);
-    _ASSERT(style.note.IsComplete());
-    switch (style.note.pointer.second) {
+    _ASSERT(style.read().note.IsComplete());
+    switch (style.read().note.pointer.second) {
     default: _ASSERT(0);
     case NoteAttr::NONE: return Contour();
     case NoteAttr::CALLOUT: {
@@ -1631,19 +1631,19 @@ Contour CommandNote::cover_pointer(Canvas &/*canvas*/, const XY &pointto, const 
     v[0] = pointto.x - l; v[1] = pointto.x;
     a[0] = a[1] = 0;
     Contour ret;
-    if (style.note.pointer.second == NoteAttr::BLOCKARROW) {
+    if (style.read().note.pointer.second == NoteAttr::BLOCKARROW) {
         const double size_mul = 3;
         std::vector<Contour> vc;
         v[0] *= size_mul;
         v[1] *= size_mul;
-        ret = style.arrow.BigContour(v, a, (pointto.y-width/3)*size_mul, (pointto.y+width/3)*size_mul, true, false, NULL, vc);
+        ret = style.read().arrow.BigContour(v, a, (pointto.y-width/3)*size_mul, (pointto.y+width/3)*size_mul, true, false, NULL, vc);
         ret.Scale(1/size_mul);
     } else {
-        const Contour clip = style.arrow.ClipForLine(pointto, 0, true, false, MSC_ARROW_END,
+        const Contour clip = style.read().arrow.ClipForLine(pointto, 0, true, false, MSC_ARROW_END,
                                          Block(v[0],v[1], 
                                          chart->GetDrawing().y.from, chart->GetDrawing().y.till),
-                                         style.line, style.line);
-        ret = style.arrow.Cover(pointto, 0, true, false, MSC_ARROW_END, style.line, style.line);
+                                         style.read().line, style.read().line);
+        ret = style.read().arrow.Cover(pointto, 0, true, false, MSC_ARROW_END, style.read().line, style.read().line);
         ret += Contour(v[0], v[1], pointto.y-width/2, pointto.y+width/2) * clip;
     }
     //Now rotate around pointto so that startpoint is in "center"
@@ -1969,11 +1969,11 @@ void CommandNote::PlaceFloating(Canvas &canvas)
     //Do a shorter alias
     const unsigned RD = region_distances;
     if (!float_dist.first)
-        float_dist = style.note.def_float_dist;
-    if (float_dir_x==0 && style.note.def_float_x.first) 
-        float_dir_x = style.note.def_float_x.second;
-    if (float_dir_y==0 && style.note.def_float_y.first) 
-        float_dir_y = style.note.def_float_y.second;
+        float_dist = style.read().note.def_float_dist;
+    if (float_dir_x==0 && style.read().note.def_float_x.first) 
+        float_dir_x = style.read().note.def_float_x.second;
+    if (float_dir_y==0 && style.read().note.def_float_y.first) 
+        float_dir_y = style.read().note.def_float_y.second;
 
     //Normalize attributes
     if (abs(float_dist.second) > RD/2)
@@ -2373,8 +2373,8 @@ void CommandNote::PlaceFloating(Canvas &canvas)
     point_to = best_pointto;
     //now a hack: decrease halfsize by half a linewidth, from now on CoverAll
     //is assumed to return the midline.
-    halfsize.x -= style.line.LineWidth()/2;
-    halfsize.y -= style.line.LineWidth()/2;
+    halfsize.x -= style.read().line.LineWidth()/2;
+    halfsize.y -= style.read().line.LineWidth()/2;
     area = CoverAll(canvas, best_pointto, best_center);
     area_important = area;
     chart->NoteBlockers.Append(this);
@@ -2387,7 +2387,7 @@ void CommandNote::PlaceSideTo(Canvas &, AreaList &cover, double &y)
    if (!valid) return;
     _ASSERT(!is_float);
     yPos = y;
-    if (style.side.second == SIDE_LEFT)
+    if (style.read().side.second == SIDE_LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, 
                                   chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, 
                                   yPos);
@@ -2417,34 +2417,34 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
     if (!valid || pass!=draw_pass) return;
     if (is_float) {
         Contour cover;
-        if (style.note.pointer.second == NoteAttr::ARROW) {
+        if (style.read().note.pointer.second == NoteAttr::ARROW) {
             cover = CoverBody(canvas, pos_center);
-            const Range r = cover.CreateExpand(style.line.Spacing()).Cut(point_to, pos_center);
+            const Range r = cover.CreateExpand(style.read().line.Spacing()).Cut(point_to, pos_center);
             const double len = r.from * point_to.Distance(pos_center);
-            style.arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
+            style.read().arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
                                                       canvas, point_to.x, point_to.y);
             std::vector<double> v(2), a(2);
             v[0] = point_to.x - len; v[1] = point_to.x;
             a[0] = a[1] = 0;
-            const Contour clip = style.arrow.ClipForLine(point_to, 0, true, false, MSC_ARROW_END,
+            const Contour clip = style.read().arrow.ClipForLine(point_to, 0, true, false, MSC_ARROW_END,
                                              Block(v[0],v[1], 
                                              chart->GetDrawing().y.from, chart->GetDrawing().y.till),
-                                             style.line, style.line);
+                                             style.read().line, style.read().line);
             canvas.Clip(clip);
-            canvas.Line(point_to, point_to - XY(len,0), style.line);
+            canvas.Line(point_to, point_to - XY(len,0), style.read().line);
             canvas.UnClip();
-            style.arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.line, style.line, &canvas);
-            style.arrow.UnTransformCanvas(canvas);
+            style.read().arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.read().line, style.read().line, &canvas);
+            style.read().arrow.UnTransformCanvas(canvas);
         } else
             cover = CoverAll(canvas, point_to, pos_center);
-        canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
-        canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
-        canvas.Line(cover, style.line);
-        const double w2 = halfsize.x - style.line.LineWidth();
+        canvas.Shadow(cover.CreateExpand(style.read().line.Spacing()), style.read().shadow);
+        canvas.Fill(cover.CreateExpand(-style.read().line.Spacing()), style.read().fill);
+        canvas.Line(cover, style.read().line);
+        const double w2 = halfsize.x - style.read().line.LineWidth();
         parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
-            pos_center.y-halfsize.y+style.line.LineWidth());
+            pos_center.y-halfsize.y+style.read().line.LineWidth());
         return;
-    } else switch (style.side.second) {
+    } else switch (style.read().side.second) {
     default:
         _ASSERT(0);
         return;

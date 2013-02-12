@@ -487,8 +487,8 @@ ArcArrow *Msc::CreateArcArrow(EArcType t, const char*s, FileLineColRange sl,
 {
     if (strcmp(s,d))
         return new ArcDirArrow(t, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
-    MscStyle style = Contexts.back().styles["arrow"];
-    style.text.Apply("\\pr");
+    StyleCoW style = Contexts.back().styles["arrow"];
+    style.write().text.Apply("\\pr");
     return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
 }
 
@@ -514,11 +514,11 @@ CommandEntity *Msc::CEForComments(const MscStyle &s, const FileLineColRange &l)
 {
     EntityDef *led = new EntityDef(LNOTE_ENT_STR, this);
     led->SetLineEnd(l);
-    led->style += s;
+    led->style.write() += s;
     EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, FileLineCol());
     EntityDef *red = new EntityDef(RNOTE_ENT_STR, this);
     red->SetLineEnd(l);
-    red->style += s;
+    red->style.write() += s;
     EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, FileLineCol());
     redh->Prepend(ledh);
     delete ledh;
@@ -1095,7 +1095,7 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
         for (/*none*/; up.y < till; up.y = down.y) {
             const double show_till = status.ShowTill(up.y);
             const double style_till = status.StyleTill(up.y);
-            const MscStyle &style = status.GetStyle(up.y);
+            const MscStyle &style = status.GetStyle(up.y).read();
             down.y = std::min(std::min(show_till, style_till), till);
             //we are turned off below -> do nothing
             if (!status.GetStatus(up.y).IsOn())
@@ -2058,10 +2058,10 @@ void Msc::DrawChart(Canvas &canvas, bool pageBreaks)
         double pos = total.y.from, till = total.y.from;
         do {
             till = note->status.StyleTill(till);
-            if (till<total.y.till && note->status.GetStyle(pos).fill == note->status.GetStyle(till).fill)
+            if (till<total.y.till && note->status.GetStyle(pos).read().fill == note->status.GetStyle(till).read().fill)
                 continue;  //go until "fill" changes
             if (till>total.y.till) till = total.y.till;
-            canvas.Fill(Block(x, Range(pos, till)), note->status.GetStyle(pos).fill);
+            canvas.Fill(Block(x, Range(pos, till)), note->status.GetStyle(pos).read().fill);
             pos = till;
         } while (pos<total.y.till);
     }

@@ -150,7 +150,7 @@ void Element::ShiftBy(double y)
 void Element::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r)
 {
     for (auto c = comments.begin(); c!=comments.end(); c++)
-        (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().side.second == SIDE_LEFT ? l : r);
+        (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().read().side.second == SIDE_LEFT ? l : r);
     comment_height = std::max(l, r);
 }
 
@@ -277,7 +277,7 @@ Block Element::GetIndicatorCover(const XY &pos)
 {
     Block b(pos.x-indicator_size.x/2, pos.x+indicator_size.x/2,
             pos.y, pos.y+indicator_size.y);
-    return b.Expand(indicator_style.line.LineWidth());
+    return b.Expand(indicator_style.read().line.LineWidth());
 }
 
 /** Draw an indicator.
@@ -288,13 +288,13 @@ void Element::DrawIndicator(XY pos, Canvas *canvas)
     if (canvas==NULL) return;
 
     const Block area = GetIndicatorCover(pos);
-    canvas->Shadow(area, indicator_style.line, indicator_style.shadow);
-    canvas->Fill(area, indicator_style.line, indicator_style.fill);
-    canvas->Line(area, indicator_style.line);
+    canvas->Shadow(area, indicator_style.read().line, indicator_style.read().shadow);
+    canvas->Fill(area, indicator_style.read().line, indicator_style.read().fill);
+    canvas->Line(area, indicator_style.read().line);
 
     cairo_save(canvas->GetContext());
     cairo_set_line_cap(canvas->GetContext(), CAIRO_LINE_CAP_ROUND);
-    LineAttr line(indicator_style.line);
+    LineAttr line(indicator_style.read().line);
     line.width.second = area.y.Spans()/4;
     line.type.second = LINE_SOLID;
     pos.y += indicator_size.y/2;

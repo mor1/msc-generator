@@ -116,17 +116,53 @@ public:
     std::string Print(int ident = 0) const;
 };
 
+/** A copy of an MscStyle object with a refernce counter.
+ * Used by StyleCoW */
+class StyleCopy
+{
+public: 
+    MscStyle style;     ///<The style itself
+    unsigned ref_count; ///<How many StyleCoW refernces us
+    explicit StyleCopy(EStyleType tt=STYLE_STYLE) : style(tt), ref_count(1) {}
+    explicit StyleCopy(const MscStyle &s) : style(s), ref_count(1) {}
+};
+
+/** A Copy-on-Write style.
+ * If we copy it, we just copy a reference. 
+ * Then, if we modify it, we actually span a copy.*/
+class StyleCoW 
+{
+protected:
+    StyleCopy *p;
+    MscStyle &Copy();
+    void Dereference() {if (--p->ref_count) return; delete p; p=NULL;}
+public:
+    explicit StyleCoW(EStyleType tt=STYLE_STYLE) : p(new StyleCopy(tt)) {}
+    explicit StyleCoW(const MscStyle &o) : p(new StyleCopy(o)) {}
+    StyleCoW(const StyleCoW &o) : p(o.p) {p->ref_count++;}
+    ~StyleCoW() {Dereference();}
+    /** Applies another style to us */
+    StyleCoW &operator +=(const StyleCoW &o) {write()+=o.read(); return *this;}
+    StyleCoW &operator = (const StyleCoW &o) {Dereference(); p=o.p; p->ref_count++; return *this;}
+    StyleCoW &operator = (const MscStyle &o) {Dereference(); p=new StyleCopy(o); return *this;}
+    /** Take a reference to the MscStyle object for reading */
+    const MscStyle &read() const {return p->style;}
+    /** Take a reference to the MscStyle object for writing */
+    MscStyle &write() {if (p->ref_count==1) return p->style; return Copy();}
+};
+
+
 /** A set of styles associated by name.
  * The set also contains a default style that is returned, when
  * a style name is not found.
  */
-class StyleSet : public std::map<std::string, MscStyle>
+class StyleSet : public std::map<std::string, StyleCoW>
 {
-    MscStyle defaultStyle; ///<The default style.
+    StyleCoW defaultStyle; ///<The default style.
 public:
     StyleSet() {} //def style is empty
     explicit StyleSet(const MscStyle &a) : defaultStyle(a) {}
-    const MscStyle &GetStyle(const string&) const;
+    const StyleCoW &GetStyle(const string&) const;
 };
 
 /** A context containing style and color definitions and chart option values.

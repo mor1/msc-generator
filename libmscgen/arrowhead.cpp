@@ -97,7 +97,7 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name].read();
         if (style.f_arrow) operator +=(style.arrow);
         return true;
     }

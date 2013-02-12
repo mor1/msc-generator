@@ -32,7 +32,7 @@ template class PtrList<Entity>;
  * @param [in] fp The location of the entity definition in the input file.
  * @param [in] coll True if we are group, but show collapsed. */
 Entity::Entity(const string &n, const string &l, const string &ol,
-    double p, double pe, const MscStyle &entity_style, const FileLineCol &fp,
+    double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
                bool coll) :
     name(n), label(l), orig_label(ol), file_pos(fp), pos(p), pos_exp(pe),
     index(0), status(entity_style),
@@ -92,7 +92,7 @@ double Entity::GetRunningWidth(double activeEntitySize) const
 {
     if (!running_shown.IsOn()) return 0;
     if (running_shown.IsActive()) return activeEntitySize;
-    return running_style.vline.LineWidth();
+    return running_style.read().vline.LineWidth();
 }
 
 /** Prints the entity name and position*/
@@ -146,7 +146,7 @@ EntityDef::EntityDef(const char *s, Msc* msc) : Element(msc),
     defining(false),
     draw_heading(false)
 {
-    style.Empty();
+    style.write().Empty();
 }
 
 /** Take an attribute and apply it to us.
@@ -225,27 +225,27 @@ bool EntityDef::AddAttribute(const Attribute& a)
     if (a.Is("color")) {
         bool was = false;
         // MSC_ATTR_CLEAR is handled by individual attributes below
-        if (style.f_line) {
-            style.line.AddAttribute(a, chart, style.type);
+        if (style.read().f_line) {
+            style.write().line.AddAttribute(a, chart, style.read().type);
             was = true;
         }
-        if (style.f_vline) {
-            style.vline.AddAttribute(a, chart, style.type);
+        if (style.read().f_vline) {
+            style.write().vline.AddAttribute(a, chart, style.read().type);
             was = true;
         }
-        if (style.f_text) {
-            style.text.AddAttribute(a, chart, style.type);
+        if (style.read().f_text) {
+            style.write().text.AddAttribute(a, chart, style.read().type);
             was = true;
         }
         return was;
     }
-    if (style.AddAttribute(a, chart)) return true;
     if (a.Is("id")) {
         s << "Attribute '"<< a.name <<"' is no longer supported. Ignoring it.";
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
     if (Element::AddAttribute(a)) return true;
+    if (style.write().AddAttribute(a, chart)) return true;
     a.InvalidAttrError(chart->Error);
     return false;
 };
@@ -409,23 +409,23 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
         //create a fully specified string format for potential \s() \f() \c() and \mX() in label
         //also take a proper starting style and add the contents of "style" (from attributes)
-        MscStyle style_to_use = chart->Contexts.back().styles[style_name];
-        style_to_use.text = chart->Contexts.back().text;                     //default text
-        style_to_use.text +=chart->Contexts.back().styles[style_name].text;  //entity style text
+        StyleCoW style_to_use = chart->Contexts.back().styles[style_name];
+        style_to_use.write().text = chart->Contexts.back().text;                     //default text
+        style_to_use.write().text +=chart->Contexts.back().styles[style_name].read().text;  //entity style text
         style_to_use += style;
 
         //If "entity" style contains no "indicator" value (the default in plain)
         //we use the value from the context (true by default)
-        if (!style_to_use.indicator.first) {
-            style_to_use.indicator.first = true;
-            style_to_use.indicator.second = chart->Contexts.back().indicator.second;
+        if (!style_to_use.read().indicator.first) {
+            style_to_use.write().indicator.first = true;
+            style_to_use.write().indicator.second = chart->Contexts.back().indicator.second;
         }
 
         //Create parsed label
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
         StringFormat::ExpandReferences(proc_label, chart, linenum_label_value,
-                                          &style_to_use.text, false, true, StringFormat::LABEL);
+                                          &style_to_use.read().text, false, true, StringFormat::LABEL);
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
@@ -485,7 +485,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    defaultDesign.styles.GetStyle("entity").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
 
@@ -514,7 +514,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (Element::AttributeValues(attr, csh)) return true;
-    if (defaultDesign.styles.GetStyle("entity").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("entity").read().AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -528,7 +528,7 @@ string EntityDef::Print(int ident) const
     if (pos.first) ss << " pos:" << pos.second;
     if (rel.first) ss << " rel:" << rel.second;
     if (show.first) ss << " show:" << show.second;
-    ss << " " << style.Print();
+    ss << " " << style.read().Print();
     return ss;
 };
 
@@ -551,9 +551,9 @@ void EntityDef::Combine(EntityDef *ed)
 double EntityDef::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x;
-    if ((*itr)->children_names.size() && style.indicator.second && (*itr)->collapsed)
+    if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
         inner = std::max(inner, GetIndiactorSize().x + 2*chart->emphVGapInside);
-    const double width = ceil(style.line.LineWidth()*2 + inner);
+    const double width = ceil(style.read().line.LineWidth()*2 + inner);
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
 
@@ -571,10 +571,10 @@ double EntityDef::Width() const
 Range EntityDef::Height(Area &cover, const EntityDefList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
-    const double lw = style.line.LineWidth();
+    const double lw = style.read().line.LineWidth();
     const double x = chart->XCoord((*itr)->pos); //integer
     if (children.size()==0) {
-        if ((*itr)->children_names.size() && style.indicator.second)
+        if ((*itr)->children_names.size() && style.read().indicator.second)
             indicator_ypos_offset = wh.y + lw + chart->emphVGapInside;
         else
             indicator_ypos_offset = -1;
@@ -587,7 +587,7 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
                            chart->headingVGapAbove /*- indicator_height*/,
                            height - chart->headingVGapBelow /*-indicator_height*/);
 
-        area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
+        area = style.read().line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
         area_draw.clear();
         draw_is_different = false;
         area_draw_is_frame = false;
@@ -598,19 +598,19 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
         double top = 0, bottom = 0;
         for (auto i = children.begin(); i!=children.end(); i++) {
             top =    std::min(top,    (*i)->outer_edge.y.from);
-            bottom = std::max(bottom, (*i)->outer_edge.y.till + (*i)->style.shadow.offset.second);
+            bottom = std::max(bottom, (*i)->outer_edge.y.till + (*i)->style.read().shadow.offset.second);
         }
         outer_edge.y.from = top - chart->headingVGapAbove - ceil(wh.y + lw);
         outer_edge.y.till = bottom + chart->headingVGapBelow + lw;
 
-        area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
+        area = style.read().line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
         area_draw = area.CreateExpand(chart->trackFrameWidth) - area;
         draw_is_different = true;
         area_draw_is_frame = true;
     }
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
-    Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
+    Area my_cover(Block(outer_edge).Shift(XY(style.read().shadow.offset.second,style.read().shadow.offset.second)) += outer_edge, this);
     my_cover.mainline = Block(chart->GetDrawing().x, outer_edge.y);
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
@@ -618,7 +618,7 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     if (children.size()) 
         area_draw += area_important;
     chart->NoteBlockers.Append(this);
-    return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
+    return Range(outer_edge.y.from, outer_edge.y.till + style.read().shadow.offset.second);
 }
 
 /** Add a small block blocking notes for EntityDef objects displaying no heading.
@@ -630,7 +630,7 @@ void EntityDef::AddAreaImportantWhenNotShowing()
     const EIterator e = chart->FindWhoIsShowingInsteadOf(itr, false); 
     //"e" may be equal to "itr" if we are not hidden
     const double xpos = chart->XCoord((*e)->pos);
-    const double w2 = style.line.LineWidth()/2;
+    const double w2 = style.read().line.LineWidth()/2;
     area_important = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
     area_to_note = area_important;
     chart->NoteBlockers.Append(this);
@@ -673,26 +673,26 @@ void EntityDef::PostPosProcess(Canvas &canvas)
  * and we use the style we finalized in CommandEntity::PostParseProcess()*/
 void EntityDef::Draw(Canvas &canvas)
 {
-    const double lw = style.line.LineWidth();
+    const double lw = style.read().line.LineWidth();
 
     Block b(outer_edge);
-    LineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
+    LineAttr line2 = style.read().line;   //style.line.radius corresponds to midpoint of line
     line2.radius.second = std::min(std::min(outer_edge.y.Spans()/2 - lw, outer_edge.x.Spans()/2 - lw),
                                     line2.radius.second);
     if (line2.radius.second>0)
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
-    canvas.Shadow(b, style.line, style.shadow);
-    if (style.fill.color.first && style.fill.color.second.valid) {
-        b.Expand(-lw+style.line.width.second);
-        line2.radius.second += -lw+style.line.width.second; //only decreases radius
-        canvas.Fill(b, style.line, style.fill);
+    canvas.Shadow(b, style.read().line, style.read().shadow);
+    if (style.read().fill.color.first && style.read().fill.color.second.valid) {
+        b.Expand(-lw+style.read().line.width.second);
+        line2.radius.second += -lw+style.read().line.width.second; //only decreases radius
+        canvas.Fill(b, style.read().line, style.read().fill);
     }
     Block b2(outer_edge);
     b2.Expand(-lw/2);
-    line2 = style.line;
+    line2 = style.read().line;
     line2.radius.second -= lw/2;
-    canvas.Line(b2, style.line);
+    canvas.Line(b2, style.read().line);
 
     //Draw text
     parsed_label.Draw(canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);

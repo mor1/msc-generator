@@ -210,8 +210,8 @@ class CommandSymbol : public ArcCommand
 protected:
     typedef enum {ARC, RECTANGLE, ELLIPSIS} ESymbolType;
     static const double ellipsis_space_ratio;
-    ESymbolType              symbol_type;
-    MscStyle                style;
+    ESymbolType             symbol_type;
+    StyleCoW                style;
     ExtVertXPos             hpos1, hpos2;
     NamePair                vpos;
     std::pair<bool, double> xsize, ysize;  //used for 'arc' and 'rectangle'

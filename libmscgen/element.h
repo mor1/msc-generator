@@ -92,10 +92,10 @@ protected:
     std::vector<EGUIControlType> 
            controls;           ///<GUI controls of this element.
     Block  control_location;   ///<The area the GUI controls occupy.
-    const MscStyle 
+    const StyleCoW 
            indicator_style;    ///<The style to be used if we need to replace this with an indicator
     /** Returns the size of an indicator that is supposed to replace us considering `indicator_style`*/
-    XY GetIndiactorSize() const {const double a = indicator_style.shadow.offset.second+indicator_style.line.LineWidth()*2; return indicator_size+XY(a,a);}
+    XY GetIndiactorSize() const {const double a = indicator_style.read().shadow.offset.second+indicator_style.read().line.LineWidth()*2; return indicator_size+XY(a,a);}
 
 public:
     EDrawPassType    draw_pass; ///<Gives the Z-order position of this arc 

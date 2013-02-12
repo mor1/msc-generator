@@ -355,7 +355,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    CHAR_IF_CSH(EArcType)        arctype;
+    CHAR_IF_CSH(EArcType)          arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
     CHAR_IF_CSH(EntityDefHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
@@ -4696,12 +4696,12 @@ yyreduce:
         std::list<string> problem;
         bool had_generic = false;
         for (auto s = ((yyvsp[(1) - (2)].stringlist))->begin(); s!=((yyvsp[(1) - (2)].stringlist))->end(); s++) {
-            MscStyle style = msc.Contexts.back().styles.GetStyle(*s); //may be default style
-            if (style.AddAttribute(**a, &msc))
+            StyleCoW style = msc.Contexts.back().styles.GetStyle(*s); //may be default style
+            if (style.write().AddAttribute(**a, &msc))
                msc.Contexts.back().styles[*s] = style;
             else {
                problem.push_back(*s);
-               had_generic |= (style.type == STYLE_STYLE);
+               had_generic |= (style.read().type == STYLE_STYLE);
             }
         }
         if (problem.size()==0) continue;
