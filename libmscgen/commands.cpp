@@ -31,7 +31,7 @@ string ArcCommand::Print(int ident) const
     return ss;
 }
 
-void ArcCommand::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
+void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     height = 0;
     if (!valid) return;
@@ -553,14 +553,14 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
 }
 
 //Here we add to "cover", do not overwrite it
-void CommandEntity::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r)
+void CommandEntity::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r)
 {
     for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
         (*i_def)->LayoutCommentsHelper(canvas, cover, l, r);
     Element::LayoutCommentsHelper(canvas, cover, l, r); //sets comment_height
 }
 
-void CommandEntity::Layout(Canvas &canvas, AreaList &cover)
+void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
 {
     if (!valid || hidden) return;
     Range hei(0,0);
@@ -589,7 +589,8 @@ void CommandEntity::Layout(Canvas &canvas, AreaList &cover)
         //fills (*i)->area_important 
         Area entity_cover;
         hei += (*i)->Height(entity_cover, edl); 
-        cover += GetCover4Compress(entity_cover);
+        if (cover) 
+            *cover += GetCover4Compress(entity_cover);
         area += (*i)->GetAreaToSearch();
         area_to_note += (*i)->GetAreaToNote();
         num_showing ++;
@@ -598,8 +599,8 @@ void CommandEntity::Layout(Canvas &canvas, AreaList &cover)
         _ASSERT(!internally_defined); //internally defined entitydefs should not show a heading
         //Ensure overall startpos is zero
         ShiftBy(-hei.from + chart->headingVGapAbove);
-        cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
-        cover_at_0 = cover;
+        if (cover)
+            cover->Shift(XY(0,-hei.from + chart->headingVGapAbove));
         height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
     } else
         height = 0; //if no headings show
@@ -721,12 +722,11 @@ void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances)
 }
 
 
-void CommandNewpage::Layout(Canvas &canvas, AreaList &cover)
+void CommandNewpage::Layout(Canvas &canvas, AreaList *cover)
 {
     ArcCommand::Layout(canvas, cover);
     if (autoHeading) {
-        AreaList dummy;
-        autoHeading->Layout(canvas, dummy); 
+        autoHeading->Layout(canvas, NULL); 
         chart->Progress.DoneItem(MscProgress::LAYOUT, autoHeading->myProgressCategory);    
     }
 }
@@ -864,7 +864,7 @@ void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-void CommandEmpty::Layout(Canvas &/*canvas*/, AreaList &cover)
+void CommandEmpty::Layout(Canvas &/*canvas*/, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -872,7 +872,8 @@ void CommandEmpty::Layout(Canvas &/*canvas*/, AreaList &cover)
     const XY wh = parsed_label.getTextWidthHeight();
     const double mid = chart->GetDrawing().x.MidPoint();
     const Area a(Block(mid-wh.x/2, mid+wh.x/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
-    cover = GetCover4Compress(a);
+    if (cover)
+        *cover = GetCover4Compress(a);
     height = wh.y + EMPTY_MARGIN_Y*2;
     _ASSERT(comments.size()==0);
 }
@@ -1077,7 +1078,7 @@ ArcBase* CommandVSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
     return this;
 }
 
-void CommandVSpace::Layout(Canvas &canvas, AreaList &cover)
+void CommandVSpace::Layout(Canvas &canvas, AreaList *cover)
 {
     double dist = space.second;
     if (label.second.length())
@@ -1088,7 +1089,8 @@ void CommandVSpace::Layout(Canvas &canvas, AreaList &cover)
         dist = 0;
     else if (!compressable) {
         area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, dist);
-        cover = GetCover4Compress(area);
+        if (cover)
+            *cover = GetCover4Compress(area);
     }
     height = dist;
 }
@@ -1310,7 +1312,7 @@ void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances)
 }
 
 
-void CommandSymbol::Layout(Canvas &canvas, AreaList &cover)
+void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
 {
     //Calculate x positions
     const double lw = style.read().line.LineWidth();
@@ -1365,10 +1367,10 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList &cover)
     CalculateAreaFromOuterEdge();
     area_important = area;
     chart->NoteBlockers.Append(this);
-    if (style.read().shadow.offset.second)
-        cover = area + area.CreateShifted(XY(style.read().shadow.offset.second, style.read().shadow.offset.second));
+    if (cover && style.read().shadow.offset.second)
+        *cover = area + area.CreateShifted(XY(style.read().shadow.offset.second, style.read().shadow.offset.second));
     else
-        cover = area;
+        *cover = area;
     height = outer_edge.y.till + style.read().shadow.offset.second;
     LayoutComments(canvas, cover);
 }
@@ -1577,7 +1579,7 @@ void CommandNote::Width(Canvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-void CommandNote::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
+void CommandNote::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     if (!valid) return;
     if (!is_float)  //Only comments added here. Notes will be added after their placement
@@ -2382,7 +2384,7 @@ void CommandNote::PlaceFloating(Canvas &canvas)
 
 //return height, but place to "y" (below other notes)
 //This is called from Layout() of the target for comments
-void CommandNote::PlaceSideTo(Canvas &, AreaList &cover, double &y)
+void CommandNote::PlaceSideTo(Canvas &, AreaList *cover, double &y)
 {
    if (!valid) return;
     _ASSERT(!is_float);
@@ -2398,7 +2400,8 @@ void CommandNote::PlaceSideTo(Canvas &, AreaList &cover, double &y)
     area.arc = this;
     height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
     y += height;
-    cover += GetCover4Compress(area);
+    if (cover) 
+        *cover += GetCover4Compress(area);
 }
 
 void CommandNote::ShiftCommentBy(double y)

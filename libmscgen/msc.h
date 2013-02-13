@@ -235,9 +235,10 @@ public:
     double trackExpandBy;
 
     /* Parse Options */
-    bool         pedantic;   /* if we require pre-defined entities. */
-    bool         ignore_designs; /* ignore design changes */
-    bool         simple_arc_parallel_layout; /* if false, we use Msc::HeightArcLists() to lay out ArcParallel*/
+    bool pedantic;   /* if we require pre-defined entities. */
+    bool ignore_designs; /* ignore design changes */
+    bool simple_arc_parallel_layout; /* if false, we use Msc::HeightArcLists() to lay out ArcParallel*/
+    bool prepare_for_tracking; /* If true, all elements shall compute an 'area' member, we fill 'AllCovers' and 'AllArcs'.*/
 
     //Collapse/Expand instructions from and feedback to the GUI
     EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
@@ -292,8 +293,8 @@ public:
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
-    double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover);
-    std::vector<double> LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList &cover);
+    double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover);
+    std::vector<double> LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList *cover);
     double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);

@@ -1435,9 +1435,9 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
 		//Adjust text in the internal editor
 		int lStartLine, lStartCol, lEndLine, lEndCol;
 		//Save selection in terms of line:column values
-		pApp->m_pWndEditor->m_ctrlEditor.GetSelLineCol(lStartLine, lStartCol, lEndLine, lEndCol);
+		//pApp->m_pWndEditor->m_ctrlEditor.GetSelLineCol(lStartLine, lStartCol, lEndLine, lEndCol);
 		//Apply selection in those terms
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), lStartLine, lStartCol, lEndLine, lEndCol, true);
+		//pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), lStartLine, lStartCol, lEndLine, lEndCol, true);
 		//Save new selection in character index terms
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
@@ -1492,9 +1492,17 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
         m_hMainWndToSignalCompilationEnd = *pWnd;
     
     if (!block) {
+        //Disable scroll bars
+	    POSITION pos = GetFirstViewPosition();
+	    while(pos) {
+		    CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+            if (pView) pView->EnableScrollBarCtrl(SB_BOTH, FALSE);
+	    }
+
+        //Fire up compilation thread
         m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)this);
-    
-        //Wait till compilation begins
+
+        //Wait till compilation truly begins
         while (m_Progress==0 && !m_ChartCompiling.IsCompiled())
             Sleep(10); 
 

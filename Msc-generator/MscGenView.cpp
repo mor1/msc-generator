@@ -337,9 +337,9 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
 
     CRect progress;
     const int w = clip.Width()/3;
-    progress.left = clip.left + w;
-    progress.right = clip.right - w;
-    const int m = (clip.top+clip.bottom)/2;
+    progress.left = w;
+    progress.right = clip.Width() - w;
+    const int m = (clip.bottom-clip.top)/2;
     progress.top = m-10;
     progress.bottom = m+10;
     pDC->FillSolidRect(progress, RGB(255,255,255));
@@ -503,9 +503,10 @@ void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-    //if (pDoc->m_pCompilingThread) 
-    //    return; //skip if compiling
-    SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
+    if (pDoc->m_pCompilingThread) 
+        EnableScrollBarCtrl(SB_BOTH, FALSE); //disable scroll bars if compiling
+    else
+        SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
 void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)

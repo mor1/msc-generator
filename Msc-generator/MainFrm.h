@@ -53,6 +53,7 @@ protected:
 	//CMFCRibbonStatusBar  m_wndStatusBar;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
+    UINT_PTR m_csh_timer;
     bool m_bAutoSplit;         //True if autosplit mode is on
 public:
     bool m_at_embedded_object_category;
@@ -77,6 +78,8 @@ public:
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
+    void StartCshTimer(unsigned time);
+    void KillCshTimer();
 
 // Implementation
 public:
@@ -85,7 +88,7 @@ public:
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
-
+    afx_msg void OnTimer(UINT_PTR nEventID);
     afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 
     bool FillDesignComboBox(const char *current, bool updateComboContent);

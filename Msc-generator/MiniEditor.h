@@ -26,23 +26,28 @@
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
 
+
 struct CEditorUndoRecord {
 	CString text;
 	CHARRANGE pos;
 };
 
+class CEditorBar;
+
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-	bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
+    CEditorBar *const m_parent;
+    bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
 	Csh  m_csh;
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
+    int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
 public:
 	int m_tabsize;
-	CCshRichEditCtrl(CWnd *parent);
+	CCshRichEditCtrl(CEditorBar *parent);
     virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
 
 	//Generic helpers
@@ -66,10 +71,11 @@ public:
 	//Color Syntax Highlighting functions
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
-	bool UpdateCsh(bool force = false); //retuns true if the past and new m_csh.hintedStringPos overlap
+	bool UpdateCsh(bool force = false); 
 	void CancelPartialMatch();
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);
+    void CopyCsh(); //copies a batch of ch entries to the ctrl. Manages the timer of parent!!
 
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
@@ -85,14 +91,16 @@ public:
 	DECLARE_MESSAGE_MAP()
 };
 
+class CMainFrame;
+
 class CEditorBar : public CDockablePane
 {
 // Construction
 public:
-	CEditorBar();
+	CEditorBar(CMainFrame *parent);
 
 // Attributes
-	CFont m_Font;
+    CFont m_Font;
 	CCshRichEditCtrl m_ctrlEditor;
 	CFindReplaceDialog* m_pFindReplaceDialog;
 	CString m_sLastFindString;
@@ -109,6 +117,7 @@ public:
 
 // Implementation
 public:
+    CMainFrame * const m_parent;
 	virtual ~CEditorBar();
 	void SetReadOnly(bool=true);
 protected:

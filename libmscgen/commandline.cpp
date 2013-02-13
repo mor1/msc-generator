@@ -208,6 +208,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     string ss;
 
     Msc msc;
+    msc.prepare_for_tracking = false;
     msc.Progress.callback = cb;
     msc.Progress.data = param;
     if (load_data)

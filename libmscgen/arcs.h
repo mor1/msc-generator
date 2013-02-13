@@ -153,7 +153,7 @@ public:
     virtual void Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {Element::ShiftBy(y);}}
     /* Collect the y position of page breaks into Msc::pageBreakData. next is the Arc immediately after us.*/
@@ -188,7 +188,7 @@ public:
     virtual EDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -256,7 +256,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
@@ -299,7 +299,7 @@ public:
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     void CalculateMainline(double thickness);
     EArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
@@ -333,7 +333,7 @@ public:
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(Canvas &cover);
@@ -380,7 +380,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
@@ -445,7 +445,7 @@ public:
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
@@ -509,7 +509,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     void CalculateContours(Area *pipe_body_cover=NULL);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
@@ -543,7 +543,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(Canvas &cover);
@@ -563,7 +563,7 @@ public:
                                       Numbering &number, bool top_level, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);

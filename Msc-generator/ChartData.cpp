@@ -418,6 +418,7 @@ bool CDrawingChartData::CompileIfNeeded() const
     const bool did_compilation = m_msc==NULL;
 	if (!m_msc) {
 	    m_msc = new Msc;
+        m_msc->prepare_for_tracking = false;
         if (m_callback) {
             m_msc->Progress.callback = m_callback;
             m_msc->Progress.data = m_callback_data;   

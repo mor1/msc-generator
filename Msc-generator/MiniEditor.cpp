@@ -20,6 +20,7 @@
 #include "Msc-generator.h"
 #include "MscGenDoc.h"
 #include "MiniEditor.h"
+#include "MainFrm.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -32,8 +33,8 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : 
-    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
+CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
+    m_parent(parent), m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
 {
     m_tabsize = 4;
 	m_bCshUpdateInProgress = false;  
@@ -41,6 +42,7 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) :
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
     m_bWasAutoComplete = false;
+    m_csh_index = -3;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -470,7 +472,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		}
 		SetSel(lStart, lEnd);
 		m_bCshUpdateInProgress = false;
-		UpdateCsh(); //will set redraw back to true
+		UpdateCsh(); 
+        SetRedraw(true);
 		NotifyDocumentOfChange();
 		return TRUE;
 	}
@@ -517,6 +520,7 @@ void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCo
 	m_bCshUpdateInProgress = false;
 	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
 	SetSel(ConvertLineColToPos(lStartLine, lStartCol), ConvertLineColToPos(lEndLine, lEndCol));
+    SetRedraw(true);
 	SetFocus();
 }
 
@@ -531,10 +535,10 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr, bool preventN
 	m_bCshUpdateInProgress = false;
 	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
 	SetSel(cr);
+    SetRedraw(true);
 	SetFocus();
 }
 
-//retuns true if the past and new m_csh.hintedStringPos overlap
 bool CCshRichEditCtrl::UpdateCsh(bool force)
 {
 	if (m_bCshUpdateInProgress) return false;
@@ -543,9 +547,101 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
 	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
 	if (pApp && !pApp->m_bDoCshProcessing && !force) return false;
 	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-    bool ret = false;
 
-	SetRedraw(false);
+    CHARRANGE cr;
+    GetSel(cr);
+    //if we do not do CSH processing, but force is true, we clear all formatting now
+    if (!pApp->m_bDoCshProcessing && force) {
+        SetRedraw(false);
+        m_bCshUpdateInProgress = true;
+        POINT scroll_pos;
+        ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+        SetSel(0,-1); //select all
+        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+	    SetSel(cr);
+	    ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+
+	    m_bCshUpdateInProgress = false;
+	    SetRedraw(true);
+        Invalidate();
+        m_csh_index = -3;
+        m_parent->m_parent->KillCshTimer();
+        return false;
+    }
+
+    //here pApp->m_bDoCshProcessing is true - Parse the text for CSH
+
+    //Take text we display and remove CRLF
+	CString text;
+	GetWindowText(text);
+	RemoveCRLF(text);
+    //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
+    CshPos old_uc = m_csh.hintedStringPos;
+    //Take the design, color and style definitions from the designlib
+    m_csh = pApp->m_designlib_csh;
+    m_csh.use_scheme = &pApp->m_nCshScheme;
+	m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
+    //If we consider the hinted string only up to the cursor, trim the returned pos
+    if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
+        m_csh.hintedStringPos.last_pos = cr.cpMin; 
+        
+    //retune true if the past and new m_csh.hintedStringPos overlap
+    bool ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
+
+    if (!pApp->m_bShowCsh) return ret;
+        
+    //Apply the color syntax to the text in the editor
+    if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
+        MscError Error;
+        Error.AddFile("Hint");
+        std::list<CString> errors;
+        std::vector<std::pair<int, int>> error_pos;
+        for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
+            int line, col;
+            ConvertPosToLineCol(i->first_pos, line, col);
+            line++; col++; //XXX WTF This is needed
+            error_pos.push_back(std::pair<int,int>(line, col));
+            errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
+        }
+        pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
+    }
+    //Do first batch of csh 
+    m_csh_index = -1;
+    //kill timer
+    m_parent->m_parent->KillCshTimer();
+    CopyCsh();
+    return ret;
+}
+
+void CCshRichEditCtrl::CopyCsh()
+{
+    const unsigned ONE_BATCH = 100; //# of lines
+    const unsigned TIME_DLEAY = 30; //milliseconds
+    long startfrom;
+    bool shall_invalidate = false;
+    switch (m_csh_index) {
+    case -3: m_parent->m_parent->KillCshTimer(); //fallthrough
+    case -2: return;
+    case -1: startfrom = GetFirstVisibleLine(); shall_invalidate = true; break;
+    default: startfrom = m_csh_index; 
+    }
+    long dotill = ConvertLineColToPos(startfrom + ONE_BATCH, 0);
+    if (dotill < 0) 
+        dotill = GetTextLength()+1;
+    startfrom = ConvertLineColToPos(startfrom, 0);
+    if (startfrom < 0) {
+        m_parent->m_parent->KillCshTimer();
+        m_csh_index = -3;
+        return;
+    }
+    
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
+	if (!pApp) return;
+	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
+
+    SetRedraw(false);
 	//long eventMask = GetEventMask();
 	//SetEventMask(0);
 	m_bCshUpdateInProgress = true;
@@ -555,63 +651,46 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
 	CHARRANGE cr;
 	GetSel(cr);
 
-	SetSel(0,-1); //select all
-	SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-	if (pApp->m_bDoCshProcessing) {
-        //Take text we display and remove CRLF
-		CString text;
-		GetWindowText(text);
-		RemoveCRLF(text);
-        //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
-        CshPos old_uc = m_csh.hintedStringPos;
-        //Take the design, color and style definitions from the designlib
-        m_csh = pApp->m_designlib_csh;
-        m_csh.use_scheme = &pApp->m_nCshScheme;
-		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
-        //If we consider the hinted string only up to the cursor, trim the returned pos
-        if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
-            m_csh.hintedStringPos.last_pos = cr.cpMin; 
-        ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
-        //Apply the color syntax to the text in the editor
-        if (pApp->m_bShowCsh) {
-            const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
-            const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
-            //Go backwards, since errors are at the beginning and are more important: should show
-		    for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
-			    if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
-				    SetSel(i->first_pos-1, i->last_pos);
-				    SetSelectionCharFormat(scheme[i->color]);
-			    }
-            if (pApp->m_bShowCshErrors)
-                for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
-                    SetSel(i->first_pos-1, i->last_pos);
-                    SetSelectionCharFormat(scheme[COLOR_ERROR]);
-                }
-            if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
-                MscError Error;
-                Error.AddFile("Hint");
-                std::list<CString> errors;
-                std::vector<std::pair<int, int>> error_pos;
-                for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
-                    int line, col;
-                    ConvertPosToLineCol(i->first_pos, line, col);
-                    line++; col++; //XXX WTF This is needed
-                    error_pos.push_back(std::pair<int,int>(line, col));
-                    errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
-                }
-                pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
+    if (m_csh_index == -1) { //if we start anew
+        SetSel(0,-1); //select all
+        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+    }
+    const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
+    const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
+    //Go backwards, since errors are at the beginning and are more important: should show
+	for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
+        if (i->first_pos-1 < dotill && i->last_pos >= startfrom &&
+            scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
+			SetSel(i->first_pos-1, i->last_pos);
+			SetSelectionCharFormat(scheme[i->color]);
+		}
+
+    if (dotill >= GetTextLength()) {
+        if (pApp->m_bShowCshErrors) 
+            for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
+                SetSel(i->first_pos-1, i->last_pos);
+                SetSelectionCharFormat(scheme[COLOR_ERROR]);
             }
-        }
-	}
-	SetSel(cr);
+        m_parent->m_parent->KillCshTimer();
+        m_csh_index = -3; // We are done
+    } else {
+        if (m_csh_index == -1) 
+            m_csh_index = 0;
+        else 
+            m_csh_index += ONE_BATCH;
+        m_parent->m_parent->StartCshTimer(TIME_DLEAY);
+    }
+
+    SetSel(cr);
 	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
 	m_bCshUpdateInProgress = false;
 	SetRedraw(true);
-	Invalidate();
+	if (shall_invalidate)
+        Invalidate();  //Invalidate only if we have shown the visible part
 	//SetEventMask(eventMask);
-    return ret;
 }
+
 
 void CCshRichEditCtrl::CancelPartialMatch()
 {
@@ -807,7 +886,8 @@ BEGIN_MESSAGE_MAP(CEditorBar, CDockablePane)
 	ON_REGISTERED_MESSAGE(nFindReplaceDialogMessage, OnFindReplaceMessage)
 END_MESSAGE_MAP()
 
-CEditorBar::CEditorBar() : m_pFindReplaceDialog(NULL), m_ctrlEditor(this)
+CEditorBar::CEditorBar(CMainFrame *parent) : m_pFindReplaceDialog(NULL), m_ctrlEditor(this),
+    m_parent(parent)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -942,12 +1022,12 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return TRUE;
 
-	bool same_hints = m_ctrlEditor.UpdateCsh();
+	const bool at_same_hint = m_ctrlEditor.UpdateCsh();
     int len = m_ctrlEditor.GetTextLength();
     //Update hints if we are in hint mode
     if (m_ctrlEditor.InHintMode()) {
-        //if we changed word below us, first kill the user requested nature
-        if (!same_hints)
+        //Kill the user requested nature
+        if (!at_same_hint)
             m_ctrlEditor.CancelUserSelected();
         m_ctrlEditor.StartHintMode(false); //false == do not change m_bTillCursorOnly
     } else {
@@ -988,6 +1068,7 @@ void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result)
         m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
 	*result = 0;
 }
+
 
 //Find replace related
 

@@ -183,6 +183,8 @@
        - contour returned in cover is used for placement and should contain shadows
        - area is used to detect if the mouse is within, should not contain shadows
        - area_draw is used to draw, it should be a frame for boxes and pipes with content, not the contour of the box.
+
+       Note that if `chart->prepare_for_tracking` is not set, we do not calculate `area` and `area_draw`.
        Layout can also store some pre-computed values and contours to make drawing faster.
        Layout always places the element at the vertical position=0. Any contour should assume that.
        Finally, Layout() also fills in "area_important", containing the 'important' part of the
@@ -211,6 +213,7 @@
    11. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
        Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
        to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
+       Note that if `chart->prepare_for_tracking` is not set, we do not expand these.
        No error messages shall be printed after this function by arc objects. (Msc will print some, if
        page sizes do not fit, but that is under control there.)
    12. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
@@ -417,7 +420,7 @@ void ArcBase::FinalizeLabels(Canvas &)
         chart->ReferenceNames[refname].arc = this;
 }
 
-void ArcBase::Layout(Canvas &canvas, AreaList &cover)
+void ArcBase::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     LayoutComments(canvas, cover);
@@ -486,18 +489,21 @@ void ArcIndicator::Width(Canvas &, EntityDistanceMap &distances)
     distances.InsertBoxSide((*src)->index,   width, 0);
 }
 
-void ArcIndicator::Layout(Canvas &canvas, AreaList &cover)
+void ArcIndicator::Layout(Canvas &canvas, AreaList *cover)
 {
     yPos = chart->emphVGapOutside;
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
-    area = b;
-    area.mainline = Block(chart->GetDrawing().x, b.y);
+    if (chart->prepare_for_tracking || cover) {
+        area = b;
+        area.mainline = Block(chart->GetDrawing().x, b.y);
+    }
     area_important = b;
     chart->NoteBlockers.Append(this);
     height = b.y.till + chart->emphVGapOutside;
     //TODO add shadow to cover
-    cover = GetCover4Compress(area);
+    if (cover)
+        *cover = GetCover4Compress(area);
     LayoutComments(canvas, cover);
 }
 
@@ -927,7 +933,7 @@ void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances)
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
-void ArcSelfArrow::Layout(Canvas &canvas, AreaList &cover)
+void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -963,7 +969,8 @@ void ArcSelfArrow::Layout(Canvas &canvas, AreaList &cover)
         area_important += style.read().arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.read().line, style.read().line);
     chart->NoteBlockers.Append(this);
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
-    cover = GetCover4Compress(area);
+    if (cover)
+        *cover = GetCover4Compress(area);
     LayoutComments(canvas, cover);
 }
 
@@ -1337,7 +1344,7 @@ EArrowEnd ArcDirArrow::WhichArrow(unsigned i)
     return MSC_ARROW_END;
 }
 
-void ArcDirArrow::Layout(Canvas &canvas, AreaList &cover)
+void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -1450,7 +1457,8 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList &cover)
         clip_area.RotateAround(c, slant_angle); 
     }
     chart->NoteBlockers.Append(this);
-    cover = GetCover4Compress(area);
+    if (cover) 
+        *cover = GetCover4Compress(area);
     if (slant_angle==0)
         height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
     else
@@ -1793,7 +1801,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
 }
 
 
-void ArcBigArrow::Layout(Canvas &canvas, AreaList &cover)
+void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
 {
     if (!valid) return;
     yPos = 0;
@@ -1839,7 +1847,8 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList &cover)
         area_to_note2.RotateAround(c, slant_angle);
     }
     chart->NoteBlockers.Append(this);
-    cover = GetCover4Compress(area);
+    if (cover)
+        *cover = GetCover4Compress(area);
 
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.read().shadow.offset.second;
     LayoutComments(canvas, cover);
@@ -2175,7 +2184,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-void ArcVerticalArrow::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
+void ArcVerticalArrow::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     //We will not have notes or comments, so no need to call CommentHeight()
     height = 0;
@@ -2785,7 +2794,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances += d;
 }
 
-void ArcBoxSeries::Layout(Canvas &canvas, AreaList &cover)
+void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -2906,7 +2915,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList &cover)
     if (offset)
         overall_box += overall_box.CreateShifted(XY(offset, offset));
     overall_box.mainline = Block(chart->GetDrawing().x, b.y);
-    cover = GetCover4Compress(overall_box);
+    if (cover)
+        *cover = GetCover4Compress(overall_box);
     height = yPos + total_height + offset + chart->emphVGapOutside;
     //We do not call CommentHeight for "this" since a box series cannot take notes, only its
     //box elements do and those were handled above
@@ -3738,7 +3748,7 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.read().line.width.second/2);
 }
 
-void ArcPipeSeries::Layout(Canvas &canvas, AreaList &cover)
+void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -3824,12 +3834,14 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList &cover)
     Area pipe_body_cover(this);
     CalculateContours(&pipe_body_cover);
     //Add content to cover (may "come out" from pipe)
-    cover += content_cover;
+    if (cover)
+        *cover += content_cover;
     //If we have no valid content, set mainline to that of pipe, else the content's mainline will be used
     if (content_cover.mainline.IsEmpty()) 
         pipe_body_cover.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     //Expand cover, but not content (that is already expanded)
-    cover += GetCover4Compress(pipe_body_cover);
+    if (cover)
+        *cover += GetCover4Compress(pipe_body_cover);
     height = yPos + total_height + max_shadow_offset + chart->emphVGapOutside;
     //We do not call NoteHeight here as a PipeSeries will not have notes, only its elements
     comment_height = std::max(note_l, note_r);
@@ -4147,7 +4159,7 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
 
-void ArcDivider::Layout(Canvas &canvas, AreaList &cover)
+void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
@@ -4155,7 +4167,8 @@ void ArcDivider::Layout(Canvas &canvas, AreaList &cover)
     if (nudge) {
         Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
         area.mainline = area = b;
-        cover = GetCover4Compress(area);
+        if (cover)
+            *cover = GetCover4Compress(area);
         height = chart->nudgeSize;
         LayoutComments(canvas, cover);
         return;
@@ -4197,7 +4210,8 @@ void ArcDivider::Layout(Canvas &canvas, AreaList &cover)
         area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                               centerline-charheight/2, centerline+charheight/2);
     chart->NoteBlockers.Append(this);
-    cover = GetCover4Compress(area);
+    if (cover)
+        *cover = GetCover4Compress(area);
     LayoutComments(canvas, cover);
 }
 
@@ -4300,17 +4314,15 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances += d;
 }
 
-void ArcParallel::Layout(Canvas &canvas, AreaList &cover)
+void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
     if (chart->simple_arc_parallel_layout) {
         for (auto i=blocks.begin(); i != blocks.end(); i++) {
-            AreaList cover_block;
             //Each parallel block is compressed without regard to the others
-            double h = chart->LayoutArcList(canvas, *i, cover_block);
+            double h = chart->LayoutArcList(canvas, *i, cover);
             height = std::max(height, h);
-            cover += cover_block;
         }
     } else {
         std::vector<double> heights = chart->LayoutArcLists(canvas, blocks, cover);
