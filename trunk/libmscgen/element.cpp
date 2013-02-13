@@ -143,11 +143,11 @@ void Element::ShiftBy(double y)
 
 /** A helper placing comments.
  * @param canvas The canvas used to determine comment geometry
- * @param cover We add the cover of the placed comments to this.
+ * @param cover We add the cover of the placed comments to this, if not NULL.
  * @param l At call says where we shall start laying out left comments from, at return the height of he comments on the left.
  * @param r At call says where we shall start laying out right comments from, at return the height of he comments on the right.
  */
-void Element::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r)
+void Element::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r)
 {
     for (auto c = comments.begin(); c!=comments.end(); c++)
         (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().read().side.second == SIDE_LEFT ? l : r);
@@ -156,12 +156,15 @@ void Element::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, d
 
 
 /** Do processing after our positioning on the chart is known.
- * We expand `area` and `area_draw` by `cahrt->trackExpandBy`
+ * We expand `area` and `area_draw` by `chart->trackExpandBy`
  * if we show; set `control_location` and register us in
- * chart->AllArcs.*/
+ * chart->AllArcs.
+ * We do nothing if `chart->prepare_for_tracking` is false.*/
 void Element::PostPosProcess(Canvas &/*canvas*/)
 {
-    if (!area.IsEmpty()&& !hidden) {
+    if (!chart->prepare_for_tracking) 
+        return;
+    if (!area.IsEmpty() && !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
         //we still keep the original stuff.
         Area expanded_area = area.CreateExpand(chart->trackExpandBy, 

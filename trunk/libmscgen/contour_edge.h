@@ -321,19 +321,19 @@ public:
     static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
 
 protected:
-    XY          start;         ///<Startpoint of the edge.
-    XY          end;           ///<Endpoint of the edge, shall be different from `start`.
-    EdgeArc     *arc;          ///<NULL if the edge is straight, arc data if curvy
+    XY       start;        ///<Startpoint of the edge.
+    XY       end;          ///<Endpoint of the edge, shall be different from `start`.
+    EdgeArc *arc;          ///<NULL if the edge is straight, arc data if curvy
 public:
     mutable bool visible;      ///<True if the edge shall be shown/drawn.
     Edge() : arc(NULL), visible(true) {}
     Edge(const XY &s, const XY &e) : start(s), end(e), arc(NULL), visible(true) {}
     Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
-    Edge(const Edge &o) : start(o.start), end(o.end), arc(o.arc ? new EdgeArc(*o.arc) : NULL) {}
-    Edge(Edge &&o) : start(o.start), end(o.end), arc(o.arc) {o.arc=NULL;}
+    Edge(const Edge &o) : start(o.start), end(o.end), arc(o.arc ? new EdgeArc(*o.arc) : NULL), visible(o.visible) {}
+    Edge(Edge &&o) : start(o.start), end(o.end), arc(o.arc), visible(o.visible) {o.arc=NULL;}
 
-    Edge &operator =(const Edge &o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc ? new EdgeArc(*o.arc) : NULL; return *this;}
-    Edge &operator =(Edge &&o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc; o.arc=NULL; return *this;}
+    Edge &operator =(const Edge &o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc ? new EdgeArc(*o.arc) : NULL; visible = o.visible; return *this;}
+    Edge &operator =(Edge &&o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc; o.arc=NULL; visible = o.visible; return *this;}
 
     EdgeArc::EEdgeType GetType() const {return arc ? EdgeArc::STRAIGHT : arc->type;}    ///<Returns the type of the edge.
     const XY & GetStart() const {return start;} ///<Returns the startpoint.

@@ -237,6 +237,13 @@ string EntityDistanceMap::Print()
 
 ///////////////////////////////////////////////////////////////////////
 
+/** We do some processing only for tracking (which is the ability on the GUI.
+    to highlight elements and map them to their line number and vice versa).
+    If `prepare_for_tracking` is not set, we omit these steps.
+    - Each element computes its `area` and potentially `area_to_draw` members.
+    - `AllCovers` AreaList is filled with a copy of the `area` member of each Element (to search in).
+    - `AllArcs` is a file-position index of all Element objects.
+*/
 
 //"Entities" member is responsible to delete ist contents
 //"AutoGenEntities" is not, as its contents will be inserted into an
@@ -269,6 +276,7 @@ Msc::Msc() :
     pedantic=false;
     ignore_designs = false;
     simple_arc_parallel_layout = false;
+    prepare_for_tracking = true;
 
     current_file = Error.AddFile("[config]");
     
@@ -1163,9 +1171,21 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distanc
 //Automatic pagination is ignored by this
 //Ensures that elements in the list will have non-decreasing yPos order - thus a later
 //element will have same or higher yPos as any previous
-double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
+double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
 {
-    cover.clear();
+    //Check if we need to calculate cover
+    //(We have to if we got a non-null 'cover' in which we need to return our cover
+    //or if there is a parallel or compress arc among our members)
+    AreaList substitute_cover; //use this if we need cover, but cover==NULL
+    if (cover) 
+        cover->clear();
+    else
+        for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) 
+            if ((*i)->IsParallel() || (*i)->IsCompressed()) {
+                cover = &substitute_cover;
+                break;
+            }
+
     double y = 0;              //vertical position of the current element
     double y_upper_limit = 0;  //we will never shift compress higher than this runnning value
                                //(any element marked with "parallel" will set this to its top)
@@ -1182,7 +1202,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
 
     for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) {
         AreaList arc_cover;
-        (*i)->Layout(canvas, arc_cover);
+        (*i)->Layout(canvas, cover ? &arc_cover : NULL);
         Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
         double h = (*i)->GetHeight();
 
@@ -1197,7 +1217,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
                 if (first_zero_height == arcs.end()) first_zero_height = i;
                 continue;
             }
-            const double new_y = std::max(y_upper_limit, -cover.OffsetBelow(arc_cover, touchpoint));
+            const double new_y = std::max(y_upper_limit, -cover->OffsetBelow(arc_cover, touchpoint));
             //Here the new_y can be larger than the one before, if some prior element 
             //prevented the current one to shift all the way to below the previous one.
             if ((*i)->IsCompressed()) 
@@ -1220,7 +1240,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
             //But we place zero_height elements to just below the previous one nevertheless
             //We also keep touchpoint==y for the very same reason
             double dummy_touchpoint;
-            y = std::max(y, -cover.OffsetBelow(arc_cover, dummy_touchpoint));
+            y = std::max(y, -cover->OffsetBelow(arc_cover, dummy_touchpoint));
         }
         touchpoint = floor(touchpoint+0.5);
         y = ceil(y);
@@ -1241,7 +1261,8 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
             y_upper_limit = y;
         }
         previous_was_parallel = (*i)->IsParallel();
-        cover += arc_cover;
+        if (cover)
+            *cover += arc_cover;
         y = y_bottom;
     }
     //position any remaining zero-heright items at the bottom
@@ -1268,7 +1289,7 @@ struct TY {
 //Automatic pagination is ignored by this
 //Ensures that elements in each column will have non-decreasing yPos order - thus a later
 //element will have same or higher yPos as any previous
-std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList &cover)
+std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList *cover)
 {
     //we will never shift compress higher than this runnning value
     //(any element marked with "parallel" will set this to its top)
@@ -1304,7 +1325,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
         double local_y = y.begin()->y;
         for (; i!=arcs[col].end(); i++)  {
             AreaList arc_cover;
-            (*i)->Layout(canvas, arc_cover);
+            (*i)->Layout(canvas, &arc_cover);
             Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
             double h = (*i)->GetHeight();
 
@@ -1364,7 +1385,8 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
             previous_was_parallel[col] = (*i)->IsParallel();
             //Here we are done adding `i`
 
-            cover += arc_cover;
+            if (cover)
+                *cover += arc_cover;
             //Update covers
             covers[col] += arc_cover; //arc_cover contains the mainline here (unless parallel)
             arc_cover.InvalidateMainLine();
@@ -1406,7 +1428,7 @@ double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
 {
     if (arcs.size()==0) return 0;
     AreaList cover;
-    double h = LayoutArcList(canvas, arcs, cover);
+    double h = LayoutArcList(canvas, arcs, &cover);
     double touchpoint;
     double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     //if we shifted up, apply shift only if compess is on
@@ -1432,7 +1454,6 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
                               double pageBreak, bool addHeading)
 {
     CommandEntity *ce;
-    AreaList dummy;
     if (addHeading) {
         ce = static_cast<CommandEntity*>((new CommandEntity(NULL, this, false))->AddAttributeList(NULL));
         EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
@@ -1448,7 +1469,7 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
     cnp->AddAttributeList(NULL);
     //We skip PostParseProcess & FinalizeLabels
     //this will leave at_top_level uninitialized, but heck!
-    cnp->Layout(canvas, dummy);
+    cnp->Layout(canvas, NULL);
     cnp->ShiftBy(pageBreak);
     arcs.insert(i, cnp);
 }
@@ -1883,9 +1904,8 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
 
     Progress.StartSection(MscProgress::LAYOUT);
-    AreaList cover;
-    total.y.till = LayoutArcList(canvas, Arcs, cover) + chartTailGap;
-    total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
+    total.y.till = LayoutArcList(canvas, Arcs, NULL) + chartTailGap;
+    //total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
     drawing.y = total.y;  
 
     if (autoPaginate) {

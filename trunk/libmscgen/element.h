@@ -129,8 +129,8 @@ public:
     /** Return the list of GUI controls associated with this Element*/
     const std::vector<EGUIControlType>& GetControls() const {return controls;}
     /** Lay out our comments & return their combined coverage in `cover`*/
-    void LayoutComments(Canvas &canvas, AreaList &cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
-    virtual void LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r);
+    void LayoutComments(Canvas &canvas, AreaList *cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
+    virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void PostPosProcess(Canvas &);
 
     /** Return the location of our GUI controls*/

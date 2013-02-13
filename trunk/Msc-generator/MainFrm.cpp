@@ -106,12 +106,13 @@ static UINT indicators[] =
 
 // CMainFrame construction/destruction
 
-CMainFrame::CMainFrame()
+CMainFrame::CMainFrame() : m_ctrlEditor(this)
 {
 	theApp.m_nAppLook = theApp.GetInt(_T("ApplicationLook"), ID_VIEW_APPLOOK_VS_2005);
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
     m_has_fallback_image = false;
+    m_csh_timer = NULL;
 }
 
 CMainFrame::~CMainFrame()
@@ -481,6 +482,25 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
     }
     return false;
 }
+
+
+void CMainFrame::StartCshTimer(unsigned time)
+{
+    m_csh_timer = SetTimer(1, time, NULL);
+}
+
+void CMainFrame::KillCshTimer()
+{
+    KillTimer(m_csh_timer);
+    m_csh_timer = NULL;
+}
+
+void CMainFrame::OnTimer(UINT_PTR nEventID)
+{
+    if (nEventID==1) 
+        m_ctrlEditor.m_ctrlEditor.CopyCsh();
+}
+
 
 
 
