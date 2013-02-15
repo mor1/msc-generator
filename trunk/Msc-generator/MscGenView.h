@@ -39,6 +39,7 @@ public:
 	bool m_DeleteBkg;  //Set to true if we need to erase bkg on next draw
 	// Drawn chart
     XY           m_chartOrigin;  //The upper left corner of the chart in chart coordinate space
+    Block        m_chartPage;    //The page we show in chart coordinates
     CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
     CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)
 	UINT_PTR     m_FadingTimer;  //Handle of Fading Timer

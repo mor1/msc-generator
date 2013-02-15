@@ -340,6 +340,8 @@ void CDrawingChartData::InvalidatePage() const
             m_cache_rec = NULL;
         }
     }
+    //If we have a compiled chart, regenerate the page
+    if (compiled) CompileIfNeeded();
 }
 
 void CDrawingChartData::SetPage(unsigned page)
@@ -348,8 +350,10 @@ void CDrawingChartData::SetPage(unsigned page)
         if (GetPages()==1) page = 0;
         else page = std::min(page, GetPages());
     }
-    if (page!=m_page) InvalidatePage();
-    m_page = page;
+    if (page!=m_page) {
+        m_page = page;
+        InvalidatePage();
+    }
 }
 
 void CDrawingChartData::SetPageBreaks(bool pageBreaks)
@@ -418,7 +422,7 @@ bool CDrawingChartData::CompileIfNeeded() const
     const bool did_compilation = m_msc==NULL;
 	if (!m_msc) {
 	    m_msc = new Msc;
-        m_msc->prepare_for_tracking = false;
+        m_msc->prepare_for_tracking = true;
         if (m_callback) {
             m_msc->Progress.callback = m_callback;
             m_msc->Progress.data = m_callback_data;   
@@ -583,6 +587,18 @@ XY CDrawingChartData::GetPageOrigin(unsigned page) const
     return ret;
 }
 
+Block CDrawingChartData::GetNetPageBlock() const
+{
+    Block ret;
+    ret.x = m_msc->GetTotal().x;
+    if (m_page==0) 
+        ret.y = m_msc->GetTotal().y;
+    else {
+        ret.y.from = m_msc->pageBreakData[m_page-1].y;
+        ret.y.till = m_page < m_msc->pageBreakData.size() ? m_msc->pageBreakData[m_page].y : m_msc->GetTotal().y.till;
+    }
+    return ret;
+}
 
 double CDrawingChartData::GetHeadingSize() const
 {
@@ -617,6 +633,13 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
 Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	_ASSERT(m_msc);
+    //Check if point is on currently showing page)
+    if (m_page>0) {
+        const double from = m_msc->pageBreakData[m_page-1].y;
+        if (point.y < from) return NULL;
+        const double till = m_page < m_msc->pageBreakData.size() ? m_msc->pageBreakData[m_page].y : m_msc->GetTotal().y.till;
+        if (point.y > till) return NULL;
+    }
     const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
 	if (area==NULL) return NULL;
 	return area->arc;

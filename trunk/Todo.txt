@@ -31,27 +31,34 @@ CHANGE: Mesh gradients.
 ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
+CHANGE: Remove area calcualtion from arcs (if not needed)
+CHANGE: Remove note related area calculation from arcs (if not needed)
+CHANGE: move CSH calculation to a parallel thread
+ADD: Rectangle in SimpleContour
+FIX: Contour test mistakes (esp 740_006)
+FIX: EntityDef leaks
+ADD: Button to disable tracking rectangles & controls (if much faster)
 
 Later
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: auto_heading chart option and attribute.
-DOC: Document full page printing.
 DOC: classic_parallel_layout
+DOC: Document full page printing.
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
 ADD: Pagination options to the GUI (preferably in print preview)
-FIX: first_entity EntityDef leaks
-FIX: Contour test mistakes (esp 740_006)
-CHANGE: Speedup
-- CSH in parallel thread, incremental update of richedit
+FIX: -h in commandline
+ADD: Page +- buttons
+
+In 3.5.12
+CHANGED: Speedup
+- CSH in parallel thread, incremental update of richedit - PARTIAL
 - Remove cover if not compress or parallel - DONE
 - Remove Area if not needed - PARTIAL
-
 FIXED: Progress indicator at wrong position when view is scrolled
 CHECKED: Moved objects containment
 CHANGED: Memory
 - StyleCOW - DONE
 - EdgeArc - DONE
-- Rectangle in SimpleContour - CANCELLED
 FIXED: Why Michael.signalling disappears from time to time? (was cairo not being thread-safe)
 FIXED: Hideentitylines problem of michael
 ADDED: Progress feedback (both to command-line and GUI)

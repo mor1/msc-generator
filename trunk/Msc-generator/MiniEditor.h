@@ -36,7 +36,6 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-    CEditorBar *const m_parent;
     bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
 	Csh  m_csh;
     bool m_bWasReturnKey;        //if the return key was pressed
@@ -47,7 +46,7 @@ class CCshRichEditCtrl : public CRichEditCtrl
     int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
 public:
 	int m_tabsize;
-	CCshRichEditCtrl(CEditorBar *parent);
+	CCshRichEditCtrl(CWnd *parent);
     virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
 
 	//Generic helpers
@@ -97,7 +96,7 @@ class CEditorBar : public CDockablePane
 {
 // Construction
 public:
-	CEditorBar(CMainFrame *parent);
+	CEditorBar();
 
 // Attributes
     CFont m_Font;
@@ -117,7 +116,6 @@ public:
 
 // Implementation
 public:
-    CMainFrame * const m_parent;
 	virtual ~CEditorBar();
 	void SetReadOnly(bool=true);
 protected:

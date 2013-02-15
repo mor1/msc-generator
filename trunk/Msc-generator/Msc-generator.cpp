@@ -211,6 +211,12 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_HINTS, &CMscGenApp::OnUpdateCheckHints)
     ON_COMMAND(ID_BUTTON_TRACK_COLOR, &CMscGenApp::OnButtonTrackColor)
     ON_COMMAND(ID_EMBEDDEDOPTIONS_FALLBACK_RES, &CMscGenApp::OnEmbeddedoptionsFallbackRes)
+    ON_COMMAND(ID_AUTO_PAGINATE, &CMscGenApp::OnAutoPaginate)
+    ON_UPDATE_COMMAND_UI(ID_AUTO_PAGINATE, &CMscGenApp::OnUpdateAutoPaginate)
+    ON_COMMAND(ID_AUTO_HEADERS, &CMscGenApp::OnAutoHeaders)
+    ON_UPDATE_COMMAND_UI(ID_AUTO_HEADERS, &CMscGenApp::OnUpdateAutoHeaders)
+    ON_COMMAND(ID_COMBO_SCALE, &CMscGenApp::OnComboScale)
+    ON_UPDATE_COMMAND_UI(ID_COMBO_SCALE, &CMscGenApp::OnUpdateComboScale)
 END_MESSAGE_MAP()
 
 
@@ -229,7 +235,9 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
 }
 
 
-CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
+CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true)),
+    m_PrinterScale(1,1),
+    m_PrinterPageSize(PageSizeInfo::GetPhysicalPageSize(PageSizeInfo::A4P))
 {
 	m_bHiColorIcons = TRUE;
 
@@ -244,6 +252,7 @@ CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
 	m_pWndEditor = 0;
 	m_bFullScreenViewMode = false;
     m_bShowControls = false;
+
 }
 
 
@@ -376,6 +385,9 @@ BOOL CMscGenApp::InitInstance()
 	//else if (!CommandLineMain(m_lpCmdLine))
 	//	return FALSE;
 
+    //Get Printer info (may be needed to print from command line)
+    UpdatePrinterData();
+
 	// Dispatch commands specified on the command line.  Will return FALSE if
 	// app was launched with /RegServer, /Register, /Unregserver or /Unregister.
 	if (!ProcessShellCommand(cmdInfo))
@@ -445,6 +457,20 @@ void ConvertMscCshAppearanceToCHARFORMAT(const ColorSyntaxAppearance &app, CHARF
 	cf.dwMask      = ConvertMscColorSyntaxFlagsToCHARFORMATFlags(app.mask);
 	cf.dwEffects   = ConvertMscColorSyntaxFlagsToCHARFORMATFlags(app.effects);
 	cf.crTextColor = RGB(app.r, app.g, app.b);
+}
+
+void CMscGenApp::UpdatePrinterData()
+{
+    CDC dc;
+    if (!CreatePrinterDC(dc)) return;
+    //Get printable area in printer pixels
+    const XY ps_pixel(dc.GetDeviceCaps(HORZRES), dc.GetDeviceCaps(VERTRES));
+    //Get printer resolution (printer pixels per inch)
+    const XY res(dc.GetDeviceCaps(LOGPIXELSX), dc.GetDeviceCaps(LOGPIXELSY));
+    //convert to printer pixel per points (1/72 inch) 
+    m_PrinterScale = res/72;
+    m_PrinterPageSize.x = ps_pixel.x/m_PrinterScale.x;
+    m_PrinterPageSize.x = ps_pixel.y/m_PrinterScale.y;
 }
 
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
@@ -1048,4 +1074,40 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
         pDoc->ReDrawEMF();
         pDoc->CheckIfChanged();
     }
+}
+
+
+void CMscGenApp::OnAutoPaginate()
+{
+    // TODO: Add your command handler code here
+}
+
+
+void CMscGenApp::OnUpdateAutoPaginate(CCmdUI *pCmdUI)
+{
+    // TODO: Add your command update UI handler code here
+}
+
+
+void CMscGenApp::OnAutoHeaders()
+{
+    // TODO: Add your command handler code here
+}
+
+
+void CMscGenApp::OnUpdateAutoHeaders(CCmdUI *pCmdUI)
+{
+    // TODO: Add your command update UI handler code here
+}
+
+
+void CMscGenApp::OnComboScale()
+{
+    // TODO: Add your command handler code here
+}
+
+
+void CMscGenApp::OnUpdateComboScale(CCmdUI *pCmdUI)
+{
+    // TODO: Add your command update UI handler code here
 }

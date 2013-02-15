@@ -2166,6 +2166,22 @@ void Msc::DrawPageBreaks(Canvas &canvas)
     }
 }
 
+void Msc::DrawHeaderFooter(Canvas &canvas, unsigned page) 
+{
+    canvas.PrepareForHeaderFoorter();
+
+    //Draw Copyright Text
+    StringFormat sf;
+    sf.Default();
+    Label label(copyrightText, canvas, sf);
+    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=pageBreakData.size() ? total.y.till : pageBreakData[page].y);
+
+    //Draw autoheading, if any
+    if (page && pageBreakData[page-1].autoHeading)
+        //autoHeading is supposedly shifted to just above the page break
+        pageBreakData[page-1].autoHeading->Draw(canvas, pageBreakData[page-1].autoHeading->draw_pass);
+}
+
 /** Draws one chart page or all pages onto a context.*/
 //page is 0 for all, 1..n for individual pages
 //Expects the context to be prepared and will unprpare it
@@ -2181,22 +2197,12 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
     DrawChart(canvas, page ? false : pageBreaks);
     yDrawing = total.y;
 
-    canvas.PrepareForHeaderFoorter();
-
-    //Draw Copyright Text
-    StringFormat sf;
-    sf.Default();
-    Label label(copyrightText, canvas, sf);
-    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=pageBreakData.size() ? total.y.till : pageBreakData[page].y);
-
-    //Draw autoheading, if any
-    if (page && pageBreakData[page-1].autoHeading)
-        //autoHeading is supposedly shifted to just above the page break
-        pageBreakData[page-1].autoHeading->Draw(canvas, pageBreakData[page-1].autoHeading->draw_pass);
+    DrawHeaderFooter(canvas, page);
 }
 
 /** Draws the chart into one of more files.
- * 'pageSize' can only be other than NO_PAGE if file format is PDF (which supports multiple pages). In that
+ * 'pageSize' can only be valid (positive `x` and `y`) if file format is PDF (which supports 
+ * multiple pages). In that
  * case `scale` can be <zero,zero> indicating that the chart should be fitted to page width.
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
@@ -2204,15 +2210,15 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 */
 bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
                      const string &fn, bool bPageBreaks, 
-                     Canvas::EPageSize pageSize, const double margins[4], 
+                     const XY &pageSize, const double margins[4], 
                      int ha, int va, bool generateErrors)
 {
     _ASSERT(scale.size()>0);
-    _ASSERT(scale.size()==1 || pageSize != Canvas::NO_PAGE); //Multiple scales must be fixed-size output
+    _ASSERT(scale.size()==1 || (pageSize.x>0 && pageSize.y>0)); //Multiple scales must be fixed-size output
     const unsigned from = pageBreakData.size()<=1 ? 0 : 1;
     const unsigned till = pageBreakData.size()<=1 ? 0 : pageBreakData.size();
     if (pageBreakData.size()>1) bPageBreaks = false;
-    if (pageSize==Canvas::NO_PAGE) 
+    if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
             Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
             if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
@@ -2308,6 +2314,7 @@ cairo_surface_t *Msc::ReDrawOnePage(cairo_surface_t *full, unsigned page,
     }
     cairo_set_source_surface(canvas.GetContext(), full, 0, 0);
     cairo_paint(canvas.GetContext());
-    //TODO: Add heading and copyright!!!
+
+    DrawHeaderFooter(canvas, page);
     return ret;
 }

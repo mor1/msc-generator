@@ -330,10 +330,11 @@ public:
 
     void DrawCopyrightTextAndAutoHeading(Canvas &canvas, unsigned page=0);
     void DrawPageBreaks(Canvas &canvas);
+    void DrawHeaderFooter(Canvas &canvas, unsigned page);
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
     bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks,
-                    Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL,
+                    const XY &pageSize=XY(0,0), const double margins[4]=NULL,
                     int ha=-1, int va=-1, bool generateErrors=false);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks,

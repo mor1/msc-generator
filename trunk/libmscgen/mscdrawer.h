@@ -48,6 +48,32 @@ struct PageBreakData;
 /** A collection holding relevant data for all the page breaks in the chart*/
 typedef std::vector<PageBreakData> PBDataVector;
 
+/** A class having only static members, providing page size conversion capabilities.*/
+class PageSizeInfo
+{
+public:
+    /** Describes fixed page output page sizes.*/
+    typedef enum {
+        NO_PAGE=1, ///<This value indicates no fixed page output
+        A0P, A0L,
+        A1P, A1L,
+        A2P, A2L,
+        A3P, A3L,
+        A4P, A4L,
+        A5P, A5L,
+        A6P, A6L,
+        LETTER_P, LETTER_L,
+        LEGAL_P, LEGAL_L,
+        LEDGER, TABLOID,
+        MAX_PAGE ///<Not used, the max value.
+    } EPageSize;
+    /** Converts a string to a fixed page size*/
+    static EPageSize ConvertPageSize(const char *);
+    /** Returns the physical size of `ps` in points (1/72 inch)*/
+    static XY GetPhysicalPageSize(EPageSize ps);
+};
+
+
 /** A class encapsulating a cairo drawing conext.
  * Besides relaying drawing calls to the cario context Canvas has the following functionality.
  * - Create and manage various target surfaces (PDF, PNG, EPS, EMF, WMF, BMP, recording surface)
@@ -97,23 +123,6 @@ public:
         PRINTER  ///<Output to a Windows printer DC
     } EOutputType;
     typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_MARGIN, ERR_DONE} EErrorType;
-    /** Describes fixed page output page sizes.*/
-    typedef enum {
-        NO_PAGE=1, ///<This value indicates no fixed page output
-        A0P, A0L,
-        A1P, A1L,
-        A2P, A2L,
-        A3P, A3L,
-        A4P, A4L,
-        A5P, A5L,
-        A6P, A6L,
-        LETTER_P, LETTER_L,
-        LEGAL_P, LEGAL_L,
-        LEDGER, TABLOID,
-        MAX_PAGE ///<Not used, the max value.
-    } EPageSize;
-    /** Converts a string to a fixed page size*/
-    static EPageSize ConvertPageSize(const char *);
 protected:
     /** @name Low-level compatibility options 
      * @{ */
@@ -220,7 +229,7 @@ public:
               const XY &scale=XY(1.,1.), 
               const PBDataVector *pageBreakData=NULL, unsigned page=0);
     Canvas(EOutputType, const Block &tot, const string &fn, 
-              const std::vector<XY> &scale, EPageSize pageSize, 
+              const std::vector<XY> &scale, const XY &pageSize, 
               const double margins[4],  int ha, int va, 
               double copyrightTextHeight, const PBDataVector *pageBreakData);
     Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, 
@@ -228,8 +237,6 @@ public:
               const PBDataVector *pageBreakData=NULL, unsigned page=0);
     /** Returns the state of the Canvas*/
     EErrorType Status() const {return status;}
-    /** Returns the physical size of `ps` in points (1/72 inch)*/
-    static XY GetPhysicalPageSize(EPageSize ps);
     bool TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
                   MscError *error=NULL);
     bool ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakData, bool fatal);

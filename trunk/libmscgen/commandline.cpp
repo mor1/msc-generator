@@ -192,19 +192,19 @@ int do_main(const std::list<std::string> &args, const char *designs,
             MscProgress::ProgressCallback cb, void *param,
             std::string *load_data)
 {
-    Canvas::EOutputType oOutType=Canvas::PNG;
-    string                oOutputFile;
-    string                oInputFile;
-    bool                  oWarning = true;
-    bool                  oCshize = false;
-    int                   oX = -1;
-    int                   oY = -1;
-    std::vector<double>   oScale; //-2=auto, -1=width, other values = given scale
-    Canvas::EPageSize  oPageSize = Canvas::NO_PAGE;
-    int                   oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
-    double                margins[] = {36, 36, 36, 36}; // half inches everywhere
-    bool                  oA = false;
-    bool                  oAH = false;
+    Canvas::EOutputType     oOutType=Canvas::PNG;
+    string                  oOutputFile;
+    string                  oInputFile;
+    bool                    oWarning = true;
+    bool                    oCshize = false;
+    int                     oX = -1;
+    int                     oY = -1;
+    std::vector<double>     oScale; //-2=auto, -1=width, other values = given scale
+    PageSizeInfo::EPageSize oPageSize = PageSizeInfo::NO_PAGE;
+    int                     oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
+    double                  margins[] = {36, 36, 36, 36}; // half inches everywhere
+    bool                    oA = false;
+    bool                    oAH = false;
     string ss;
 
     Msc msc;
@@ -257,12 +257,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 oScale.push_back(os);
         } else if (i->at(0) == '-' && i->at(1) == 'p') {
             if (i->length()==2)
-                oPageSize = Canvas::A4P;
+                oPageSize = PageSizeInfo::A4P;
             else
-                oPageSize = i->at(2)=='=' ? Canvas::ConvertPageSize(i->c_str()+3) : Canvas::NO_PAGE;
-            if (oPageSize == Canvas::NO_PAGE) {
+                oPageSize = i->at(2)=='=' ? PageSizeInfo::ConvertPageSize(i->c_str()+3) : PageSizeInfo::NO_PAGE;
+            if (oPageSize == PageSizeInfo::NO_PAGE) {
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
-                oPageSize = Canvas::A4P;
+                oPageSize = PageSizeInfo::A4P;
             }
         } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') &&
                    i->at(2) == 'a') {
@@ -475,32 +475,32 @@ int do_main(const std::list<std::string> &args, const char *designs,
     }
 
     //Determine option compatibility
-    if (oPageSize!=Canvas::NO_PAGE && oOutType != Canvas::PDF) {
+    if (oPageSize!=PageSizeInfo::NO_PAGE && oOutType != Canvas::PDF) {
         msc.Error.Error(opt_pos, "-p can only be used with PDF output. Ignoring it.");
-        oPageSize = Canvas::NO_PAGE;
+        oPageSize = PageSizeInfo::NO_PAGE;
     }
     bool has_auto_or_width = false;
     for (unsigned s=0; s<oScale.size() && !has_auto_or_width; s++)
         has_auto_or_width = oScale[s]<=0;
-    if (has_auto_or_width && oPageSize == Canvas::NO_PAGE) {
+    if (has_auto_or_width && oPageSize == PageSizeInfo::NO_PAGE) {
         msc.Error.Error(opt_pos, "-s=auto and -s=width can only be used with full-page output. Using default scale of 1.0.");
         oScale.assign(1, 1.0);
     }
-    if (oScale.size()>1 && oPageSize == Canvas::NO_PAGE) {
+    if (oScale.size()>1 && oPageSize == PageSizeInfo::NO_PAGE) {
         msc.Error.Error(opt_pos, "Multiple -s options can only be applied to full-page output. Using default scale of 1.0.");
         oScale.assign(1, 1.0);
     }
-    if (oPageSize==Canvas::NO_PAGE && oHA!=-2) {
+    if (oPageSize==PageSizeInfo::NO_PAGE && oHA!=-2) {
         msc.Error.Error(opt_pos, "-ha can only be used with full-page output (-p). Ignoring it.");
         oHA = -1;
     }
     if (oHA == -2) oHA = -1;
-    if (oPageSize==Canvas::NO_PAGE && oVA!=-2) {
+    if (oPageSize==PageSizeInfo::NO_PAGE && oVA!=-2) {
         msc.Error.Error(opt_pos, "-va can only be used with full-page output (-p). Ignoring it.");
         oVA = -1;
     }
     if (oVA == -2) oVA = -1;
-    if (oPageSize==Canvas::NO_PAGE && oA) {
+    if (oPageSize==PageSizeInfo::NO_PAGE && oA) {
         msc.Error.Error(opt_pos, "-a can only be used with full-page output (-p). Ignoring it.");
         oA = false;
     }
@@ -567,7 +567,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.ParseText(input, oInputFile.c_str());
         XY pageSize(0,0);
         if (oA) {
-            pageSize = Canvas::GetPhysicalPageSize(oPageSize);
+            pageSize = PageSizeInfo::GetPhysicalPageSize(oPageSize);
             pageSize.x -= margins[0] + margins[1];
             pageSize.y -= margins[2] + margins[3];
             if (oScale[0]>0)
@@ -592,7 +592,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         } else if (oScale.size()==1)  //one specified
             scale[0].x = scale[0].y = oScale[0];
         else if (oScale.size()>1) { //multiple specified
-            if (oPageSize == Canvas::NO_PAGE) {
+            if (oPageSize == PageSizeInfo::NO_PAGE) {
                 for (unsigned u = 0; u<oScale.size(); u++)
                     if (oScale[u]>0) {
                         oScale[0] = oScale[u];
@@ -608,7 +608,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
         }
 
         //Now cycle through pages and write them to individual files or a full-page  one
-        msc.DrawToFile(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
+        msc.DrawToFile(oOutType, scale, oOutputFile, false, PageSizeInfo::GetPhysicalPageSize(oPageSize), 
+                       margins, oHA, oVA, true);
         msc.Progress.Done();
         if (load_data)
             *load_data = msc.Progress.WriteLoadData();
