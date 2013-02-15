@@ -165,6 +165,7 @@ public:
 	CSize GetSize(unsigned forced_page=0) const;
     const Block &GetMscTotal() const;
 	XY GetPageOrigin(unsigned page) const;
+    Block GetNetPageBlock() const; //the page coordinates without autoheader and coyright text
     double GetHeadingSize() const;
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
     /** Returns the size of the metafile or zero if error.*/

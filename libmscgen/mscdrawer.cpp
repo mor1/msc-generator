@@ -53,6 +53,55 @@
 #endif
 
 
+PageSizeInfo::EPageSize PageSizeInfo::ConvertPageSize(const char *c)
+{
+    if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' &&
+        (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
+            unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l');
+            return EPageSize(hm);
+    }
+    if (CaseInsensitiveEqual(c, "letter") || CaseInsensitiveEqual(c, "letter_p"))
+        return LETTER_P;
+    if (CaseInsensitiveEqual(c, "letter_l"))
+        return LETTER_L;
+    if (CaseInsensitiveEqual(c, "legal") || CaseInsensitiveEqual(c, "legal_p"))
+        return LEGAL_P;
+    if (CaseInsensitiveEqual(c, "legal_l"))
+        return LEGAL_L;
+    if (CaseInsensitiveEqual(c, "ledger"))
+        return LEDGER;
+    if (CaseInsensitiveEqual(c, "tabloid"))
+        return TABLOID;
+    return NO_PAGE;
+}
+
+
+
+/** Returns the page size in points (1/72 inch)*/
+XY PageSizeInfo::GetPhysicalPageSize(EPageSize ps)
+{
+    if (ps>=MAX_PAGE || ps<=NO_PAGE) return XY(0,0);
+    static const double ISO_size[] = {118.9, 84.1, 59.4, 42.0, 29.7, 21.0, 14.8, 10.5};
+    const double mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    XY ret;
+    switch (ps) {
+    case LETTER_P:
+        ret = XY(8.5, 11)*72; break;
+    case LEGAL_P:
+        ret = XY(8.5, 14)*72; break;
+    case LEDGER:
+        ret = XY(17, 11)*72; break;
+    default: //ISO sizes
+        ret.x = mul*ISO_size[unsigned(ps)/2];
+        ret.y = mul*ISO_size[unsigned(ps)/2 - 1];
+    }
+    //handle landscape
+    if (unsigned(ps)%2)
+        ret.SwapXY();
+    return ret;
+}
+
+
 /** Creates an empty canvas to query font sizes 
  * Drawing on this will fire a debug assertion or
  * do nothing for a release build.*/
@@ -169,7 +218,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
                             the size of the automatically inserted heading
                             (if any.)*/
 Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
-                     Canvas::EPageSize pageSize, const double margins[4],  int ha, int va, 
+                     const XY &pageSize, const double margins[4],  int ha, int va, 
                      double ctexth, const PBDataVector *pageBreakData) :
     outFile(NULL), surface(NULL), cr(NULL), status(ERR_PARAM), candraw(false),
     fake_dash_offset(0), outType(ot), total(tot),
@@ -190,11 +239,11 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
         status = ERR_FILE;
         return;
     }
-    status = CreateSurface(GetPhysicalPageSize(pageSize));
+    status = CreateSurface(pageSize);
     if (status!=ERR_OK) return;
 
     //Determine net page size (physical size - margins)
-    raw_page_clip = Block(XY(0,0), GetPhysicalPageSize(pageSize));
+    raw_page_clip = Block(XY(0,0), pageSize);
     if (margins) {
         raw_page_clip.x.from += margins[0];
         raw_page_clip.x.till -= margins[1];
@@ -342,55 +391,6 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
         }
         return false;
     }
-}
-
-
-Canvas::EPageSize Canvas::ConvertPageSize(const char *c)
-{
-    if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' &&
-        (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
-            unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l');
-            return EPageSize(hm);
-    }
-    if (CaseInsensitiveEqual(c, "letter") || CaseInsensitiveEqual(c, "letter_p"))
-        return LETTER_P;
-    if (CaseInsensitiveEqual(c, "letter_l"))
-        return LETTER_L;
-    if (CaseInsensitiveEqual(c, "legal") || CaseInsensitiveEqual(c, "legal_p"))
-        return LEGAL_P;
-    if (CaseInsensitiveEqual(c, "legal_l"))
-        return LEGAL_L;
-    if (CaseInsensitiveEqual(c, "ledger"))
-        return LEDGER;
-    if (CaseInsensitiveEqual(c, "tabloid"))
-        return TABLOID;
-    return NO_PAGE;
-}
-
-
-
-/** Returns the page size in points (1/72 inch)*/
-XY Canvas::GetPhysicalPageSize(EPageSize ps)
-{
-    if (ps>=MAX_PAGE || ps<=NO_PAGE) return XY(0,0);
-    static const double ISO_size[] = {118.9, 84.1, 59.4, 42.0, 29.7, 21.0, 14.8, 10.5};
-    const double mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-    XY ret;
-    switch (ps) {
-    case LETTER_P:
-        ret = XY(8.5, 11)*72; break;
-    case LEGAL_P:
-        ret = XY(8.5, 14)*72; break;
-    case LEDGER:
-        ret = XY(17, 11)*72; break;
-    default: //ISO sizes
-        ret.x = mul*ISO_size[unsigned(ps)/2];
-        ret.y = mul*ISO_size[unsigned(ps)/2 - 1];
-    }
-    //handle landscape
-    if (unsigned(ps)%2)
-        ret.SwapXY();
-    return ret;
 }
 
 /**Creates a canvas to draw one page or all of the chart to a cairo recording surface.*

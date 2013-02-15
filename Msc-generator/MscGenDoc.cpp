@@ -167,7 +167,7 @@ AnimationElement::AnimationElement(ElementType et, int delay,
 
 
 const unsigned AnimationElement::default_appear_time[MAX_TYPE] = {100, 300, 1, 100};
-const unsigned AnimationElement::default_disapp_time[MAX_TYPE] = {100, 300, 1500, 100};
+const unsigned AnimationElement::default_disapp_time[MAX_TYPE] = {100, 300, 500, 100};
 
 
 // CMscGenDoc
@@ -1496,7 +1496,10 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
 	    POSITION pos = GetFirstViewPosition();
 	    while(pos) {
 		    CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-            if (pView) pView->EnableScrollBarCtrl(SB_BOTH, FALSE);
+            if (pView) {
+                pView->EnableScrollBarCtrl(SB_BOTH, FALSE);
+                pView->UpdateWindow();
+            }
 	    }
 
         //Fire up compilation thread
@@ -1700,8 +1703,11 @@ bool CMscGenDoc::AddAnimationElement(AnimationElement::ElementType type,
 	if (!found) {
         if (arc)
             m_animations.push_back(AnimationElement(arc, type, delay));
-        else
+        else {
             m_animations.push_back(AnimationElement(type, delay));
+            if (type==AnimationElement::FALLBACK_IMAGE)
+                m_animations.rbegin()->fade_value = 1;
+        }
         if (type == AnimationElement::CONTROL) 
             m_controlsShowing[arc->GetControlLocation()] = arc;
     } 

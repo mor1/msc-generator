@@ -93,6 +93,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
     ON_MESSAGE(WM_APP+293, OnCompilationDone)
+    ON_MESSAGE(WM_APP+294, OnCshCopy)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -106,13 +107,12 @@ static UINT indicators[] =
 
 // CMainFrame construction/destruction
 
-CMainFrame::CMainFrame() : m_ctrlEditor(this)
+CMainFrame::CMainFrame() 
 {
 	theApp.m_nAppLook = theApp.GetInt(_T("ApplicationLook"), ID_VIEW_APPLOOK_VS_2005);
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
     m_has_fallback_image = false;
-    m_csh_timer = NULL;
 }
 
 CMainFrame::~CMainFrame()
@@ -434,6 +434,14 @@ LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
     return 0; //OK, we processed it
 }
 
+LRESULT CMainFrame::OnCshCopy(WPARAM wParam, LPARAM lParam)
+{
+    if (IsWindow(m_ctrlEditor.m_hWnd)) {
+        m_ctrlEditor.m_ctrlEditor.CopyCsh();
+        m_ctrlEditor.Invalidate();  
+    }
+    return 0; //OK, we processed it
+}
 
 bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
 {
@@ -482,26 +490,6 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
     }
     return false;
 }
-
-
-void CMainFrame::StartCshTimer(unsigned time)
-{
-    m_csh_timer = SetTimer(1, time, NULL);
-}
-
-void CMainFrame::KillCshTimer()
-{
-    KillTimer(m_csh_timer);
-    m_csh_timer = NULL;
-}
-
-void CMainFrame::OnTimer(UINT_PTR nEventID)
-{
-    if (nEventID==1) 
-        m_ctrlEditor.m_ctrlEditor.CopyCsh();
-}
-
-
 
 
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
@@ -656,29 +644,20 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(ID_DESIGN_PAGE, arButtons);
     _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
 
-	if (no_pages == 1 && c->GetCount() == 1) return;
-	//If the combo shows different number of pages then we have, update the combo
-	if (no_pages+1 != c->GetCount()) {
-		c->RemoveAllItems();
-		//Fill combo list with the appropriate number of pages
-		if (no_pages > 1) {
-            CString str;
+	if (no_pages == 1) {
+        c->EnableSpinButtons(0, 0);
+        c->SetEditText("1/1");
+    } else {
+        c->EnableSpinButtons(0, no_pages);
+        CString str;
+        if (page==0) 
             str.Format("(all)/%d", no_pages);
-            c->AddItem(str, 0);
-			for (int i=1; i<=no_pages; i++) {
-				str.Format("%d/%d", i, no_pages);
-				c->AddItem(str, i);
-			}
-        } else {
-            c->AddItem("1/1", 0);
-        }
-		c->SetDropDownHeight(250);
-	}
-	//Set the index to the current page
-	c->SelectItem(page);
-
+        else 
+            str.Format("%d/%d", page, no_pages);
+        c->SetEditText(str);
+    }
 
     //Update the Copy Entire Chart button, as well
     arButtons.RemoveAll();
@@ -705,11 +684,15 @@ void CMainFrame::OnDesignPage()
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(ID_DESIGN_PAGE, arButtons);
     _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
-	unsigned index = c->GetCurSel();
+	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-    if (pDoc) 
-        pDoc->ChangePage(index);
+    if (!pDoc) return;
+    unsigned page = pDoc->m_ChartShown.GetPage();
+    const CString val = c->GetEditText();
+    if (1==sscanf(val, "%u", &page)) {
+        pDoc->ChangePage(page);
+        FillPageComboBox(pDoc->m_ChartShown.GetPages(), page);
+    }
 }
 
 void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)

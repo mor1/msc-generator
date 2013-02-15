@@ -58,6 +58,8 @@ public:
 	BOOL			   m_bHiColorIcons;
 	COutputViewBar    *m_pWndOutputView;  //shortcut to the error window
 	CEditorBar        *m_pWndEditor;      //shortcut to the internal editor
+    XY                 m_PrinterPageSize; //The printable area in points (1/72) inch
+    XY                 m_PrinterScale;    //The scale to apply so that we get from points to printer pixels
 
 //Status 
 	bool m_bFullScreenViewMode; //we were opened by "ViewFullScreen OLE verb"
@@ -101,6 +103,7 @@ public:
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();
 
+    void UpdatePrinterData();
 	void ReadRegistryValues(bool reportProblem);
 	int ReadDesigns(bool reportProblem, const char *fileName);
 	bool IsInternalEditorRunning() const {
@@ -145,6 +148,12 @@ public:
     afx_msg void OnUpdateCheckHints(CCmdUI *pCmdUI);
     afx_msg void OnButtonTrackColor();
     afx_msg void OnEmbeddedoptionsFallbackRes();
+    afx_msg void OnAutoPaginate();
+    afx_msg void OnUpdateAutoPaginate(CCmdUI *pCmdUI);
+    afx_msg void OnAutoHeaders();
+    afx_msg void OnUpdateAutoHeaders(CCmdUI *pCmdUI);
+    afx_msg void OnComboScale();
+    afx_msg void OnUpdateComboScale(CCmdUI *pCmdUI);
 };
 
 extern CMscGenApp theApp;

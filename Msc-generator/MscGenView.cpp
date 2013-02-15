@@ -255,6 +255,9 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
         cairo_translate(cr, -clip.left, -clip.top);
         cairo_scale(cr, scale.x, scale.y);
         cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
+        //draw track rects only inside the page, not on the copyright text or autoheading or outside
+        cairo_rectangle(cr, m_chartPage.x.from, m_chartPage.y.from, m_chartPage.x.Spans(), m_chartPage.y.Spans());
+        cairo_clip(cr);
         for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
              i!=pDoc->m_animations.end(); i++) 
             switch (i->what) {
@@ -274,13 +277,13 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
                 if (!pDoc->m_fallback_image_location.IsEmpty()) {
                     cairo_save(cr);
                     const Block &total = pDoc->m_ChartShown.GetMscTotal();
-                    const double width = 0.2;
-                    const double off = (width*4 + 1.0)*(1-i->fade_value);
+                    const double width = 0.4;
+                    const double off = 0.8 - i->fade_value;
                     cairo_pattern_t *pattern = cairo_pattern_create_linear(total.x.from, total.y.from, total.x.till, total.y.till);
-                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.0, 1, 1, 1, 0);
-                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.5, 1, 1, 1, 1);
-                    cairo_pattern_add_color_stop_rgba(pattern, off+width*1.5, 0, 0, 0, 1);
-                    cairo_pattern_add_color_stop_rgba(pattern, off+width*2.0, 0, 0, 0, 0);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.00, 1, 1, 1, 0);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.25, 1, 1, 1, 1);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.75, 0, 0, 0, 1);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*1.00, 0, 0, 0, 0);
                     cairo_set_source(cr, pattern);
                     cairo_set_line_width(cr, 3);
                     cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
@@ -292,7 +295,7 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
                 break;
             case AnimationElement::CONTROL:
                 if (pApp->m_bShowControls) 
-                    //i->arc->DrawControls(cr, i->fade_value);
+                    i->arc->DrawControls(cr, i->fade_value);
                 break;
             case AnimationElement::COMPILING_GREY:
                 grey_fade_value = i->fade_value;
@@ -423,6 +426,9 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
     if (!pDoc || !pApp || !pMain) return;
 
     m_chartOrigin = pDoc->m_ChartShown.GetPageOrigin(pDoc->m_ChartShown.GetPage());
+
+    m_chartPage = pDoc->m_ChartShown.GetNetPageBlock();
+
     ClearViewCache();
 
 	//Delete the cached bitmap

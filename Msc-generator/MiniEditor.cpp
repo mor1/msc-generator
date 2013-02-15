@@ -33,8 +33,8 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
-    m_parent(parent), m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
+CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : 
+    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
 {
     m_tabsize = 4;
 	m_bCshUpdateInProgress = false;  
@@ -532,9 +532,9 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr, bool preventN
 	SetRedraw(false);
 	m_bCshUpdateInProgress = preventNotification; 
 	SetWindowText(undoRec.text);
+	SetSel(cr);
 	m_bCshUpdateInProgress = false;
 	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
-	SetSel(cr);
     SetRedraw(true);
 	SetFocus();
 }
@@ -564,8 +564,8 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
 	    m_bCshUpdateInProgress = false;
 	    SetRedraw(true);
         Invalidate();
+        UpdateWindow();
         m_csh_index = -3;
-        m_parent->m_parent->KillCshTimer();
         return false;
     }
 
@@ -607,8 +607,6 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
     }
     //Do first batch of csh 
     m_csh_index = -1;
-    //kill timer
-    m_parent->m_parent->KillCshTimer();
     CopyCsh();
     return ret;
 }
@@ -620,7 +618,7 @@ void CCshRichEditCtrl::CopyCsh()
     long startfrom;
     bool shall_invalidate = false;
     switch (m_csh_index) {
-    case -3: m_parent->m_parent->KillCshTimer(); //fallthrough
+    case -3: return;
     case -2: return;
     case -1: startfrom = GetFirstVisibleLine(); shall_invalidate = true; break;
     default: startfrom = m_csh_index; 
@@ -630,7 +628,6 @@ void CCshRichEditCtrl::CopyCsh()
         dotill = GetTextLength()+1;
     startfrom = ConvertLineColToPos(startfrom, 0);
     if (startfrom < 0) {
-        m_parent->m_parent->KillCshTimer();
         m_csh_index = -3;
         return;
     }
@@ -659,8 +656,8 @@ void CCshRichEditCtrl::CopyCsh()
     const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
     //Go backwards, since errors are at the beginning and are more important: should show
 	for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
-        if (i->first_pos-1 < dotill && i->last_pos >= startfrom &&
-            scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
+        if (((i->first_pos-1) < dotill) && (i->last_pos >= startfrom) &&
+            (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color)) {
 			SetSel(i->first_pos-1, i->last_pos);
 			SetSelectionCharFormat(scheme[i->color]);
 		}
@@ -671,14 +668,13 @@ void CCshRichEditCtrl::CopyCsh()
                 SetSel(i->first_pos-1, i->last_pos);
                 SetSelectionCharFormat(scheme[COLOR_ERROR]);
             }
-        m_parent->m_parent->KillCshTimer();
         m_csh_index = -3; // We are done
     } else {
         if (m_csh_index == -1) 
             m_csh_index = 0;
         else 
             m_csh_index += ONE_BATCH;
-        m_parent->m_parent->StartCshTimer(TIME_DLEAY);
+        ::PostMessage(*AfxGetMainWnd(), WM_APP+294, 0, 0);
     }
 
     SetSel(cr);
@@ -686,8 +682,10 @@ void CCshRichEditCtrl::CopyCsh()
 
 	m_bCshUpdateInProgress = false;
 	SetRedraw(true);
-	if (shall_invalidate)
+	if (shall_invalidate) {
         Invalidate();  //Invalidate only if we have shown the visible part
+        UpdateWindow();
+    }
 	//SetEventMask(eventMask);
 }
 
@@ -886,8 +884,7 @@ BEGIN_MESSAGE_MAP(CEditorBar, CDockablePane)
 	ON_REGISTERED_MESSAGE(nFindReplaceDialogMessage, OnFindReplaceMessage)
 END_MESSAGE_MAP()
 
-CEditorBar::CEditorBar(CMainFrame *parent) : m_pFindReplaceDialog(NULL), m_ctrlEditor(this),
-    m_parent(parent)
+CEditorBar::CEditorBar() : m_ctrlEditor(this), m_pFindReplaceDialog(NULL)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);

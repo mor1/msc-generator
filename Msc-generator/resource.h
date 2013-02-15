@@ -146,16 +146,13 @@
 #define ID_COPY_PAGE7                   32949
 #define ID_COPY_PAGE8                   32950
 #define ID_COPY_PAGE9                   32951
-#define ID_BUTTON4                      32951
 #define ID_COPY_PAGE10                  32952
 #define ID_COPY_PAGE11                  32953
 #define ID_COPY_PAGE12                  32954
 #define ID_COPY_PAGE13                  32955
-#define ID_CONTEXT_EMBEDDEDOPTIONS      32955
 #define ID_COPY_PAGE14                  32956
 #define ID_COPY_PAGE15                  32957
 #define ID_COPY_PAGE16                  32958
-#define ID_EMBEDDEDOPTIONS_SIZENOW      32958
 #define ID_COPY_PAGE17                  32959
 #define ID_COPY_PAGE18                  32960
 #define ID_COPY_PAGE19                  32961
@@ -165,6 +162,11 @@
 #define ID_BUTTON_EDITORS               33051
 #define ID_EMBEDDEDOPTIONS_FALLBACK_RES 33052
 #define ID_COMPILATION_DONE             33053
+#define ID_CONTEXT_EMBEDDEDOPTIONS      33054
+#define ID_EMBEDDEDOPTIONS_SIZENOW      33055
+#define ID_AUTO_PAGINATE                33056
+#define ID_AUTO_HEADERS                 33057
+#define ID_COMBO_SCALE                  33058
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -173,7 +175,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        320
-#define _APS_NEXT_COMMAND_VALUE         32961
+#define _APS_NEXT_COMMAND_VALUE         32968
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif
