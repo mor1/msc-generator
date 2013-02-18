@@ -93,7 +93,6 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
     ON_MESSAGE(WM_APP+293, OnCompilationDone)
-    ON_MESSAGE(WM_APP+294, OnCshCopy)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -431,15 +430,6 @@ LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     if (pDoc) 
         pDoc->CompleteCompilingEditingChart();
-    return 0; //OK, we processed it
-}
-
-LRESULT CMainFrame::OnCshCopy(WPARAM wParam, LPARAM lParam)
-{
-    if (IsWindow(m_ctrlEditor.m_hWnd)) {
-        m_ctrlEditor.m_ctrlEditor.CopyCsh();
-        m_ctrlEditor.Invalidate();  
-    }
     return 0; //OK, we processed it
 }
 

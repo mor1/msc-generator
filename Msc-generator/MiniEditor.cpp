@@ -30,6 +30,7 @@ static char THIS_FILE[] = __FILE__;
 
 BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 	ON_WM_MOUSEWHEEL() 
+    ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -43,6 +44,7 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) :
     m_bTillCursorOnly = false;
     m_bWasAutoComplete = false;
     m_csh_index = -3;
+    m_timer = NULL;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -614,13 +616,15 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
 void CCshRichEditCtrl::CopyCsh()
 {
     const unsigned ONE_BATCH = 100; //# of lines
+    const int PRE = 20;
     const unsigned TIME_DLEAY = 30; //milliseconds
     long startfrom;
-    bool shall_invalidate = false;
+    bool shall_invalidate = true; //XXX: speedup to set it false by default
+    bool shall_continue = false;
     switch (m_csh_index) {
     case -3: return;
     case -2: return;
-    case -1: startfrom = GetFirstVisibleLine(); shall_invalidate = true; break;
+    case -1: startfrom = std::max(0, GetFirstVisibleLine()-PRE); shall_invalidate = true; break;
     default: startfrom = m_csh_index; 
     }
     long dotill = ConvertLineColToPos(startfrom + ONE_BATCH, 0);
@@ -674,7 +678,7 @@ void CCshRichEditCtrl::CopyCsh()
             m_csh_index = 0;
         else 
             m_csh_index += ONE_BATCH;
-        ::PostMessage(*AfxGetMainWnd(), WM_APP+294, 0, 0);
+        shall_continue = true;
     }
 
     SetSel(cr);
@@ -687,6 +691,20 @@ void CCshRichEditCtrl::CopyCsh()
         UpdateWindow();
     }
 	//SetEventMask(eventMask);
+    if (shall_continue == (m_timer!=NULL))
+        return;
+    else if (shall_continue)
+        m_timer = SetTimer(1, TIME_DLEAY, NULL);
+    else {
+        KillTimer(m_timer);
+        m_timer = NULL;
+    }
+}
+
+void CCshRichEditCtrl::OnTimer(UINT_PTR nEventID)
+{
+    if (nEventID == m_timer)
+        CopyCsh();
 }
 
 
