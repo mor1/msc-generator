@@ -44,6 +44,7 @@ class CCshRichEditCtrl : public CRichEditCtrl
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
     int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
+    UINT_PTR m_timer;
 public:
 	int m_tabsize;
 	CCshRichEditCtrl(CWnd *parent);
@@ -79,7 +80,7 @@ public:
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
-
+    afx_msg void OnTimer(UINT_PTR nEventID);
     //Hint window related
     void StartHintMode(bool setUptoCursor); //also used to update hints in popup, if already in hint mode
     bool InHintMode() const {return m_hintsPopup.m_shown;}
