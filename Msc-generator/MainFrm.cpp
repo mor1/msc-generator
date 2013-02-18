@@ -213,6 +213,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     _ASSERT(arButtons.GetSize()==1);
     CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
     if (s) s->SetPos(pApp->m_uFallbackResolution);
+
+    FillScale4Pagination();
                 
     return 0;
 }
@@ -785,6 +787,25 @@ void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
     if (m_labelFallbackImage || m_labelObjectSize) 
         m_wndRibbonBar.ForceRecalcLayout();
 }
+
+void CMainFrame::FillScale4Pagination() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_iScale4Pagination<-2) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    if (pApp->m_iScale4Pagination==-2) c->SetEditText("Fit Page");
+    else if (pApp->m_iScale4Pagination==-1) c->SetEditText("Fit Width");
+    else {
+        CString val;
+        val.Format("%u%%", pApp->m_iScale4Pagination);
+        c->SetEditText(val);
+    }
+}
+
 
 void CMainFrame::OnViewInternalEditor()
 {

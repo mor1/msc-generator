@@ -102,6 +102,7 @@ public:
 	afx_msg void OnViewInternalEditor();                     //Toggles internal editor
     afx_msg void OnUpdateViewInternalEditor(CCmdUI *pCmdUI); //Shows if internal editor is on
     void FillEmbeddedPanel(size_t size, double percent);     //Set Embedded Object panel Labels
+    void FillScale4Pagination();
     void TriggerIfRibbonCategoryChange();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
     afx_msg void OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI);

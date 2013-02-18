@@ -91,6 +91,10 @@ public:
     bool m_bHintFilter;
     bool m_bHintCompact;
     bool m_bShowControls;
+    bool m_bAutoPaginate;
+    bool m_bAutoHeading;
+    int m_iScale4Pagination; //Percentage, -1=Fix Witdth, -2=Fix Page
+    int m_iPageAlignment; //-1/0/+1 horizontal -3/0/+3 vertical
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -197,4 +201,8 @@ extern CMscGenApp theApp;
 #define REG_KEY_HINT_FILTER "HintFilter"
 #define REG_KEY_SHOW_CONTROLS "ShowElementControls"
 #define REG_KEY_LOAD_DATA "LoadData"
+#define REG_KEY_AUTO_PAGINATE "AutoPaginate"
+#define REG_KEY_AUTO_HEADING "AutoHeading"
+#define REG_KEY_SCALE4PAGINATION "Scale4Pagination"
+#define REG_KEY_PAGE_ALIGNMENT "PageAlignment"
 

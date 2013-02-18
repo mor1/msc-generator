@@ -254,9 +254,9 @@ public:
     Canvas(EOutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const PBDataVector *pageBreakData=NULL, unsigned page=0);
     /** When rendering on WMF or EMF, return the size of the resulting file. Valid only after CloseOutput().*/
-    size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF); return stored_metafile_size;} 
+    size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF||outType==PRINTER); return stored_metafile_size;} 
     /** When rendering on WMF or EMF, return the location of fallback images in chart space. Valid only after in CloseOutput()*/
-    Contour &GetFallbackImagePlaces() {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF); return stored_fallback_image_places;} 
+    Contour &GetFallbackImagePlaces() {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF||outType==PRINTER); return stored_fallback_image_places;} 
     static Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT);
     HENHMETAFILE CloseAndGetEMF();
 #endif
