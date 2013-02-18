@@ -613,6 +613,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 void CMscGenDoc::OnCloseDocument()
 {
 	m_ExternalEditor.Stop(STOPEDITOR_FORCE);
+    KillCompilation();
 	COleServerDocEx::OnCloseDocument();
 }
 
@@ -1475,6 +1476,9 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
     m_ChartCompiling.SetPedantic(pApp->m_Pedantic);
     m_ChartCompiling.SetDesigns(&pApp->m_Designs, &pApp->m_DesignErrors);
     m_ChartCompiling.SetCopyRightText(pApp->m_CopyrightText);
+    m_ChartCompiling.SetPageSize(pApp->m_bAutoPaginate ? pApp->m_PrinterPageSize : XY(0,0));
+    m_ChartCompiling.SetAddHeading(pApp->m_bAutoHeading);
+    m_ChartCompiling.SetFitWidth(pApp->m_iScale4Pagination == -1);
     m_ChartCompiling.m_load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);
 
 	//All tracking rectangles, but add grey area

@@ -85,7 +85,7 @@ void MscProgress::UnRegisterArc(ECategory category)
 void MscProgress::DoneItem(EArcSection section, ECategory category) 
 {
     const clock_t now = clock();
-    _ASSERT(section == current_arc_section);
+//    _ASSERT(section == current_arc_section);
     //We may call draw multiple times
     //We may delete arcs (content of ArcBox) already processed, due to gouped entity hiding
     if (current_arc_section != DRAW && current_arc_section != POST_PARSE && current_arc_section != NOTES) {

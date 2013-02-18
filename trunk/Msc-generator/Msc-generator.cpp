@@ -252,7 +252,10 @@ CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true)),
 	m_pWndEditor = 0;
 	m_bFullScreenViewMode = false;
     m_bShowControls = false;
-
+    m_bAutoPaginate = false;
+    m_bAutoHeading = true;
+    m_iScale4Pagination = -1; //Percentage, -1=Fix Witdth, -2=Fix Page
+    m_iPageAlignment = -4;
 }
 
 
@@ -462,6 +465,7 @@ void ConvertMscCshAppearanceToCHARFORMAT(const ColorSyntaxAppearance &app, CHARF
 void CMscGenApp::UpdatePrinterData()
 {
     CDC dc;
+	UpdatePrinterSelection(m_hDevNames == NULL); //force default if no current
     if (!CreatePrinterDC(dc)) return;
     //Get printable area in printer pixels
     const XY ps_pixel(dc.GetDeviceCaps(HORZRES), dc.GetDeviceCaps(VERTRES));
@@ -497,6 +501,10 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
     m_bHintCompact   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, TRUE);
     m_bShowControls  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SHOW_CONTROLS, TRUE);
+    m_bAutoPaginate  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_PAGINATE, FALSE);
+    m_bAutoHeading   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, TRUE);
+    m_iScale4Pagination = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, -1);
+    m_iPageAlignment = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, -4);
 
 	m_bDoCshProcessing = m_bShowCsh || m_bHints;
 
@@ -773,11 +781,8 @@ void CMscGenApp::OnCheckPageBreaks()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPageBreaks);
     //recompile
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc) {
-        pDoc->m_ChartShown.SetPageBreaks(m_bPageBreaks);
-        pDoc->UpdateAllViews(NULL);
-    }
-
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->CompileEditingChart(false, false);
 }
 
 
@@ -1079,35 +1084,60 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
 
 void CMscGenApp::OnAutoPaginate()
 {
-    // TODO: Add your command handler code here
+    m_bAutoPaginate = !m_bAutoPaginate;
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->CompileEditingChart(false, false);
 }
 
 
 void CMscGenApp::OnUpdateAutoPaginate(CCmdUI *pCmdUI)
 {
-    // TODO: Add your command update UI handler code here
+    pCmdUI->SetCheck(m_bAutoPaginate);
 }
 
 
 void CMscGenApp::OnAutoHeaders()
 {
-    // TODO: Add your command handler code here
+    m_bAutoHeading = !m_bAutoHeading;
+    if (!m_bAutoPaginate) return;
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->CompileEditingChart(false, false);
 }
 
 
 void CMscGenApp::OnUpdateAutoHeaders(CCmdUI *pCmdUI)
 {
-    // TODO: Add your command update UI handler code here
+    pCmdUI->SetCheck(m_bAutoHeading);
+    pCmdUI->Enable(m_bAutoPaginate);
 }
 
 
 void CMscGenApp::OnComboScale()
 {
-    // TODO: Add your command handler code here
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+	CMscGenDoc *pDoc = GetDoc();
+    if (!pDoc) return;
+    const CString val = c->GetEditText();
+    if (1!=sscanf(val, "%i", &m_iScale4Pagination)) {
+        if (val.CompareNoCase("Fit Width")==0) m_iScale4Pagination = -1;
+        else if (val.CompareNoCase("Fit Page")==0) m_iScale4Pagination = -2;
+    }
+    //m_iScale4Pagination may have been left unchanged, but we normalize text
+    pMainWnd->FillScale4Pagination();
+
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->CompileEditingChart(false, false);
 }
 
 
 void CMscGenApp::OnUpdateComboScale(CCmdUI *pCmdUI)
 {
-    // TODO: Add your command update UI handler code here
+    pCmdUI->Enable(m_bAutoPaginate);
 }

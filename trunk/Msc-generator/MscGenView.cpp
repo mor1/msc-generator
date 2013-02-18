@@ -132,6 +132,7 @@ void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CMscGenView::OnFilePrintPreview()
 {
 	AFXPrintPreview(this);
+
 }
 
 BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
@@ -142,38 +143,71 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print");
-    CDrawingChartData *pData = new CDrawingChartData(pDoc->m_ChartShown);
-
-	pInfo->SetMaxPage(pData->GetPages()); //This one compiles copied chart
-    pInfo->m_lpUserData = pData;
+	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages()); 
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
 
-void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+struct MyPrintInfo
 {
-	// extra initialization before printing
+    XY scale;
+};
+
+
+void CMscGenView::OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo)
+{
+    MyPrintInfo *mpi = new MyPrintInfo;
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    const CSize orig_size = pDoc->m_ChartShown.GetSize();
+    if (pApp->m_iScale4Pagination<=-2) 
+        mpi->scale = XY(0,0);
+    else if (pApp->m_iScale4Pagination==-1) 
+        mpi->scale.x = mpi->scale.y = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+    else
+        mpi->scale = pApp->m_PrinterScale * (pApp->m_iScale4Pagination/100.0);
+    
+    pInfo->m_lpUserData = mpi;
 }
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
-    CDrawingChartData *const pData = (CDrawingChartData *)pInfo->m_lpUserData;
-    if (pData==NULL || pData->IsEmpty())
-		return;
-
-    const CSize orig_size = pData->GetSize();
-	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    scale = std::min(scale, 10.);
-
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
     CWaitCursor wait;
-    pData->DrawToDC(Canvas::PRINTER, pDC->m_hDC, XY(scale, scale), pInfo->m_nCurPage, false);
+    MyPrintInfo *mpi = (MyPrintInfo *)pInfo->m_lpUserData;
+    const CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
+    XY scale;
+    if (mpi->scale.x>0 && mpi->scale.y>0) 
+        scale = mpi->scale;
+    else 
+        scale.x = scale.y = std::min(double(pInfo->m_rectDraw.Width())/orig_size.cx,
+                                     double(pInfo->m_rectDraw.Height())/orig_size.cy);
+    const int vA = pApp->m_iPageAlignment/3;
+    const int hA = pApp->m_iPageAlignment - vA*3;
+    CSize off;
+    switch (hA) {
+    case -1: off.cx = 0; break;
+    case  0: off.cx = (pInfo->m_rectDraw.Width() - orig_size.cx*scale.x)/2; break;
+    case +1: off.cx = pInfo->m_rectDraw.Width() - orig_size.cx*scale.x; break;
+    }
+    switch (vA) {
+    case -1: off.cy = 0; break;
+    case  0: off.cy = (pInfo->m_rectDraw.Height() - orig_size.cy*scale.y)/2; break;
+    case +1: off.cy = pInfo->m_rectDraw.Height() - orig_size.cy*scale.y; break;
+    }
+    pDC->SetViewportOrg(off.cx, off.cy);
+    pDoc->m_ChartShown.DrawToDC(Canvas::PRINTER, pDC->m_hDC, scale,
+                                pInfo->m_nCurPage, false);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
 {
-	// cleanup after printing
-    CDrawingChartData *const pData = (CDrawingChartData *)pInfo->m_lpUserData;
-    delete pData;
+
 }
 
 void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
