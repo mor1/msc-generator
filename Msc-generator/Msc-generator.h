@@ -156,7 +156,9 @@ public:
     afx_msg void OnUpdateAutoPaginate(CCmdUI *pCmdUI);
     afx_msg void OnAutoHeaders();
     afx_msg void OnUpdateAutoHeaders(CCmdUI *pCmdUI);
-    afx_msg void OnComboScale();
+    afx_msg void OnComboScale() {DoComboScale(ID_COMBO_SCALE);}
+    afx_msg void OnComboScale2() {DoComboScale(ID_COMBO_SCALE2);}
+            void DoComboScale(UINT id);
     afx_msg void OnUpdateComboScale(CCmdUI *pCmdUI);
 };
 

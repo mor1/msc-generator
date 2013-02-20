@@ -216,6 +216,7 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(ID_AUTO_HEADERS, &CMscGenApp::OnAutoHeaders)
     ON_UPDATE_COMMAND_UI(ID_AUTO_HEADERS, &CMscGenApp::OnUpdateAutoHeaders)
     ON_COMMAND(ID_COMBO_SCALE, &CMscGenApp::OnComboScale)
+    ON_COMMAND(ID_COMBO_SCALE2, &CMscGenApp::OnComboScale2)
     ON_UPDATE_COMMAND_UI(ID_COMBO_SCALE, &CMscGenApp::OnUpdateComboScale)
 END_MESSAGE_MAP()
 
@@ -474,7 +475,7 @@ void CMscGenApp::UpdatePrinterData()
     //convert to printer pixel per points (1/72 inch) 
     m_PrinterScale = res/72;
     m_PrinterPageSize.x = ps_pixel.x/m_PrinterScale.x;
-    m_PrinterPageSize.x = ps_pixel.y/m_PrinterScale.y;
+    m_PrinterPageSize.y = ps_pixel.y/m_PrinterScale.y;
 }
 
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
@@ -1088,6 +1089,7 @@ void CMscGenApp::OnAutoPaginate()
 	CMscGenDoc *pDoc = GetDoc();
     if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
         pDoc->CompileEditingChart(false, false);
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_PAGINATE, m_bAutoPaginate);
 }
 
 
@@ -1104,6 +1106,7 @@ void CMscGenApp::OnAutoHeaders()
 	CMscGenDoc *pDoc = GetDoc();
     if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
         pDoc->CompileEditingChart(false, false);
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, m_bAutoHeading);
 }
 
 
@@ -1113,13 +1116,13 @@ void CMscGenApp::OnUpdateAutoHeaders(CCmdUI *pCmdUI)
     pCmdUI->Enable(m_bAutoPaginate);
 }
 
-
-void CMscGenApp::OnComboScale()
+void CMscGenApp::DoComboScale(UINT id)
 {
+    _ASSERT(id == ID_COMBO_SCALE || id == ID_COMBO_SCALE2);
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
     if (!pMainWnd) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
+    pMainWnd->m_wndRibbonBar.GetElementsByID(id, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
 	CMscGenDoc *pDoc = GetDoc();
@@ -1131,11 +1134,18 @@ void CMscGenApp::OnComboScale()
     }
     //m_iScale4Pagination may have been left unchanged, but we normalize text
     pMainWnd->FillScale4Pagination();
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, m_iScale4Pagination);
 
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->CompileEditingChart(false, false);
+    if (!pDoc) return;
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_bAutoPaginate) { 
+        if (pDoc->m_itrShown == pDoc->m_itrEditing)
+            pDoc->CompileEditingChart(false, false);
+    } else {
+        pDoc->UpdateAllViews(NULL);
+    }
 }
-
 
 void CMscGenApp::OnUpdateComboScale(CCmdUI *pCmdUI)
 {

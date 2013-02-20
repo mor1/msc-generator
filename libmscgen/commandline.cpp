@@ -207,6 +207,16 @@ int do_main(const std::list<std::string> &args, const char *designs,
     bool                    oAH = false;
     string ss;
 
+    if (args.size()==1) {
+        if (*args.begin() == "-l") {
+            licence();
+            return EXIT_SUCCESS;
+        } else if (*args.begin() == "-h") {
+            usage();
+            return EXIT_SUCCESS;
+        }
+    }
+
     Msc msc;
     msc.prepare_for_tracking = false;
     msc.Progress.callback = cb;
@@ -228,21 +238,21 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.ParseText(designs, "[designlib]");
 
     for (std::list<std::string>::const_iterator i=args.begin(); i!=args.end(); i++) {
-        if (i->at(0) == '-' && i->at(1) == 'x') {
+        if (i->length()>=2 && i->at(0) == '-' && i->at(1) == 'x') {
             if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oX)!=1)
                 msc.Error.Error(opt_pos, "Missing size after '-x='. Using native size.");
             else if (oX<10 || oX>200000) {
                 msc.Error.Error(opt_pos, "Invalid x size, it should be between [10..200000]. Using native size.");
                 oX = -1;
             }
-        } else if (i->at(0) == '-' && i->at(1) == 'y') {
+        } else if (i->length()>=3 && i->at(0) == '-' && i->at(1) == 'y') {
             if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oY)!=1)
                 msc.Error.Error(opt_pos, "Missing size after '-y='. Using native size.");
             else if (oY<10 || oY>200000) {
                 msc.Error.Error(opt_pos, "Invalid y size, it should be between [10..200000]. Using native size.");
                 oY = -1;
             }
-        } else if (i->at(0) == '-' && i->at(1) == 's') {
+        } else if (i->length()>=4 && i->at(0) == '-' && i->at(1) == 's') {
             double os;
             if (i->at(2) != '=' ||
                 (sscanf(i->c_str()+3, "%lf", &os)!=1 && tolower(i->at(3)) != 'a' && tolower(i->at(3)) != 'w'))
@@ -255,7 +265,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
             else
                 oScale.push_back(os);
-        } else if (i->at(0) == '-' && i->at(1) == 'p') {
+        } else if (i->length()>=2 && i->at(0) == '-' && i->at(1) == 'p') {
             if (i->length()==2)
                 oPageSize = PageSizeInfo::A4P;
             else
@@ -264,7 +274,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
                 oPageSize = PageSizeInfo::A4P;
             }
-        } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') &&
+        } else if (i->length()>=3 && i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') &&
                    i->at(2) == 'a') {
             if (i->length()<5 || i->at(3) != '=')
                 msc.Error.Error(opt_pos, "I need a value for " + i->substr(0,3) + ". Ignoring this.");
@@ -278,7 +288,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 else
                     (i->at(1)=='h' ? oHA : oVA) = int(at - (i->at(1)=='h' ? h : v)) - 1;
             }
-        } else if (i->at(0) == '-' && i->at(1) == 'm') {
+        } else if (i->length()>=2 && i->at(0) == '-' && i->at(1) == 'm') {
             static const char *dirs = "lrud";
             const char *at = strchr(dirs, tolower(i->at(2)));
             if (at==NULL)
@@ -387,7 +397,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
             msc.pedantic = true;
         } else if (i->substr(0,13) == "--csh_format=") {
             csh_textformat += i->substr(13);
-        } else if ((*i)[0]=='-' && (*i)[1]=='-') { //starts with "--"
+        } else if (i->length()>=2 && (*i)[0]=='-' && (*i)[1]=='-') { //starts with "--"
             string name(i->substr(2));
             if (name.find("=") == name.npos) {
                 //no "=" in switch

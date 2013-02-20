@@ -167,6 +167,10 @@
 #define ID_AUTO_PAGINATE                33056
 #define ID_AUTO_HEADERS                 33057
 #define ID_COMBO_SCALE                  33058
+#define ID_COMBO_SCALE2                 33059
+#define ID_COMBO_ALIGNMENT              33060
+#define ID_COMBO_SCALE4                 33061
+#define ID_EDIT_MARGIN                  33061
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 

@@ -92,6 +92,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewInternalEditor)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
+    ON_COMMAND(ID_COMBO_ALIGNMENT, OnComboAlignment)
     ON_MESSAGE(WM_APP+293, OnCompilationDone)
 END_MESSAGE_MAP()
 
@@ -484,6 +485,72 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
 }
 
 
+void CMainFrame::AddToPrintPreviewCategory()
+{
+    CMFCRibbonCategory* pRC = m_wndRibbonBar.GetActiveCategory();
+    if (3>pRC->GetPanelCount())
+        return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    CMFCRibbonPanel *pRP = pRC->AddPanel("Pagination");
+    CMFCRibbonCheckBox *pRButt = new CMFCRibbonCheckBox(ID_AUTO_PAGINATE, "Auto Paginate");
+    pRP->Add(pRButt);
+    pRButt = new CMFCRibbonCheckBox(ID_AUTO_HEADERS, "Auto Heading");
+    pRP->Add(pRButt);
+    CMFCRibbonComboBox *pRCB = new CMFCRibbonComboBox(ID_COMBO_SCALE2, true, 60, "Scale");
+    pRCB->EnableDropDownListResize();
+    pRCB->AddItem("25%");
+    pRCB->AddItem("50%");
+    pRCB->AddItem("75%");
+    pRCB->AddItem("100%");
+    pRCB->AddItem("125%");
+    pRCB->AddItem("150%");
+    pRCB->AddItem("Fit width");
+    pRCB->AddItem("Fit page");
+    if (pApp->m_iScale4Pagination<=-2)
+        pRCB->SelectItem(8);
+    else if (pApp->m_iScale4Pagination==-1)
+        pRCB->SelectItem(7);
+    else {
+        CString val;
+        val.Format("%u%%", pApp->m_iScale4Pagination);
+        pRCB->SetEditText(val);
+    }
+    pRP->Add(pRCB);
+
+    pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 100);
+    pRCB->EnableDropDownListResize();
+    pRCB->AddItem("Top - Left");
+    pRCB->AddItem("Top - Center");
+    pRCB->AddItem("Top - Right");
+    pRCB->AddItem("Middle - Left");
+    pRCB->AddItem("Middle - Center");
+    pRCB->AddItem("Middle - Right");
+    pRCB->AddItem("Bottom - Left");
+    pRCB->AddItem("Bottom - Center");
+    pRCB->AddItem("Bottom - Right");
+    pRCB->SelectItem(pApp->m_iPageAlignment + 5);
+    pRP->Add(pRCB);
+
+    m_wndRibbonBar.RecalcLayout();
+}
+
+void CMainFrame::OnComboAlignment()
+{
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_ALIGNMENT, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    pApp->m_iPageAlignment = c->GetCurSel() - 5;
+    pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, pApp->m_iPageAlignment);
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->UpdateAllViews(NULL);
+}
+
+
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
 {
     CFrameWndEx::OnActivate(nState, pWndOther, bMinimized);
@@ -797,12 +864,20 @@ void CMainFrame::FillScale4Pagination()
     m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
-    if (pApp->m_iScale4Pagination==-2) c->SetEditText("Fit Page");
-    else if (pApp->m_iScale4Pagination==-1) c->SetEditText("Fit Width");
-    else {
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE2, arButtons);
+    _ASSERT(arButtons.GetSize()<2);
+	CMFCRibbonEdit *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonEdit*>(arButtons[0]) : NULL;
+    if (pApp->m_iScale4Pagination==-2) {
+        c->SetEditText("Fit Page");
+        if (c2) c2->SetEditText("Fit Page");
+    } else if (pApp->m_iScale4Pagination==-1) {
+        c->SetEditText("Fit Width");
+        if (c2) c2->SetEditText("Fit Width");
+    } else {
         CString val;
         val.Format("%u%%", pApp->m_iScale4Pagination);
         c->SetEditText(val);
+        if (c2) c2->SetEditText(val);
     }
 }
 

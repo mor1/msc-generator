@@ -562,7 +562,7 @@ CSize CDrawingChartData::GetSize(unsigned page) const
                      msc.pageBreakData[page-1].y + 
                      msc.pageBreakData[page-1].autoHeadingSize +
                      msc.copyrightTextHeight);
-    else if (page == msc.pageBreakData.size()) 
+    else if (page >= msc.pageBreakData.size()) 
         ret.cy = int(msc.GetTotal().y.till - 
                      msc.pageBreakData[page-1].y + 
                      msc.pageBreakData[page-1].autoHeadingSize +

@@ -77,7 +77,7 @@ public:
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
-
+    void AddToPrintPreviewCategory();
 // Implementation
 public:
 	virtual ~CMainFrame();
@@ -106,6 +106,7 @@ public:
     void TriggerIfRibbonCategoryChange();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
     afx_msg void OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI);
+    afx_msg void OnComboAlignment();
 };
 
 
