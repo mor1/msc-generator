@@ -1,0 +1,32 @@
+hscale=auto, numbering=yes;
+
+numbering.format = "roman";
+a->b: Lowercase roman;
+numbering.format = "ABC)";
+a->b: Uppercase letters;
+numbering.format = "123";
+a->b: Arabic numbers;
+{
+  numbering.append = ".123";
+  a->b: Two-level numbers;
+  a->b: Set last number [number=5];
+};
+a->b: Back to one level;
+a--b: Alternative \#1 {
+  numbering.append = "abc";
+  a->b: Step \N;
+  b->a: Step \N;
+}
+a..b: Alternative \#2 {
+  numbering.append = "abc";
+  a->b: Step \N;
+  b->a: Step \N [number=c];
+  numbering.format = "roman-roman";
+  a->b: Exotic format;
+  numbering.format = "roman";
+  a->b: Only the last number;
+  numbering.format = "123abc";
+  a->b: Back to normal;
+};
+a->b: Back to one level;
+
