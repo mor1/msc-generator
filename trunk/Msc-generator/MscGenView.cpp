@@ -63,8 +63,8 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_DROPFILES()
 	ON_WM_LBUTTONDOWN()
 //    ON_WM_ACTIVATE()
-ON_COMMAND(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnViewShowElementControls)
-ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnUpdateViewShowElementControls)
+    ON_COMMAND(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnViewShowElementControls)
+    ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnUpdateViewShowElementControls)
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -128,11 +128,12 @@ void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 }
 // CMscGenView printing
 
-
 void CMscGenView::OnFilePrintPreview()
 {
 	AFXPrintPreview(this);
-
+    CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
+    if (pMain)
+        pMain->AddToPrintPreviewCategory();
 }
 
 BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
@@ -144,32 +145,21 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print");
 	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages()); 
-	// default preparation
-	return DoPreparePrinting(pInfo);
-}
-
-struct MyPrintInfo
-{
-    XY scale;
-};
-
-
-void CMscGenView::OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo)
-{
-    MyPrintInfo *mpi = new MyPrintInfo;
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    const CSize orig_size = pDoc->m_ChartShown.GetSize();
-    if (pApp->m_iScale4Pagination<=-2) 
-        mpi->scale = XY(0,0);
-    else if (pApp->m_iScale4Pagination==-1) 
-        mpi->scale.x = mpi->scale.y = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    else
-        mpi->scale = pApp->m_PrinterScale * (pApp->m_iScale4Pagination/100.0);
-    
-    pInfo->m_lpUserData = mpi;
+    const XY ps = pApp->m_PrinterPageSize;
+    // default preparation
+    if (!DoPreparePrinting(pInfo))
+        return FALSE;
+    pApp->UpdatePrinterData();
+    //if page size has changed and we autopaginate, recompile
+    if (pApp->m_PrinterPageSize != ps && pApp->m_bAutoPaginate) 
+        pDoc->CompileEditingChart(false, true);
+    return TRUE;
+}
+
+void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+{
 }
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
@@ -179,14 +169,17 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     CWaitCursor wait;
-    MyPrintInfo *mpi = (MyPrintInfo *)pInfo->m_lpUserData;
+    pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
     const CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
     XY scale;
-    if (mpi->scale.x>0 && mpi->scale.y>0) 
-        scale = mpi->scale;
-    else 
+    if (pApp->m_iScale4Pagination<=-2) 
         scale.x = scale.y = std::min(double(pInfo->m_rectDraw.Width())/orig_size.cx,
                                      double(pInfo->m_rectDraw.Height())/orig_size.cy);
+    else if (pApp->m_iScale4Pagination==-1) 
+        scale = pApp->m_PrinterScale * double(pApp->m_PrinterPageSize.x)/orig_size.cx;
+    else
+        scale = pApp->m_PrinterScale * (pApp->m_iScale4Pagination/100.0);
+
     const int vA = pApp->m_iPageAlignment/3;
     const int hA = pApp->m_iPageAlignment - vA*3;
     CSize off;
@@ -205,9 +198,8 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
                                 pInfo->m_nCurPage, false);
 }
 
-void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
+void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 {
-
 }
 
 void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)

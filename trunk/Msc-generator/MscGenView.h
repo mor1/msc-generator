@@ -63,6 +63,7 @@ public:
             void ClearViewCache(); //Clear the bitmap cache
 			void DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
+            void ForceRepaint() {CScrollView::OnPaint();}
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 protected:

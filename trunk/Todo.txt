@@ -45,9 +45,11 @@ DOC: auto_heading chart option and attribute.
 DOC: classic_parallel_layout
 DOC: Document full page printing.
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+
+In 3.5.13
 ADD: Pagination options to the GUI (preferably in print preview)
-FIX: -h in commandline
 ADD: Page +- buttons
+FIX: -h in commandline
 
 In 3.5.12
 CHANGED: Speedup

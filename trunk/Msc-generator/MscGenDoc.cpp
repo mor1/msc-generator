@@ -471,6 +471,7 @@ void CMscGenDoc::DeleteContents()
 
 BOOL CMscGenDoc::CanCloseFrame(CFrameWnd* pFrame) 
 {
+    KillCompilation();
 	m_bAttemptingToClose = true;
 	BOOL ret = COleServerDocEx::CanCloseFrame(pFrame);
 	m_bAttemptingToClose = false;
@@ -1413,7 +1414,26 @@ UINT CompileThread( LPVOID pParam )
     return 0;
 }
 
-bool ProgressCallback(double percent, void *data) throw(AbortCompilingException)
+bool ProgressCallbackBlocking(double percent, void *data) throw(AbortCompilingException)
+{
+    CMscGenDoc *pDoc = (CMscGenDoc *)data;
+    pDoc->m_Progress = percent/100;
+    if (pDoc->m_killCompilation) 
+        throw (AbortCompilingException());
+    pDoc->DoFading();
+	POSITION pos = pDoc->GetFirstViewPosition();
+	while(pos) {
+		CMscGenView* pView = dynamic_cast<CMscGenView*>(pDoc->GetNextView(pos));
+        if (pView) {
+            pView->Invalidate();
+            pView->ForceRepaint();
+        }
+	}
+
+    return true;
+}
+
+bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilingException)
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
     pDoc->m_Progress = percent/100;
@@ -1424,7 +1444,6 @@ bool ProgressCallback(double percent, void *data) throw(AbortCompilingException)
 
 void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
 {
-	CWaitCursor wait;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
@@ -1472,11 +1491,16 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
             m_highlight_fallback_images = true;
         m_ChartCompiling.SetCacheType(should_be);
     }
-    m_ChartCompiling.SetProgressCallback(ProgressCallback, this);
+    m_ChartCompiling.SetProgressCallback(block ? ProgressCallbackBlocking : ProgressCallbackNonBlocking, this);
     m_ChartCompiling.SetPedantic(pApp->m_Pedantic);
     m_ChartCompiling.SetDesigns(&pApp->m_Designs, &pApp->m_DesignErrors);
     m_ChartCompiling.SetCopyRightText(pApp->m_CopyrightText);
-    m_ChartCompiling.SetPageSize(pApp->m_bAutoPaginate ? pApp->m_PrinterPageSize : XY(0,0));
+    if (!pApp->m_bAutoPaginate)
+        m_ChartCompiling.SetPageSize(XY(0,0));
+    else if (pApp->m_iScale4Pagination<=0) 
+        m_ChartCompiling.SetPageSize(pApp->m_PrinterPageSize);
+    else 
+        m_ChartCompiling.SetPageSize(pApp->m_PrinterPageSize*(100./pApp->m_iScale4Pagination));
     m_ChartCompiling.SetAddHeading(pApp->m_bAutoHeading);
     m_ChartCompiling.SetFitWidth(pApp->m_iScale4Pagination == -1);
     m_ChartCompiling.m_load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);
@@ -1495,17 +1519,17 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
     else
         m_hMainWndToSignalCompilationEnd = *pWnd;
     
-    if (!block) {
-        //Disable scroll bars
-	    POSITION pos = GetFirstViewPosition();
-	    while(pos) {
-		    CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-            if (pView) {
-                pView->EnableScrollBarCtrl(SB_BOTH, FALSE);
-                pView->UpdateWindow();
-            }
-	    }
+    //Disable scroll bars
+	POSITION pos = GetFirstViewPosition();
+	while(pos) {
+		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+        if (pView) {
+            pView->EnableScrollBarCtrl(SB_BOTH, FALSE);
+            pView->UpdateWindow();
+        }
+	}
 
+    if (!block) {
         //Fire up compilation thread
         m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)this);
 
@@ -1517,6 +1541,7 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
         if (pApp->IsInternalEditorRunning()) 
             pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
     } else {
+        CWaitCursor wait;
         m_ChartCompiling.CompileIfNeeded();    
         CompleteCompilingEditingChart();
     }
