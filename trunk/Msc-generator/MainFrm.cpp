@@ -216,6 +216,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     if (s) s->SetPos(pApp->m_uFallbackResolution);
 
     FillScale4Pagination();
+    FillMargins();
+    FillPageSize();
                 
     return 0;
 }
@@ -488,7 +490,7 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
 void CMainFrame::AddToPrintPreviewCategory()
 {
     CMFCRibbonCategory* pRC = m_wndRibbonBar.GetActiveCategory();
-    if (3>pRC->GetPanelCount())
+    if (3<pRC->GetPanelCount())
         return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -517,6 +519,39 @@ void CMainFrame::AddToPrintPreviewCategory()
         pRCB->SetEditText(val);
     }
     pRP->Add(pRCB);
+
+    pRP->AddSeparator();
+
+    pRCB = new CMFCRibbonComboBox(ID_COMBO_PAGES2, false, 50, "Page Size");
+    pRCB->AddItem("none");    
+    pRCB->AddItem("A0 portrait");    
+    pRCB->AddItem("A0 landscape");    
+    pRCB->AddItem("A1 portrait");    
+    pRCB->AddItem("A1 landscape");    
+    pRCB->AddItem("A2 portrait");    
+    pRCB->AddItem("A2 landscape");    
+    pRCB->AddItem("A3 portrait");   
+    pRCB->AddItem("A3 landscape");  
+    pRCB->AddItem("A4 portrait");   
+    pRCB->AddItem("A4 landscape");  
+    pRCB->AddItem("A5 portrait");   
+    pRCB->AddItem("A5 landscape"); 
+    pRCB->AddItem("A6 portrait");  
+    pRCB->AddItem("A6 landscape");   
+    pRCB->AddItem("Letter portrait"); 
+    pRCB->AddItem("Letter landscape"); 
+    pRCB->AddItem("Legal portrait");   
+    pRCB->AddItem("Legal landscape"); 
+    pRCB->AddItem("Ledger");  
+    pRCB->AddItem("Tabloid");
+    pRCB->SelectItem(PageSizeInfo::EPageSize(pApp->m_pageSize));
+    pRP->Add(pRCB);
+
+    CMFCRibbonEdit *pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN2, 50, "Margin (cm)");
+    CString val;
+    val.Format("%g%%", pApp->m_printer_usr_margins[0]/28.3464567); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    pRE->SetEditText(val);
+    pRP->Add(pRE);
 
     pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 100);
     pRCB->EnableDropDownListResize();
@@ -881,6 +916,39 @@ void CMainFrame::FillScale4Pagination()
     }
 }
 
+void CMainFrame::FillPageSize() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_iScale4Pagination<-2) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES2, arButtons);
+    _ASSERT(arButtons.GetSize()<2);
+	CMFCRibbonComboBox *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]) : NULL;
+    c->SelectItem(pApp->m_pageSize-1);
+    if (c2) c2->SelectItem(pApp->m_pageSize-1);
+}
+
+void CMainFrame::FillMargins() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_iScale4Pagination<-2) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN2, arButtons);
+    _ASSERT(arButtons.GetSize()<2);
+	CMFCRibbonEdit *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonEdit*>(arButtons[0]) : NULL;
+    CString val;
+    val.Format("%lg", pApp->m_printer_usr_margins[0]/28.3464567); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    c->SetEditText(val);
+    if (c2) c2->SetEditText(val);
+}
 
 void CMainFrame::OnViewInternalEditor()
 {

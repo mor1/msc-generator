@@ -1498,9 +1498,9 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
     if (!pApp->m_bAutoPaginate)
         m_ChartCompiling.SetPageSize(XY(0,0));
     else if (pApp->m_iScale4Pagination<=0) 
-        m_ChartCompiling.SetPageSize(pApp->m_PrinterPageSize);
+        m_ChartCompiling.SetPageSize(pApp->GetPrintablePaperSize());
     else 
-        m_ChartCompiling.SetPageSize(pApp->m_PrinterPageSize*(100./pApp->m_iScale4Pagination));
+        m_ChartCompiling.SetPageSize(pApp->GetPrintablePaperSize()*(100./pApp->m_iScale4Pagination));
     m_ChartCompiling.SetAddHeading(pApp->m_bAutoHeading);
     m_ChartCompiling.SetFitWidth(pApp->m_iScale4Pagination == -1);
     m_ChartCompiling.m_load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);

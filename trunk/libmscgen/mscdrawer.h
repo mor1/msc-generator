@@ -69,6 +69,8 @@ public:
     } EPageSize;
     /** Converts a string to a fixed page size*/
     static EPageSize ConvertPageSize(const char *);
+    /** Converts a fixed page size to a textual description*/
+    static const char *ConvertPageSize(EPageSize);
     /** Returns the physical size of `ps` in points (1/72 inch)*/
     static XY GetPhysicalPageSize(EPageSize ps);
 };
