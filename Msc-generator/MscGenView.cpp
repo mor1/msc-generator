@@ -147,13 +147,18 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages()); 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    const XY ps = pApp->m_PrinterPageSize;
+    const XY ps = pApp->m_PhyPrinterPageSize - 
+        XY(pApp->m_printer_usr_margins[0] + pApp->m_printer_usr_margins[1], 
+           pApp->m_printer_usr_margins[2] + pApp->m_printer_usr_margins[3]);
     // default preparation
     if (!DoPreparePrinting(pInfo))
         return FALSE;
     pApp->UpdatePrinterData();
     //if page size has changed and we autopaginate, recompile
-    if (pApp->m_PrinterPageSize != ps && pApp->m_bAutoPaginate) 
+    const XY new_ps = pApp->m_PhyPrinterPageSize - 
+        XY(pApp->m_printer_usr_margins[0] + pApp->m_printer_usr_margins[1], 
+           pApp->m_printer_usr_margins[2] + pApp->m_printer_usr_margins[3]);
+    if (ps != new_ps && pApp->m_bAutoPaginate) 
         pDoc->CompileEditingChart(false, true);
     return TRUE;
 }
@@ -171,30 +176,37 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     CWaitCursor wait;
     pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
     const CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
-    XY scale;
+    const XY printable = pApp->GetPrintablePaperSize(); //this is in points (1/72 inch)
+    double scale; //will be the scale from chart pixels to points (=user scaling)
     if (pApp->m_iScale4Pagination<=-2) 
-        scale.x = scale.y = std::min(double(pInfo->m_rectDraw.Width())/orig_size.cx,
-                                     double(pInfo->m_rectDraw.Height())/orig_size.cy);
+        scale = std::min(printable.x/orig_size.cx, printable.y/orig_size.cy);
     else if (pApp->m_iScale4Pagination==-1) 
-        scale = pApp->m_PrinterScale * double(pApp->m_PrinterPageSize.x)/orig_size.cx;
+        scale = printable.x/orig_size.cx;
     else
-        scale = pApp->m_PrinterScale * (pApp->m_iScale4Pagination/100.0);
+        scale = pApp->m_iScale4Pagination/100.0;
 
     const int vA = pApp->m_iPageAlignment/3;
     const int hA = pApp->m_iPageAlignment - vA*3;
-    CSize off;
+    //We calculate the offset of the top-left corner of the chart page on the physical page
+    //'off' below will be in printer pixels, starting from the top left physical margin
+    //First we take the offset from the user margin in points
+    XY off;
     switch (hA) {
-    case -1: off.cx = 0; break;
-    case  0: off.cx = (pInfo->m_rectDraw.Width() - orig_size.cx*scale.x)/2; break;
-    case +1: off.cx = pInfo->m_rectDraw.Width() - orig_size.cx*scale.x; break;
+    case -1: off.x = 0; break;
+    case  0: off.x = (printable.x - scale*orig_size.cx)/2; break;
+    case +1: off.x = printable.x - scale*orig_size.cx; break;
     }
     switch (vA) {
-    case -1: off.cy = 0; break;
-    case  0: off.cy = (pInfo->m_rectDraw.Height() - orig_size.cy*scale.y)/2; break;
-    case +1: off.cy = pInfo->m_rectDraw.Height() - orig_size.cy*scale.y; break;
+    case -1: off.y = 0; break;
+    case  0: off.y = (printable.y - scale*orig_size.cy)/2; break;
+    case +1: off.y = printable.y - scale*orig_size.cy; break;
     }
-    pDC->SetViewportOrg(off.cx, off.cy);
-    pDoc->m_ChartShown.DrawToDC(Canvas::PRINTER, pDC->m_hDC, scale,
+    //Then we calculate this from the physical margin;
+    off.x += pApp->m_printer_usr_margins[0] - pApp->m_printer_phy_margins[0];
+    off.y += pApp->m_printer_usr_margins[2] - pApp->m_printer_phy_margins[2];
+    //Finally we apply it converted to printer pixels.
+    pDC->SetViewportOrg(int(off.x*pApp->m_PrinterScale.x), int(off.y*pApp->m_PrinterScale.y));
+    pDoc->m_ChartShown.DrawToDC(Canvas::PRINTER, pDC->m_hDC, scale * pApp->m_PrinterScale,
                                 pInfo->m_nCurPage, false);
 }
 

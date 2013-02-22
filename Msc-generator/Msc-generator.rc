@@ -533,8 +533,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,5,13,0
- PRODUCTVERSION 3,5,13,0
+ FILEVERSION 3,5,14,0
+ PRODUCTVERSION 3,5,14,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -551,12 +551,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.5.13.0"
+            VALUE "FileVersion", "3.5.14.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2013.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.5.13.0"
+            VALUE "ProductVersion", "3.5.14.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -852,8 +852,11 @@ BEGIN
     ID_AUTO_HEADERS         "Check if you want automatically inserted page breaks to be followed by entity headings\nAutomatic headings"
     ID_COMBO_SCALE          "Select the scale factor for automatic pagination. This impacts how much of the chart fits on one page.\nScale for automatic pagination"
     ID_COMBO_SCALE2         "Select the scale factor for automatic pagination. This impacts how much of the chart fits on one page.\nScale for automatic pagination"
-    ID_COMBO_ALIGNMENT      "Select how the chart page is aligned on the printed paper\nPage alignment"
+    ID_COMBO_ALIGNMENT      "Select horizontal and vertical alignment within a pageage alignment"
     ID_EDIT_MARGIN          "Specify page margin (in centimeters)\nPage margins"
+    ID_COMBO_PAGES          "Select page size for automatic pagination\nPage size"
+    ID_EDIT_MARGIN2         "Specify page margin (in centimeters)\nPage margins"
+    ID_COMBO_PAGES2         "Select page size for automatic pagination\nPage size"
 END
 
 #endif    // English (United States) resources

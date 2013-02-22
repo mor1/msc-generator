@@ -52,30 +52,26 @@
 #warning Resulting exec will not have EMF support.
 #endif
 
+/** Possible values for page size*/
+template<> const char EnumEncapsulator<PageSizeInfo::EPageSize>::names[][ENUM_STRING_LEN] =
+    {"invalid", "none", 
+    "A0P", "A0L", "A1P", "A1L", "A2P", "A2L", 
+    "A3P", "A3L", "A4P", "A4L", "A5P", "A5L", 
+    "A6P", "A6L", "LETTER_P", "LETTER_L", 
+    "LEGAL_P", "LEGAL_L", "LEDGER", "TABLOID", ""};
+
 
 PageSizeInfo::EPageSize PageSizeInfo::ConvertPageSize(const char *c)
 {
-    if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' &&
-        (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
-            unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l');
-            return EPageSize(hm);
-    }
-    if (CaseInsensitiveEqual(c, "letter") || CaseInsensitiveEqual(c, "letter_p"))
-        return LETTER_P;
-    if (CaseInsensitiveEqual(c, "letter_l"))
-        return LETTER_L;
-    if (CaseInsensitiveEqual(c, "legal") || CaseInsensitiveEqual(c, "legal_p"))
-        return LEGAL_P;
-    if (CaseInsensitiveEqual(c, "legal_l"))
-        return LEGAL_L;
-    if (CaseInsensitiveEqual(c, "ledger"))
-        return LEDGER;
-    if (CaseInsensitiveEqual(c, "tabloid"))
-        return TABLOID;
-    return NO_PAGE;
+    EPageSize ret = NO_PAGE;
+    Convert(c, ret);
+    return ret;
 }
 
-
+const char *PageSizeInfo::ConvertPageSize(EPageSize ps)
+{
+    return EnumEncapsulator<EPageSize>::names[ps];
+}
 
 /** Returns the page size in points (1/72 inch)*/
 XY PageSizeInfo::GetPhysicalPageSize(EPageSize ps)

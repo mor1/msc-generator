@@ -63,6 +63,7 @@ void MscInitializeCshAppearanceList(void)
     //However, some of the CSH entries are not only applied to plain text, but also 
     //on top of other CSH entries. E.g., text escapes on top of text, and often comments on
     //top of text, perhaps also error.
+    //Some others are needed for smart ident (LABEL_TEXT, COLON)
     //For these we widen the mask with COLOR_FLAG_DIFFERENT, so they become different from 
     //COLOR_NORMAL
 
@@ -72,6 +73,8 @@ void MscInitializeCshAppearanceList(void)
             l[scheme][i].mask = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS | COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
         l[scheme][COLOR_LABEL_ESCAPE].mask |= COLOR_FLAG_DIFFERENT;
         l[scheme][COLOR_COMMENT].mask |= COLOR_FLAG_DIFFERENT;
+        l[scheme][COLOR_LABEL_TEXT].mask |= COLOR_FLAG_DIFFERENT;
+        l[scheme][COLOR_COLON].mask |= COLOR_FLAG_DIFFERENT;
     }
 
 

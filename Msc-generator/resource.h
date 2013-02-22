@@ -169,8 +169,10 @@
 #define ID_COMBO_SCALE                  33058
 #define ID_COMBO_SCALE2                 33059
 #define ID_COMBO_ALIGNMENT              33060
-#define ID_COMBO_SCALE4                 33061
 #define ID_EDIT_MARGIN                  33061
+#define ID_COMBO_PAGES                  33062
+#define ID_EDIT_MARGIN2                 33063
+#define ID_COMBO_PAGES2                 33064
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -179,7 +181,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        320
-#define _APS_NEXT_COMMAND_VALUE         33059
+#define _APS_NEXT_COMMAND_VALUE         33066
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

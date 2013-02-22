@@ -1367,10 +1367,12 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
     CalculateAreaFromOuterEdge();
     area_important = area;
     chart->NoteBlockers.Append(this);
-    if (cover && style.read().shadow.offset.second)
-        *cover = area + area.CreateShifted(XY(style.read().shadow.offset.second, style.read().shadow.offset.second));
-    else
-        *cover = area;
+    if (cover) {
+        if (style.read().shadow.offset.second)
+            *cover = area + area.CreateShifted(XY(style.read().shadow.offset.second, style.read().shadow.offset.second));
+        else
+            *cover = area;
+    }
     height = outer_edge.y.till + style.read().shadow.offset.second;
     LayoutComments(canvas, cover);
 }

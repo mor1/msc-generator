@@ -31,7 +31,7 @@
 #include "MiniEditor.h"
 #include "MscGenDoc.h"
 #include "csh.h"
-
+#include "mscdrawer.h"
 
 //Extending WinGDI definitions for trackrects color fill and line
 #define GetAValue(rgb)      (LOBYTE((rgb)>>24))
@@ -58,8 +58,14 @@ public:
 	BOOL			   m_bHiColorIcons;
 	COutputViewBar    *m_pWndOutputView;  //shortcut to the error window
 	CEditorBar        *m_pWndEditor;      //shortcut to the internal editor
-    XY                 m_PrinterPageSize; //The printable area in points (1/72) inch
+    PageSizeInfo::EPageSize m_pageSize;   //raw printer page size, NO_PAGE means a custom size
+    XY                 m_PhyPrinterPageSize; //raw page size in points
+    double             m_printer_phy_margins[4]; //left,right, up,down in points
+    double             m_printer_usr_margins[4]; //left,right, up,down in points
     XY                 m_PrinterScale;    //The scale to apply so that we get from points to printer pixels
+
+    /// Return printable area in points (physical page - user margins)
+    XY GetPrintablePaperSize() const {return m_PhyPrinterPageSize - XY(m_printer_usr_margins[0] + m_printer_usr_margins[1], m_printer_usr_margins[2] + m_printer_usr_margins[3]);}
 
 //Status 
 	bool m_bFullScreenViewMode; //we were opened by "ViewFullScreen OLE verb"
@@ -108,6 +114,7 @@ public:
 	virtual void SaveCustomState();
 
     void UpdatePrinterData();
+    bool NormalizeUserMargins();
 	void ReadRegistryValues(bool reportProblem);
 	int ReadDesigns(bool reportProblem, const char *fileName);
 	bool IsInternalEditorRunning() const {
@@ -160,6 +167,14 @@ public:
     afx_msg void OnComboScale2() {DoComboScale(ID_COMBO_SCALE2);}
             void DoComboScale(UINT id);
     afx_msg void OnUpdateComboScale(CCmdUI *pCmdUI);
+    afx_msg void OnComboPageSize() {DoComboPageSize(ID_COMBO_PAGES);}
+    afx_msg void OnComboPageSize2() {DoComboPageSize(ID_COMBO_PAGES);}
+            void DoComboPageSize(UINT id);
+    afx_msg void OnUpdateComboPageSize(CCmdUI *pCmdUI);
+    afx_msg void OnEditMargin() {DoEditMargin(ID_EDIT_MARGIN);}
+    afx_msg void OnEditMargin2() {DoEditMargin(ID_EDIT_MARGIN2);}
+            void DoEditMargin(UINT id);
+    afx_msg void OnUpdateEditMargin(CCmdUI *pCmdUI);
 };
 
 extern CMscGenApp theApp;
@@ -207,4 +222,8 @@ extern CMscGenApp theApp;
 #define REG_KEY_AUTO_HEADING "AutoHeading"
 #define REG_KEY_SCALE4PAGINATION "Scale4Pagination"
 #define REG_KEY_PAGE_ALIGNMENT "PageAlignment"
+#define REG_KEY_PAGE_MARGIN_L "PageMarginL"
+#define REG_KEY_PAGE_MARGIN_R "PageMarginR"
+#define REG_KEY_PAGE_MARGIN_T "PageMarginT"
+#define REG_KEY_PAGE_MARGIN_B "PageMarginB"
 

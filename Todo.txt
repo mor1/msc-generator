@@ -40,11 +40,19 @@ FIX: EntityDef leaks
 ADD: Button to disable tracking rectangles & controls (if much faster)
 
 Later
+ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+
+In 3.5.14
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: auto_heading chart option and attribute.
 DOC: classic_parallel_layout
-DOC: Document full page printing.
-ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+DOC: Document full page printing for command line
+DOC: Document full page printing for GUI (both ribbons)
+FIXED: ex74, ex77 problem.
+FIXED: Graham command line: could not open canvas
+ADD: Out-of-memory checks for large canvas
+ADD: Page Size change in print preview (either via my box or page setup)
+ADDED: All pagination options. 
 
 In 3.5.13
 ADD: Pagination options to the GUI (preferably in print preview)
