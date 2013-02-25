@@ -130,11 +130,27 @@ void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 void CMscGenView::OnFilePrintPreview()
 {
-	AFXPrintPreview(this);
     CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
-    if (pMain)
+    if (pMain) 
         pMain->AddToPrintPreviewCategory();
+	AFXPrintPreview(this);
+    if (pMain) {
+        pMain->FillMargins();
+        pMain->FillPageSize();
+        pMain->FillScale4Pagination();
+    }
 }
+
+void CMscGenView::OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo, 
+                                    POINT point, CPreviewView* pView)
+{
+    CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
+    if (pMain) 
+        pMain->DeleteFromPrintPreviewCategory();
+    CScrollView::OnEndPrintPreview(pDC, pInfo, point, pView);
+}
+
+
 
 BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 {
@@ -159,12 +175,17 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
         XY(pApp->m_printer_usr_margins[0] + pApp->m_printer_usr_margins[1], 
            pApp->m_printer_usr_margins[2] + pApp->m_printer_usr_margins[3]);
     if (ps != new_ps && pApp->m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false, true);
+        pDoc->CompileEditingChart(false, false);
+    pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
     return TRUE;
 }
 
-void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
 {
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+    if (pDoc)
+        pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
 }
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
@@ -175,6 +196,13 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	ASSERT(pApp != NULL);
     CWaitCursor wait;
     pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
+    //If we are compiling draw just diagonal lines
+    if (pInfo->m_bPreview && pDoc->m_pCompilingThread) {
+        CBrush brush;
+        brush.CreateHatchBrush(HS_FDIAGONAL, RGB(200,200,200));
+        pDC->FillRect(pInfo->m_rectDraw, &brush);
+        return;
+    }
     const CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
     const XY printable = pApp->GetPrintablePaperSize(); //this is in points (1/72 inch)
     double scale; //will be the scale from chart pixels to points (=user scaling)
@@ -185,7 +213,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     else
         scale = pApp->m_iScale4Pagination/100.0;
 
-    const int vA = pApp->m_iPageAlignment/3;
+    const int vA = pApp->m_iPageAlignment<=-2 ? -1 : pApp->m_iPageAlignment>=2 ? +1 : 0;
     const int hA = pApp->m_iPageAlignment - vA*3;
     //We calculate the offset of the top-left corner of the chart page on the physical page
     //'off' below will be in printer pixels, starting from the top left physical margin
@@ -208,6 +236,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     pDC->SetViewportOrg(int(off.x*pApp->m_PrinterScale.x), int(off.y*pApp->m_PrinterScale.y));
     pDoc->m_ChartShown.DrawToDC(Canvas::PRINTER, pDC->m_hDC, scale * pApp->m_PrinterScale,
                                 pInfo->m_nCurPage, false);
+
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
@@ -293,6 +322,8 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
         cairo_translate(cr, -clip.left, -clip.top);
         cairo_scale(cr, scale.x, scale.y);
         cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
+
+        cairo_save(cr);
         //draw track rects only inside the page, not on the copyright text or autoheading or outside
         cairo_rectangle(cr, m_chartPage.x.from, m_chartPage.y.from, m_chartPage.x.Spans(), m_chartPage.y.Spans());
         cairo_clip(cr);
@@ -332,8 +363,6 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
                 }
                 break;
             case AnimationElement::CONTROL:
-                if (pApp->m_bShowControls) 
-                    i->arc->DrawControls(cr, i->fade_value);
                 break;
             case AnimationElement::COMPILING_GREY:
                 grey_fade_value = i->fade_value;
@@ -341,9 +370,17 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
             default:
                 _ASSERT(0);
         }
+        //If we have control rectangles, show them even outside page boundaries
+        if (pApp->m_bShowControls) {
+            cairo_restore(cr); //unclip
+            for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
+                i!=pDoc->m_animations.end(); i++) 
+                if (i->what == AnimationElement::CONTROL) 
+                    i->arc->DrawControls(cr, i->fade_value);
+        }
         cairo_destroy(cr);
         cairo_surface_destroy(surf);
-    } else {
+    } else { //if compiling at the moment we draw only the grey stuff
         for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
              i!=pDoc->m_animations.end(); i++) 
              if (i->what == AnimationElement::COMPILING_GREY) {

@@ -41,18 +41,25 @@ ADD: Button to disable tracking rectangles & controls (if much faster)
 
 Later
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+ADD: Ability to change page setup during print preview
+ADD: Ability to do multipage PDF export
+FIX: mouse-wheel scrolling of editor (strange behaviour)
+FIX: thin lines in EMF
 
-In 3.5.14
+In 3.5.15
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: auto_heading chart option and attribute.
 DOC: classic_parallel_layout
 DOC: Document full page printing for command line
 DOC: Document full page printing for GUI (both ribbons)
+ADDED: Out-of-memory checks for large canvas
+CHECKED: No unnecessary csh label ops.
+FIXED: controls are not clipped in GUI
+
+In 3.5.14
 FIXED: ex74, ex77 problem.
 FIXED: Graham command line: could not open canvas
-ADD: Out-of-memory checks for large canvas
-ADD: Page Size change in print preview (either via my box or page setup)
-ADDED: All pagination options. 
+ADDED: All pagination options to GUI. 
 
 In 3.5.13
 ADD: Pagination options to the GUI (preferably in print preview)

@@ -48,6 +48,10 @@ struct PageBreakData;
 /** A collection holding relevant data for all the page breaks in the chart*/
 typedef std::vector<PageBreakData> PBDataVector;
 
+/** cm to points conversion.
+ * see http://www.asknumbers.com/CentimetersToPointsConversion.aspx */
+#define PT_PER_CM 28.3464567 
+
 /** A class having only static members, providing page size conversion capabilities.*/
 class PageSizeInfo
 {
@@ -124,7 +128,8 @@ public:
         WIN,     ///<Bitmap output to a Windows window DC
         PRINTER  ///<Output to a Windows printer DC
     } EOutputType;
-    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_MARGIN, ERR_DONE} EErrorType;
+    /** Describes the error status of Canvas */
+    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_CANVAS_MEM, ERR_PARAM, ERR_MARGIN, ERR_DONE} EErrorType;
 protected:
     /** @name Low-level compatibility options 
      * @{ */
@@ -168,6 +173,8 @@ protected:
     Block             raw_page_clip;      ///<Used with fix-page outoput only. Contains the raw page size in points (pixels) minus margins. All zero if not a fixed page output.
     const int         h_alignment;        ///<Used with fix-page outoput only. Contains -1/0/+1 for left/center/right page alignment.
     const int         v_alignment;        ///<Used with fix-page outoput only. Contains -1/0/+1 for up/center/down page alignment.
+    unsigned          surface_size_x;     ///<The attempted size of surface (for error reporting)
+    unsigned          surface_size_y;     ///<The attempted size of surface (for error reporting)
     /** @} */
 
     /** @name Logic 

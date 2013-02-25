@@ -78,7 +78,7 @@ XY PageSizeInfo::GetPhysicalPageSize(EPageSize ps)
 {
     if (ps>=MAX_PAGE || ps<=NO_PAGE) return XY(0,0);
     static const double ISO_size[] = {118.9, 84.1, 59.4, 42.0, 29.7, 21.0, 14.8, 10.5};
-    const double mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    const double mul = PT_PER_CM; 
     XY ret;
     switch (ps) {
     case LETTER_P:
@@ -369,6 +369,13 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
     case Canvas::ERR_FILE: error->FatalError(FileLineCol(0, 0), "Could not open file '" + fileName + "'."); return true;
     case Canvas::ERR_PARAM: (error->*func)(FileLineCol(0, 0), "Internal param problem when opening canvas.", ""); return true;
     case Canvas::ERR_CANVAS: (error->*func)(FileLineCol(0, 0), "Could not open canvas.", ""); return true;
+    case Canvas::ERR_CANVAS_MEM: 
+        {
+            std::string s = "Out of memory - too big output image"; 
+            if (surface_size_x && surface_size_y) 
+                s << " (" << surface_size_x << "x" << surface_size_y << ")";
+            (error->*func)(FileLineCol(0, 0), s + ".", ""); return true;
+        }
     case Canvas::ERR_MARGIN: error->FatalError(FileLineCol(0, 0), "Too big margins - no print area left!", ""); return true;
     case Canvas::ERR_DONE: (error->*func)(FileLineCol(0, 0), "Whops, internal error.", ""); return true;
     case Canvas::ERR_OK: 
@@ -423,6 +430,7 @@ Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double c
 #endif
 {
     if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
+    surface_size_x = surface_size_y = 0;
     SetLowLevelParams();
     double origYSize, origYOffset, autoHeadingSize;
     GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
@@ -557,8 +565,10 @@ void Canvas::GetPagePosition(const PBDataVector *pageBreakData, unsigned page, d
  * @returns Any error or ERR_OK.*/
 Canvas::EErrorType Canvas::CreateSurface(const XY &size)
 {
-    const int x = int(size.x);
-    const int y = int(size.y);
+    const int x = abs(int(size.x));
+    const int y = abs(int(size.y));
+    surface_size_x = x;
+    surface_size_y = y;
     switch (outType) {
     default:
         return ERR_PARAM;
@@ -630,7 +640,7 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
     cairo_status_t st = cairo_surface_status(surface);
     if (st != CAIRO_STATUS_SUCCESS) {
         CloseOutput();
-        return ERR_CANVAS;
+        return st == CAIRO_STATUS_NO_MEMORY ? ERR_CANVAS_MEM : ERR_CANVAS;
     }
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     return ERR_OK;
@@ -663,7 +673,7 @@ Canvas::EErrorType Canvas::CreateContext(double origYSize, double origYOffset,
     cairo_status_t st = cairo_status(cr);
     if (st != CAIRO_STATUS_SUCCESS) {
         CloseOutput();
-        return ERR_CANVAS;
+        return st == CAIRO_STATUS_NO_MEMORY ? ERR_CANVAS_MEM : ERR_CANVAS;
     }
     //Set line cap to butts
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
