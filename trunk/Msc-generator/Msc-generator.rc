@@ -851,12 +851,12 @@ BEGIN
     ID_AUTO_PAGINATE        "Check if you want automatic page breaks at page boundaries\nAutomatic pagination"
     ID_AUTO_HEADERS         "Check if you want automatically inserted page breaks to be followed by entity headings\nAutomatic headings"
     ID_COMBO_SCALE          "Select the scale factor for automatic pagination. This impacts how much of the chart fits on one page.\nScale for automatic pagination"
-    ID_COMBO_SCALE2         "Select the scale factor for automatic pagination. This impacts how much of the chart fits on one page.\nScale for automatic pagination"
+    ID_EDIT_MARGIN_T        "Specify top page margin (in centimeters)\nTop margin"
     ID_COMBO_ALIGNMENT      "Select horizontal and vertical alignment within a pageage alignment"
-    ID_EDIT_MARGIN          "Specify page margin (in centimeters)\nPage margins"
+    ID_EDIT_MARGIN_L        "Specify left page margin (in centimeters)\nLeft margin"
     ID_COMBO_PAGES          "Select page size for automatic pagination\nPage size"
-    ID_EDIT_MARGIN2         "Specify page margin (in centimeters)\nPage margins"
-    ID_COMBO_PAGES2         "Select page size for automatic pagination\nPage size"
+    ID_EDIT_MARGIN_R        "Specify right page margin (in centimeters)\nRight margin"
+    ID_EDIT_MARGIN_B        "Specify bottom page margin (in centimeters)\nBottom margin"
 END
 
 #endif    // English (United States) resources

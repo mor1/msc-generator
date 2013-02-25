@@ -71,10 +71,10 @@ void MscInitializeCshAppearanceList(void)
     for (unsigned scheme=0; scheme<CSH_SCHEME_MAX; scheme++) {
         for (unsigned i=0; i<COLOR_MAX; i++) 
             l[scheme][i].mask = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS | COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
-        l[scheme][COLOR_LABEL_ESCAPE].mask |= COLOR_FLAG_DIFFERENT;
-        l[scheme][COLOR_COMMENT].mask |= COLOR_FLAG_DIFFERENT;
-        l[scheme][COLOR_LABEL_TEXT].mask |= COLOR_FLAG_DIFFERENT;
-        l[scheme][COLOR_COLON].mask |= COLOR_FLAG_DIFFERENT;
+        l[scheme][COLOR_LABEL_ESCAPE].mask |= COLOR_FLAG_DIFFERENT_DRAW;
+        l[scheme][COLOR_COMMENT].mask |= COLOR_FLAG_DIFFERENT_DRAW;
+        l[scheme][COLOR_LABEL_TEXT].mask |= COLOR_FLAG_DIFFERENT_NO_DRAW;
+        l[scheme][COLOR_COLON].mask |= COLOR_FLAG_DIFFERENT_NO_DRAW;
     }
 
 

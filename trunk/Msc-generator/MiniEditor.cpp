@@ -661,7 +661,8 @@ void CCshRichEditCtrl::CopyCsh()
     //Go backwards, since errors are at the beginning and are more important: should show
 	for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
         if (((i->first_pos-1) < dotill) && (i->last_pos >= startfrom) &&
-            (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color)) {
+            (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color
+            || (MscCshAppearanceList[pApp->m_nCshScheme][i->color].mask & COLOR_FLAG_DIFFERENT_DRAW))) {
 			SetSel(i->first_pos-1, i->last_pos);
 			SetSelectionCharFormat(scheme[i->color]);
 		}
@@ -784,7 +785,7 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	ScreenToClient(&pt);
 	//Process message only if within our view
 	if (!view.PtInRect(pt)) return FALSE;
-	CWnd::OnMouseWheel(nFlags, zDelta, pt);
+	CRichEditCtrl::OnMouseWheel(nFlags, zDelta, pt);
     if (InHintMode())
         CancelHintMode();
 	return TRUE;

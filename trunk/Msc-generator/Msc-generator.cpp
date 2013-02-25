@@ -168,7 +168,8 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
 	ON_COMMAND(ID_FILE_NEW, &CWinAppEx::OnFileNew)
 	ON_COMMAND(ID_FILE_OPEN, &CWinAppEx::OnFileOpen)
 	// Standard print setup command
-	ON_COMMAND(ID_FILE_PRINT_SETUP, &CWinAppEx::OnFilePrintSetup)
+	ON_COMMAND(ID_FILE_PRINT_SETUP, &CMscGenApp::OnFilePrintSetup)
+    ON_UPDATE_COMMAND_UI(ID_FILE_PRINT_SETUP, &CMscGenApp::OnUpdatePrintSetup)
 	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
     ON_COMMAND(ID_BUTTON_DEFAULT_TEXT, &CMscGenApp::OnButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, &CMscGenApp::OnUpdateButtonDefaultText)
@@ -216,14 +217,17 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(ID_AUTO_HEADERS, &CMscGenApp::OnAutoHeaders)
     ON_UPDATE_COMMAND_UI(ID_AUTO_HEADERS, &CMscGenApp::OnUpdateAutoHeaders)
     ON_COMMAND(ID_COMBO_SCALE, &CMscGenApp::OnComboScale)
-    ON_COMMAND(ID_COMBO_SCALE2, &CMscGenApp::OnComboScale2)
-    ON_UPDATE_COMMAND_UI(ID_COMBO_SCALE, &CMscGenApp::OnUpdateComboScale)
     ON_COMMAND(ID_COMBO_PAGES, &CMscGenApp::OnComboPageSize)
-    ON_COMMAND(ID_COMBO_PAGES2, &CMscGenApp::OnComboPageSize2)
-    ON_UPDATE_COMMAND_UI(ID_COMBO_PAGES, &CMscGenApp::OnUpdateComboPageSize)
-    ON_COMMAND(ID_EDIT_MARGIN, &CMscGenApp::OnEditMargin)
-    ON_COMMAND(ID_EDIT_MARGIN2, &CMscGenApp::OnEditMargin2)
-    ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN, &CMscGenApp::OnUpdateEditMargin)
+    ON_COMMAND(ID_EDIT_MARGIN_L, &CMscGenApp::OnEditMarginL)
+    ON_COMMAND(ID_EDIT_MARGIN_R, &CMscGenApp::OnEditMarginR)
+    ON_COMMAND(ID_EDIT_MARGIN_T, &CMscGenApp::OnEditMarginT)
+    ON_COMMAND(ID_EDIT_MARGIN_B, &CMscGenApp::OnEditMarginB)
+    ON_UPDATE_COMMAND_UI(ID_COMBO_SCALE, &CMscGenApp::OnUpdatePrintPreviewEdits)
+    ON_UPDATE_COMMAND_UI(ID_COMBO_PAGES, &CMscGenApp::OnUpdatePrintPreviewPageSize)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_L, &CMscGenApp::OnUpdatePrintPreviewEdits)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_R, &CMscGenApp::OnUpdatePrintPreviewEdits)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_T, &CMscGenApp::OnUpdatePrintPreviewEdits)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_B, &CMscGenApp::OnUpdatePrintPreviewEdits)
 END_MESSAGE_MAP()
 
 
@@ -552,10 +556,15 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     m_bAutoHeading   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, TRUE);
     m_iScale4Pagination = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, -1);
     m_iPageAlignment = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, -4);
-    m_printer_usr_margins[0] = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_L, 36);
-    m_printer_usr_margins[1] = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_R, 36);
-    m_printer_usr_margins[2] = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_T, 36);
-    m_printer_usr_margins[3] = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, 36);
+    CString val;
+    val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_L, "28.3464567"); //so many points per cm
+    sscanf(val, "%lf", m_printer_usr_margins+0);
+    val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_R, "28.3464567");
+    sscanf(val, "%lf", m_printer_usr_margins+1);
+    val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_T, "28.3464567");
+    sscanf(val, "%lf", m_printer_usr_margins+2);
+    val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, "28.3464567");
+    sscanf(val, "%lf", m_printer_usr_margins+3);
 
 	m_bDoCshProcessing = m_bShowCsh || m_bHints;
 
@@ -1136,10 +1145,12 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
 void CMscGenApp::OnAutoPaginate()
 {
     m_bAutoPaginate = !m_bAutoPaginate;
-	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->CompileEditingChart(false, false);
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_PAGINATE, m_bAutoPaginate);
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing) {
+        pDoc->CompileEditingChart(false, false);
+        pDoc->UpdateAllViews(NULL);
+    }
 }
 
 
@@ -1154,8 +1165,10 @@ void CMscGenApp::OnAutoHeaders()
     m_bAutoHeading = !m_bAutoHeading;
     if (!m_bAutoPaginate) return;
 	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+    if (pDoc && m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
         pDoc->CompileEditingChart(false, false);
+        pDoc->UpdateAllViews(NULL);
+    }
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, m_bAutoHeading);
 }
 
@@ -1166,13 +1179,12 @@ void CMscGenApp::OnUpdateAutoHeaders(CCmdUI *pCmdUI)
     pCmdUI->Enable(m_bAutoPaginate);
 }
 
-void CMscGenApp::DoComboScale(UINT id)
+void CMscGenApp::OnComboScale()
 {
-    _ASSERT(id == ID_COMBO_SCALE || id == ID_COMBO_SCALE2);
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
     if (!pMainWnd) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    pMainWnd->m_wndRibbonBar.GetElementsByID(id, arButtons);
+    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
 	CMscGenDoc *pDoc = GetDoc();
@@ -1186,50 +1198,46 @@ void CMscGenApp::DoComboScale(UINT id)
     pMainWnd->FillScale4Pagination();
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, m_iScale4Pagination);
 
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing)
+    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
         pDoc->CompileEditingChart(false, false);
-}
-
-void CMscGenApp::OnUpdateComboScale(CCmdUI *pCmdUI)
-{
-    pCmdUI->Enable(m_bAutoPaginate);
+        pDoc->UpdateAllViews(NULL);
+    }
 }
 
 
-
-void CMscGenApp::DoComboPageSize(UINT id)
+void CMscGenApp::OnComboPageSize()
 {
-    _ASSERT(id == ID_COMBO_PAGES || id == ID_COMBO_PAGES2);
-    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
-    if (!pMainWnd) return;
-    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    pMainWnd->m_wndRibbonBar.GetElementsByID(id, arButtons);
-    _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
-	CMscGenDoc *pDoc = GetDoc();
-    if (!pDoc || !c) return;
-    m_pageSize = PageSizeInfo::EPageSize(1+c->GetCurSel());
-    m_PhyPrinterPageSize = PageSizeInfo::GetPhysicalPageSize(m_pageSize);
+    OnFilePrintSetup();
+ //   CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+ //   if (!pMainWnd) return;
+ //   CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+ //   pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES, arButtons);
+ //   _ASSERT(arButtons.GetSize()==1);
+	//CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	//CMscGenDoc *pDoc = GetDoc();
+ //   if (!pDoc || !c) return;
+ //   m_pageSize = PageSizeInfo::EPageSize(1+c->GetCurSel());
+ //   m_PhyPrinterPageSize = PageSizeInfo::GetPhysicalPageSize(m_pageSize);
 
-    //m_pageSize may have been left unchanged, but we normalize text
-    pMainWnd->FillPageSize();
-    if (NormalizeUserMargins())
-        pMainWnd->FillMargins();
+ //   //m_pageSize may have been left unchanged, but we normalize text
+ //   pMainWnd->FillPageSize();
+ //   if (NormalizeUserMargins())
+ //       pMainWnd->FillMargins();
 
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->CompileEditingChart(false, false);
+ //   if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing)
+ //       pDoc->CompileEditingChart(false, false);
 }
 
-
-void CMscGenApp::OnUpdateComboPageSize(CCmdUI *pCmdUI)
+void CMscGenApp::OnUpdatePrintPreviewPageSize(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bAutoPaginate);
+    pCmdUI->Enable(false);
 }
 
 
 void CMscGenApp::DoEditMargin(UINT id)
 {
-    _ASSERT(id == ID_EDIT_MARGIN || id == ID_EDIT_MARGIN2);
+    _ASSERT(id == ID_EDIT_MARGIN_L || id == ID_EDIT_MARGIN_R ||
+            id == ID_EDIT_MARGIN_T || id == ID_EDIT_MARGIN_B);
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
     if (!pMainWnd) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
@@ -1242,8 +1250,12 @@ void CMscGenApp::DoEditMargin(UINT id)
     bool change = false;
     double cm;
     if (1==sscanf(val, "%lf", &cm)) {
-        for (unsigned u=0; u<4; u++)
-            m_printer_usr_margins[u] = cm * 28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx;
+        switch (id) {
+        case ID_EDIT_MARGIN_L: m_printer_usr_margins[0] = cm * PT_PER_CM; break;
+        case ID_EDIT_MARGIN_R: m_printer_usr_margins[1] = cm * PT_PER_CM; break;
+        case ID_EDIT_MARGIN_T: m_printer_usr_margins[2] = cm * PT_PER_CM; break;
+        case ID_EDIT_MARGIN_B: m_printer_usr_margins[3] = cm * PT_PER_CM; break;
+        }
         NormalizeUserMargins();
         change = true;
     }
@@ -1251,17 +1263,51 @@ void CMscGenApp::DoEditMargin(UINT id)
     pMainWnd->FillMargins();
     if (!change) return;
 
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_L, int(m_printer_usr_margins[0]));
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_R, int(m_printer_usr_margins[1]));
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_T, int(m_printer_usr_margins[2]));
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, int(m_printer_usr_margins[3]));
+    CString val2;
+    val2.Format("%lf", m_printer_usr_margins[0]);
+    WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_L, val2);
+    val2.Format("%lf", m_printer_usr_margins[1]);
+    WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_R, val2); 
+    val2.Format("%lf", m_printer_usr_margins[2]);
+    WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_T, val2);
+    val2.Format("%lf", m_printer_usr_margins[3]);
+    WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, val2);
 
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing)
+    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
         pDoc->CompileEditingChart(false, false);
+        pDoc->UpdateAllViews(NULL);
+    }
 }
 
-
-void CMscGenApp::OnUpdateEditMargin(CCmdUI *pCmdUI)
+void CMscGenApp::OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI) 
 {
-    pCmdUI->Enable(m_bAutoPaginate);
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetMainWnd());
+    pCmdUI->Enable(pWnd ? pWnd->IsPrintPreview() : false);
 }
+
+void CMscGenApp::OnFilePrintSetup()
+{
+    CMainFrame *pMainWnd= dynamic_cast<CMainFrame *>(GetMainWnd());
+    if (!pMainWnd) return;
+    const bool preview = pMainWnd->IsPrintPreview();
+    XY ps = m_PhyPrinterPageSize;
+    CWinAppEx::OnFilePrintSetup();
+    UpdatePrinterData();
+    if (m_PhyPrinterPageSize == ps) return;
+    pMainWnd->FillPageSize();
+    pMainWnd->FillMargins();
+
+	CMscGenDoc *pDoc = GetDoc();
+    if (!pDoc) return;
+    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
+        pDoc->CompileEditingChart(false, false);
+        pDoc->UpdateAllViews(NULL);
+    }
+}
+
+void CMscGenApp::OnUpdatePrintSetup(CCmdUI *pCmdUI) 
+{
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetMainWnd());
+    pCmdUI->Enable(pWnd ? !pWnd->IsPrintPreview() : false);
+}
+

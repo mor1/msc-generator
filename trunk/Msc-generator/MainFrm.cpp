@@ -215,10 +215,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
     if (s) s->SetPos(pApp->m_uFallbackResolution);
 
-    FillScale4Pagination();
-    FillMargins();
-    FillPageSize();
-                
     return 0;
 }
 
@@ -489,17 +485,32 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
 
 void CMainFrame::AddToPrintPreviewCategory()
 {
-    CMFCRibbonCategory* pRC = m_wndRibbonBar.GetActiveCategory();
-    if (3<pRC->GetPanelCount())
-        return;
+    //find print preview category
+    const int count = m_wndRibbonBar.GetCategoryCount();
+    CMFCRibbonCategory* pRC = NULL;
+    const CString name = "Print Preview";
+    for (int i = 0; i<count; i++) {
+        CMFCRibbonCategory* p = m_wndRibbonBar.GetCategory(i);
+        if (name.CompareNoCase(p->GetName())) continue;
+        pRC = p;
+        break;
+    }
+    if (!pRC || 3 < pRC->GetPanelCount()) return;
+
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+
+    //Add new panel
     CMFCRibbonPanel *pRP = pRC->AddPanel("Pagination");
+    pRP->SetCenterColumnVert();
+    pRP->SetJustifyColumns();
+
+    //Add panel content
     CMFCRibbonCheckBox *pRButt = new CMFCRibbonCheckBox(ID_AUTO_PAGINATE, "Auto Paginate");
     pRP->Add(pRButt);
     pRButt = new CMFCRibbonCheckBox(ID_AUTO_HEADERS, "Auto Heading");
     pRP->Add(pRButt);
-    CMFCRibbonComboBox *pRCB = new CMFCRibbonComboBox(ID_COMBO_SCALE2, true, 60, "Scale");
+    CMFCRibbonComboBox *pRCB = new CMFCRibbonComboBox(ID_COMBO_SCALE, true, 60, "Scale");
     pRCB->EnableDropDownListResize();
     pRCB->AddItem("25%");
     pRCB->AddItem("50%");
@@ -522,7 +533,7 @@ void CMainFrame::AddToPrintPreviewCategory()
 
     pRP->AddSeparator();
 
-    pRCB = new CMFCRibbonComboBox(ID_COMBO_PAGES2, false, 50, "Page Size");
+    pRCB = new CMFCRibbonComboBox(ID_COMBO_PAGES, false, 70, "Page Size");
     pRCB->AddItem("none");    
     pRCB->AddItem("A0 portrait");    
     pRCB->AddItem("A0 landscape");    
@@ -547,13 +558,7 @@ void CMainFrame::AddToPrintPreviewCategory()
     pRCB->SelectItem(PageSizeInfo::EPageSize(pApp->m_pageSize));
     pRP->Add(pRCB);
 
-    CMFCRibbonEdit *pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN2, 50, "Margin (cm)");
-    CString val;
-    val.Format("%g%%", pApp->m_printer_usr_margins[0]/28.3464567); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-    pRE->SetEditText(val);
-    pRP->Add(pRE);
-
-    pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 100);
+    pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 90);
     pRCB->EnableDropDownListResize();
     pRCB->AddItem("Top - Left");
     pRCB->AddItem("Top - Center");
@@ -565,10 +570,53 @@ void CMainFrame::AddToPrintPreviewCategory()
     pRCB->AddItem("Bottom - Center");
     pRCB->AddItem("Bottom - Right");
     pRCB->SelectItem(pApp->m_iPageAlignment + 5);
+    pRP->Add(new CMFCRibbonLabel("Alignment:"));
     pRP->Add(pRCB);
+
+    pRP->AddSeparator();
+    pRP->Add(new CMFCRibbonLabel("Margins (cm)"));
+
+    CMFCRibbonEdit *pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_L, 35, "Left");
+    CString val;
+    val.Format("%lg", pApp->m_printer_usr_margins[0]/PT_PER_CM); 
+    pRE->SetEditText(val);
+    pRP->Add(pRE);
+
+    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_R, 35, "Right");
+    val.Format("%lg", pApp->m_printer_usr_margins[1]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    pRE->SetEditText(val);
+    pRP->Add(pRE);
+    
+    pRP->Add(new CMFCRibbonLabel(":"));
+
+    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_T, 35, "Top");
+    val.Format("%lg", pApp->m_printer_usr_margins[2]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    pRE->SetEditText(val);
+    pRP->Add(pRE);
+
+    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_B, 35, "Bottom");
+    val.Format("%lg", pApp->m_printer_usr_margins[3]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    pRE->SetEditText(val);
+    pRP->Add(pRE);
 
     m_wndRibbonBar.RecalcLayout();
 }
+
+void CMainFrame::DeleteFromPrintPreviewCategory()
+{
+    const int count = m_wndRibbonBar.GetCategoryCount();
+    CMFCRibbonCategory* pRC = NULL;
+    const CString name = "Print Preview";
+    for (int i = 0; i<count; i++) {
+        CMFCRibbonCategory* p = m_wndRibbonBar.GetCategory(i);
+        if (name.CompareNoCase(p->GetName())) continue;
+        pRC = p;
+        break;
+    }
+    if (!pRC || pRC->GetPanelCount()<=3) return;
+    pRC->RemovePanel(3);
+}
+
 
 void CMainFrame::OnComboAlignment()
 {
@@ -578,7 +626,7 @@ void CMainFrame::OnComboAlignment()
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    pApp->m_iPageAlignment = c->GetCurSel() - 5;
+    pApp->m_iPageAlignment = c->GetCurSel() - 4;
     pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, pApp->m_iPageAlignment);
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     if (pDoc) 
@@ -892,62 +940,75 @@ void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
 
 void CMainFrame::FillScale4Pagination() 
 {
+    if (!IsPrintPreview()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (pApp->m_iScale4Pagination<-2) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE, arButtons);
+    if (arButtons.GetSize()==0) return;
     _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
-    m_wndRibbonBar.GetElementsByID(ID_COMBO_SCALE2, arButtons);
-    _ASSERT(arButtons.GetSize()<2);
-	CMFCRibbonEdit *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonEdit*>(arButtons[0]) : NULL;
-    if (pApp->m_iScale4Pagination==-2) {
+ 	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    if (!c) return;
+    if (pApp->m_iScale4Pagination==-2) 
         c->SetEditText("Fit Page");
-        if (c2) c2->SetEditText("Fit Page");
-    } else if (pApp->m_iScale4Pagination==-1) {
+    else if (pApp->m_iScale4Pagination==-1) 
         c->SetEditText("Fit Width");
-        if (c2) c2->SetEditText("Fit Width");
-    } else {
+    else {
         CString val;
         val.Format("%u%%", pApp->m_iScale4Pagination);
         c->SetEditText(val);
-        if (c2) c2->SetEditText(val);
     }
 }
 
 void CMainFrame::FillPageSize() 
 {
+    if (!IsPrintPreview()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (pApp->m_iScale4Pagination<-2) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES, arButtons);
+    if (arButtons.GetSize()==0) return;
     _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
-    m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES2, arButtons);
-    _ASSERT(arButtons.GetSize()<2);
-	CMFCRibbonComboBox *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]) : NULL;
-    c->SelectItem(pApp->m_pageSize-1);
-    if (c2) c2->SelectItem(pApp->m_pageSize-1);
+    CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    if (c)
+        c->SelectItem(pApp->m_pageSize-1);
 }
 
 void CMainFrame::FillMargins() 
 {
+    if (!IsPrintPreview()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (pApp->m_iScale4Pagination<-2) return;
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN, arButtons);
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN_L, arButtons);
+    if (arButtons.GetSize()==0) return;
     _ASSERT(arButtons.GetSize()==1);
-	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
-    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN2, arButtons);
-    _ASSERT(arButtons.GetSize()<2);
-	CMFCRibbonEdit *c2 = arButtons.GetSize() ? dynamic_cast<CMFCRibbonEdit*>(arButtons[0]) : NULL;
+    CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    if (!c) return;
     CString val;
-    val.Format("%lg", pApp->m_printer_usr_margins[0]/28.3464567); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+    val.Format("%lg", pApp->m_printer_usr_margins[0]/PT_PER_CM);
     c->SetEditText(val);
-    if (c2) c2->SetEditText(val);
+
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN_R, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    val.Format("%lg", pApp->m_printer_usr_margins[1]/PT_PER_CM);
+    c->SetEditText(val);
+
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN_T, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    val.Format("%lg", pApp->m_printer_usr_margins[2]/PT_PER_CM);
+    c->SetEditText(val);
+
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_MARGIN_B, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    val.Format("%lg", pApp->m_printer_usr_margins[3]/PT_PER_CM);
+    c->SetEditText(val);
 }
 
 void CMainFrame::OnViewInternalEditor()

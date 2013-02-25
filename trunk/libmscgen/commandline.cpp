@@ -303,7 +303,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 if (sscanf(i->c_str()+4, "%lf%s", &res, buff)==0)
                     msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");
                 else {
-                    if (!strcmp("cm", buff)) mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+                    if (!strcmp("cm", buff)) mul = PT_PER_CM;
                     else if (buff[0] && strcmp("in", buff))
                         msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'. Assuming inches.");
                     free(buff);

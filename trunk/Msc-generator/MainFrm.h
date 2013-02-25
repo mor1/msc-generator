@@ -78,6 +78,7 @@ public:
     void SetSplitSize(unsigned coord);
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
     void AddToPrintPreviewCategory();
+    void DeleteFromPrintPreviewCategory();
 // Implementation
 public:
 	virtual ~CMainFrame();

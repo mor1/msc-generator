@@ -107,11 +107,12 @@ public:
 /** Flags to describe appearance of colored text*/
 typedef enum
 {
-    COLOR_FLAG_BOLD = 1,
-    COLOR_FLAG_ITALICS = 2,
-    COLOR_FLAG_UNDERLINE = 4,
-    COLOR_FLAG_COLOR = 8,
-    COLOR_FLAG_DIFFERENT = 16
+    COLOR_FLAG_BOLD = 1,                 ///<Text shall be bold
+    COLOR_FLAG_ITALICS = 2,              ///<Text shall be italics
+    COLOR_FLAG_UNDERLINE = 4,            ///<Text shall be underlined
+    COLOR_FLAG_COLOR = 8,                ///<Text shall be of specific color (actual value in separate members)
+    COLOR_FLAG_DIFFERENT_NO_DRAW = 16,   ///<This Csh entry shall be recorded, even if text appears exactly as COLOR_NORMAL, but no need to draw (used by smart ident)
+    COLOR_FLAG_DIFFERENT_DRAW = 32       ///<This Csh entry shall be both recorded and drawn even if appears exactly as COLOR_NORMAL (e.g., comments inside a label)
 } EColorSyntaxFlag;
 
 /** Describes the appearance of colored text*/

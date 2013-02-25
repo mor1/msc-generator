@@ -1139,10 +1139,8 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                 if (doClip)
                     canvas.UnClip();
             } else {
-                const double offset = 0; //canvas->HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
-                const XY start = up+XY(offset,0);
-                //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
-                canvas.Line(start, down+XY(offset,0), style.vline); 
+                const double offset = canvas.HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
+                canvas.Line(up+XY(offset,0), down+XY(offset,0), style.vline); 
             }
         }
         from++;

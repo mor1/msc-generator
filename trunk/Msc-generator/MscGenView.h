@@ -72,6 +72,7 @@ protected:
 
 	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
 	afx_msg void OnFilePrintPreview();
+	virtual void OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo, POINT point, CPreviewView* pView);
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
 	virtual void OnEndPrinting(CDC* pDC, CPrintInfo* pInfo);
