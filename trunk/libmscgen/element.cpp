@@ -243,16 +243,22 @@ void Element::DrawControls(cairo_t *cr, double size) const
             cairo_stroke(cr);
             break;
         case MSC_CONTROL_ARROW:
-            Area arrow = Contour(-control_size.x*0.25, -control_size.x*0.1,
-                                 -control_size.y*0.1,  control_size.y*0.1);
-            arrow += Contour(XY(-control_size.x*0.1, -control_size.y*0.25),
-                             XY(-control_size.x*0.1,  control_size.y*0.25),
-                             XY(control_size.x*0.25, 0));
-            LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
-            FillAttr fill(ColorType(0,128,0), GRADIENT_UP);
+            XY points[] = {XY(-control_size.x*0.25, -control_size.y*0.10),
+                           XY(-control_size.x*0.10, -control_size.y*0.10),
+                           XY(-control_size.x*0.10, -control_size.y*0.25),
+                           XY( control_size.x*0.25, 0),
+                           XY(-control_size.x*0.10,  control_size.y*0.25),
+                           XY(-control_size.x*0.10,  control_size.y*0.10),
+                           XY(-control_size.x*0.25,  control_size.y*0.10)  
+                          };
+            Contour arrow;
+            arrow.assign_dont_check(points);
+            //LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
+            //FillAttr fill(ColorType(0,128,0), GRADIENT_UP);
+            cairo_set_source_rgb(cr, 0.2, 0.5, 0.2);
+            arrow.Fill(cr);
+            cairo_set_source_rgb(cr, 0, 0, 0);
             arrow.Line(cr);
-            //canvas->Fill(arrow, fill);
-            //canvas->Line(arrow, line);
             break;
         }
         //move down to next control location

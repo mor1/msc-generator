@@ -1057,6 +1057,10 @@ void CMscGenDoc::ChangePage(unsigned page)
     if (m_pCompilingThread) return;
     m_ChartShown.SetPage(page);
     UpdateAllViews(NULL);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
 void CMscGenDoc::StepPage(signed int step)
@@ -1137,30 +1141,42 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
   			if (!pView) return;
 			pView->GetClientRect(&view);
 
-			//See which dimension is limiting
-			if (double(y)/double(x) > double(size.cy)/double(size.cx)) 
-				zoom = unsigned(double(x)/double(size.cx)*100.);
-			else 
-				zoom = unsigned(double(y)/double(size.cy)*100.);
-			if (zoom > 100) zoom = 100;
-			SetZoom(zoom);
-			//If not fullscreen, adjust window size, too
-			if (!pWnd->IsFullScreen()) {
-				x = zoom*size.cx/100 + 1;
-				y = zoom*size.cy/100 + 1;
-				//now xy contains is the required client size
-				x += (window.right-window.left) - (view.right-view.left);
-				y += (window.bottom-window.top) - (view.bottom-view.top);
-				//now xy contains is the required client size, 
-				//next, we adjust for minimum size
-				if (x < 550) x = 580;
-				if (y < 300) y = 300;
-				if (window.left + x > screen.right - SCREEN_MARGIN)
-					window.left = screen.right - SCREEN_MARGIN - x;
-				if (window.top + y > screen.bottom - SCREEN_MARGIN)
-					window.top = screen.bottom - SCREEN_MARGIN - y;
-				pWnd->SetWindowPos(NULL, window.left, window.top, x, y,  SWP_NOZORDER | SWP_NOACTIVATE);
-			}
+            if (pWnd->GetStyle() & WS_MAXIMIZE) {
+                //Here we are maximized and do not adjust window size
+			    //See which dimension is limiting
+                if (double(view.bottom - view.top)/double(view.right - view.left) > double(size.cy)/double(size.cx)) 
+				    zoom = unsigned(double(view.right - view.left)/double(size.cx)*100.);
+			    else 
+				    zoom = unsigned(double(view.bottom - view.top)/double(size.cy)*100.);
+			    if (zoom > 100) zoom = 100;
+			    SetZoom(zoom);
+            } else {
+                //Here we fit to screen size and also change windows size
+			    //See which dimension is limiting
+			    if (double(y)/double(x) > double(size.cy)/double(size.cx)) 
+				    zoom = unsigned(double(x)/double(size.cx)*100.);
+			    else 
+				    zoom = unsigned(double(y)/double(size.cy)*100.);
+			    if (zoom > 100) zoom = 100;
+			    SetZoom(zoom);
+			    //If not fullscreen, adjust window size, too
+			    if (!pWnd->IsFullScreen()) {
+				    x = zoom*size.cx/100 + 1;
+				    y = zoom*size.cy/100 + 1;
+				    //now xy contains is the required client size
+				    x += (window.right-window.left) - (view.right-view.left);
+				    y += (window.bottom-window.top) - (view.bottom-view.top);
+				    //now xy contains is the required client size, plus any panes
+				    //next, we adjust for minimum size
+				    if (x < 550) x = 580;
+				    if (y < 300) y = 300;
+				    if (window.left + x > screen.right - SCREEN_MARGIN)
+					    window.left = screen.right - SCREEN_MARGIN - x;
+				    if (window.top + y > screen.bottom - SCREEN_MARGIN)
+					    window.top = screen.bottom - SCREEN_MARGIN - y;
+				    pWnd->SetWindowPos(NULL, window.left, window.top, x, y,  SWP_NOZORDER | SWP_NOACTIVATE);
+			    }
+            }
 			break;
 		case CMscGenDoc::WINDOW_WIDTH:
 			//Try fit real size
@@ -1174,6 +1190,8 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//If not fullscreen, adjust window size, too
 			if (!pWnd->IsFullScreen()) {
 				x = zoom*size.cx/100 + 1;
+                x += (window.right-window.left) - (view.right-view.left);
+                //now xy contains is the required client size, plus any panes
 				if (x < 550) x = 580;
 				if (window.left + x > screen.right - SCREEN_MARGIN)
 					window.left = screen.right - SCREEN_MARGIN - x;
