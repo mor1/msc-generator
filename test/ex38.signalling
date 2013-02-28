@@ -1,3 +1,4 @@
+msc = round_green;
 hscale=auto;
 C [label="Client"], R1 [label="Router"],
 R2 [label="Router"], S [label="Server"];

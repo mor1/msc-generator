@@ -4292,7 +4292,13 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     for (auto i=blocks.begin(); i != blocks.end(); i++)
         chart->PostParseProcessArcList(canvas, hide, *i, false, left, right, number, false, target);
     if (hide) return NULL;
-    return this;
+    //prune empty blocks
+    for (auto i=blocks.begin(); i != blocks.end(); /*nope*/)
+        if (i->size())
+            i++;
+        else 
+            blocks.erase(i++);
+    return blocks.size() ? this : NULL;
 }
 
 void ArcParallel::FinalizeLabels(Canvas &canvas)
@@ -4380,7 +4386,7 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
             ArcList::iterator e[2] = {list[0]->begin(), list[1]->begin()};
             FindFirstNonZero(e[0], list[0], result);
             FindFirstNonZero(e[1], list[1], result);
-            while (list[0]->size() >0 && list[0]->size() > 0) {
+            while (list[0]->size() >0 && list[1]->size() > 0) {
                 unsigned u = (*e[0])->GetPos() > (*e[1])->GetPos();
                 result.splice(result.end(), *list[u], list[u]->begin(), ++e[u]);
                 FindFirstNonZero(e[u], list[u], result);

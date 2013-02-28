@@ -273,6 +273,9 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void ShiftBy(double /*y*/) {} //Comments are shifted by their owner, notes are laid out last and shall not be shifted anyway
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
+                                    bool /*addHeading*/, ArcList &/*res*/) {return -2;} //Ignore comments for pagination (moved with their owner)
 
     Contour CoverBody(Canvas &canvas, const XY &center) const; //places upper left corner to 0,0
     Contour CoverPointer(Canvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
