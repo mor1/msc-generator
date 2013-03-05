@@ -17,7 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/** @file trackable.h The declaration of Element - the base for all chart elements.
+/** @file element.h The declaration of Element - the base for all chart elements.
  * @ingroup libmscgen_files */
 
 #if !defined(TRACKABLE_H)

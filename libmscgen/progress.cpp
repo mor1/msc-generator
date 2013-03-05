@@ -137,7 +137,8 @@ void MscProgress::CloseSection()
         current_arc_section = NO_ARC_SECTION;
     }
     if (current_bulk_section != NO_BULK_SECTION) {
-        _ASSERT(bulk_items_done[current_bulk_section] == bulk_items_regsitered[current_bulk_section]);
+//        _ASSERT(bulk_items_done[current_bulk_section] == bulk_items_regsitered[current_bulk_section]);
+        //bye command causes we do not parse all of the text
         counted_relative_effort[current_bulk_section] += now - section_started;
         current_bulk_section = NO_BULK_SECTION;
     }

@@ -16,6 +16,13 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/** @file mscdrawer.cpp The implementation of drawing in Msc generator.
+ * @ingroup libmscgen_files 
+ *
+ * Use http://www.flounder.com/metafileexplorer.htm for debugging EMF output.
+ */
+
 #include <algorithm>
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -107,7 +114,7 @@ Canvas::Canvas(EOutputType) :
     external_surface(false), copyrightTextHeight(0),
     user_scale(1,1), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(false)
 #endif
 {
     SetLowLevelParams();
@@ -144,7 +151,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
     external_surface(false), copyrightTextHeight(ctexth),
     user_scale(scale), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(false)
 #endif
 {
     _ASSERT(ot!=WIN);
@@ -156,6 +163,12 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
     
     double origYSize, origYOffset, autoHeadingSize;
     GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    original_device_size.x = total.x.Spans();
+    original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
+    original_device_size.x *= user_scale.x;//*fake_scale;
+    original_device_size.y *= user_scale.y;//*fake_scale;
+#endif 
     XY size(total.x.Spans(), origYSize);
     size.y += autoHeadingSize + copyrightTextHeight;
     size.x *= fake_scale*scale.x;
@@ -221,7 +234,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
     external_surface(false), copyrightTextHeight(ctexth),
     raw_page_clip(0,0,0,0), h_alignment(ha), v_alignment(va)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(false)
 #endif
 {
     _ASSERT(ot==PDF);
@@ -283,6 +296,12 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
     }
     //Create context for first page
     GetPagePosition(pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    original_device_size.x = total.x.Spans();
+    original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
+    original_device_size.x *= user_scale.x;//*fake_scale;
+    original_device_size.y *= user_scale.y;//*fake_scale;
+#endif 
     status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) {
         CloseOutput();
@@ -323,6 +342,12 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
     //Cretate context for next page
     double origYSize, origYOffset, autoHeadingSize;
     GetPagePosition(pageBreakData, next_page, origYOffset, origYSize, autoHeadingSize);
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    original_device_size.x = total.x.Spans();
+    original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
+    original_device_size.x *= user_scale.x;//*fake_scale;
+    original_device_size.y *= user_scale.y;//*fake_scale;
+#endif 
     status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) {
         CloseOutput();
@@ -426,7 +451,7 @@ Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double c
     external_surface(true), copyrightTextHeight(ctexth),
     user_scale(scale), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(false)
 #endif
 {
     if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
@@ -434,7 +459,6 @@ Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double c
     SetLowLevelParams();
     double origYSize, origYOffset, autoHeadingSize;
     GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
-
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) CloseOutput();
@@ -470,6 +494,7 @@ void Canvas::SetLowLevelParams()
     needs_arrow_fix = false;
     avoid_linewidth_1 = false;
     imprecise_positioning = false;
+    lines_disappear = false;
     can_and_shall_clip_total = true;
     avoid_transparency = false;
     white_background = false;
@@ -499,11 +524,12 @@ void Canvas::SetLowLevelParams()
         //Fallthrough
     case EMF:
     case PRINTER:
-        if (outType==PRINTER)
+        if (outType==PRINTER) 
             fallback_resolution = 50;
         avoid_linewidth_1 = true;       //EMF needs wider than 1 horizontal lines to avoid clipping them too much
         needs_dots_in_corner = true;
         imprecise_positioning = true;
+        lines_disappear = true;
         fake_gradients = 30;
         fake_shadows = true;
         break;
@@ -602,13 +628,16 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
     case Canvas::EMF:
+    case Canvas::EMFWMF:
         // Create the Enhanced Metafile
         if (fileName.length() > 0)
-            win32_dc = CreateEnhMetaFile(NULL, fileName.c_str(), NULL, "Msc-generator\0\0");
-        else
-            win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+            original_hdc = CreateEnhMetaFile(NULL, fileName.c_str(), NULL, "Msc-generator\0\0");
+        else {
+            _ASSERT(0);
+            return ERR_PARAM; //this can only be called with a filename
+        }
         // Did you get a good metafile?
-        if( win32_dc == NULL ) 
+        if( original_hdc == NULL ) 
             return ERR_CANVAS;
         /* We need a tweak in cairo.
 		 ** I modified cairo_win32_printing_surface_create diretcly to use 
@@ -618,14 +647,20 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
          ** I could not make a metafile DC to have larger extent than
          ** the current screen size.
          */
+        win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+        // Did you get a good metafile?
+        if( win32_dc == NULL ) 
+            return ERR_CANVAS;
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
 	case Canvas::WMF:
         // Create the Metafile on disk
         if (fileName.length() > 0)
             original_hdc = CreateMetaFile(fileName.c_str());
-        else
-            original_hdc = CreateMetaFile(NULL);
+        else {
+            _ASSERT(0);
+            return ERR_PARAM; //this can only be called with a filename
+        }
         // Did you get a good metafile?
         if( original_hdc == NULL ) 
             return ERR_CANVAS;
@@ -767,7 +802,7 @@ Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth,
     total(tot), status(ERR_PARAM), candraw(false), 
     external_surface(false), copyrightTextHeight(ctexth),
     raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0),
-    stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
+    stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(true)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=EMFWMF && ot!=PRINTER) 
         return;
@@ -778,8 +813,8 @@ Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth,
     GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     original_device_size.x = total.x.Spans();
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
-    original_device_size.x *= scale.x*fake_scale;
-    original_device_size.y *= scale.y*fake_scale;
+    original_device_size.x *= scale.x;//*fake_scale;
+    original_device_size.y *= scale.y;//*fake_scale;
     RECT r;
 
     switch (ot) {
@@ -839,12 +874,12 @@ typedef struct tagLOGFONT16 { // lf
   @param lpMFR metafile record
   @param nObj count of objects
   @returns 1 if we shall continue processing records*/
-int CALLBACK EnumProc(HDC hDC,                // handle to DC
-                      HANDLETABLE *lpHTable,  // metafile handle table
-                      METARECORD *lpMFR,      // metafile record
-                      int nObj,               // count of objects
-                      LPARAM /*lpClientData*/ // optional data
-                     )
+int CALLBACK WMFRecordFixProc(HDC hDC,                // handle to DC
+                              HANDLETABLE *lpHTable,  // metafile handle table
+                              METARECORD *lpMFR,      // metafile record
+                              int nObj,               // count of objects
+                              LPARAM /*lpClientData*/ // optional data
+                             )
 {
     bool b=true;
     if (lpMFR->rdFunction == META_EXTTEXTOUT) {
@@ -894,7 +929,7 @@ size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTric
     HMETAFILE hwmf = SetMetaFileBitsEx(size, buff);
     free(buff);
     if (applyTricks)
-        EnumMetaFile(hdc, hwmf, EnumProc, NULL);
+        EnumMetaFile(hdc, hwmf, WMFRecordFixProc, NULL);
     else
         PlayMetaFile(hdc, hwmf);
     size = GetMetaFileBitsEx(hwmf, 0, NULL);
@@ -904,11 +939,11 @@ size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTric
 
 /** Callback to process an EMF record.
   I use this to collect fallback image (StetchDIBits records) location*/
-int CALLBACK EnhMetaFileProc( HDC hDC,
-                              HANDLETABLE *lpHTable,
-                              const ENHMETARECORD *lpEMFR,
-                              int nObj,
-                              LPARAM lpData)
+int CALLBACK ExtractStretcDIBitsRecords( HDC hDC,
+                                         HANDLETABLE *lpHTable,
+                                         const ENHMETARECORD *lpEMFR,
+                                         int nObj,
+                                         LPARAM lpData)
 {
     switch (lpEMFR->iType) {
         //operations modifying the transformation matrix
@@ -957,9 +992,50 @@ Contour Canvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
 {
     Contour c;
     HDC hDC = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-    EnumEnhMetaFile(hDC, hemf, EnhMetaFileProc, &c, lpRECT);
+    EnumEnhMetaFile(hDC, hemf, ExtractStretcDIBitsRecords, &c, lpRECT);
     DeleteObject(CloseEnhMetaFile(hDC));
     return c;
+}
+
+
+/** Callback to process an EMF record.
+  I use this to expand the rect of Strokepath records. */
+int CALLBACK ExpandStorkePathRect( HDC hDC,
+                                   HANDLETABLE *lpHTable,
+                                   const ENHMETARECORD *lpEMFR,
+                                   int nObj,
+                                   LPARAM lpData)
+{
+    switch (lpEMFR->iType) {
+        //operations modifying the transformation matrix
+    default:
+        PlayEnhMetaFileRecord(hDC, lpHTable, lpEMFR, nObj);
+        break;
+    case EMR_STROKEPATH:
+        EMRSTROKEPATH s;
+        memcpy(&s, lpEMFR, sizeof(s));
+        const unsigned amount = (unsigned)lpData;
+        s.rclBounds.left   -= amount;
+        s.rclBounds.right  += amount;
+        s.rclBounds.top    -= amount;
+        s.rclBounds.bottom += amount;
+        //PlayEnhMetaFileRecord(hDC, lpHTable, lpEMFR, nObj);
+        BOOL b =PlayEnhMetaFileRecord(hDC, lpHTable, (ENHMETARECORD*)&s, nObj);
+        if (!b) {
+            b =PlayEnhMetaFileRecord(hDC, lpHTable, lpEMFR, nObj);
+            s.rclBounds.bottom += amount;
+
+        }
+    } 
+    return 1;
+}
+
+/** Expand the clip rectangle of StrokePath records.
+  @param [in] hemf The enhanced metafile.
+  @param [in] lpRECT The total size of the chart. */
+void Canvas::ExpandStrokePathRects(HDC hDC, HENHMETAFILE hemf, LPRECT lpRECT, unsigned amount)
+{
+    EnumEnhMetaFile(hDC, hemf, ExpandStorkePathRect, (LPVOID)amount, lpRECT);
 }
 
 /** Close the output and return the resulting emf file.
@@ -984,7 +1060,7 @@ HENHMETAFILE Canvas::CloseAndGetEMF()
     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
     stored_fallback_image_places = FallbackImages(hemf, &r);                
     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
-    stored_fallback_image_places.Scale(1/(user_scale.x*fake_scale)); //TODO: assumes user_scale.x==user_scale.y
+    stored_fallback_image_places.Scale(1/(user_scale.x/*fake_scale*/)); //TODO: assumes user_scale.x==user_scale.y
     win32_dc = NULL;
     outFile=NULL;
     surface=NULL;
@@ -1042,39 +1118,36 @@ void Canvas::CloseOutput()
                 //1. with an existing WMF HDC (OutType==WMF)
                 //2. with an existing EMF HDC (outType==EMF or EMFWMF);
                 //3. with a WMF file (OutType==WMF), the DC was created by "this"
-                //4. with an existing printing DC (OutType==PRINTER)
+                //4. with a EMF file (OutType==EMF or EMFWMF), the DC was created by "this"
+                //5. with an existing printing DC (OutType==PRINTER)
                 //For 1&3, we need to convert from EMF to WMF, but otherwise can close 
                 //"original_hdc" the same way. 
-                //For #3, we just copy. (This is a fix, we cannot draw onto a printer DC
+                //For #5, we just copy. (This is a fix, we cannot draw onto a printer DC
                 //with cairo directly, so we use an EMF in-between.)
-                //win32_DC is an EMF DC opened by "this"
+                //win32_dc is an EMF DC opened by "this"
                 //"original_dc" contains the original target to draw on
                 HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                 stored_fallback_image_places = FallbackImages(hemf, &r);                
-                if (outType==WMF) 
+                if (outType==WMF) {
                     stored_metafile_size = PaintEMFonWMFdc(hemf, original_hdc, r, true); 
-                else { //EMF, EMFWMF or PRINTER
-                    PlayEnhMetaFile(original_hdc, hemf, &r);
+                    //This will leave the file on disk in case of #3
+                    if (!external_hdc)
+                        DeleteMetaFile(CloseMetaFile(original_hdc)); 
+                } else { //EMF, EMFWMF or PRINTER
+                    //PlayEnhMetaFile(original_hdc, hemf, &r);
+                    ExpandStrokePathRects(original_hdc, hemf, &r, 20);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                    //This will leave the file on disk in case of #4
+                    if (!external_hdc)
+                        DeleteEnhMetaFile(CloseEnhMetaFile(original_hdc)); 
                 }
                 DeleteEnhMetaFile(hemf);
                 original_hdc = NULL;
-            } else {
-                //OutType is EMF or EMFWMF here
-                _ASSERT(outType==EMF || outType==EMFWMF);
-                if (win32_dc) { 
-                    //opened via Canvas and a filename, win32_dc is the EMF file  
-                    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-                    stored_fallback_image_places = FallbackImages(hemf, &r);
-                    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
-                    DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
-                } else {
-                    //Opened onto an existing EMF DC - nothing to do.
-                }
-            }
-            //Scale the fallback image places back to chart space (but with page origin at y==0)
-            stored_fallback_image_places.Scale(1/(user_scale.x*fake_scale)); //TODO: assumes user_scale.x==user_scale.y
-            win32_dc = NULL;
+                win32_dc = NULL;
+                //Scale the fallback image places back to chart space (but with page origin at y==0)
+                stored_fallback_image_places.Scale(1/(user_scale.x*fake_scale)); //TODO: assumes user_scale.x==user_scale.y
+            } else 
+                _ASSERT(0);
             break;
             //Fallthrough if cairo has no WIN32 surface
 #endif

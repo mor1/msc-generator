@@ -148,6 +148,7 @@ protected:
     bool     needs_arrow_fix;         /** Cannot do the convex clipping for arrowheads, use a simpler method. */
     bool     avoid_linewidth_1;       /** Never draw lines of width exactly 1.0. EMF with cairo 1.12.2 needs to have wider lines like 1.01. */
     bool     imprecise_positioning;   /** EMF/WMF has trouble doing lines on 0.5 boundaries, avoid this.*/
+    bool     lines_disappear;         /** EMF/WMF Attaches a clip region to every stroke. If that is too small, lines disappear when scaling to small object.*/
     bool     can_and_shall_clip_total;/** True if we can clip to the total chart area. Does not work for WIN, so we need this flag */
     bool     avoid_transparency;      /** Pipes and gradient fills will be flattened before output. */
     /** @} */
@@ -234,16 +235,16 @@ friend class ArcPipe;  //for exotic line joints
 
 public:
     Canvas(EOutputType ot);
-    Canvas(EOutputType, const Block &tot, double copyrightTextHeight, const string &fn, 
-              const XY &scale=XY(1.,1.), 
-              const PBDataVector *pageBreakData=NULL, unsigned page=0);
+    Canvas(EOutputType, const Block &tot, double copyrightTextHeight, 
+           const string &fn, const XY &scale=XY(1.,1.), 
+           const PBDataVector *pageBreakData=NULL, unsigned page=0);
     Canvas(EOutputType, const Block &tot, const string &fn, 
-              const std::vector<XY> &scale, const XY &pageSize, 
-              const double margins[4],  int ha, int va, 
-              double copyrightTextHeight, const PBDataVector *pageBreakData);
+           const std::vector<XY> &scale, const XY &pageSize, 
+           const double margins[4],  int ha, int va, 
+           double copyrightTextHeight, const PBDataVector *pageBreakData);
     Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, 
-              double copyrightTextHeight, const XY &scale=XY(1.,1.),
-              const PBDataVector *pageBreakData=NULL, unsigned page=0);
+           double copyrightTextHeight, const XY &scale=XY(1.,1.),
+           const PBDataVector *pageBreakData=NULL, unsigned page=0);
     /** Returns the state of the Canvas*/
     EErrorType Status() const {return status;}
     bool TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
@@ -254,19 +255,22 @@ protected:
     /** @name Windows-related members
      * @{ */
     HDC win32_dc;                        ///<The windows DC we created in the constructor.
-    HDC original_hdc;                    ///<The windows DC the user supplied.
+    HDC original_hdc;                    ///<The eventual target windows DC (user supplied or file on disk)
+    const bool external_hdc;             ///<Whether `original_hdc` is user supplied or not.
     XY original_device_size;             ///<The size of the output `(header+page height+copyright)*fake_scale`
     size_t stored_metafile_size;         ///<When rendering on WMF or EMF, store the size of the resulting file in CloseOutput()
     Contour stored_fallback_image_places;///<When rendering on WMF or EMF, store the location of fallback images in chart space in CloseOutput()
     /** @} */
 public:
-    Canvas(EOutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
-              const PBDataVector *pageBreakData=NULL, unsigned page=0);
+    Canvas(EOutputType, HDC hdc, const Block &tot=Block(0,0,0,0), 
+           double copyrightTextHeight=0, const XY &scale=XY(1.,1.), 
+           const PBDataVector *pageBreakData=NULL, unsigned page=0);
     /** When rendering on WMF or EMF, return the size of the resulting file. Valid only after CloseOutput().*/
     size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF||outType==PRINTER); return stored_metafile_size;} 
     /** When rendering on WMF or EMF, return the location of fallback images in chart space. Valid only after in CloseOutput()*/
     Contour &GetFallbackImagePlaces() {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF||outType==PRINTER); return stored_fallback_image_places;} 
     static Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT);
+    static void ExpandStrokePathRects(HDC hDC, HENHMETAFILE hemf, LPRECT lpRECT, unsigned amount);
     HENHMETAFILE CloseAndGetEMF();
 #endif
 public:
@@ -289,6 +293,8 @@ public:
     bool NeedsArrowFix() const {return needs_arrow_fix;}
     /** True if the target has imprecise positioning */
     bool HasImprecisePositioning() const {return imprecise_positioning;}
+    /** True if the target has disappearing lines. */
+    bool DoLinesDisappear() const {return lines_disappear;}
     /** True if we should avoid transparency when drawing */
     bool AvoidTransparency() const {return avoid_transparency;}
 

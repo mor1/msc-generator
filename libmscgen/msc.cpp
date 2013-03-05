@@ -1139,8 +1139,22 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                 if (doClip)
                     canvas.UnClip();
             } else {
-                const double offset = canvas.HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
-                canvas.Line(up+XY(offset,0), down+XY(offset,0), style.vline); 
+                const double offset = canvas.HasImprecisePositioning() ? (canvas.DoLinesDisappear()? 0.5 : 0.0) : fmod_negative_safe(style.vline.width.second/2, 1.);
+                if (canvas.DoLinesDisappear()) {
+                    const double gap = 4;
+                    const Block clip (up - XY(offset + style.vline.LineWidth()+10,0), down + XY(offset + style.vline.LineWidth()+10,0));
+                    canvas.Clip(clip);
+                    const Contour line_tri(down+XY(offset,0), up+XY(offset,-style.vline.LineWidth()), up+XY(offset+gap,-style.vline.LineWidth()));
+                    line_tri[0][2].visible = false;
+                    canvas.Line(line_tri, style.vline);
+                    canvas.UnClip();
+                } else {
+                    canvas.Line(up+XY(offset,0), down+XY(offset,0), style.vline);
+                }
+                //FillAttr fill(ColorType(0,0,0), GRADIENT_NONE);
+                //canvas.Fill(Block(up+XY(offset-style.vline.width.second/2,0), 
+                //                  down+XY(offset+style.vline.width.second/2,0)),
+                //            fill);
             }
         }
         from++;
