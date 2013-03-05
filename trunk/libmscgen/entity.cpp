@@ -584,8 +584,7 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)
         outer_edge = Block(x-ceil(width/2), x+ceil(width/2),
-                           chart->headingVGapAbove /*- indicator_height*/,
-                           height - chart->headingVGapBelow /*-indicator_height*/);
+                           chart->headingVGapAbove, height - chart->headingVGapBelow);
 
         area = style.read().line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
         area_draw.clear();

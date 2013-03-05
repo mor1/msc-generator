@@ -459,7 +459,7 @@ bool CDrawingChartData::CompileIfNeeded() const
         //set copyright text
         m_msc->copyrightText = m_copyright;
 	    //Do postparse, compile, calculate sizes and sort errors by line
-        m_msc->CompleteParse(Canvas::PNG, false, m_page_size.x>0 && m_page_size.y>0, 
+        m_msc->CompleteParse(Canvas::EMF, false, m_page_size.x>0 && m_page_size.y>0, 
                              m_addHeading, m_page_size, m_fitWidth);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and

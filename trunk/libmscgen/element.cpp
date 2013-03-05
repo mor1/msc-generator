@@ -16,7 +16,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file trackable.h The implementation of class Element.
+/** @file element.cpp The implementation of class Element.
  * @ingroup libmscgen_files */
 
 #include "msc.h"
