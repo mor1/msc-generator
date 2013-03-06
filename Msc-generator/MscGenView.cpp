@@ -412,7 +412,11 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
     srcDC.SelectObject(oldBitmap);
 
     if (grey_fade_value<1.0) return;
-
+    CMainFrame *pMainWnd = (CMainFrame *)AfxGetMainWnd();
+    //With a split window we do not show progress in the upper pane
+    if (pMainWnd && pMainWnd->m_wndSplitter.GetRowCount()==2 && 
+        this == dynamic_cast<CMscGenView *>(pMainWnd ->m_wndSplitter.GetPane(0,0)))
+        return;
     CRect progress;
     const int w = clip.Width()/3;
     progress.left = w;

@@ -148,7 +148,7 @@ protected:
     bool     needs_arrow_fix;         /** Cannot do the convex clipping for arrowheads, use a simpler method. */
     bool     avoid_linewidth_1;       /** Never draw lines of width exactly 1.0. EMF with cairo 1.12.2 needs to have wider lines like 1.01. */
     bool     imprecise_positioning;   /** EMF/WMF has trouble doing lines on 0.5 boundaries, avoid this.*/
-    bool     lines_disappear;         /** EMF/WMF Attaches a clip region to every stroke. If that is too small, lines disappear when scaling to small object.*/
+    bool     needs_strokepath_rclboundsfix;  /** EMF/WMF Attaches a clip region to every stroke. If that is too small, rectilinear lines disappear when scaling to small object.*/
     bool     can_and_shall_clip_total;/** True if we can clip to the total chart area. Does not work for WIN, so we need this flag */
     bool     avoid_transparency;      /** Pipes and gradient fills will be flattened before output. */
     /** @} */
@@ -294,7 +294,7 @@ public:
     /** True if the target has imprecise positioning */
     bool HasImprecisePositioning() const {return imprecise_positioning;}
     /** True if the target has disappearing lines. */
-    bool DoLinesDisappear() const {return lines_disappear;}
+    bool NeedsStrokePath_rclBoundsFix() const {return needs_strokepath_rclboundsfix;}
     /** True if we should avoid transparency when drawing */
     bool AvoidTransparency() const {return avoid_transparency;}
 
@@ -339,11 +339,11 @@ public:
     void Line(const Contour &area, const LineAttr &line);
     /** Fill a rectangle with `fill`*/
     void Fill(const XY &s, const XY &d, const FillAttr &fill);
-    /** Fill a rectangle with corners specified in 'line.corner` with `fill`*/
+    /** Fill a rectangle with corners specified in 'line. corner` with `fill`*/
     void Fill(const XY &s, const XY &d, const LineAttr &line, const FillAttr &fill);
     /** Fill a rectangle with `fill`*/
     void Fill(const Block &b, const FillAttr &fill);
-    /** Fill a rectangle with corners specified in 'line.corner` with `fill`*/
+    /** Fill a rectangle with corners specified in 'line. corner` with `fill`*/
     void Fill(const Block &b, const LineAttr &line, const FillAttr &fill);
     /** Fill a shape with `fill`*/
     void Fill(const Contour &area, const FillAttr &fill);

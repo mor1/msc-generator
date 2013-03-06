@@ -602,7 +602,9 @@ Block CDrawingChartData::GetNetPageBlock() const
 
 double CDrawingChartData::GetHeadingSize() const
 {
-    return GetMsc()->headingSize - GetMsc()->GetTotal().x.from;
+    if (m_page<=1 || m_page > GetMsc()->pageBreakData.size())
+        return GetMsc()->headingSize - GetMsc()->GetTotal().x.from;
+    return GetMsc()->pageBreakData[m_page-1].autoHeadingSize;
 }
 
 void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, double x_scale, double y_scale) const

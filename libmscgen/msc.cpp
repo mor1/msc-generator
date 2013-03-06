@@ -1139,22 +1139,38 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                 if (doClip)
                     canvas.UnClip();
             } else {
-                const double offset = canvas.HasImprecisePositioning() ? (canvas.DoLinesDisappear()? 0.5 : 0.0) : fmod_negative_safe(style.vline.width.second/2, 1.);
-                if (canvas.DoLinesDisappear()) {
-                    const double gap = 4;
-                    const Block clip (up - XY(offset + style.vline.LineWidth()+10,0), down + XY(offset + style.vline.LineWidth()+10,0));
+                const double offset = canvas.HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
+                up.x += offset;
+                down.x += offset;
+                if (canvas.NeedsStrokePath_rclBoundsFix()) {
+                    /* We draw such a shape for an entity line:
+                     *  .....   Where dotted lines are invisible.
+                     *  :   :   The visible vertical part is the entity line
+                     *  : +--   The visible horizontal parts are serifs to expand the
+                     *  : |     bounding box of the stroke.
+                     *  : |     This is needed so that the resulting metafile
+                     *  --+     retains the entity line even when shrunk.
+                     *          Surprisingly the bounds remain large even if we clip 
+                     *          away the serifs (which we do). */
+                    const double gap = 10 + style.vline.LineWidth();
+                    const Block clip (up   - XY(gap,0), 
+                                      down + XY(gap,0));
                     canvas.Clip(clip);
-                    const Contour line_tri(down+XY(offset,0), up+XY(offset,-style.vline.LineWidth()), up+XY(offset+gap,-style.vline.LineWidth()));
-                    line_tri[0][2].visible = false;
-                    canvas.Line(line_tri, style.vline);
+                    const XY points[] = {down + XY(-2*gap,  +gap),
+                                         up   + XY(-2*gap, -gap*2),
+                                         up   + XY(+2*gap, -gap*2),
+                                         up   + XY(+2*gap, -gap),
+                                         up   + XY(     0, -gap),
+                                         down + XY(     0, +gap)};
+                    Contour line_shape;
+                    line_shape.assign_dont_check(points);
+                    line_shape[0][0].visible = false;
+                    line_shape[0][1].visible = false;
+                    line_shape[0][2].visible = false;
+                    canvas.Line(line_shape, style.vline);
                     canvas.UnClip();
-                } else {
-                    canvas.Line(up+XY(offset,0), down+XY(offset,0), style.vline);
-                }
-                //FillAttr fill(ColorType(0,0,0), GRADIENT_NONE);
-                //canvas.Fill(Block(up+XY(offset-style.vline.width.second/2,0), 
-                //                  down+XY(offset+style.vline.width.second/2,0)),
-                //            fill);
+                } else 
+                    canvas.Line(up, down, style.vline);
             }
         }
         from++;

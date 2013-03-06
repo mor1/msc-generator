@@ -626,6 +626,8 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnFileExport()
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	SyncShownWithEditing("export");
     CString name = GetPathName();
     double x_scale=1, y_scale=1;
@@ -641,7 +643,9 @@ void CMscGenDoc::OnFileExport()
             "Scalable Vector Graphics (*svg)\0*.svg\0"
             "Portable Document Format (*.pdf)\0*.pdf\0"
             "Encapsulated PostScript (*.eps)\0*.eps\0";
-        dialog.m_pOFN->nFilterIndex = 1;
+        dialog.m_pOFN->nFilterIndex = pApp->GetProfileInt(REG_SECTION_SETTINGS, "ExportFileType", 1);
+        if (dialog.m_pOFN->nFilterIndex>6 || dialog.m_pOFN->nFilterIndex<1)
+            dialog.m_pOFN->nFilterIndex = 1;
         char filename[1024];
         strcpy_s(filename, name);
         if (PathFindExtension(filename) == CString(".signalling"))
@@ -651,6 +655,7 @@ void CMscGenDoc::OnFileExport()
         //dialog.ApplyOFNToShellDialog();
         if (dialog.DoModal() != IDOK)
             return;
+        pApp->WriteProfileInt(REG_SECTION_SETTINGS, "ExportFileType", dialog.m_pOFN->nFilterIndex);
         //dialog.UpdateOFNFromShellDialog();
         name = dialog.GetPathName();
         CString ext = PathFindExtension(name);
@@ -1056,11 +1061,16 @@ void CMscGenDoc::ChangePage(unsigned page)
     //skip if compiling
     if (m_pCompilingThread) return;
     m_ChartShown.SetPage(page);
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd && pWnd->m_bAutoSplit) 
+        pWnd->SetSplitSize(unsigned(m_ChartShown.GetHeadingSize()*m_zoom/100.));
     UpdateAllViews(NULL);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (pApp->IsInternalEditorRunning()) 
         pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+    if (pWnd)
+        pWnd->FillPageComboBox(m_ChartShown.GetPages(), page);
 }
 
 void CMscGenDoc::StepPage(signed int step)

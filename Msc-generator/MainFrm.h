@@ -53,8 +53,8 @@ protected:
 	//CMFCRibbonStatusBar  m_wndStatusBar;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
-    bool m_bAutoSplit;         //True if autosplit mode is on
 public:
+    bool m_bAutoSplit;         //True if autosplit mode is on
     bool m_at_embedded_object_category;
     bool m_has_fallback_image;
 
@@ -76,6 +76,8 @@ public:
     afx_msg LRESULT OnCompilationDone(WPARAM wParam, LPARAM lParam);
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
+    CPaneFrameWnd *FindFullScreenToolBarFrameWnd();
+    CMFCToolBar *FindFullScreenToolBar(CPaneFrameWnd *p=NULL); //finds the fulls screen toolbar 
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
     void AddToPrintPreviewCategory();
     void DeleteFromPrintPreviewCategory();
@@ -93,6 +95,7 @@ public:
     afx_msg void OnUpdateDesignDesign(CCmdUI *pCmdUI);
     void FillPageComboBox(int no_pages, int page);
 	afx_msg void OnDesignPage(); //page combo box changes
+	afx_msg void OnFullScreenPage(); //page combo box changes
     afx_msg void OnUpdateDesignPage(CCmdUI *pCmdUI);
 	afx_msg void OnDesignNextPage(); //page combo box changes
 	afx_msg void OnDesignPrevPage(); //page combo box changes

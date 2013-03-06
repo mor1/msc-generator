@@ -433,8 +433,10 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
   @param [in] ot The type of the output - Drawing fakes and tweaks will be applied 
                  as per this. Does not really influence output target - that 
                  is a cairo recording surface here.
+  @param surf The cairo recording surface to draw onto (in fact, can be any surface).
   @param [in] tot The total size of the chart in the canvas coordinate space.
   @param [in] ctexth The height of the copyright text.
+  @param [in] scale The scaling applied before we draw to the surface.
   @param [in] pageBreakData The collection of page break associated data 
                             generated during parsing. This function only
                             uses the y coordinate of the page break and
@@ -443,8 +445,8 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
   @param [in] page Specifies which page we the Canvas for, the index of
                    the first page is 1. 0 means we want to treat 
                    the whole chart as one page.*/
-Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, const XY &scale, 
-              const PBDataVector *pageBreakData, unsigned page) :
+Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, 
+               const XY &scale, const PBDataVector *pageBreakData, unsigned page) :
 
     outFile(NULL), surface(surf), cr(NULL), status(ERR_PARAM), candraw(false),
     fake_dash_offset(0), outType(ot), total(tot),
@@ -494,7 +496,7 @@ void Canvas::SetLowLevelParams()
     needs_arrow_fix = false;
     avoid_linewidth_1 = false;
     imprecise_positioning = false;
-    lines_disappear = false;
+    needs_strokepath_rclboundsfix = false;
     can_and_shall_clip_total = true;
     avoid_transparency = false;
     white_background = false;
@@ -529,7 +531,7 @@ void Canvas::SetLowLevelParams()
         avoid_linewidth_1 = true;       //EMF needs wider than 1 horizontal lines to avoid clipping them too much
         needs_dots_in_corner = true;
         imprecise_positioning = true;
-        lines_disappear = true;
+        needs_strokepath_rclboundsfix = true;
         fake_gradients = 30;
         fake_shadows = true;
         break;
@@ -585,9 +587,9 @@ void Canvas::GetPagePosition(const PBDataVector *pageBreakData, unsigned page, d
  * Uses the `outType` member to determine what type of surface to create.
  * Uses the `fileName` members to open an EMF file, if not empty.
  * Uses the 'outFile' memeber to direct EPS and SVG output into it.
- * @param [in] xy The native size of the surface (can be 0,0), that is 
- *                if the user specifies a scale of 2, this shall be twice the
- *                chart (page) size.
+ * @param [in] size The native size of the surface (can be 0,0), that is 
+ *                  if the user specifies a scale of 2, this shall be twice the
+ *                  chart (page) size.
  * @returns Any error or ERR_OK.*/
 Canvas::EErrorType Canvas::CreateSurface(const XY &size)
 {
