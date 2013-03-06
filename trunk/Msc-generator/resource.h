@@ -173,6 +173,7 @@
 #define ID_COMBO_PAGES                  33062
 #define ID_EDIT_MARGIN_R                33063
 #define ID_EDIT_MARGIN_B                33064
+#define ID_FULL_SCREEN_PAGE             33065
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -181,7 +182,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        320
-#define _APS_NEXT_COMMAND_VALUE         33065
+#define _APS_NEXT_COMMAND_VALUE         33066
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

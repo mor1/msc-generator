@@ -5,7 +5,6 @@ Left_MN, Left_AR, Server, Right_AR, Right_MN;
     Left_AR<-Left_MN: Response;
     Server<-Left_AR: Response;
 } {
-    nudge;
     Server->Right_AR: Query;
     Right_AR->Right_MN: Query;
     Right_AR<-Right_MN: Response;

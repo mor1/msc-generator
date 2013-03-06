@@ -52,17 +52,20 @@ ADD: hints for built-in styles after defstyle
 ADD: 'box' as syntactic sugar
 ADD: diagonal gradients
 ADD: more colors
-FIX: mouse-wheel scrolling of editor (strange behaviour)
 FIX: test.signalling from Michael on end of January, draws thicker text sometimes
+FIX: Full screen not covering entire screen
+FIX: Add bitmaps to Full screen images
 
 In 3.5.16
-FIX: AutoSplit, split with autoHeadings
-FIX: Fullscreen page changes...?
-FIX: Graham boxes hscale=1.
+FIXED: mouse-wheel scrolling of editor (strange behaviour)
+FIXED: Fullscreen page changes...?
+FIXED: AutoSplit, split with autoHeadings
+FIXED: Graham boxes hscale=1.
 FIXED: thin lines in EMF: This is due to the too small rclBounds value in EMR_STROKEPATH.
  - Fixes include drawing on 0.5 boundary (then bounds are +1 fixel)
  - and a small serif at the top of entity lines to make rclBounds wider
  - Also changed entityVGapAbove to zero to hide the small serif.
+ ADDED: Exporting now remembers last used export type.
 
 In 3.5.15
 FIXED: Fit to width is useless.

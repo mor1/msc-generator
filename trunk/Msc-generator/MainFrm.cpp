@@ -79,6 +79,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
+	ON_COMMAND(ID_FULL_SCREEN_PAGE, OnFullScreenPage)
 	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
 	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignPage)
 	ON_COMMAND(ID_DESIGN_PAGE_FULL_SCREEN_NEXT, OnDesignNextPage)
@@ -434,52 +435,74 @@ LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
     return 0; //OK, we processed it
 }
 
-bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
+CPaneFrameWnd *CMainFrame::FindFullScreenToolBarFrameWnd()
 {
     CString strCaption;
     strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
-    CWnd *i, *j;
-    for (i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
+    for (CWnd *i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
         CString s;
         i->GetWindowText(s);
         if (s != strCaption) continue;
         if (!i->IsKindOf(RUNTIME_CLASS(CPaneFrameWnd))) continue;
-        break;
+        //OK, we found the right paneframewnd
+        return dynamic_cast<CPaneFrameWnd *>(i);
     }
-    if (i) {
-        for (j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
-            CString s;
-            j->GetWindowText(s);
-            if (s != strCaption) continue;
-            if (!j->IsKindOf(RUNTIME_CLASS(CMFCToolBar))) continue;
-            break;
-        }
-        if (j) {
-            CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
-            CSize size = p->GetButtonSize();
-            //Add autoSplit Button
-            int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
-            CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
-            p->InsertButton(button);
-            //Add page combo, if more than one page
-            CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-            CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-            if (pDoc && pApp && pDoc->m_ChartShown.GetPages()>1) {
-                CMFCToolBarButton nextButton (ID_DESIGN_PAGE_FULL_SCREEN_NEXT,
-                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_NEXT, FALSE), "Next Page");
-                CMFCToolBarButton prevButton (ID_DESIGN_PAGE_FULL_SCREEN_PREV,
-                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_PREV, FALSE), "Previous Page");
-                p->InsertButton(nextButton);
-                p->InsertButton(prevButton);
-            }
-            //Arrange size
-            CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
-            p->StretchPane(32000, false);
-            f->SizeToContent();
-            return true;
-        }
+    return NULL;
+}
+
+
+CMFCToolBar *CMainFrame::FindFullScreenToolBar(CPaneFrameWnd *i)
+{
+    if (!i)
+        i = FindFullScreenToolBarFrameWnd();
+    if (!i)
+        return NULL;
+    CString strCaption;
+    strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
+    for (CWnd *j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
+        CString s;
+        j->GetWindowText(s);
+        if (s != strCaption) continue;
+        if (!j->IsKindOf(RUNTIME_CLASS(CMFCToolBar))) continue;
+        //OK, we found the toolbar in it
+        return dynamic_cast<CMFCToolBar *>(j);
     }
-    return false;
+    return NULL;
+}
+
+bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our buttons to it
+{
+    CPaneFrameWnd *f = FindFullScreenToolBarFrameWnd();
+    if (!f) return false;
+    CMFCToolBar *p = FindFullScreenToolBar(f);
+    if (!p) return false;
+    p->InsertSeparator();
+    CSize size = p->GetButtonSize();
+    //Add autoSplit Button
+    int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
+    CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
+    p->InsertButton(button);
+    //Add page combo, if more than one page
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    if (pDoc && pApp && pDoc->m_ChartShown.GetPages()>1) {
+        CMFCToolBarButton nextButton (ID_DESIGN_PAGE_FULL_SCREEN_NEXT,
+            GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_NEXT, FALSE), "Next");
+        CMFCToolBarButton prevButton (ID_DESIGN_PAGE_FULL_SCREEN_PREV,
+            GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_PREV, FALSE), "Prev");
+        CMFCToolBarEditBoxButton edit (ID_FULL_SCREEN_PAGE, 
+            GetCmdMgr ()->GetCmdImage (ID_FULL_SCREEN_PAGE, FALSE), 
+            ES_NUMBER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_RIGHT, 50);
+        p->InsertSeparator();
+        p->InsertButton(prevButton);
+        p->InsertButton(edit);
+        p->InsertButton(nextButton);
+        FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+    }
+    //Arrange size
+    p->StretchPane(32000, false);
+    f->SizeToContent();
+    return true;
 }
 
 
@@ -788,9 +811,12 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
 
-	if (no_pages == 1) {
+    CMFCToolBarEditBoxButton  *c2 = CMFCToolBarEditBoxButton::GetByCmd(ID_FULL_SCREEN_PAGE);
+
+    if (no_pages == 1) {
         c->EnableSpinButtons(0, 0);
         c->SetEditText("1/1");
+        if (c2) c2->GetEditBox()->SetWindowText("1/1");
     } else {
         c->EnableSpinButtons(0, no_pages);
         CString str;
@@ -799,6 +825,7 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
         else 
             str.Format("%d/%d", page, no_pages);
         c->SetEditText(str);
+        if (c2) c2->GetEditBox()->SetWindowText(str);
     }
 
     //Update the Copy Entire Chart button, as well
@@ -831,10 +858,18 @@ void CMainFrame::OnDesignPage()
     if (!pDoc) return;
     unsigned page = pDoc->m_ChartShown.GetPage();
     const CString val = c->GetEditText();
-    if (1==sscanf(val, "%u", &page)) {
+    if (1==sscanf(val, "%u", &page)) 
         pDoc->ChangePage(page);
-        FillPageComboBox(pDoc->m_ChartShown.GetPages(), page);
-    }
+}
+
+void CMainFrame::OnFullScreenPage()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (!pDoc) return;
+    unsigned page = pDoc->m_ChartShown.GetPage();
+    CString val = CMFCToolBarEditBoxButton::GetContentsAll(ID_FULL_SCREEN_PAGE);
+    if (1==sscanf(val, "%u", &page)) 
+        pDoc->ChangePage(page);
 }
 
 void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)

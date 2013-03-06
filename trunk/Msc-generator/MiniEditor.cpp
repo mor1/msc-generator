@@ -30,12 +30,12 @@ static char THIS_FILE[] = __FILE__;
 
 BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 	ON_WM_MOUSEWHEEL() 
-    ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
-CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : 
-    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
+CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
+    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this),
+    m_parent(parent)
 {
     m_tabsize = 4;
 	m_bCshUpdateInProgress = false;  
@@ -44,7 +44,6 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) :
     m_bTillCursorOnly = false;
     m_bWasAutoComplete = false;
     m_csh_index = -3;
-    m_timer = NULL;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -617,7 +616,6 @@ void CCshRichEditCtrl::CopyCsh()
 {
     const unsigned ONE_BATCH = 100; //# of lines
     const int PRE = 20;
-    const unsigned TIME_DLEAY = 30; //milliseconds
     long startfrom;
     bool shall_invalidate = true; //XXX: speedup to set it false by default
     bool shall_continue = false;
@@ -692,22 +690,8 @@ void CCshRichEditCtrl::CopyCsh()
         UpdateWindow();
     }
 	//SetEventMask(eventMask);
-    if (shall_continue == (m_timer!=NULL))
-        return;
-    else if (shall_continue)
-        m_timer = SetTimer(1, TIME_DLEAY, NULL);
-    else {
-        KillTimer(m_timer);
-        m_timer = NULL;
-    }
+    m_parent->StartStopTimer(shall_continue);
 }
-
-void CCshRichEditCtrl::OnTimer(UINT_PTR nEventID)
-{
-    if (nEventID == m_timer)
-        CopyCsh();
-}
-
 
 void CCshRichEditCtrl::CancelPartialMatch()
 {
@@ -780,12 +764,13 @@ BOOL CCshRichEditCtrl::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 
 BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
+    CPoint pt2 = pt;
 	CRect view;
 	GetClientRect(&view);
-	ScreenToClient(&pt);
+	ScreenToClient(&pt2);
 	//Process message only if within our view
-	if (!view.PtInRect(pt)) return FALSE;
-	CRichEditCtrl::OnMouseWheel(nFlags, zDelta, pt);
+	if (!view.PtInRect(pt2)) return FALSE;
+	CWnd::OnMouseWheel(nFlags, zDelta, pt2);
     if (InHintMode())
         CancelHintMode();
 	return TRUE;
@@ -899,6 +884,7 @@ BEGIN_MESSAGE_MAP(CEditorBar, CDockablePane)
 	ON_WM_SIZE()
 	ON_WM_PAINT()
 	ON_WM_SETFOCUS()
+    ON_WM_TIMER()
 	ON_NOTIFY(EN_SELCHANGE, IDC_INTERNAL_EDITOR, OnSelChange)
 	ON_REGISTERED_MESSAGE(nFindReplaceDialogMessage, OnFindReplaceMessage)
 END_MESSAGE_MAP()
@@ -907,6 +893,7 @@ CEditorBar::CEditorBar() : m_ctrlEditor(this), m_pFindReplaceDialog(NULL)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    m_timer = NULL;
     m_lInitialSearchPos = 0;
     m_bFirstSearch = true;
 	m_bSuspendNotifications = FALSE;
@@ -996,6 +983,29 @@ void CEditorBar::SetReadOnly(bool readonly)
 			SetWindowText(text.Left(text.GetLength()-12));
 	} else if (readonly)
 		SetWindowText(text + READONLY_STRING);
+}
+
+
+//Timer for csh.
+//This cannot be in CCshRichEditCtrl, for in that case mouse wheel scrolling
+//does not work mysteriously.
+void CEditorBar::StartStopTimer(bool shall_continue)
+{
+    const unsigned TIME_DLEAY = 30; //milliseconds
+    if (shall_continue == (m_timer!=NULL))
+        return;
+    else if (shall_continue)
+        m_timer = SetTimer(1, TIME_DLEAY, NULL);
+    else {
+        KillTimer(m_timer);
+        m_timer = NULL;
+    }
+
+}
+void CEditorBar::OnTimer(UINT_PTR nEventID)
+{
+    if (nEventID == m_timer)
+        m_ctrlEditor.CopyCsh();
 }
 
 void CEditorBar::OnSize(UINT nType, int cx, int cy)

@@ -2672,8 +2672,8 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
     //In this case emph box spans to leftmost and rightmost entity in chart.
     //At PostParse chart->AllEntities is already sorted by pos values
     //we only do this step if we are the first in a box series.
-    if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
-    if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
+    if (*src==chart->NoEntity) src = ++ ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
+    if (*dst==chart->NoEntity) dst = -- -- --chart->AllEntities.end();    //rightmost entity (before (right)
 
     //Now see how entities change due to entity collapse
     EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);

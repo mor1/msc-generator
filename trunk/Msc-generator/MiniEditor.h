@@ -44,10 +44,10 @@ class CCshRichEditCtrl : public CRichEditCtrl
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
     int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
-    UINT_PTR m_timer;
+    CEditorBar * const m_parent;
 public:
 	int m_tabsize;
-	CCshRichEditCtrl(CWnd *parent);
+	CCshRichEditCtrl(CEditorBar *parent);
     virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
 
 	//Generic helpers
@@ -80,7 +80,6 @@ public:
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
-    afx_msg void OnTimer(UINT_PTR nEventID);
     //Hint window related
     void StartHintMode(bool setUptoCursor); //also used to update hints in popup, if already in hint mode
     bool InHintMode() const {return m_hintsPopup.m_shown;}
@@ -102,6 +101,7 @@ public:
 // Attributes
     CFont m_Font;
 	CCshRichEditCtrl m_ctrlEditor;
+    UINT_PTR m_timer;
 	CFindReplaceDialog* m_pFindReplaceDialog;
 	CString m_sLastFindString;
 	CString m_sLastReplaceString;
@@ -119,8 +119,10 @@ public:
 public:
 	virtual ~CEditorBar();
 	void SetReadOnly(bool=true);
+    void StartStopTimer(bool shall_continue);
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+    afx_msg void OnTimer(UINT_PTR nEventID);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
