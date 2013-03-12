@@ -107,8 +107,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 	//    (we can't use MM_LOENGLISH because MM_LOENGLISH uses
 	//    physical inches)
 	dc.SetMapMode(MM_ANISOTROPIC);
-	dc.SetViewportExt(dc.GetDeviceCaps(LOGPIXELSX),
-	dc.GetDeviceCaps(LOGPIXELSY));
+	dc.SetViewportExt(dc.GetDeviceCaps(LOGPIXELSX), dc.GetDeviceCaps(LOGPIXELSY));
 	dc.SetWindowExt(100, -100);
 	dc.LPtoHIMETRIC(&rSize);
 
