@@ -1,0 +1,29 @@
+# MSC drawn from file 'trace.log'
+
+VMC,Coin_acceptor,Coin_dispenser_1,Display,Keypad,Motor,Drop_sensor;
+
+VMC--:Additional stuff;
+VMC--:Hi, Zoltan. The next banner will be very long and need to be wrapped;
+VMC--:Oh, yes, this is a very long banner text, indeed it is. In fact, it is so long that it will probably need to apr. But it won't, because the program will truncate it;
+VMC--:End of additional stuff, now back to auto-gnerated input;
+
+VMC--VMC: New VMC state = Resetting {};
+VMC--:TEST_START : TestStatusSuccess_level_2 {};
+VMC--:TEST_SUCCESS : TestStatusSuccess_level_2 {};
+VMC--:TEST_START : TestTubeStatusHandling {};
+VMC--:TEST_SUCCESS : TestTubeStatusHandling {};
+VMC--:TEST_START : TestCoinDispenserSetupReponseProcessing {};
+VMC--:TEST_SUCCESS : TestCoinDispenserSetupReponseProcessing {};
+VMC--:TEST_START : TestCoinDispenserStatusReponse {};
+VMC--:TEST_SUCCESS : TestCoinDispenserStatusReponse {};
+VMC--:TEST_START : TestPeripheralResetCoinAcceptorLevel_2 {};
+VMC--VMC: S o f t   r e s e t {};
+VMC->Coin_acceptor:Reset;
+VMC<-Coin_acceptor:Reset ack;
+VMC->Coin_dispenser_1:Reset Dispenser 1;
+VMC<-Coin_dispenser_1:Reset ack;
+VMC->Coin_acceptor:Poll;
+VMC<-Coin_acceptor:Just reset;
+VMC->Coin_acceptor:Ack;
+VMC->Coin_dispenser_1:Poll;
+VMC<-Coin_dispenser_1:Just reset;
