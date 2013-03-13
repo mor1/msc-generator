@@ -1989,15 +1989,24 @@ pipe_list_no_content: first_pipe
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = new ArcPipeSeries($1);
+    if ($1)
+      $$ = new ArcPipeSeries($1);
+    else
+      $$ = NULL;
   #endif
 }
              | pipe_list_no_content boxrel
 {
   #ifndef C_S_H_IS_COMPILED
+    //($2) is never NULL: "boxrel" always return a value (except oo memory)
     ArcPipe *ap = new ArcPipe($2);
     ap->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollowWithAttributes(ap, NULL);
+    if ($1)
+      $$ = ($1)->AddFollowWithAttributes(ap, NULL);
+    else {
+      ap->AddAttributeList(NULL);
+      $$ = new ArcPipeSeries(ap);
+    }
   #endif
 }
              | pipe_list_no_content boxrel full_arcattrlist_with_label
@@ -2008,9 +2017,15 @@ pipe_list_no_content: first_pipe
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
+    //($2) is never NULL: "boxrel" always return a value (except oo memory)
     ArcPipe *ap = new ArcPipe($2);
     ap->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollowWithAttributes(ap, $3);
+    if ($1)
+      $$ = ($1)->AddFollowWithAttributes(ap, $3);
+    else {
+      ap->AddAttributeList($3);
+      $$ = new ArcPipeSeries(ap);
+    }
   #endif
 };
 

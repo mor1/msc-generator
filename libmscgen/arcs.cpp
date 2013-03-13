@@ -284,19 +284,20 @@ using namespace std;
 template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
-    Element(msc), valid(true), compress(false), parallel(false),
+    Element(msc), had_add_attr_list(false), valid(true), 
+    compress(false), parallel(false),
     keep_together(true), keep_with_next(false),
     type(t), myProgressCategory(c)
 {
-    if (msc) 
-        compress = msc->Contexts.back().compress.second;
-    had_add_attr_list = false;
-	chart->Progress.RegisterArc(myProgressCategory);
+    compress = chart->Contexts.back().compress.second;
+    chart->Progress.RegisterArc(myProgressCategory);
 }
 
 ArcBase::~ArcBase()
 {
-	chart->Progress.UnRegisterArc(myProgressCategory);
+    _ASSERT(chart);
+    if (chart)
+        chart->Progress.UnRegisterArc(myProgressCategory);
 }
 
 Area ArcBase::GetCover4Compress(const Area &a) const
@@ -3177,7 +3178,8 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
 /////////////////////////////////////////////////////////////////
 
 ArcPipe::ArcPipe(ArcBox *box) :
-    ArcLabelled(box->type, MscProgress::PIPE, box->chart, box->chart->Contexts.back().styles["pipe"]),
+    ArcLabelled(box->type, MscProgress::PIPE, box->chart, 
+                box->chart->Contexts.back().styles["pipe"]),
     src(box->src), dst(box->dst), drawEntityLines(false)
 {
     delete box;
@@ -3196,7 +3198,8 @@ ArcPipe::ArcPipe(ArcBox *box) :
 }
 
 ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
-    ArcBase(MSC_EMPH_SOLID, MscProgress::PIPE_SERIES, first->chart), series(true), drawing_variant(1)
+    ArcBase(MSC_EMPH_SOLID, MscProgress::PIPE_SERIES, first->chart), 
+    series(true), drawing_variant(1)
 {
     series.Append(first);
     keep_together = false; //we can be cut in half
