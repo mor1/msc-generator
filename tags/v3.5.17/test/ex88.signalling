@@ -1,0 +1,11 @@
+hscale=auto;
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+C=>S: Request to Server;
+activate S;
+S>>B: Internal Query;
+S<<B: Internal Response;
+deactivate S;
+C<=S: Reply from Server;

@@ -1,0 +1,11 @@
+hscale=auto;
+a, b, c, d;
+mark top;
+a->c: Message 1;
+c->d: Message 2;
+d->b: Message 3;
+b->c: Message 4;
+c->a: Message 5;
+vertical top-- at a- [makeroom=yes] :
+       A process of\n5 messages;
+---: Further procedure may follow;
