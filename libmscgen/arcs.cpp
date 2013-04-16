@@ -814,7 +814,7 @@ void ArcLabelled::FinalizeLabels(Canvas &canvas)
     //we can start with a dummy pos, since the label's pos is prepended
     //during parse for colon labels and during AddAttributeList for others
     StringFormat copy(style.read().text);
-    StringFormat::ExpandReferences(pre_num_post, chart, FileLineCol(), 
+    StringFormat::ExpandReferences(label, chart, FileLineCol(), 
         &copy, true, true, StringFormat::LABEL);
     parsed_label.Set(label, canvas, style.read().text);
 }

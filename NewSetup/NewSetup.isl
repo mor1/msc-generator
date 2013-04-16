@@ -2374,8 +2374,8 @@
 		<col key="yes" def="s38">Feature_</col>
 		<col key="yes" def="s255">ISMergeModule_</col>
 		<col key="yes" def="i2">Language_</col>
-		<row><td>AlwaysInstall</td><td>Microsoft_VC100_CRT_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td></row>
-		<row><td>AlwaysInstall</td><td>Microsoft_VC100_MFC_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC110_CRT_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC110_MFC_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td></row>
 	</table>
 
 	<table name="ISFeatureSetupPrerequisites">
@@ -2498,8 +2498,8 @@
 		<col def="s255">Name</col>
 		<col def="S255">Destination</col>
 		<col def="I4">ISAttributes</col>
-		<row><td>Microsoft_VC100_CRT_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td><td>Visual C++ 10.0 CRT (x86)</td><td/><td/></row>
-		<row><td>Microsoft_VC100_MFC_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td><td>Visual C++ 10.0 MFC (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC110_CRT_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td><td>Visual C++ 11.0 CRT (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC110_MFC_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td><td>Visual C++ 11.0 MFC (x86)</td><td/><td/></row>
 	</table>
 
 	<table name="ISMergeModuleCfgValues">
@@ -4005,10 +4005,10 @@
 		<row><td>IDS__TargetReq_DESC_PROCESSOR</td><td>1033</td><td>The processor is not adequate for running [ProductName].</td><td>0</td><td/><td>-593476241</td></row>
 		<row><td>IDS__TargetReq_DESC_RAM</td><td>1033</td><td>The amount of RAM is not adequate for running [ProductName].</td><td>0</td><td/><td>-593476241</td></row>
 		<row><td>IDS__TargetReq_DESC_RESOLUTION</td><td>1033</td><td>The screen resolution is not adequate for running [ProductName].</td><td>0</td><td/><td>-593476241</td></row>
-		<row><td>ID_STRING1</td><td>1033</td><td>https://sourceforge.net/projects/msc-generator/</td><td>0</td><td/><td>-593481968</td></row>
+		<row><td>ID_STRING1</td><td>1033</td><td>https://sourceforge.net/projects/msc-generator/</td><td>0</td><td/><td>-1449022261</td></row>
 		<row><td>ID_STRING2</td><td>1033</td><td>Ericsson</td><td>0</td><td/><td>-593472145</td></row>
 		<row><td>ID_STRING3</td><td>1033</td><td>Zoltan Turanyi</td><td>0</td><td/><td>-593470065</td></row>
-		<row><td>ID_STRING4</td><td>1033</td><td>This program installs Msc-generator.</td><td>0</td><td/><td>-593470065</td></row>
+		<row><td>ID_STRING4</td><td>1033</td><td>Draw Message Sequence Charts.</td><td>0</td><td/><td>-1449032469</td></row>
 		<row><td>ID_STRING5</td><td>1033</td><td>https://sourceforge.net/projects/msc-generator/</td><td>0</td><td/><td>-593492208</td></row>
 		<row><td>IIDS_UITEXT_FeatureUninstalled</td><td>1033</td><td>This feature will remain uninstalled.</td><td>0</td><td/><td>-593476241</td></row>
 	</table>
@@ -4572,6 +4572,7 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>ARPCOMMENTS</td><td>##ID_STRING4##</td><td/></row>
 		<row><td>ARPCONTACT</td><td>##ID_STRING3##</td><td/></row>
 		<row><td>ARPINSTALLLOCATION</td><td/><td/></row>
+		<row><td>ARPNOMODIFY</td><td>1</td><td/></row>
 		<row><td>ARPPRODUCTICON</td><td>ARPPRODUCTICON.exe</td><td/></row>
 		<row><td>ARPREADME</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\Release notes.rtf</td><td/></row>
 		<row><td>ARPSIZE</td><td/><td/></row>
@@ -4643,9 +4644,9 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>PROGMSG_IIS_ROLLBACKVROOTS</td><td>##IDS_PROGMSG_IIS_ROLLBACKVROOTS##</td><td/></row>
 		<row><td>PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS</td><td>##IDS_PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS##</td><td/></row>
 		<row><td>PROGRAMFILETOLAUNCHATEND</td><td>[INSTALLDIR]Msc-generator.Primary Output</td><td/></row>
-		<row><td>ProductCode</td><td>{6817CD17-65CA-42FB-B895-F1544F52DCCF}</td><td/></row>
+		<row><td>ProductCode</td><td>{8858EF6E-67D6-473E-A2D5-D5F7E36F4755}</td><td/></row>
 		<row><td>ProductName</td><td>Msc-generator</td><td/></row>
-		<row><td>ProductVersion</td><td>3.5.16</td><td/></row>
+		<row><td>ProductVersion</td><td>3.5.17</td><td/></row>
 		<row><td>ProgressType0</td><td>install</td><td/></row>
 		<row><td>ProgressType1</td><td>Installing</td><td/></row>
 		<row><td>ProgressType2</td><td>installed</td><td/></row>

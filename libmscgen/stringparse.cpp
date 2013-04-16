@@ -525,18 +525,25 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         //suggest the number
         if (replaceto && msc && references) {
-            string parameter = input + 3;
-            parameter.erase(length-4);
             auto itr = msc->ReferenceNames.find(parameter);
             if (itr!=msc->ReferenceNames.end()) {
-                replaceto->assign(parameter);
+                *replaceto = itr->second.number_text;
             } else if (linenum){ 
                 //here we did not find the reference
                 msc->Error.Error(*linenum, "Unrecognized reference '" + parameter +
                                         "'. Ignoring it.", "References are case-sensitive.");
             }
-        } else if (replaceto) 
-            replaceto->assign(input, length);
+        } else if (replaceto) { 
+            //If we could not replace the reference, we add a linenum here from ArcLabelled::AddAttributeList()
+            //(during the first call of this function), so that when we get back here later in 
+            //from ArcLabelled::FinalizeLabels() we can have a valid line number, so any error above will be OK.
+            if (linenum) {
+                *replaceto = linenum->Print();
+                replaceto->append(input, length);
+            } else {
+                replaceto->assign(input, length);
+            }
+        }
         if (linenum) linenum->col += length;
         return REFERENCE;
     case 'f':
