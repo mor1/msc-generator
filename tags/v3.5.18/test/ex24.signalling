@@ -1,0 +1,17 @@
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+..: Server query
+{
+  C==C: Generate\nrequest [strong];
+  C=>S: Request;
+  S..B: Server gets info
+      [color=lgray]
+  {
+    S>>B: Query;
+    S<<B: Response;
+  };
+  C<=S: Reply;
+};
+

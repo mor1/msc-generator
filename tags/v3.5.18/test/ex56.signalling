@@ -1,0 +1,10 @@
+a, b;
+--: Overall [fill.color = "blue+50",
+             fill.gradient=up] {
+    a--b [fill.color="red"]:     solid;
+    a--b [fill.color="red,128"]: transparent;
+    a--b [fill.color="red-50"]:  dark red;
+    a--b [fill.color="red+50"]:  light red;
+    a--b [fill.color=none]:      none;
+};
+

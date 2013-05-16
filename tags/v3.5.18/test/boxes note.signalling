@@ -1,0 +1,205 @@
+a, b, c, d, e; note: note\nhere;
+hscale=auto; note: note\nhere;
+
+defstyle emptybox, box [fill.color=lgray]; note: note\nhere;
+
+{defstyle -- [line.type=solid]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+
+defstyle -- [line.width=5]; note: note\nhere;
+
+defstyle -- [line.type=solid]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+a--b: Box [line.corner=bevel]; note: note\nhere;
+a--b: Box [line.corner=round]; note: note\nhere;
+a--b: Box [line.corner=note]; note: note\nhere; }
+
+{
+defstyle -- [line.type=solid]; note: note\nhere;
+defstyle -- [line.radius=40]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+
+defstyle -- [line.width=5]; note: note\nhere;
+
+defstyle -- [line.type=solid]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+c--d: Box [line.corner=bevel]; note: note\nhere;
+c--d: Box [line.corner=round]; note: note\nhere;
+c--d: Box [line.corner=note]; note: note\nhere;
+}
+{
+defstyle -- [line.type=solid]; note: note\nhere;
+defstyle -- [line.radius=40]; note: note\nhere;
+defstyle -- [text.format="\mn(30)"]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBoxBoxBox [line.corner=note] {
+    e->f:aaaa; note: note\nhere;
+    e<-f:bbb; note: note\nhere;
+}; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]{
+    e->f:aaaa; note: note\nhere;
+    e<-f:bbb; note: note\nhere;
+}; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+
+defstyle -- [line.width=5]; note: note\nhere;
+
+defstyle -- [line.type=solid]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=dash_dotted]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=double]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+
+defstyle -- [line.type=triple_thick]; note: note\nhere;
+
+e--f: BoxBoxBoxBox [line.corner=bevel]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=round]; note: note\nhere;
+e--f: BoxBoxBoxBox [line.corner=note]; note: note\nhere;
+}; note: note\nhere;
