@@ -33,13 +33,13 @@ class Msc;
 class NumberingStyleFragment {
 public:
     /**Describes the type of number to use.*/
-    typedef enum {
+    enum ENumberingStyle {
         ARABIC,      ///<Arabic numbers, such as 1, 8 or 14.
         ROMAN_UPPER, ///<Uppercase roman numbers, such as I, VIII or XIV.
         ROMAN_LOWER, ///<Uppercase roman numbers, such as i, viii or xiv. 
         ABC_UPPER,   ///<Uppercase letters, such as A, H or N.
         ABC_LOWER    ///<Uppercase letters, such as a, h or n.
-    } ENumberingStyle;
+    };
     ENumberingStyle type; ///<The type of number to use in this segment
     std::string     pre;  ///<Text to prepend to this segment, like '.' to achieve "A.1" for example
     std::string     post; ///<Text to append to this segment
@@ -48,7 +48,9 @@ public:
     static bool Parse(Msc *, FileLineCol linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
     unsigned Input(const std::string &number, int &value);
-    static bool FindReplaceNumberFormatToken(std::string &text, FileLineCol l, std::string::size_type pos=0);
+    static bool FindReplaceNumberFormatToken(std::string &text, FileLineCol l, 
+                                             std::string::size_type pos=0, 
+                                             std::string::size_type pos_till = std::string::npos);
 };
 
 /** Describes the current (multi-level) label number - essentially a list of numbers.

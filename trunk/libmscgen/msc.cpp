@@ -334,16 +334,21 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
         return 1;
     Contexts.back() += i->second;
     ArcList list(true);
-    if (!i->second.defBackground.IsEmpty())
-        list.Append((new CommandNewBackground(this, i->second.defBackground))->AddAttributeList(NULL));
+    if (!i->second.defBackground.IsEmpty()) {
+        ArcBase *arc = new CommandNewBackground(this, i->second.defBackground);
+        arc->AddAttributeList(NULL);
+        list.Append(arc);
+    }
     if (!i->second.defCommentFill.IsEmpty() || !i->second.defCommentLine.IsEmpty()) {
         MscStyle s; //empty
         s.vline += i->second.defCommentLine;
         s.fill += i->second.defCommentFill;
         list.Append(CEForComments(s, l));
     }
-    if (list.size())
-        *ret = (new CommandArcList(this, &list))->AddAttributeList(NULL);
+    if (list.size()) {
+        *ret = new CommandArcList(this, &list);
+        (*ret)->AddAttributeList(NULL);
+    }
     if (full == i->second.is_full) return 1;
     return full ? 3 : 2;
 }
@@ -667,7 +672,9 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         fill.Empty();
         if (fill.AddAttribute(a, this, STYLE_OPTION)) { //generates error if needed
             Contexts.back().defBackground += fill;
-            return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
+            ArcBase *arc = new CommandNewBackground(this, fill);
+            arc->AddAttributeList(NULL);
+            return arc;
         }
         return NULL;
     }
@@ -894,10 +901,10 @@ string Msc::Print(int ident) const
 
 void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level, Element **target)
+                                  Numbering &number, Element **target)
 {
     if (arcs.size()==0) return;
-    for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
+    for (auto i = arcs.begin(); i != arcs.end(); /*none*/) {
         //Splice in CommandArcList members
         CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
         if (al) {
@@ -942,7 +949,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
             //i remains at this very same CommandEntity!
         }
         Element * const old_target = *target;
-        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, target);
         //if the new target is somewhere inside "i" (or is exactly == to "i")
         //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
         if (*target != old_target && replace != (*i)) {
@@ -1085,7 +1092,7 @@ void Msc::PostParseProcess(Canvas &canvas)
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
     Element *note_target = NULL;
-    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true, &note_target);
+    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, &note_target);
 }
 
 void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
@@ -1186,9 +1193,9 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distanc
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
-        (*i)->Width(canvas, distances);
-		Progress.DoneItem(MscProgress::WIDTH, (*i)->myProgressCategory);
+    for (auto pArc : arcs) {
+        pArc->Width(canvas, distances);
+		Progress.DoneItem(MscProgress::WIDTH, pArc->myProgressCategory);
 	}
 }
 
@@ -1208,8 +1215,8 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
     if (cover) 
         cover->clear();
     else
-        for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) 
-            if ((*i)->IsParallel() || (*i)->IsCompressed()) {
+        for (auto pArc : arcs) 
+            if (pArc->IsParallel() || pArc->IsCompressed()) {
                 cover = &substitute_cover;
                 break;
             }
@@ -1474,8 +1481,8 @@ double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
 
 void Msc::ShiftByArcList(ArcList &arcs, double y)
 {
-    for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) 
-        (*i)->ShiftBy(y);
+    for (auto pArc : arcs) 
+        pArc->ShiftBy(y);
 }
 
 void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i,
@@ -1483,13 +1490,14 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
 {
     CommandEntity *ce;
     if (addHeading) {
-        ce = static_cast<CommandEntity*>((new CommandEntity(NULL, this, false))->AddAttributeList(NULL));
+        ce = static_cast<CommandEntity*>(new CommandEntity(NULL, this, false));
+        ce->AddAttributeList(NULL);
         EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
         EIterator dummy2 = AllEntities.Find_by_Ptr(NoEntity);
         Numbering dummy3;
         Element *dummy4;
         //at_to_level must be true, or else it complains...
-        ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
+        ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4);
     } else {
         ce = NULL;
     }
@@ -2022,7 +2030,9 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     //If the chart ended up empty we may want to display something
     if (total.y.till <= chartTailGap && avoidEmpty) {
         //Add the Empty command
-        Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
+        ArcBase *arc = new CommandEmpty(this);
+        arc->AddAttributeList(NULL);
+        Arcs.push_front(arc);
         Progress.DoneItem(MscProgress::LAYOUT, MscProgress::EMPTY);
         _ASSERT(Contexts.size() && Contexts.back().hscale.first);
         Contexts.back().hscale.second = -1;

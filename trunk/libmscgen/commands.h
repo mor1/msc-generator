@@ -59,7 +59,7 @@ public:
     EntityDef* FindAddEntityDefForEntity(const string &entity, const FileLineColRange &l);
     EEntityStatus GetCombinedStatus(const std::set<string>& children) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void Layout(Canvas &canvas, AreaList *cover);
@@ -86,7 +86,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
 
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);
@@ -111,7 +111,11 @@ public:
 class CommandNumbering : public ArcCommand
 {
 public:
-    typedef enum {INCREMENT=1, DECREMENT=2, SIZE=4} EAction;
+    enum EAction {
+        INCREMENT=1, 
+        DECREMENT=2, 
+        SIZE=4
+    };
     EAction action;
     size_t  length;
 
@@ -120,7 +124,7 @@ public:
         action(a), length(l) 
         {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
 };
 
 class CommandMark : public ArcCommand
@@ -172,7 +176,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
 };
 
@@ -189,7 +193,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
 };
@@ -207,7 +211,11 @@ public:
 class CommandSymbol : public ArcCommand
 {
 protected:
-    typedef enum {ARC, RECTANGLE, ELLIPSIS} ESymbolType;
+    enum ESymbolType {
+        ARC, 
+        RECTANGLE, 
+        ELLIPSIS
+    };
     static const double ellipsis_space_ratio;
     ESymbolType             symbol_type;
     StyleCoW                style;
@@ -224,7 +232,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -268,7 +276,7 @@ public:
     static void AttributeNames(Csh &csh, bool is_float);
     static bool AttributeValues(const std::string attr, Csh &csh, bool is_float);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, Element **note_target);
+                                      Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);

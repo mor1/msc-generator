@@ -34,24 +34,20 @@ class Canvas;
 using std::string;
 
 /** Describes text identation */
-typedef enum
-{
+enum EIdentType {
     MSC_IDENT_INVALID = 0, ///<The invalid value
     MSC_IDENT_LEFT,        ///<Left-aligned
     MSC_IDENT_CENTER,      ///<Centered
     MSC_IDENT_RIGHT        ///<Right-aligned
-}
-EIdentType;
+};
 
 /**  Describes text characteristics */
-typedef enum 
-{
+enum EFontType {
     MSC_FONT_NORMAL=0,      ///<Regular text
     MSC_FONT_SMALL=1,       ///<Small font
     MSC_FONT_SUPERSCRIPT=2, ///<Small font superscript
     MSC_FONT_SUBSCRIPT=3    ///<Small font subscript
-}
-EFontType;
+};
 
 /** Describes, set, unset and invert for text attributes*/
 enum ETriState {no=0, yes, invert};
@@ -107,7 +103,7 @@ class StringFormat {
     double spaceWidth(const string &, Canvas &, bool front) const;
 
     /** Describes the type of an escape sequence, see StringFormat::ProcessEscape(). */
-    typedef enum {
+    enum EEscapeType {
         FORMATTING_OK, ///<A syntactically correct formatting escape
         INVALID_ESCAPE,///<A non-recognized escape 
         NON_FORMATTING,///<A non-formatting escape, such as "\{" 
@@ -117,7 +113,7 @@ class StringFormat {
         NUMBERING,     ///<A reference to the number of this label "\N"
         NUMBERING_FORMAT, ///<A replacement for a numbering format token (such as "abc" or "roman")
         SOLO_ESCAPE    ///<A single backslash "\"
-    } EEscapeType;
+    };
     EEscapeType ProcessEscape(const char *input, unsigned &length,
                               bool resolve=false, bool apply=false, string *replaceto=NULL, 
                               const StringFormat *basic=NULL,
@@ -128,11 +124,11 @@ class StringFormat {
 
   public:
       /** Describes what kind of text we process*/
-      typedef enum {
+      enum ETextType {
           LABEL,         ///<The text is an element (entity, arc, box, etc) label. Cannot contain numbering format token escapes ("\0x2{1aAiI}").
           TEXT_FORMAT,   ///<The text is a value assigned to "text.format" attribute. Cannot contain numbering format token escapes ("\0x2{1aAiI}").
           NUMBER_FORMAT  ///<The text is a value assigned to "numbering.*" attribute. Cannot contain numbering escapes ("\N").
-      } ETextType;
+      };
     /** Generate an empty formatting, no `first` is set to true.
      * This is contrary to all other attributes, for which the default
      * constructor generates a fully specified object with the default values.*/

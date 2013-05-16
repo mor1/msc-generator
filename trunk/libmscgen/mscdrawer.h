@@ -57,7 +57,7 @@ class PageSizeInfo
 {
 public:
     /** Describes fixed page output page sizes.*/
-    typedef enum {
+    enum EPageSize {
         NO_PAGE=1, ///<This value indicates no fixed page output
         A0P, A0L,
         A1P, A1L,
@@ -70,7 +70,7 @@ public:
         LEGAL_P, LEGAL_L,
         LEDGER, TABLOID,
         MAX_PAGE ///<Not used, the max value.
-    } EPageSize;
+    };
     /** Converts a string to a fixed page size*/
     static EPageSize ConvertPageSize(const char *);
     /** Converts a fixed page size to a textual description*/
@@ -117,7 +117,7 @@ class Canvas
 {
 public:
     /** Describes graphics output type */
-    typedef enum {
+    enum EOutputType {
         PNG,     ///<Portable Network Graphics bitmap output type
         EPS,     ///<Encapsulated PostScript vector output type
         PDF,     ///<Portable Document Format vector output type
@@ -127,9 +127,17 @@ public:
         EMFWMF,  ///<EMF output, but only uses features compatible with a WMF
         WIN,     ///<Bitmap output to a Windows window DC
         PRINTER  ///<Output to a Windows printer DC
-    } EOutputType;
+    };
     /** Describes the error status of Canvas */
-    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_CANVAS_MEM, ERR_PARAM, ERR_MARGIN, ERR_DONE} EErrorType;
+    enum EErrorType {
+        ERR_OK=0,       ///<No error
+        ERR_FILE,       ///<Error in opening the output file.
+        ERR_CANVAS,     ///<Some error in cairo.
+        ERR_CANVAS_MEM, ///<Out-of memory error from cairo.
+        ERR_PARAM,      ///<Bad parameters
+        ERR_MARGIN,     ///<Bad margins
+        ERR_DONE        ///<We have already closed this canvas.
+    };
 protected:
     /** @name Low-level compatibility options 
      * @{ */

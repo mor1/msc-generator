@@ -812,7 +812,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
             break;
         case NON_ESCAPE:       //verbatim text. If numberformat search it
             if (textType != NUMBER_FORMAT) break;
-            if (NumberingStyleFragment::FindReplaceNumberFormatToken(text, beginning_of_escape, pos))
+            if (NumberingStyleFragment::FindReplaceNumberFormatToken(text, beginning_of_escape, pos, pos+length))
                 //OK, a number descriptor found and has been replaced to
                 //a numberformat escape. Re-parse verbatim text again
                 continue;

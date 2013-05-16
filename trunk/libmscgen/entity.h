@@ -150,7 +150,8 @@ public:
     /** Sort the list by increasing `pos_exp`*/
     void SortByPosExp(void);
 };
-/** An iterator to an Entity pointer in a list*/
+/** An iterator to an Entity pointer in a list.
+ * Contrary to its name it is not an enumeration. */
 typedef EntityList::const_iterator EIterator;
 
 /** A collection of bool values for each entity by name to see which is collapsed and which is not.*/

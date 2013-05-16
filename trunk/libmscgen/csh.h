@@ -43,8 +43,7 @@ struct CshPos
 };
 
 /** Describes types of language elements to color differently.*/
-typedef enum
-{
+enum EColorSyntaxType {
     COLOR_NORMAL = 0,      ///<Regular text
     COLOR_KEYWORD,         ///<A keyword, like commands or 'parallel'
     COLOR_KEYWORD_PARTIAL, ///<A partially typed keyword
@@ -73,7 +72,7 @@ typedef enum
     COLOR_ERROR,           ///<A place where an error was detected.
     COLOR_COMMENT,         ///<A comment
     COLOR_MAX              ///<No specific element, simply the maximum value
-} EColorSyntaxType;
+};
 
 /** Describes a colored range in the input file.*/
 struct CshEntry
@@ -105,15 +104,14 @@ public:
 };
 
 /** Flags to describe appearance of colored text*/
-typedef enum
-{
+enum EColorSyntaxFlag {
     COLOR_FLAG_BOLD = 1,                 ///<Text shall be bold
     COLOR_FLAG_ITALICS = 2,              ///<Text shall be italics
     COLOR_FLAG_UNDERLINE = 4,            ///<Text shall be underlined
     COLOR_FLAG_COLOR = 8,                ///<Text shall be of specific color (actual value in separate members)
     COLOR_FLAG_DIFFERENT_NO_DRAW = 16,   ///<This Csh entry shall be recorded, even if text appears exactly as COLOR_NORMAL, but no need to draw (used by smart ident)
     COLOR_FLAG_DIFFERENT_DRAW = 32       ///<This Csh entry shall be both recorded and drawn even if appears exactly as COLOR_NORMAL (e.g., comments inside a label)
-} EColorSyntaxFlag;
+};
 
 /** Describes the appearance of colored text*/
 struct ColorSyntaxAppearance {
@@ -171,40 +169,40 @@ public:
 };
 
 /* The status of collecting hints*/
-typedef enum {
+enum EHintStatus {
     HINT_NONE,     ///<No hint identified yet
     HINT_LOCATED,  ///<We have located the type (e.g., attribute name or keyword) and location, but hints need filling
     HINT_FILLING,  ///<We have located the type and location and are in the process of adding hints
     HINT_READY     ///<We have a complete set of hints ready (may be empty)
-} EHintStatus;
+};
 
 /** The type of language element under the cursor that we shall provide alternatives (hints) for.*/
-typedef enum {
+enum EHintType {
     HINT_ENTITY,     ///<Entities
     HINT_KEYWORD,    ///<Commands and other keywords
     HINT_ATTR_NAME,  ///<Attribute names (which of these shall be determined)
     HINT_ATTR_VALUE, ///<Attribute values
     HINT_MARKER,     ///<Marker names
     HINT_LINE_START  ///<Anything that can be at the beginning of a line (keyword, option, entity)
-} EHintType;
+};
 
 /** The relative position of the cursor to a range in the input file.
  *
  * Note that the cursor is always between two character positions.*/
-typedef enum {
+enum ECursorRelPosType {
     CURSOR_BEFORE=-2,      ///<The cursor is well before the range
     CURSOR_AFTER=-1,       ///<The cursor is well after the range
     CURSOR_AT_BEGINNING=1, ///<The cursor is immediately before the beginning of the range
     CURSOR_IN=2,           ///<The cursor is inside the range
     CURSOR_AT_END=3        ///<The cursor is right after the last character of the range
-} ECursorRelPosType;
+};
 
 /** Describes the selection status of a hint in the popup window.*/
-typedef enum {
+enum EHintItemSelectionState {
     HINT_ITEM_NOT_SELECTED,  ///<Not selected
     HINT_ITEM_SELECTED_HALF, ///<Selected, but the hint is not one that can be inserted into the text
     HINT_ITEM_SELECTED       ///<Selected and can be inserted into the chart text
-} EHintItemSelectionState;
+};
 
 /** One possibility for autocompletion valid at the cursor */
 struct CshHint {

@@ -75,14 +75,14 @@ public:
     virtual bool ForceEntityCollapse(const std::string &s, bool b);
     virtual bool ForceEntityCollapse(const EntityCollapseCatalog&);
     const EntityCollapseCatalog &GetForcedEntityCollapse() const {return m_ForcedEntityCollapse;}
-    virtual bool ForceArcCollapse(const ArcSignature &, BoxCollapseType t);
+    virtual bool ForceArcCollapse(const ArcSignature &, EBoxCollapseType t);
     virtual bool ForceArcCollapse(const ArcSignatureCatalog &);
     const ArcSignatureCatalog &GetForcedArcCollapse() const {return m_ForcedArcCollapse;}
 };
 
 class CDrawingChartData : public CChartData {
 public:
-    typedef enum {CACHE_EMF, CACHE_RECORDING} ECacheType;
+    enum ECacheType {CACHE_EMF, CACHE_RECORDING};
 protected:
 	mutable Msc         *m_msc;
     mutable bool         compiled;
@@ -133,7 +133,7 @@ public:
     virtual void SetPedantic(bool b);
     bool ForceEntityCollapse(const std::string &s, bool b);
     bool ForceEntityCollapse(const EntityCollapseCatalog &);
-    bool ForceArcCollapse(const ArcSignature &, BoxCollapseType t);
+    bool ForceArcCollapse(const ArcSignature &, EBoxCollapseType t);
     bool ForceArcCollapse(const ArcSignatureCatalog &);
 //Set Parameters, these only require some level of redraw only
     void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}

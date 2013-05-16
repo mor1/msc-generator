@@ -51,6 +51,7 @@ public:
     using std::map<double, element>::begin;        //and not during template compilation (searched in global scope).
     using std::map<double, element>::end;
     using std::map<double, element>::insert;
+    using std::map<double, element>::erase;
 
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));

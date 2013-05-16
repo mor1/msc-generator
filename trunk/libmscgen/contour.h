@@ -259,7 +259,7 @@ class Contour
      * Finally there are two rules for untangling after expansion, depending again on
      * whether we want a clockwise or counterclockwise surface.
      */
-    typedef enum {
+    enum EOperationType {
         POSITIVE_UNION=0,     ///<Take the union of two (or more) positive shapes. Include places covered by any of the shapes.
         POSITIVE_INTERSECT,   ///<Take the intersection of two (or more) positive shapes. Include places covered by all of the shapes.
         POSITIVE_XOR,         ///<Take the xor of two (or more) positive shapes. Include places covered by odd number of the shapes. 
@@ -270,7 +270,7 @@ class Contour
         NEGATIVE_INTERSECT,   ///<Take the intersection of two (or more) negative (counterclockwise) shapes (holes). The resulting hole will include places included in all of the holes.
         NEGATIVE_XOR,         ///<Take the xor of two (or more) negative (counterclockwise) shapes (holes). The resulting hole will include places included in an odd number of the holes.
         EXPAND_NEGATIVE       ///<Untangle a contour resulting from expanding a counterclockwise SimpleContour.
-    } EOperationType;
+    };
     static bool is_positive(EOperationType t) {return t<=EXPAND_POSITIVE;} ///<True if the operation works on and hence produces clockwise shapes.
     /** The first contigous shape in the list of disjoint shapes.
      * 

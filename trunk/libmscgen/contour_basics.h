@@ -147,7 +147,7 @@ namespace contour {
 /** Enum describing the relation of two closed contours.
 * @ingroup contour
 */
-typedef enum {
+enum EContourRelationType {
     REL_OVERLAP=0,          ///< They overlap, but each has parts not covered by the other.
     REL_A_IS_EMPTY,         ///< The first contour is empty, the second is not.
     REL_B_IS_EMPTY,         ///< The second contour is empty, the first is not.
@@ -159,7 +159,7 @@ typedef enum {
     REL_A_IN_HOLE_OF_B,     ///< The first contour is fully inside a hole of the second.
     REL_B_IN_HOLE_OF_A,     ///< The second contour is fully inside a hole of the first.
     REL_IN_HOLE_APART       ///< The two contours have no overlapping area, but each as a part in a hole of the other.
-} EContourRelationType;
+};
 
 /** @addtogroup contour_internal
  * @{
@@ -281,13 +281,13 @@ inline XY operator*(double a, const XY &xy) {return xy*a;} ///< Return a scaled 
 /** Enum describing the relation of a contour and a point.
  * @ingroup contour
  */
-typedef enum {
+enum EPointRelationType {
     WI_OUTSIDE=0, ///< The point is fully outside the contour.
     WI_INSIDE,    ///< The point is fully inside the contour.
     WI_ON_EDGE,   ///< The point is on (the middle of) an edge.
     WI_ON_VERTEX, ///< The point is exactly at a vertex.
     WI_IN_HOLE    ///< The point is in a hole of the contour.
-} EPointRelationType;
+};
 
 /** Returns true, if the point is inside or at the edge of the contour.
  * @ingroup contour_internal

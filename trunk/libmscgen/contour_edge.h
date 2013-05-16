@@ -36,7 +36,7 @@ namespace contour {
 
 /** Describes how three points can relate to each other.
  */
-typedef enum {
+enum ETriangleDirType {
     ALL_EQUAL,       ///<All three are identical.
     A_EQUAL_B,       ///<Two of them are identical.
     A_EQUAL_C,       ///<Two of them are identical.
@@ -44,7 +44,7 @@ typedef enum {
     IN_LINE,         ///<Three separate points on a line.
     CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
     COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
-} ETriangleDirType;
+};
 
 ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
@@ -93,7 +93,7 @@ struct RayAngle {
  * - a convex vertex (with inner angle <180 degrees) at expansion (with a positive value).
  * - a concave vertex (with inner angle >180 degrees) at shrinkage (negative value).
  */
-typedef enum {
+enum EExpandType {
     /** The simplest: continue edges until they meet, if they dont: add a direct segment.
      *
      * This method uses `miter_limit`, to limit the length of the tip for very
@@ -195,18 +195,18 @@ typedef enum {
             :   |             :      |
        @endverbatim */
     EXPAND_BEVEL
-} EExpandType;
+};
 
 /** Helper class to describe the arc part of a curvy edge */
 class EdgeArc
 {
 public:
     /** Describes what type of an edge it is. */
-    typedef enum {
+    enum EEdgeType {
         STRAIGHT=0,   ///<A straight edge. Should not be used: if an EdgeArc is allocated we are not straight.
         FULL_CIRCLE=1,///<A curvy edge that is a full circle or ellipse.
         ARC=2         ///<A curvy edge that is a section of a circle or ellipse.
-    } EEdgeType;
+    };
 
     EdgeArc() {}
     EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
@@ -237,7 +237,7 @@ class Edge
 public:
     /** Describes, how two expanded edges can relate to each other.
      */
-    typedef enum {
+    enum EExpandCPType {
         DEGENERATE,     ///<One of the edges have `start==end`.
         SAME_ELLIPSIS,  ///<Theyare different segments of the same ellipse. (Should be merged).
         /** They have a crosspoint
@@ -316,7 +316,7 @@ public:
                 :      |
            @endverbatim */
         NO_CP_PARALLEL
-    } EExpandCPType;
+    };
     ///<True if two expanded edges or their extrension has crosspoints.
     static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
 

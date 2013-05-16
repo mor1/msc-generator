@@ -18,7 +18,6 @@
 */
 
 #include <cstdlib>
-#include "numbering.h"
 #include "msc.h"
 
 /** Helper to store roman numbering boundaries*/
@@ -168,10 +167,12 @@ out:
  * @param text The text in we replace
  * @param [in] l The position of the `pos`'th character of `text` in the input file.
  * @param [in] pos The position after which to expect the numbering style token.
+ * @param [in] pos_till The position after which we do not seek numbering style token
  * @returns True if we made a replacement.
  */
 bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, FileLineCol l,
-                                                          std::string::size_type pos)
+                                                          std::string::size_type pos,
+                                                          std::string::size_type pos_till)
 {
     char const *formats[] = {"123", "arabic","ARABIC",
                              "iii", "xxx", "roman", "III", "XXX", "ROMAN",
@@ -180,10 +181,9 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, Fil
     char const *codes[] = {"1", "1", "1",
                            "i", "i", "i", "I", "I", "I",
                            "a", "a", "a", "A", "A", "A"};
-
     for (unsigned i=0; formats[i]!=NULL; i++) {
         string::size_type pos2 = text.find(formats[i], pos);
-        if (pos2 == string::npos) continue;
+        if (pos2 == string::npos || pos2>pos_till) continue;
         l.col += (unsigned)strlen(formats[i]) + pos2 -pos;
         string esc("\\" ESCAPE_STRING_NUMBERFORMAT);
         esc += codes[i];

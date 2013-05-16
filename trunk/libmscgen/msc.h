@@ -281,7 +281,7 @@ public:
     void ParseText(const char *input, const char *filename);
 
     void PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
-                                 EIterator &right, Numbering &number, bool top_level, Element **note_target);
+                                 EIterator &right, Numbering &number, Element **note_target);
     void PostParseProcess(Canvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, Canvas &canvas);
 
