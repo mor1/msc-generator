@@ -538,7 +538,8 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-        $$=($1)->AddAttributeList(NULL);
+    ($1)->AddAttributeList(NULL); 
+    $$=($1);
   #endif
 }
               | arcrel full_arcattrlist_with_label
@@ -549,7 +550,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = ($1)->AddAttributeList($2);
+    ($1)->AddAttributeList($2);
+    $$ = ($1);
   #endif
 }
               | TOK_COMMAND_BIG
@@ -614,8 +616,10 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    if ($2) $$ = ($2)->AddAttributeList(NULL);
-    else $$ = NULL;
+    if ($2) {
+	  ($2)->AddAttributeList(NULL);
+	  $$ = ($2);
+    } else $$ = NULL;
   #endif
     free($1);
 }
@@ -628,8 +632,10 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-    if ($2) $$ = ($2)->AddAttributeList($3);
-    else $$ = NULL;
+    if ($2) {
+	  ($2)->AddAttributeList($3);
+	  $$ = ($2);
+    } else $$ = NULL;
   #endif
     free($1);
 }
@@ -641,14 +647,16 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
-    $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
+    $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc));
+	($$)->AddAttributeList($1);
   #endif
 }
               | first_entity
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = (new CommandEntity($1, &msc, false))->AddAttributeList(NULL);
+    $$ = (new CommandEntity($1, &msc, false));
+	($$)->AddAttributeList(NULL);
   #endif
 }
               | entity_command_prefixes
@@ -683,8 +691,9 @@ arc:           arcrel
     csh.AddCSH_ErrorAfter(@2, "Missing an entity.");
   #else
     CommandEntity *ce = new CommandEntity($1, &msc, false);
-    $$ = ce->AddAttributeList(NULL);
+	ce->AddAttributeList(NULL);
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity.");
+    $$ = ce;
   #endif
 }
             | first_entity TOK_COMMA entitylist
@@ -696,7 +705,8 @@ arc:           arcrel
     ($3)->Prepend($1);
     CommandEntity *ce = new CommandEntity($3, &msc, false);
     delete ($1);
-    $$ = ce->AddAttributeList(NULL);
+    ce->AddAttributeList(NULL);
+	$$ = ce;
   #endif
 }
             | entity_command_prefixes first_entity TOK_COMMA
@@ -738,7 +748,8 @@ arc:           arcrel
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in an "CommandArcList" element used only for this. */
     if ($1) {
-        $$ = (new CommandArcList(&msc, $1))->AddAttributeList(NULL);
+        $$ = (new CommandArcList(&msc, $1));
+		($$)->AddAttributeList(NULL);
     } else
         $$ = NULL;
   #endif
@@ -761,7 +772,8 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = ($1)->AddAttributeList(NULL);
+    $$ = ($1);
+	($$)->AddAttributeList(NULL);
   #endif
 }
               | TOK_COMMAND_DEFCOLOR colordeflist
@@ -796,7 +808,8 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = (new CommandEntity(NULL, &msc, false))->AddAttributeList(NULL);
+    $$ = (new CommandEntity(NULL, &msc, false));
+	($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -809,7 +822,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandEntity(NULL, &msc, false))->AddAttributeList($2);
+    $$ = (new CommandEntity(NULL, &msc, false));
+	($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -818,7 +832,8 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList(NULL);
+    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
+	($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -831,7 +846,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
   #else
-    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
+    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
+	($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -847,7 +863,8 @@ arc:           arcrel
     const EArcType t = CaseInsensitiveEqual("title", $1) ? MSC_COMMAND_TITLE :
                          CaseInsensitiveEqual("subtitle", $1) ? MSC_COMMAND_SUBTITLE :
                          MSC_ARC_INVALID;
-    $$ = (new ArcDivider(t, &msc))->AddAttributeList($2);
+    $$ = (new ArcDivider(t, &msc));
+	($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -858,7 +875,8 @@ arc:           arcrel
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.MarkerNames.insert($2);
   #else
-    $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList(NULL);
+    $$ = (new CommandMark($2, MSC_POS(@$), &msc));
+	($$)->AddAttributeList(NULL);
   #endif
     free($1);
     free($2);
@@ -874,7 +892,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandMark::AttributeValues(csh.hintAttrName, csh);
   #else
-        $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList($3);
+    $$ = (new CommandMark($2, MSC_POS(@$), &msc));
+	($$)->AddAttributeList($3);
   #endif
     free($1);
     free($2);
@@ -882,9 +901,10 @@ arc:           arcrel
               | TOK_COMMAND_NEWPAGE
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = (new CommandNewpage(&msc, true, NULL))->AddAttributeList(NULL);
+    $$ = (new CommandNewpage(&msc, true, NULL));
+	($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -897,7 +917,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandNewpage(&msc, true, NULL))->AddAttributeList($2);
+    $$ = (new CommandNewpage(&msc, true, NULL));
+	($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -913,7 +934,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandHSpace(&msc, $2))->AddAttributeList($3);
+    $$ = (new CommandHSpace(&msc, $2));
+	($$)->AddAttributeList($3);
   #endif
     free($1);
 }
@@ -952,7 +974,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandVSpace(&msc))->AddAttributeList($2);
+    $$ = (new CommandVSpace(&msc));
+	($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -1495,9 +1518,9 @@ styledeflist: styledef
 styledef : tok_stringlist full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
-    for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++)
-        if (csh.ForbiddenStyles.find(*i) != csh.ForbiddenStyles.end())
-            csh.Contexts.back().StyleNames.insert(string(*i));
+    for (auto &str : *($1))
+        if (csh.ForbiddenStyles.find(str) != csh.ForbiddenStyles.end())
+            csh.Contexts.back().StyleNames.insert(str);
 	if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         MscStyle().AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
@@ -1791,7 +1814,7 @@ parallel:    braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     if ($1)
-        $$ = (new ArcParallel(&msc))->AddArcList($1);
+        $$ = new ArcParallel(&msc, $1);
     else
         $$ = NULL;
   #endif
@@ -1804,7 +1827,7 @@ parallel:    braced_arclist
     else if ($1)
         $$ = ($1)->AddArcList($2);
     else
-        $$ = (new ArcParallel(&msc))->AddArcList($2);
+        $$ = new ArcParallel(&msc, $2);
   #endif
 };
 
@@ -1847,7 +1870,7 @@ box_list: first_box
            | box_list braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
-    ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+    ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
     temp->AddArcList($2);
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList(NULL); //should come after AddFollow
@@ -1874,7 +1897,7 @@ box_list: first_box
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+    ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
     temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList($2); //should come after AddFollow
@@ -1936,7 +1959,8 @@ first_pipe: TOK_COMMAND_PIPE boxrel
     }
   #else
     $$ = new ArcPipe($2);
-    ($$)->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
+    ($$)->AddAttributeList(NULL);
+	($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 }
@@ -1980,7 +2004,8 @@ first_pipe: TOK_COMMAND_PIPE boxrel
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = new ArcPipe($2);
-    ($$)->AddAttributeList($3)->SetLineEnd(MSC_POS(@$));
+    ($$)->AddAttributeList($3);
+	($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 };
@@ -2178,19 +2203,19 @@ vertxpos: TOK_AT entity_string
     switch ($3) {
     default:
         _ASSERT(0);
-    case MSC_EMPH_SOLID:
+    case MSC_BOX_SOLID:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_BY);
         break;
-    case MSC_EMPH_DASHED:
+    case MSC_BOX_DASHED:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_BY);
         break;
-    case MSC_EMPH_DOTTED:
+    case MSC_BOX_DOTTED:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '..', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
         $$ = NULL;
         break;
-    case MSC_EMPH_DOUBLE:
+    case MSC_BOX_DOUBLE:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '==', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
@@ -2211,7 +2236,7 @@ vertxpos: TOK_AT entity_string
     csh.CheckEntityHintAtAndBefore(@3, @4);
     csh.AddCSH_EntityName(@4, $4);
   #else
-    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), VertXPos::POS_CENTER);
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4));
   #endif
     free($1);
     free($2);
@@ -2228,7 +2253,7 @@ vertxpos: TOK_AT entity_string
     csh.AddCSH_EntityName(@4, $4);
     csh.AddCSH(@5, COLOR_ATTRVALUE);
   #else
-    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), VertXPos::POS_CENTER, atof($5));
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), atof($5));
   #endif
     free($1);
     free($2);
@@ -2900,7 +2925,8 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 symbol_command: symbol_command_no_attr
 {
   #ifndef C_S_H_IS_COMPILED
-    $$ = ($1)->AddAttributeList(NULL);
+    ($1)->AddAttributeList(NULL);
+    $$ = ($1);
   #endif
 }
                 | symbol_command_no_attr full_arcattrlist_with_label
@@ -2911,7 +2937,8 @@ symbol_command: symbol_command_no_attr
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandSymbol::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = ($1)->AddAttributeList($2);
+    ($1)->AddAttributeList($2);
+    $$ = ($1);
   #endif
 };
 
@@ -3293,10 +3320,10 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_EMPH
 {
     switch ($1) {
-    case MSC_EMPH_SOLID:  $$ = strdup("--"); break;
-    case MSC_EMPH_DASHED: $$ = strdup("++"); break;
-    case MSC_EMPH_DOTTED: $$ = strdup(".."); break;
-    case MSC_EMPH_DOUBLE: $$ = strdup("=="); break;
+    case MSC_BOX_SOLID:  $$ = strdup("--"); break;
+    case MSC_BOX_DASHED: $$ = strdup("++"); break;
+    case MSC_BOX_DOTTED: $$ = strdup(".."); break;
+    case MSC_BOX_DOUBLE: $$ = strdup("=="); break;
     default: _ASSERT(0);
     }
 };

@@ -32,15 +32,15 @@
 #include "style.h" //for style
 
 /** Describes the type of a GUI control*/
-typedef enum {
+enum EGUIControlType {
     MSC_CONTROL_INVALID=0,///<The invalid value
     MSC_CONTROL_EXPAND,   ///<A control to expand a collapsed element
     MSC_CONTROL_COLLAPSE, ///<A control to collapse an expanded group element (box or group entity, etc)
     MSC_CONTROL_ARROW     ///<A control to collapse a box to a block arrow
-} EGUIControlType;
+};
 
 /** A list of drawing passes.*/
-typedef enum {
+enum EDrawPassType {
     DRAW_INVALID = 0,         ///<The invalid value
     DRAW_BEFORE_ENTITY_LINES, ///<The first drawing pass: before the entity lines are drawn
     DRAW_AFTER_ENTITY_LINES,  ///<A drawing pass just after the entity lines are drawn
@@ -48,7 +48,7 @@ typedef enum {
     DRAW_AFTER_DEFAULT,       ///<A drawing pass after the default pass
     DRAW_NOTE,                ///<A drawing pass to draw floating notes
     DRAW_AFTER_NOTE           ///<The last drawing pass: after drawing floating notes.
-} EDrawPassType;
+};
 
 class Msc;
 class Canvas;

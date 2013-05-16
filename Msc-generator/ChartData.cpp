@@ -187,7 +187,7 @@ bool CChartData::ForceEntityCollapse(const EntityCollapseCatalog &o)
     return changed;
 }
 
-bool CChartData::ForceArcCollapse(const ArcSignature &s, BoxCollapseType t) 
+bool CChartData::ForceArcCollapse(const ArcSignature &s, EBoxCollapseType t) 
 {
     auto itr = m_ForcedArcCollapse.find(s);
     bool changed = itr == m_ForcedArcCollapse.end() || t != itr->second;
@@ -388,7 +388,7 @@ bool CDrawingChartData::ForceEntityCollapse(const std::map<std::string,bool> &o)
     return false;
 }
 
-bool CDrawingChartData::ForceArcCollapse(const ArcSignature &s, BoxCollapseType t) 
+bool CDrawingChartData::ForceArcCollapse(const ArcSignature &s, EBoxCollapseType t) 
 {
 	if (CChartData::ForceArcCollapse(s, t)) {
         Invalidate();

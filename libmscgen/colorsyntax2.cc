@@ -1554,22 +1554,22 @@ yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
 case 54:
 YY_RULE_SETUP
 #line 295 "language2.ll"
-yylval_param->arctype=MSC_EMPH_SOLID;      return TOK_EMPH;             // --
+yylval_param->arctype=MSC_BOX_SOLID;       return TOK_EMPH;             // --
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
 #line 296 "language2.ll"
-yylval_param->arctype=MSC_EMPH_DASHED;     return TOK_EMPH;             // ++
+yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH;             // ++
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
 #line 297 "language2.ll"
-yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
+yylval_param->arctype=MSC_BOX_DOTTED;      return TOK_EMPH;             // ..
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
 #line 298 "language2.ll"
-yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
+yylval_param->arctype=MSC_BOX_DOUBLE;      return TOK_EMPH;             // ==
 	YY_BREAK
 case 58:
 YY_RULE_SETUP

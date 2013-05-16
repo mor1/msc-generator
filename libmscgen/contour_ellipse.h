@@ -187,11 +187,11 @@ inline double rad2deg(double degree)
 
 /** Defines how two (finite length) sections can cross each other.
  */
-typedef enum {
+enum ELineCrossingType {
     LINE_CROSSING_PARALLEL, ///< No crossing, the two sections are parallel.
     LINE_CROSSING_INSIDE,   ///< Real crossing, the crosspoint is inside both sections.
     LINE_CROSSING_OUTSIDE   ///< The line of the two lines cross, but the crosspoint is outside at least one of the sections.
-} ELineCrossingType;
+};
 
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);

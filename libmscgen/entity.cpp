@@ -283,8 +283,8 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
     // Process attribute list, "style" is empty (emptied in constructor)
     if (al) {
-        for (AttributeList::iterator j=al->begin(); j!=al->end(); j++)
-            AddAttribute(**j);
+        for (auto pAttr : *al)
+            AddAttribute(*pAttr);
         delete al;
     }
 

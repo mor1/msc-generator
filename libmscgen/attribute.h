@@ -214,24 +214,21 @@ string CandidatesFor(Enum dummy1)
 ////////////////////////////////////////////////////////////
 
 /** Describes the type of the value the attribute was assigned.*/
-typedef enum
-{
+enum EAttrType {
     MSC_ATTR_CLEAR = 0,  ///<The attribute was assigned no value, like "line.width="
     MSC_ATTR_STRING,     ///<The attribute was assigned a general string
     MSC_ATTR_BOOL,       ///<The attribute was assigned "yes" or "no"
     MSC_ATTR_NUMBER,     ///<The attribute was assigned a (floating-point) number
     MSC_ATTR_STYLE       ///<The construct was not an attribute, but a style specification (no "=" sign, like "strong")
-}
-EAttrType;
+};
 
 /** Describes the context of the use of a style or attribute.*/
-typedef enum
-{
+enum EStyleType {
     STYLE_STYLE,   ///<The attribute is to be applied to a style definition or the style is a user defined style
     STYLE_DEFAULT, ///<The attribute is to be applied to a default style or the style is a default stlye such as "box" or "arrow" or "->"
     STYLE_ARC,     ///<The attribute is to be applied to an arc or the style object is part of an arc describing it
     STYLE_OPTION   ///<The attribute is indeed a chart option
-} EStyleType;
+};
 
 /** Stores a "<name>=<value>" construct during parsing.
  *
@@ -290,7 +287,7 @@ class Msc;
 ////////////////////////////////////////////////////////////
 
 /** Describes the type of a line.*/
-typedef enum {
+enum ELineType {
     LINE_INVALID = 0,  ///<Invalid value
     LINE_NONE,         ///<No line shall be drawn
     LINE_SOLID,        ///<Continuous, single line
@@ -301,7 +298,7 @@ typedef enum {
     LINE_DOUBLE,       ///<Continuous double line
     LINE_TRIPLE,       ///<Continuous triple line
     LINE_TRIPLE_THICK  ///<Continuous triple line, with the middle line being thicker
-} ELineType;
+};
 
 /** True if the line type is continuous (single, double or triple).*/
 inline bool IsLineTypeContinuous(ELineType t) {return t!=LINE_DOTTED && t!=LINE_DASHED && t!=LINE_LONG_DASHED && t!=LINE_DASH_DOT;}
@@ -315,13 +312,13 @@ inline bool IsLineTypeDoubleOrTriple(ELineType t) {return IsLineTypeDouble(t) ||
 inline double LineWidthMultiplier(ELineType t) {return t==LINE_NONE ? 0 : t==LINE_DOUBLE ? 3 : t==LINE_TRIPLE ? 5 : t==LINE_TRIPLE_THICK ? 6 : 1;}
 
 /** Describes the possible rectangle corner types*/
-typedef enum {
+enum ECornerType {
     CORNER_INVALID = 0, ///<The invalid value
     CORNER_NONE,        ///<The basic rectangular corner type
     CORNER_ROUND,       ///<The corner is rounded
     CORNER_BEVEL,       ///<The corner is chopped 
     CORNER_NOTE         ///<Only the right-upper corner is special: a small note flip
-} ECornerType;
+};
 
 /** Returns by how much the corner radius is to be increased if the rectangle is expanded by 1 pixel.*/
 inline double RadiusIncMultiplier(ECornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
@@ -483,7 +480,7 @@ inline Contour LineAttr::CreateRectangle_InnerEdge(double x1, double x2, double 
 }
 
 /** Describes gradient fill direction*/
-typedef enum {
+enum EGradientType {
     GRADIENT_INVALID = 0,  ///<The invalid value
     GRADIENT_NONE, ///<No gradient in fill - single color only
     GRADIENT_OUT,  ///<Radial gradient outwards from center
@@ -493,7 +490,7 @@ typedef enum {
     GRADIENT_LEFT, ///<Linear gradient leftwards
     GRADIENT_RIGHT,///<Linear gradient rightwards
     GRADIENT_BUTTON///<Linear gradient with multiple changes creating a button effect 
-} EGradientType;
+};
 
 /** Stores the properties of a fill (color and gradient).*/
 struct FillAttr {
@@ -545,8 +542,8 @@ bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p);
 /** Stores the properties of notes (pointer type and position).*/
 struct NoteAttr {
 public:
-    typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} EPointerType;
-    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN} EPosType;
+    enum EPointerType {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW};
+    enum EPosType {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN};
 	std::pair<bool, EPointerType> pointer;
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;

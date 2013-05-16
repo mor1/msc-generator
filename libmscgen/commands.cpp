@@ -329,13 +329,9 @@ EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children)
 
 //TODO: What if multiple entitydefs are present for the same entity? We should merge them
 ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                         Numbering &, bool top_level, Element **target)
+                                         Numbering &, Element **target)
 {
     if (!valid) return NULL;
-    at_top_level = top_level;
-    if (full_heading && !top_level)
-        chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
-                             "inside a parallel block. May display incorrectly.");
 
     //0. First merge entitydefs of the same entity, so that we have at most one for each entity.
     for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) {
@@ -692,19 +688,20 @@ bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &left,
                                           EIterator &right, Numbering &number,
-                                          bool top_level, Element **note_target)
+                                          Element **note_target)
 {
     if (auto_heading_attr && !autoHeading) {
-        autoHeading = static_cast<CommandEntity*>((new CommandEntity(NULL, chart, false))->AddAttributeList(NULL));
+        autoHeading = static_cast<CommandEntity*>(new CommandEntity(NULL, chart, false));
+        autoHeading->AddAttributeList(NULL);
         EIterator dummy1 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
         EIterator dummy2 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
         Numbering dummy3;
         Element *dummy4;
         //at_to_level must be true, or else it complains...
-        autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
+        autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4);
         chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->myProgressCategory);
     }
-    return ArcCommand::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
+    return ArcCommand::PostParseProcess(canvas, hide, left, right, number, note_target);
 }
 
 void CommandNewpage::FinalizeLabels(Canvas &)
@@ -782,7 +779,7 @@ void CommandNewBackground::PostPosProcess(Canvas &/*canvas*/)
 
 //////////////////////////////////////////////////////////////////////////////////////
 ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                            Numbering &number, bool /*top_level*/, Element ** /*target*/)
+                                            Numbering &number, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -800,7 +797,7 @@ ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIter
 CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
     ArcCommand(MSC_COMMAND_MARK, MscProgress::TINY_EFFORT, msc), name(m)
 {
-    map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
+    auto i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
 		chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
         chart->Error.Error(i->second.first,  ml.start, "Location of previous definition.");
@@ -972,8 +969,8 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandHSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
-    EIterator &/*left*/, EIterator &/*right*/, 
-    Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
+                                         EIterator &/*left*/, EIterator &/*right*/, 
+                                         Numbering &/*number*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1067,8 +1064,8 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandVSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
-    EIterator &/*left*/, EIterator &/*right*/, 
-    Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
+                                         EIterator &/*left*/, EIterator &/*right*/, 
+                                         Numbering &/*number*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1236,7 +1233,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, bool /*top_level*/, Element ** target)
+                                         Numbering &/*number*/, Element ** target)
 {
     *target = this;
     if (!valid) return NULL;
@@ -1517,7 +1514,7 @@ bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_floa
 }
 
 ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, bool top_level, Element **note_target)
+                                       Numbering &number, Element **note_target)
 {
     if (!valid) return NULL;
     if (label.length()==0) {
@@ -1539,7 +1536,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     }
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
-    ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
+    ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, note_target);
 
     if (target == DELETE_NOTE || hide) 
         return NULL; //silently drop note - our target has disappeared, as well
@@ -1556,12 +1553,13 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
 {
     if (!valid) return;
     const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
-    if (al) {
-        numberingStyle = al->numberingStyle;
-        number_text = al->number_text;
-        style.write().numbering.second = al->style.read().numbering.second && number_text.length(); //skip numbering if target has no number
-    } else
-        style.write().numbering.second = false; //if target is not an ArcLabelled (e.g., EntityDef)
+    //skip numbering if target has no number
+    const bool has_num = style.write().numbering.second = 
+        al && al->GetStyle().read().numbering.second && al->GetNumberText().length(); 
+    if (has_num) {
+        numberingStyle = al->GetNumberingStyle();
+        number_text = al->GetNumberText();
+    }
     ArcLabelled::FinalizeLabels(canvas);
 }
 

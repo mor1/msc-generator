@@ -423,7 +423,7 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
                 ar >> as.file_pos.end.line;
                 ar >> as.file_pos.end.col;
                 ar >> a;
-                chart.ForceArcCollapse(as, BoxCollapseType(a));
+                chart.ForceArcCollapse(as, EBoxCollapseType(a));
             }
         }
         if (file_version >= 2) { //since v3.1: read force entity collapse

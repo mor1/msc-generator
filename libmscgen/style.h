@@ -30,11 +30,11 @@
 #include "csh.h"
 
 /** Describes the values of the 'side' attribute*/
-typedef enum {
+enum ESideType {
     SIDE_INVALID = 0,///<The invalid value.
     SIDE_LEFT,       ///<The left side
     SIDE_RIGHT       ///<The right side
-} ESideType;
+};
 
 bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p);
 

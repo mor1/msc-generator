@@ -58,10 +58,16 @@ FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 FIXED: Crash when typing erroneous pipe
 
-In 3.5.17
-CHANGED: Switched to VS 2012 build engine
+In 3.5.19
 FIX: If An arrange view is on, no zooming
 FIX: Autoheading calculates badly (NIB1)
+
+In 3.5.19
+FIXED: A bug with numbering formats mixing with line numbers (123) Thanks Simon.
+Added documentation to arcs.cpp. Progress, Msc, Commands missing.
+
+In 3.5.17
+CHANGED: Switched to VS 2012 build engine
 FIXED: \r references did not work at all.
 
 In 3.5.16

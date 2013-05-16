@@ -27,7 +27,7 @@
 #include "contour.h"
 
 /** Describes arrowhead types. Both for line and block arrows.*/
-typedef enum {
+enum EArrowType {
     //Both big and small arrows
     MSC_ARROW_INVALID = 0,  ///<Invalid value
     MSC_ARROW_NONE,         ///<No arrowhead
@@ -54,7 +54,7 @@ typedef enum {
     MSC_ARROW_EMPTY_INV,    ///<Block only: Inward trinagle as wide as body
     MSC_ARROW_STRIPES,      ///<Block only: Three rectangles of increasing size
     MSC_ARROW_TRIANGLE_STRIPES ///<Block only: Three triangles of increasing size
-} EArrowType;
+};
 
 /** True if the type is applicable for line arrows */
 inline bool MSC_ARROW_OK_FOR_ARROWS(EArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}
@@ -72,21 +72,21 @@ inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(EArrowType t) {return t>0 && (t<=MSC_ARR
 inline bool MSC_ARROW_IS_SYMMETRIC(EArrowType t) {return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY);}
 
 /** Describes the size of the arrowhead, see ArrowHead::arrowSizePercentage*/
-typedef enum {
+enum EArrowSize {
     MSC_ARROWS_INVALID = 0, ///<The invalid value. Used as 20% size for hint popup pictograms
     MSC_ARROW_TINY,  ///<30% size                                                                        
     MSC_ARROW_SMALL, ///<50% size
     MSC_ARROW_NORMAL,///<75% size
     MSC_ARROW_BIG,   ///<100% size
     MSC_ARROW_HUGE   ///<150% size
-} EArrowSize;
+};
 
 /** Describes the position of the arrowhead in the arrow.*/
-typedef enum {
+enum EArrowEnd {
     MSC_ARROW_END,   ///<The arrowhead in the 'to' direction, e.g., in case of 'a->b', the arrowhead at 'b'. Both ends are like this for bidirectional arrows.
     MSC_ARROW_MIDDLE,///<An arrowhead at the middle of a multi-segment arrow, e.g., for 'a->b->c' the one at 'b'.
     MSC_ARROW_START  ///<The arrowhead in the 'from' direction, e.g., in case of 'a->b', the arrowhead at 'a'.
-} EArrowEnd;
+};
 
 class Canvas;
 

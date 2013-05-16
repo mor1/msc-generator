@@ -30,14 +30,14 @@ class MscProgress
 {
 public:
     typedef bool (*ProgressCallback)(double percent, void*data); //Callback function to report progress at;
-    typedef enum {
+    enum EBulkSection {
         NO_BULK_SECTION = 0, ///< The invalid value
         STARTUP,
         PARSE,
         AUTOPAGINATE,   ///<Automatic pagination
         MAX_BULK_SECTION
-    } EBulkSection;
-    typedef enum {
+    };
+    enum EArcSection {
         NO_ARC_SECTION = 0, ///< The invalid value
         POST_PARSE,     ///<PostParseProcess
         FINALIZE_LABELS,///<FinalizeLabels
@@ -48,8 +48,8 @@ public:
         POST_POS,       ///<Msc::PostPosProcess
         DRAW,           ///<Drawing 
         MAX_ARC_SECTION///<Not used, the max value
-    } EArcSection;
-    typedef enum {
+    };
+    enum ECategory {
         NO_CATEGORY = 0,
         INDICATOR,
         SELF_ARROW,
@@ -71,7 +71,7 @@ public:
         NOTE,
         REMAINDER,
         MAX_CATEGORY
-    } ECategory;
+    };
 protected:
     /** Shows the ticks needed to do one section for one arc of a given category 
      * (loaded from file)*/
