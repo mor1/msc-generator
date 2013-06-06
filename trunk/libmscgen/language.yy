@@ -146,8 +146,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(EArcType)          arctype;
-    CHAR_IF_CSH(EntityDef)        *entity;
-    CHAR_IF_CSH(EntityDefHelper)  *entitylist;
+    CHAR_IF_CSH(EntityApp)        *entity;
+    CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
@@ -1389,11 +1389,11 @@ entity:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList($2, NULL, FileLineCol());
   #endif
@@ -1405,7 +1405,7 @@ entity:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
@@ -1417,11 +1417,11 @@ entity:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
   #endif
@@ -1433,7 +1433,7 @@ entity:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
   #endif
@@ -1447,12 +1447,12 @@ first_entity:  entity_string full_arcattrlist_with_label
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
 	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList($2, NULL, FileLineCol());
   #endif
@@ -1467,7 +1467,7 @@ first_entity:  entity_string full_arcattrlist_with_label
 	}
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
@@ -1480,12 +1480,12 @@ first_entity:  entity_string full_arcattrlist_with_label
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
 	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
   #endif
@@ -1500,7 +1500,7 @@ first_entity:  entity_string full_arcattrlist_with_label
 	}
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef($1, &msc);
+    EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
     $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
   #endif

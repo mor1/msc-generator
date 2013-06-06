@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file numbering.cpp The implementation of basic classes for numbering styles.
+ * @ingroup libmscgen_files */
 
 #include <cstdlib>
 #include "msc.h"

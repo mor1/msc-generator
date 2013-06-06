@@ -179,8 +179,8 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(EArcType)          arctype;
-    CHAR_IF_CSH(EntityDef)        *entity;
-    CHAR_IF_CSH(EntityDefHelper)  *entitylist;
+    CHAR_IF_CSH(EntityApp)        *entity;
+    CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;

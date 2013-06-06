@@ -463,7 +463,7 @@ bool CDrawingChartData::CompileIfNeeded() const
                              m_addHeading, m_page_size, m_fitWidth);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
-        //EntityDef::AddAttributeList
+        //EntityApp::AddAttributeList
         //cast away constness, this is merely to reinterpret values
         const_cast<EntityCollapseCatalog&>(m_ForcedEntityCollapse) = m_msc->force_entity_collapse;
         const_cast<ArcSignatureCatalog&>(m_ForcedArcCollapse) = m_msc->force_box_collapse_instead;

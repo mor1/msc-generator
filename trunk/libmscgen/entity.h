@@ -87,34 +87,34 @@ public:
 };
 
 class Msc;
-class EntityDef;
-typedef PtrList<EntityDef> EntityDefList;
+class EntityApp;
+typedef PtrList<EntityApp> EntityAppList;
 
 /** A class describing an entity.
  * Each entity is allocated exactly one such object.*/
 class Entity
 {
 public:
-    const string     name;      ///<Name of entity as referenced in src file
-    const string     label;     ///<Label of the entity (==name if none)
-    const string     orig_label;///<The text the user specified for label (for error msgs)
-    const FileLineCol  file_pos;  ///<The location of the definition of this entity in the input file (the first character of its name)
-    double           pos;       ///<The position of the entity with hscale=1. E.g., 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
-    const double     pos_exp;   ///<The position of the entity if all group entities were expanded (for a->b->c sanity checking)
-    unsigned         index;     ///<The index of the entity, counting entities left to right
-    EntityStatusMap  status;    ///<Contains vertical line status & type & color and on/off active/inactive status.
-    StyleCoW         running_style;     ///<Used during PostParse process to make EntityDef::style's fully specified. Also used in AutoPaginate to gather the style for automatically inserted headers.
-    EEntityStatus    running_shown;     ///<Used during PostParse process to see if it is shown/hidden active/inactive.
-    EDrawPassType    running_draw_pass; ///<The running Z-order position of this arc during PostParse process
-    double           maxwidth;          ///<Used during PostParse process to collect the maximum width of the entity
+    const string      name;      ///<Name of entity as referenced in src file
+    const string      label;     ///<Label of the entity (==name if none)
+    const string      orig_label;///<The text the user specified for label (for error msgs)
+    const FileLineCol file_pos;  ///<The location of the definition of this entity in the input file (the first character of its name)
+    double            pos;       ///<The position of the entity with hscale=1. E.g., 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
+    const double      pos_exp;   ///<The position of the entity if all group entities were expanded (for a->b->c sanity checking)
+    unsigned          index;     ///<The index of the entity, counting entities left to right
+    EntityStatusMap   status;    ///<Contains vertical line status & type & color and on/off active/inactive status.
+    StyleCoW          running_style;     ///<Used during PostParse process to make EntityApp::style's fully specified. Also used in AutoPaginate to gather the style for automatically inserted headers.
+    EEntityStatus     running_shown;     ///<Used during PostParse process to see if it is shown/hidden active/inactive.
+    EDrawPassType     running_draw_pass; ///<The running Z-order position of this arc during PostParse process
+    double            maxwidth;          ///<Used during PostParse process to collect the maximum width of the entity
 
-    string           parent_name;    ///<Empty if we are not part of an entity group, otherwise the name of the parent entity.
-    std::set<string> children_names; ///<If we are an entity group, tells who are within us
-    const bool       collapsed;      ///<True if we are group, but show collapsed
+    string            parent_name;    ///<Empty if we are not part of an entity group, otherwise the name of the parent entity.
+    std::set<string>  children_names; ///<If we are an entity group, tells who are within us
+    const bool        collapsed;      ///<True if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
            const StyleCoW &entity_style, const FileLineCol &fp, bool coll);
-    void AddChildrenList(const EntityDefList *children, Msc *chart);
+    void AddChildrenList(const EntityAppList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
 };
@@ -176,27 +176,27 @@ template <class T1, class T2, class T3> struct triplet
 class ArcBase;
 /** A list of arcs (ArcBase descendants) by pointer*/
 typedef PtrList<ArcBase> ArcList;
-class EntityDef;
-/** A list of EntityDef objects by pointer*/
-typedef PtrList<EntityDef> EntityDefList;
+class EntityApp;
+/** A list of EntityApp objects by pointer*/
+typedef PtrList<EntityApp> EntityAppList;
 
-/** A list of EntityDef objects with potential associated CommandNotes.
+/** A list of EntityApp objects with potential associated CommandNotes.
  * This is used during parsing to build up CommandEntity objects. */
-struct EntityDefHelper
+struct EntityAppHelper
 {
-    EntityDefList          entities;     ///<A list of entity definitions. 
+    EntityAppList          entities;     ///<A list of entity definitions. 
     PtrList<CommandNote>   notes;        ///<A set of notes associated with one of the entities in `entities` member.
     std::list<std::string> note_targets; ///<The name of entities the notes in `notes` correspond to. Has as many members as `notes`.
     std::string            target;       ///<A name of an entity in `entity` to be the target for a subsequent note.
     /** Prepend a set of entities, and merge the list of notes.*/
-    EntityDefHelper *Prepend(EntityDefHelper*edh) {if (edh) {entities.Prepend(&edh->entities); notes.Prepend(&edh->notes); note_targets.splice(note_targets.begin(), edh->note_targets);} return this;} //leave "target" as that of the latter edh
+    EntityAppHelper *Prepend(EntityAppHelper*edh) {if (edh) {entities.Prepend(&edh->entities); notes.Prepend(&edh->notes); note_targets.splice(note_targets.begin(), edh->note_targets);} return this;} //leave "target" as that of the latter edh
 };
 
-/** Describes information for each occurrence of an entity in the input.
+/** Describes information for each appearance of an entity in the input.
  * Each time we mention an entity (not as part of an arc, but to change its attributes)
- * one EntityDef is created. 
- * There is a special EntityDef for each Entity though, the firts one, the one which 
- * actually *defines* the Entity. Parsing always generates EntityDef objects and 
+ * one EntityApp is created. 
+ * There is a special EntityApp for each Entity though, the first one, the one which 
+ * actually *defines* the Entity. Parsing always generates EntityApp objects and 
  * if we see that the Entity does not exist yet, we create one Entity object.
  * So this class have to be able contain all things and entity definition needs,
  * like label, grouping and so on, not just the things that may be changed later on.
@@ -213,31 +213,31 @@ struct EntityDefHelper
  * - then we parse its associated attributes (rule `full_arcattrlist_with_label`)
  *   and a potential list of arcs (`braced_arclist`). All this is in the rule
  *   `entity`.
- * - In rule `entity` we create the EntityDef object (the corresponding Entity
+ * - In rule `entity` we create the EntityApp object (the corresponding Entity
  *   may not exist if we define the entity here.
- * - We call EntityDef::AddAttributeList() with the parsed attribute list and
+ * - We call EntityApp::AddAttributeList() with the parsed attribute list and
  *   arclist (if any). This function will check if the associated arclist
  *   contains only CommandEntity or CommandNote arcs, fixes the notes
  *   applies the attribute list and creates the Entity object if needed.*/
-class EntityDef : public Element
+class EntityApp : public Element
 {
 public:
-    const string                   name;                ///<The name of the Entity
+    const string                     name;                ///<The name of the Entity
     triplet<bool,string,FileLineCol> label;               ///<The label specified at this mention of the entity (if any). `third` contains the position of the attribute (name).
     FileLineCol                      linenum_label_value; ///<Locatin of label text (attribute value) in the input file (if any). Only a minor difference to `label.third`.
     triplet<bool,double,FileLineCol> pos;                 ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     triplet<bool,string,FileLineCol> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     triplet<bool,bool,FileLineCol>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
-    std::pair<bool,bool>           show;                ///<The `show=` attribute if specified by the user.
+    std::pair<bool,bool>             show;                ///<The `show=` attribute if specified by the user.
     triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
-    bool                           show_is_explicit;    ///<True if a show attribute was specified by the user. In this case a "show/hide" command/prefix will not override the `show` member.
-    bool                           active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
+    bool                             show_is_explicit;    ///<True if a show attribute was specified by the user. In this case a "show/hide" command/prefix will not override the `show` member.
+    bool                             active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
 
-    EIterator                      itr;         ///<Points to the entity in Msc::AllEntities, set during PostParse.
-    StyleCoW                       style;       ///<The complete style of the entity at this point. Finalized during PostParse taking unset attributes from running_style.
-    Label                          parsed_label;///<The complete label with the right formatting. Finalized during PostParse.
-    bool                           defining;    ///<True if this is the first EntityDef object for this entity = this EntityDef created the entity (set in AddAttrList).
-    bool                           draw_heading;///True if we have to draw heading of this entity at this point. Set in PostParse.
+    EIterator                        itr;         ///<Points to the entity in Msc::AllEntities, set during PostParse.
+    StyleCoW                         style;       ///<The complete style of the entity at this point. Finalized during PostParse taking unset attributes from running_style.
+    Label                            parsed_label;///<The complete label with the right formatting. Finalized during PostParse.
+    bool                             defining;    ///<True if this is the first EntityApp object for this entity = this EntityApp created the entity (set in AddAttrList).
+    bool                             draw_heading;///True if we have to draw heading of this entity at this point. Set in PostParse.
 
     mutable EIterator left_ent;          ///<For a grouped entity the leftmost of its active child entities (pointer to Msc::AllEntities), else same as `itr` member.
     mutable EIterator right_ent;         ///<For a grouped entity the rightmost of its active child entities (pointer to Msc::AllEntities), else same as `itr` member.
@@ -246,17 +246,17 @@ public:
     mutable Block  outer_edge;           ///<The outer edge of a heading we have to draw, set in Height().
     mutable double indicator_ypos_offset;///<The y position of the indicator of a collapsed group entity within the entity heading. -1 if no indicator to be shown.
 
-    explicit EntityDef(const char *s, Msc* chart);
+    explicit EntityApp(const char *s, Msc* chart);
 
     virtual bool AddAttribute(const Attribute&);
-    EntityDefHelper* AddAttributeList(AttributeList *, ArcList *children, FileLineCol l);
+    EntityAppHelper* AddAttributeList(AttributeList *, ArcList *children, FileLineCol l);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual string Print(int ident=0) const;
-    void Combine(EntityDef *ed); 
+    void Combine(EntityApp *ed); 
 
     double Width() const;
-    Range Height(Area &cover, const EntityDefList &edl);
+    Range Height(Area &cover, const EntityAppList &edl);
     void AddAreaImportantWhenNotShowing();
     void ShiftBy(double y) {Element::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     virtual void PostPosProcess(Canvas &);

@@ -356,8 +356,8 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(EArcType)          arctype;
-    CHAR_IF_CSH(EntityDef)        *entity;
-    CHAR_IF_CSH(EntityDefHelper)  *entitylist;
+    CHAR_IF_CSH(EntityApp)        *entity;
+    CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
@@ -4537,11 +4537,11 @@ yyreduce:
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
     csh.AddCSH_EntityName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, FileLineCol());
   #endif
@@ -4558,7 +4558,7 @@ yyreduce:
     csh.CheckEntityHintAt((yylsp[(1) - (1)]));
     csh.AddCSH_EntityName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (1)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (1)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
@@ -4575,11 +4575,11 @@ yyreduce:
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
     csh.AddCSH_EntityName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (3)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (3)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (3)].attriblist), (yyvsp[(3) - (3)].arclist), MSC_POS((yylsp[(3) - (3)])).start);
   #endif
@@ -4596,7 +4596,7 @@ yyreduce:
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
     csh.AddCSH_EntityName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList(NULL, (yyvsp[(2) - (2)].arclist), MSC_POS((yylsp[(2) - (2)])).start);
   #endif
@@ -4614,12 +4614,12 @@ yyreduce:
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
 	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));  //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, FileLineCol());
   #endif
@@ -4639,7 +4639,7 @@ yyreduce:
 	}
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));   //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (1)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (1)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
@@ -4657,12 +4657,12 @@ yyreduce:
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
 	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
-        EntityDef::AttributeNames(csh);
+        EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
-        EntityDef::AttributeValues(csh.hintAttrName, csh);
+        EntityApp::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));  //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (3)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (3)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (3)].attriblist), (yyvsp[(3) - (3)].arclist), MSC_POS((yylsp[(3) - (3)])).start);
   #endif
@@ -4682,7 +4682,7 @@ yyreduce:
 	}
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));   //Do it after AddLineBeginToHints so this one is not included
   #else
-    EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
+    EntityApp *ed = new EntityApp((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
     (yyval.entitylist) = ed->AddAttributeList(NULL, (yyvsp[(2) - (2)].arclist), MSC_POS((yylsp[(2) - (2)])).start);
   #endif

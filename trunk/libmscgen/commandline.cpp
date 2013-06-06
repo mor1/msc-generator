@@ -176,7 +176,7 @@ void sizes()
     std::cout << "ArcPipeSeries:" << sizeof(ArcPipeSeries) <<std::endl;
     std::cout << "ArcDivider:" << sizeof(ArcDivider) <<std::endl;
     std::cout << "CommandEntity:" << sizeof(CommandEntity) <<std::endl;
-    std::cout << "EntityDef:" << sizeof(EntityDef) <<std::endl;
+    std::cout << "EntityApp:" << sizeof(EntityApp) <<std::endl;
     std::cout << "CommandNote:" << sizeof(CommandNote) <<std::endl;
     std::cout << "CommandNewpage:" << sizeof(CommandNewpage) <<std::endl;
     std::cout << "ArcParallel:" << sizeof(ArcParallel) <<std::endl;

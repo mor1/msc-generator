@@ -58,7 +58,7 @@ FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 FIXED: Crash when typing erroneous pipe
 
-In 3.5.19
+In 3.5.20
 FIX: If An arrange view is on, no zooming
 FIX: Autoheading calculates badly (NIB1)
 

@@ -1896,7 +1896,7 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
     if (m_pCompilingThread) return false; //skip if compiling
     CChartData chart(*m_itrEditing);
-    EntityDef *ed = dynamic_cast<EntityDef*>(arc);
+    EntityApp *ed = dynamic_cast<EntityApp*>(arc);
     bool changed = false;
     if (ed) {
         if (t==MSC_CONTROL_COLLAPSE) changed |= chart.ForceEntityCollapse(ed->name, true);
