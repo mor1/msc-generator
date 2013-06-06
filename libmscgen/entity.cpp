@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file entity.cpp The implementation of entities and related classes.
+ * @ingroup libmscgen_files */
 
 #include <cmath>
 #include "msc.h"
@@ -45,11 +47,11 @@ Entity::Entity(const string &n, const string &l, const string &ol,
  * Check that all entities in "children" 
  * - have no parent; 
  * - exist in chart->AllEntities; 
- * - are actually defined now by this very EntityDef that is included in "children". 
+ * - are actually defined now by this very EntityApp that is included in "children". 
  * 
  * Then add them to our children list and make us their parent.
  * Also set their and our "pos" to the leftmost of them, if we are collapsed*/
-void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
+void Entity::AddChildrenList(const EntityAppList *children, Msc *chart)
 {
     if (!children || children->size()==0) return;
     double min_pos = MaxVal(min_pos);
@@ -129,10 +131,10 @@ void EntityList::SortByPosExp(void)
     PtrList<Entity>::sort(SmallerByPosExp);
 }
 
-/** Create an EntityDef for entity named `s` onto the chart `chart`
+/** Create an EntityApp for entity named `s` onto the chart `chart`
  * Make all attributes unset, empty the style (but activate those style
  * elements that are set in the default entity style in chart->Contexts*/
-EntityDef::EntityDef(const char *s, Msc* msc) : Element(msc),
+EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     name(s),
     label(false, "", FileLineCol()),
     pos(false, 0, FileLineCol()),                    //field 'pos.second' is used even if no such attribute
@@ -157,7 +159,7 @@ EntityDef::EntityDef(const char *s, Msc* msc) : Element(msc),
  * At a problem, we generate an error into chart->Error.
  * @param [in] a The attribute to apply.
  * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
-bool EntityDef::AddAttribute(const Attribute& a)
+bool EntityApp::AddAttribute(const Attribute& a)
 {
     if (a.type == MSC_ATTR_STYLE) {
         if (chart->Contexts.back().styles.find(a.name) == chart->Contexts.back().styles.end()) {
@@ -253,19 +255,19 @@ bool EntityDef::AddAttribute(const Attribute& a)
 /** Add a list of attributes to us and a list of potential child objects.
  * This function is always called, even if there are no attributes specified 
  * (l will be NULL in that case), except for automatically generated entities.
- * (Or rather to the automatically generated EntityDef of automatically generated
+ * (Or rather to the automatically generated EntityApp of automatically generated
  * Entity objects.)
- * If the Entity named by this EntityDef does not yet exist, we create one, set all
+ * If the Entity named by this EntityApp does not yet exist, we create one, set all
  * its parameters and add it to chart->AllEntities.
  * Any children are already defined at this point, so we can modify their "parent_name" field.
  * @param al The list of attributes to apply.
  * @param ch The list of arcs, we shall take our children from. This is specified 
  *           specified after the entity definition in braces. These may contain objects
  *           other than CommandEntity and CommandNote, in that case we need to give an error.
- * @param [in] l The position of the EntityDef in the file.
- * @return An EntityDefHelper which contains us and our children (if any), plus all notes.
- *         We will be the first EntityDef in the returned list, children will come after.*/
-EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, FileLineCol l)
+ * @param [in] l The position of the EntityApp in the file.
+ * @return An EntityAppHelper which contains us and our children (if any), plus all notes.
+ *         We will be the first EntityApp in the returned list, children will come after.*/
+EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, FileLineCol l)
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
     if (*i != chart->NoEntity) {
@@ -276,7 +278,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         //take the entity's draw_pass as default
         draw_pass = (*i)->running_draw_pass;
     } else {
-        //indicate that this EntityDef created the Entity
+        //indicate that this EntityApp created the Entity
         defining = true;
         draw_pass = DRAW_DEFAULT;
     }
@@ -288,7 +290,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         delete al;
     }
 
-    EntityDefHelper *ret = new EntityDefHelper;
+    EntityAppHelper *ret = new EntityAppHelper;
     //If we have children, add them to "ret->entities"
     string note_target_name = name;
     if (ch) {
@@ -360,7 +362,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
                     //                       chart->Contexts.back().styles["entity"],
                     //                       rel.third, false);
                     //chart->AllEntities.Append(e);
-                    EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
+                    EntityApp *ed = new EntityApp(rel.second.c_str(), chart);
                     ed->AddAttributeList(NULL, NULL, rel.third);
                     chart->AutoGenEntities.Append(ed);
                     //position remains at the old, not incremented Entity_max_pos
@@ -476,7 +478,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
 
 /** Add the attribute names we take to `csh`.*/
-void EntityDef::AttributeNames(Csh &csh)
+void EntityApp::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
@@ -490,7 +492,7 @@ void EntityDef::AttributeNames(Csh &csh)
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
-bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
+bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"color")) {
         csh.AddColorValuesToHints();
@@ -518,8 +520,8 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-/** Prints the attributes of EntityDef*/
-string EntityDef::Print(int ident) const
+/** Prints the attributes of EntityApp*/
+string EntityApp::Print(int ident) const
 {
     string ss;
     ss << string(ident*2, ' ') << name;
@@ -532,12 +534,12 @@ string EntityDef::Print(int ident) const
     return ss;
 };
 
-/** Merges EntityDef objects referring to the same entity.
+/** Merges EntityApp objects referring to the same entity.
  * Used if the same entity is mentioned twice on the same list
  * or in a following list.
  * This function moves notes of `ed` to us, 
  * combines show, active & style members.*/
-void EntityDef::Combine(EntityDef *ed)
+void EntityApp::Combine(EntityApp *ed)
 {
     if (ed->show.first) 
         show = ed->show;
@@ -548,7 +550,7 @@ void EntityDef::Combine(EntityDef *ed)
  }
 
 /** Returns how wide the entity is with this formatting, not including its shadow.*/
-double EntityDef::Width() const
+double EntityApp::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
@@ -562,13 +564,13 @@ double EntityDef::Width() const
  * and `area_important`. We add ourselves to the list of elements
  * which should not be covered by notes. In short this is a mini version of
  * the ArcBase::Layout() function called from CommandEntity::Layout().
- * Called only if the EntityDef displays a header.
+ * Called only if the EntityApp displays a header.
  * Must not be called twice.
  * @param [out] cover Returns our cover and mainline.
  * @param [in] children A list of our children showing here, already laid out.
  * @returns The y range we occupy. Can `from` be negative if we are a group entity, 
  *          since non-group children entities will be laid out to y==0. */
-Range EntityDef::Height(Area &cover, const EntityDefList &children)
+Range EntityApp::Height(Area &cover, const EntityAppList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.read().line.LineWidth();
@@ -620,9 +622,9 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     return Range(outer_edge.y.from, outer_edge.y.till + style.read().shadow.offset.second);
 }
 
-/** Add a small block blocking notes for EntityDef objects displaying no heading.
- * This function is called iff the EntityDef shows no header.*/
-void EntityDef::AddAreaImportantWhenNotShowing()
+/** Add a small block blocking notes for EntityApp objects displaying no heading.
+ * This function is called iff the EntityApp shows no header.*/
+void EntityApp::AddAreaImportantWhenNotShowing()
 {
     //we do not draw this, but nevertheless define a small block here
     //if we are hidden, find someone who shows and has a valid "pos"
@@ -636,11 +638,11 @@ void EntityDef::AddAreaImportantWhenNotShowing()
 }
 
 /** Record y-position dependent status of the Entity. 
- * Called when the EntityDef is ShiftBy()ed to its final position.
+ * Called when the EntityApp is ShiftBy()ed to its final position.
  * We hide entity lines behind us, record our style and status
  * in Entity::status and if we are a group entity we
  * create a control (for the GUI).*/
-void EntityDef::PostPosProcess(Canvas &canvas)
+void EntityApp::PostPosProcess(Canvas &canvas)
 {
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
@@ -670,7 +672,7 @@ void EntityDef::PostPosProcess(Canvas &canvas)
 /** Draw an entity heading 
  * We use the layout calculated in Height() and affected by ShiftBy()
  * and we use the style we finalized in CommandEntity::PostParseProcess()*/
-void EntityDef::Draw(Canvas &canvas)
+void EntityApp::Draw(Canvas &canvas)
 {
     const double lw = style.read().line.LineWidth();
 

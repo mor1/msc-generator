@@ -234,7 +234,7 @@ enum EStyleType {
  *
  * This can either be an arc attribute, an entity attribute or a chart option.
  * When parsing attribute lists, we create list of these attributes and
- * pass them to the AddAttributeList() function of ArcBase descendants, EntityDef
+ * pass them to the AddAttributeList() function of ArcBase descendants, EntityApp
  * and Msc (for chart options). In this function, the actual Attribute objects
  * are consumed and deleted*/
 class Attribute

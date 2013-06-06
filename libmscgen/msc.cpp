@@ -395,7 +395,7 @@ EIterator Msc::FindAllocEntity(const char *e, FileLineColRange l)
         //Entity *entity = new Entity(e, e, e, GetEntityMaxPos()+1, Contexts.back().styles["entity"], 
         //                            l.start, false);
         //AllEntities.Append(entity);
-        EntityDef *ed = new EntityDef(e, this);
+        EntityApp *ed = new EntityApp(e, this);
         ed->SetLineEnd(l);
         ed->AddAttributeList(NULL, NULL, l.start);
         ed->show.first = ed->show.second = true; //start turned on
@@ -525,14 +525,14 @@ void Msc::AddArcs(ArcList *a)
 
 CommandEntity *Msc::CEForComments(const MscStyle &s, const FileLineColRange &l)
 {
-    EntityDef *led = new EntityDef(LNOTE_ENT_STR, this);
+    EntityApp *led = new EntityApp(LNOTE_ENT_STR, this);
     led->SetLineEnd(l);
     led->style.write() += s;
-    EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, FileLineCol());
-    EntityDef *red = new EntityDef(RNOTE_ENT_STR, this);
+    EntityAppHelper *ledh = led->AddAttributeList(NULL, NULL, FileLineCol());
+    EntityApp *red = new EntityApp(RNOTE_ENT_STR, this);
     red->SetLineEnd(l);
     red->style.write() += s;
-    EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, FileLineCol());
+    EntityAppHelper *redh = red->AddAttributeList(NULL, NULL, FileLineCol());
     redh->Prepend(ledh);
     delete ledh;
     CommandEntity *ce = new CommandEntity(redh, this, true);
@@ -1076,7 +1076,7 @@ void Msc::PostParseProcess(Canvas &canvas)
         //Otherwise, generate a new entity command as first arc
         ArcList::iterator i = Arcs.begin();
         if ((*i)->type != MSC_COMMAND_ENTITY) {
-            CommandEntity *ce = new CommandEntity(new EntityDefHelper, this, false);
+            CommandEntity *ce = new CommandEntity(new EntityAppHelper, this, false);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);
         }
@@ -1970,10 +1970,10 @@ void Msc::PlaceFloatingNotes(Canvas &canvas)
 {
     Block new_total;
     new_total.MakeInvalid();
-    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        (*note)->PlaceFloating(canvas);
-        new_total += (*note)->GetAreaToDraw().GetBoundingBox();
-        Progress.DoneItem(MscProgress::NOTES, (*note)->myProgressCategory);
+    for (auto note : Notes) {
+        note->PlaceFloating();
+        new_total += note->GetAreaToDraw().GetBoundingBox();
+        Progress.DoneItem(MscProgress::NOTES, note->myProgressCategory);
     }
     if (new_total.IsInvalid()) return;
     new_total.Expand(sideNoteGap);

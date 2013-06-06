@@ -175,7 +175,7 @@ public:
     EntityList                    AllEntities;
     EntityList                    ActiveEntities;
     Entity                       *NoEntity, *LNote, *LSide, *RSide, *RNote;
-    EntityDefList                 AutoGenEntities;
+    EntityAppList                 AutoGenEntities;
     ArcList                       Arcs;
     std::list<Context>            Contexts;
     std::map<string, Context>     Designs;

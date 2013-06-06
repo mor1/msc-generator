@@ -31,7 +31,7 @@
   # Terminology
 
   - An *entity* is something the messages go in between. They have three classes
-    in libmscgen: one Entity per entity of the chart, one EntityDef for every
+    in libmscgen: one Entity per entity of the chart, one EntityApp for every
     occurence of that entity (definition, change of status, etc.) and an
     CommandEntity for each group of entities mentioned together.
   - An entity is a *group entity* if it contains other entities. We call these

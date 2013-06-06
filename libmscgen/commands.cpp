@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file commands.cpp The basic definitions or arcs that represent commands.
+ * @ingroup libmscgen_files */
+
 #include <algorithm>
 #include "msc.h"
 
@@ -45,7 +48,7 @@ void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandEntity::CommandEntity(EntityDefHelper *e, Msc *msc, bool in)
+CommandEntity::CommandEntity(EntityAppHelper *e, Msc *msc, bool in)
     : ArcCommand(MSC_COMMAND_ENTITY, MscProgress::ENTITY, msc), 
     tmp_stored_notes(true), internally_defined(in)
     //tmp_stored_notes is responsible for its content - if the CommandEntity is
@@ -84,17 +87,25 @@ void CommandEntity::AttachComment(CommandNote *cn)
     (*entities.rbegin())->AttachComment(cn);
 }
 
-//This takes ownership of the note and stores it temporarily.
-//We also store what is the name of the entity the note is made to.
-//You can store notes before CommandEntity::PostParseProcess.
-//These will be removed in Msc::PostParseProcessArcList, and will be
-//inserted into the arc list after the commandEntity
+/** Take ownership of the note and store it temporarily.
+ * We also store what is the name of the entity the note is made to.
+ * You can store notes before CommandEntity::PostParseProcess.
+ * These will be removed in Msc::PostParseProcessArcList, and will be
+ * inserted into the arc list after the commandEntity.*/
 void CommandEntity::TmpStoreNote(CommandNote *cn) 
 {
     tmp_stored_note_targets.push_back(target_entity);
     tmp_stored_notes.Append(cn);
 }
 
+/** Take the temporarily stored notes and insert them into the list of arcs. 
+ * Since the target of temporarily stored notes are stored as "name of entity"
+ * we also resolve these by looking up the EntityApp for the entity name
+ * and set the target of the note to that EntityApp object.
+ * If the target entity of a note has disappeared due to a collapsed parent,
+ * we silently drop the note, as well (will not show up in chart). 
+ * @param list The arc list to insert the note into.
+ * @param after The poition after which to insert.*/
 void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator after)
 {
     _ASSERT(tmp_stored_notes.size() == tmp_stored_note_targets.size());
@@ -129,7 +140,9 @@ void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator afte
     }
 }
 
-void CommandEntity::MoveMyContentAfter(EntityDefHelper &e)
+/** Move EntityApp objects and temporarily stored notes to 'e`.
+ * Effectively empties us.*/
+void CommandEntity::MoveMyContentAfter(EntityAppHelper &e)
 {
     e.entities.splice(e.entities.end(), entities);
     e.notes.splice(e.notes.end(), tmp_stored_notes);
@@ -147,25 +160,31 @@ string CommandEntity::Print(int ident) const
     return ss;
 }
 
-//This is called only from "Combine" and Msc::PostParseProcess() 
-//(for autogen entities), so definitely
-//after AddAttrLits and before PostParseProcess, so here are the members
-//with comments on how to merge a later entityDef into a former one.
-//name                 //This is const, shall be the same
-//label;               //This can only be set once: keep the former
-//linenum_label_value; //pos of label text, irrelevant in later one
-//pos;                 //THis is used only in AddAttributeList
-//rel;                 //THis is used only in AddAttributeList
-//collapsed;           //THis is used only in AddAttributeList
-//show;                //the latter shall overwrite the former one
-//active;              //the latter shall overwrite the former one
-//show_is_explicit;    //ignore, This is only used in ApplyPrefix which is only called during parse
-//itr;                 //this is set during PostParse, ignore
-//style;               //this is finalized during PostParse, combine latter into former
-//parsed_label;        //will be set during PostParse, ignore
-//defining;            //keep former
-//shown;               //ignore, will be set in PostParse
-void CommandEntity::AppendToEntities(const EntityDefList &e)
+/** Append a list of EntityApp objects to our list of EntityApps.
+ * (This is called only from CommandEntity::Combine() to merge two 
+ * subsequent CommandEntity objecs and from Msc::PostParseProcess()
+ * for auto generated entities. In any case definitely after 
+ * AddAttributeList() and before PostParseProcess().)
+ * We take care not to have one entity mentioned twice.
+ * Thus if an entity referenced by an EntityApp being appended is 
+ * already mentioned by an EntityApp already on our list, we 
+ * combine their attributes. Below are the members of EntityApp 
+ * with comments on  * how to merge a later EntityApp into a former one.
+ * - name;                //This is const, shall be the same
+ * - label;               //This can only be set once: keep the former
+ * - linenum_label_value; //Location of label text in input file, should only matter in first EntityApp
+ * - pos;                 //This was used only in AddAttributeList - ignore
+ * - rel;                 //This was used only in AddAttributeList - ignore
+ * - collapsed;           //This was used only in AddAttributeList - ignore
+ * - show;                //The latter (if set) shall overwrite the former one
+ * - active;              //The latter (if set) shall overwrite the former one
+ * - show_is_explicit;    //Ignore, this was only used in ApplyPrefix() which is only called during parse
+ * - itr;                 //This will be set during PostParseProcess(), ignore
+ * - style;               //This will be finalized during PostParseProcess(), combine latter into former
+ * - parsed_label;        //Will be set during PostParseProcess(), ignore here
+ * - defining;            //keep former
+ * - shown;               //ignore, will be set in PostParseProcess() */
+void CommandEntity::AppendToEntities(const EntityAppList &e)
 {
     for (auto i = e.begin(); i!=e.end(); i++) {
         auto i2 = entities.begin();
@@ -183,6 +202,12 @@ void CommandEntity::AppendToEntities(const EntityDefList &e)
     }
 }
 
+/** Combine (merge the content of) two subsequent CommandEntity objects 
+ * We merge then only if both or neither contain internally defined
+ * EntityApps (resulting from comment.* chart options).
+ * We take care to have one entity referenced only by a single EntityApp
+ * object even after the merge. 
+ * `ce` will be effectively emptied out after.*/
 void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
@@ -202,7 +227,9 @@ void CommandEntity::Combine(CommandEntity *ce)
     CombineComments(ce); //noves notes from 'ce' to us
 }
 
-
+/** Apply the relevant attributes if the entity command was prefixed with "show", "hide", "activate" or "deactivate".
+ * Take care that if the entity had a specific show or active attribute, such 
+ * attributes take precedence over the prefix.*/
 CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 {
     _ASSERT(!internally_defined);
@@ -221,35 +248,20 @@ CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
     return this;
 }
 
-void CommandEntity::ApplyShowToChildren(const string &name, bool show)
-{
-    EIterator j_ent = chart->AllEntities.Find_by_Name(name);
-    if ((*j_ent)->children_names.size()==0) {
-        for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
-            if ((*i_def)->name == name) {
-                (*i_def)->show.first = true;
-                (*i_def)->show.second = show;
-                return;
-            }
-        EntityDef *ed = new EntityDef(name.c_str(), chart);
-        ed->AddAttribute(Attribute("show", show, FileLineColRange(), FileLineColRange(), NULL));
-        entities.Append(ed);
-    } else {
-        for (auto s = (*j_ent)->children_names.begin(); s != (*j_ent)->children_names.end(); s++) 
-            ApplyShowToChildren(*s, show);
-    }
-}
-
-
+/** Finds (or adds) the EntityApp object for an entity in our list.
+ * If our list already contains an EntityApp referencing `entity`, we return it.
+ * If not, we append an EntityApp referencing `entity` using that 
+ * entity's running style and `l` as file position. */
 //Adds and entitydef for "entity" uses running_show and running_style
-EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const FileLineColRange &l)
+EntityApp* CommandEntity::FindAddEntityDefForEntity(const string &entity, 
+                                                    const FileLineColRange &l)
 {
     //find if already have a def for this
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
-        if ((*i_def)->name == entity) return *i_def;
+    for (auto eapp : entities) 
+        if (eapp->name == entity) return eapp;
     const EIterator jj_ent = chart->AllEntities.Find_by_Name(entity);
     _ASSERT(*jj_ent != chart->NoEntity);
-    EntityDef *ed = new EntityDef(entity.c_str(), chart);
+    EntityApp *ed = new EntityApp(entity.c_str(), chart);
     ed->itr = jj_ent;
     ed->style = (*jj_ent)->running_style;
     ed->file_pos = l;
@@ -258,146 +270,155 @@ EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const 
     return ed;
 }
 
-//return active if any of the children are active and ON if any of them are ON
-//go recursive all the way deep - ignore the "running_shown" of parents
-EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children) const
+
+/** Determine status based on the running status of ultimate children.
+ * If this is not a grouped entity (has no child entitues) we return
+ * its running status (both activation and show).
+ * If it has children, we OR their activation and show status
+ * (return active if any of them are active and showing if any of them are).
+ * This goes recursive, thus if any of the children has children, we ignore
+ * its running status and combine the running status of the children.
+ * Thus ultimately only the running status of leaf entities will be used.*/
+EEntityStatus CommandEntity::GetCombinedStatus(const Entity& entity) const
 {
+    if (entity.children_names.empty()) return entity.running_shown;
     EEntityStatus ret = EEntityStatus::SHOW_OFF;
-    for (auto s = children.begin(); s!=children.end(); s++) {
-        auto i = chart->AllEntities.Find_by_Name(*s);
+    for (const auto &s : entity.children_names) {
+        auto i = chart->AllEntities.Find_by_Name(s);
         _ASSERT(*i != chart->NoEntity);
-        EEntityStatus es;
-        if ((*i)->children_names.size()) es = GetCombinedStatus((*i)->children_names);
-        else es = (*i)->running_shown;
+        const EEntityStatus es = GetCombinedStatus(**i);
         if (es.IsActive()) ret.Activate(true);
         if (es.IsOn()) ret.Show(true);
     }
     return ret;
 }
 
-/* The following rules apply.
- * Each entity we can possibly have is represented in chart->AllEntities and is of
- * class Entity. 
- * Each time we name an entity in an entity command, we allocate an EntityDef object.
+/* Process the list of EntityApps after parsing.
+ * The following rules apply.
+ * Each entity we can possibly have is by now represented in chart->AllEntities and 
+ * is of class Entity. 
+ * Each time we name an entity in an entity command, we allocate an EntityApp object.
  * If the "defining" member is true this mention of the entity was used to define the
  * entity. If it is false, this mention of the entity is a subsequent one.
- * An entity can have zero or one EntityDefs with defining=true (zero if the entity
- * was implicitly defined via e.g., an arrow definition).
+ * An entity can have zero or one EntityApps with defining=true (zero if the entity
+ * was implicitly defined via e.g., an arrow definition, in this case it is called
+ * an automatically generated entity and an EntityApp is placed into Msc::AutoGenEntities).
  * When an entity is mentioned in an entity command any (or all) of the three things
  * can be done: turn it on/off, activate/deactivate it or change the style. An entity
- * that is on can be turned on again, in which case we draw an entity heading of it.
+ * that is on can be turned on again, which forces the drawing of an entity heading of it.
  * Similar, the heading command draws an entity heading for all entities that are currently
- * on. This is emulated by adding EntityDefs for such entities with show set to on.
+ * on. This is emulated by adding EntityApps for such entities with show set to on.
  *
  * During the PostParse process we keep up-to date the "running_show" and "running_style"
  * members of the entities. (Memmbers of class "Entity".) These are used by arrows, etc.
  * to find out if certain entities are on/off or active, etc.
- * In addition, we store the "running_style" and "running_show" in every EntityDef, as well;
- * and then in the PosPos process, when x and y coordinates are already set, we copy them
- * to Entity::status, so that when we draw entity lines we know what to draw at what 
- * coordinate. The entity headings are drawn based on the EntityDef::style member.
+ * In addition, we copy the actual "running_style" and "running_show" in every EntityApp, 
+ * as well; and then in the PosPos process, when x and y coordinates are already set, 
+ * we add them to Entity::status map, so that when we draw entity lines we know what to 
+ * draw at what coordinate. The entity headings are drawn based on the EntityApp::style 
+ * member.
  *
- * The EntityDef::draw_heading member tells if a heading should be drawn for this heading
+ * The EntityApp::draw_heading member tells if a heading should be drawn for this heading
  * at this point. The "show" and "active" members tell if there was "show" or "active"
  * attributes set (perhaps via show/hide/activate/deactivate commands). If so, the
  * "show_is_explicit"/"active_is_explicit" are set. (This is used to prevent overwriting
  * an explicitly written [show=yes/no] with a "show" command. Thus 'show aaa [show=no]' 
- * will result in show=false. Otherwise any newly defined entitydef
+ * will result in show=false. Otherwise any newly created EntityApp objects
  * has show set to true and active set to false - the default for newly defined entities.
 
  * The algorithm here is the following.
  *
- * 0. Merge entitydefs corresponding to the same entity. (They are in the same order 
+ * 0. Merge EntityApps corresponding to the same entity. (They are in the same order 
  *    as in the source file, so copying merging "active", "show" and "style" is enough,
  *    since all other attributes can only be used at definition, which can be the first 
- *    one only.)
+ *    one only.) 
  * 1. Apply the style elements specified by the user to the entity's "running_style"
  * 2. If a grouped entity is listed with show=yes/no, we copy this attribute to all of its
  *    listed children (unless they also have an explicit show attribute, which overrides that
- *    of the group). We also prepend any unlisted children and copy the attribute.
+ *    of the group). We also prepend an EntityApp for any unlisted children and copy 
+ *    the attribute.
  *    At the same time, we remove the show attribute from the grouped entities.
  *    This will result in that if a grouped entity is turned on or off all of its 
  *    children (and their children, too) will get turned on or off, as well.
- * 3. Apply all listed entities show and active attributes to "running_show" & "draw_heading"
+ * 3. Apply the show and active attributes of all listed entities to 
+ *    "Entity::running_show" & "EntityApp::draw_heading".
  * 4. Update the "running_shown" of all parents based on the status of leaf children,
- *    if any change, add a corresponding entitydef (if needed)
- * 5. If we are a heading command, add entities where running_show indicates shown
+ *    if any change, add a corresponding EntityApp (if needed)
+ * 5. If we are a heading command, add EntityApps where running_show indicates shown
  * 6. Order the listed entities such that parents come first and their children after
  * 7. Set "draw_heading" of the children of collapsed parents to false
  * 8. For those that draw a heading, update "left" and "right", process label & record max width
  */
-
-//TODO: What if multiple entitydefs are present for the same entity? We should merge them
 ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
                                          Numbering &, Element **target)
 {
     if (!valid) return NULL;
 
     //0. First merge entitydefs of the same entity, so that we have at most one for each entity.
-    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) {
+    for (auto i_app = entities.begin(); i_app != entities.end(); /*nope*/) {
         //find first entity of this name
-        EntityDef *ed = FindAddEntityDefForEntity((*i_def)->name, file_pos); //second param dummy, we never add here
-        if (ed == *i_def) i_def++; 
+        EntityApp *ed = FindAddEntityDefForEntity((*i_app)->name, file_pos); //second param dummy, we never add here
+        if (ed == *i_app) i_app++; 
         else {
-            //OK, "ed" is an EntityDef before i_def, combine them.
-            _ASSERT(!(*i_def)->defining);
+            //OK, "ed" is an EntityApp before i_app, combine them.
+            _ASSERT(!(*i_app)->defining);
             //show_is_explicit and active_is_explicit makes no role beyond this, so ignore
-            ed->Combine(*i_def);
-            //Ok, delete i_def
-            delete *i_def;
-            entities.erase(i_def++);
+            ed->Combine(*i_app);
+            //Ok, delete i_app
+            delete *i_app;
+            entities.erase(i_app++);
         }
     }
     
     //1. Then apply the style changes of this command to the running style of the entities
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        const EIterator j_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
-        (*i_def)->itr = j_ent;
+    for (auto i_app : entities) {
+        const EIterator j_ent = chart->AllEntities.Find_by_Name(i_app->name);
+        i_app->itr = j_ent;
         //Make the style of the entitydef fully specified using the accumulated style info in Entity
-        (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
+        (*j_ent)->running_style += i_app->style;  //i_app->style is a partial style here specified by the user
     }
     //2. Copy show on/off attribute from grouped entities to their children
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        const Entity *ent = *(*i_def)->itr;
+    for (auto i_app : entities) {
+        const Entity *ent = *i_app->itr;
         //if the entity is a grouped entity with a show/hide attribute, 
         //add an entitydef to our list for those children, who have no entitidefs
         //yet in the list. For those children, who have, just set show attribute
         //if not set yet
         //new entitydefs are added to the end of the list - and get processed for further 
         //children
-        if ((*i_def)->show.first && ent->children_names.size()) 
-            for (auto ss = ent->children_names.begin(); ss!=ent->children_names.end(); ss++) 
-                FindAddEntityDefForEntity(*ss, (*i_def)->file_pos)->show = (*i_def)->show;
+        if (i_app->show.first && ent->children_names.size()) 
+            for (auto ss : ent->children_names) 
+                FindAddEntityDefForEntity(ss, i_app->file_pos)->show = i_app->show;
     }
     //3. Decide if we will draw a heading for these entities & update running state
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        Entity *ent = *(*i_def)->itr;
+    for (auto i_app : entities) {
+        Entity *ent = *i_app->itr;
         //Decide, if this entitydef will draw a heading or not
         //It can get drawn because we 1) said show=yes, or
         //2) because it is on, we mention it (without show=yes) and it is
         //a full heading.
-        (*i_def)->draw_heading = ((*i_def)->show.second && (*i_def)->show.first) 
+        i_app->draw_heading = (i_app->show.second && i_app->show.first) 
                                  || (full_heading && ent->running_shown.IsOn());
         //Adjust the running status of the entity, this is valid *after* this command. 
         //This is just for the Height process knwos whch entity is on/off
-        if ((*i_def)->show.first)
-            ent->running_shown.Show((*i_def)->show.second);
+        if (i_app->show.first)
+            ent->running_shown.Show(i_app->show.second);
         //Update the style of the entitydef
-        (*i_def)->style = ent->running_style;	 //(*i)->style now become the full style to use from this point
+        i_app->style = ent->running_style;	 //(*i)->style now become the full style to use from this point
         //reflect any "active" attribute in the running_shown variable 
-        if ((*i_def)->active.first) 
-            ent->running_shown.Activate((*i_def)->active.second);
+        if (i_app->active.first) 
+            ent->running_shown.Activate(i_app->active.second);
     }
     //4. Now we are guaranteed to have all leaf children's runnin_shown status right.
     //However, we can have parents, whose child(ren) changed status and we need to update that
     //We will need to add EntityDefs here for such parents (so they update status in PostPos, too)
-    for (auto j_ent = chart->AllEntities.begin(); j_ent != chart->AllEntities.end(); j_ent++) {
-        if ((*j_ent)->children_names.size()==0) continue;
-        EEntityStatus es_new = GetCombinedStatus((*j_ent)->children_names);
-        EEntityStatus es_old = (*j_ent)->running_shown;
+    for (auto j_ent : chart->AllEntities) {
+        if (j_ent->children_names.size()==0) continue;
+        EEntityStatus es_new = GetCombinedStatus(*j_ent);
+        EEntityStatus es_old = j_ent->running_shown;
         if (es_old == es_new) continue;
         //ok, shown status has changed, add/lookup entitydef
-        EntityDef *ed = FindAddEntityDefForEntity((*j_ent)->name, this->file_pos);
+        EntityApp *ed = FindAddEntityDefForEntity(j_ent->name, this->file_pos);
         if (es_new.IsOn() != es_old.IsOn()) {
             ed->show.first = true;
             ed->show.second = es_new.IsOn();
@@ -406,19 +427,19 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
             ed->active.first = true;
             ed->active.second = es_new.IsActive();
         }
-        (*j_ent)->running_shown = es_new;
+        j_ent->running_shown = es_new;
     }
 
     //5. A "heading" command, we have to draw all entities that are on
     //for these we create additional EntityDefs and append them to entities
     //Only do this for children (non-grouped entities)
-    EntityDef *heading_target=NULL;
+    EntityApp *heading_target=NULL;
     if (full_heading)
-        for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
-            if (!(*i)->running_shown.IsOn()) continue;
-            if ((*i)->children_names.size()) continue;
+        for (auto i : chart->AllEntities) {
+            if (!i->running_shown.IsOn()) continue;
+            if (i->children_names.size()) continue;
             unsigned entsize = entities.size();
-            EntityDef *ed = FindAddEntityDefForEntity((*i)->name, this->file_pos); //use the file_pos of the CommandEntity
+            EntityApp *ed = FindAddEntityDefForEntity(i->name, this->file_pos); //use the file_pos of the CommandEntity
             ed->draw_heading = true;
             if (entsize != entities.size()) 
                 heading_target = ed;
@@ -430,10 +451,11 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     bool changed;
     do {
         changed = false;
-        for (auto i_def = ++entities.begin(); i_def != entities.end(); i_def++) 
-            for (auto i_def2 = entities.begin(); i_def2 != i_def; i_def2++) 
-                if ((*(*i_def2)->itr)->parent_name == (*i_def)->name) {
-                    std::swap(*i_def, *i_def2);
+        //Warning! We do not proces the first entity below
+        for (auto i_app = ++entities.begin(); i_app != entities.end(); i_app++) 
+            for (auto i_app2 = entities.begin(); i_app2 != i_app; i_app2++) 
+                if ((*(*i_app2)->itr)->parent_name == (*i_app)->name) {
+                    std::swap(*i_app, *i_app2);
                     changed = true;
                 }
     } while (changed);
@@ -445,24 +467,24 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //Collapse is not considered yet, we will do it below
 
     //7. Finally prune the list: do not show those that shall not be displayed due to collapse
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
-        if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) 
-            (*i_def)->draw_heading = false;
+    for (auto i_app : entities) 
+        if (chart->FindActiveParentEntity(i_app->itr) != i_app->itr) 
+            i_app->draw_heading = false;
 
     //8. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth
     //Also, PostParseProcess their notes, too
     //Also, set target to the entity we received in the constructor
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        if (target_entity == (*i_def)->name && !internally_defined)
-            *target = *i_def;
-        if (!(*i_def)->draw_heading) continue;
-        const EIterator ei = (*i_def)->itr;
+    for (auto i_app : entities) {
+        if (target_entity == i_app->name && !internally_defined)
+            *target = i_app;
+        if (!i_app->draw_heading) continue;
+        const EIterator ei = i_app->itr;
         left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
         right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf(ei, false));
-        (*i_def)->parsed_label.Set((*ei)->label, canvas, (*ei)->running_style.read().text);
-        double w = (*i_def)->Width();
-        if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
+        i_app->parsed_label.Set((*ei)->label, canvas, (*ei)->running_style.read().text);
+        double w = i_app->Width();
+        if ((*ei)->maxwidth < w) (*i_app->itr)->maxwidth = w;
     }
     if (target_entity.length()==0 && heading_target)
         *target = heading_target;
@@ -551,8 +573,8 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
 //Here we add to "cover", do not overwrite it
 void CommandEntity::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r)
 {
-    for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
-        (*i_def)->LayoutCommentsHelper(canvas, cover, l, r);
+    for (auto i_app = entities.begin(); i_app!=entities.end(); i_app++) 
+        (*i_app)->LayoutCommentsHelper(canvas, cover, l, r);
     Element::LayoutCommentsHelper(canvas, cover, l, r); //sets comment_height
 }
 
@@ -560,7 +582,7 @@ void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
 {
     if (!valid || hidden) return;
     Range hei(0,0);
-    //Those entities explicitly listed will have their own EntityDef for this line.
+    //Those entities explicitly listed will have their own EntityApp for this line.
     //Thus their area will be stored there and not in CommandEntity->area
     //But, still put those into "cover" so they can be considered for placement
     //There are other entities shown here, those triggered by a heading command.
@@ -574,11 +596,11 @@ void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
             continue;
         }
         //Collect who is my children in this list
-        EntityDefList edl(false);
+        EntityAppList edl(false);
         for (auto ii = entities.rbegin(); !(ii==entities.rend()); ii++) 
             if ((*ii)->draw_heading && *ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
                 edl.Append(*ii);
-        //EntityDef::Height places children entities to yPos==0
+        //EntityApp::Height places children entities to yPos==0
         //Grouped entities may start at negative yPos.
         //We collect here the maximum extent
         //Note: Height() also adds the cover to the entitydef's area and
@@ -595,6 +617,7 @@ void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
         _ASSERT(!internally_defined); //internally defined entitydefs should not show a heading
         //Ensure overall startpos is zero
         ShiftBy(-hei.from + chart->headingVGapAbove);
+        yPos = 0; //ruined by ShiftBy() above, but must be always 0 in Layout()
         if (cover)
             cover->Shift(XY(0,-hei.from + chart->headingVGapAbove));
         height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
@@ -618,12 +641,12 @@ double CommandEntity::SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageS
                                     bool addHeading, ArcList &/*res*/)
 {
     if (addHeading)
-        for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) {
-            Entity *ent = *(*i_def)->itr;
-            ent->running_draw_pass = (*i_def)->draw_pass;
+        for (auto i_app = entities.begin(); i_app!=entities.end(); i_app++) {
+            Entity *ent = *(*i_app)->itr;
+            ent->running_draw_pass = (*i_app)->draw_pass;
             //We ignore active state, just store on/off
-            ent->running_shown = (*i_def)->draw_heading ? EEntityStatus::SHOW_ON : EEntityStatus::SHOW_OFF;
-            ent->running_style = (*i_def)->style;
+            ent->running_shown = (*i_app)->draw_heading ? EEntityStatus::SHOW_ON : EEntityStatus::SHOW_OFF;
+            ent->running_style = (*i_app)->style;
         }
     return -1; //we could not split
 }
@@ -854,7 +877,7 @@ void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
     StringFormat format;
     format.Default();
     format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
-    parsed_label.Set(string("\\i\\bEmpty chart"), canvas, format);
+    parsed_label.Set(string("Empty chart"), canvas, format);
     const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
     const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
     const double width = parsed_label.getTextWidthHeight().x + 2*EMPTY_MARGIN_X;
@@ -1405,6 +1428,7 @@ void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
     CalculateAreaFromOuterEdge();
 }
 
+/** Calculates the `area` field from the `outer_edge` field.*/
 void CommandSymbol::CalculateAreaFromOuterEdge()
 {
     switch (symbol_type) {
@@ -1587,13 +1611,15 @@ void CommandNote::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
     height = 0;
 }
 
-Contour CommandNote::CoverBody(Canvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
+Contour CommandNote::CoverBody(const XY &center) const//places upper left corner to 0,0
 {
     _ASSERT(is_float);
     return style.read().line.CreateRectangle_Midline(center-halfsize, center+halfsize);
 }
 
-const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
+const double pointer_width_min=10; ///<The minimum width of a callout pointer at its base
+const double pointer_width_max=50; ///<The maximum width of a callout pointer at its base
+const double pointer_width_div=50; ///<The ratio of the length of a callout pointer and its width (before applying min/max)
 
 double CommandNote::pointer_width(double distance) const
 {
@@ -1611,7 +1637,7 @@ double CommandNote::pointer_width(double distance) const
     }
 }
 
-Contour CommandNote::cover_pointer(Canvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+Contour CommandNote::cover_pointer(const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
 {
     _ASSERT(is_float);
     const double l = center.Distance(pointto);
@@ -1654,10 +1680,18 @@ Contour CommandNote::cover_pointer(Canvas &/*canvas*/, const XY &pointto, const 
     return ret;
 }
 
+/** Creates an outer boundary box for a region, which is a triangle.
+ * @param outer The bounding box of the target expanded according to the region (distance). 
+ * @param center The centroid of the target 
+ * @param dir_x The horizontal position of the region (left:-1, middle:0, right: +1)
+ * @param dir_y The vertical position of the region (up:-1, middle:0, down: +1)
+ * @returns The contour of the region.
+ * */
 //dir_x is +2 at the right edge of the box searching, +1 in the right third
 //+ in the middle third, -1 in the left third and -2 along the left edge.
 //We return the region to check and also a starting point
-Contour CommandNote::GetRegionMask(const Block &outer, const XY &center, int dir_x, int dir_y)
+Contour CommandNote::GetRegionMask(const Block &outer, const XY &center, 
+                                   int dir_x, int dir_y)
 {
     XY A, B;
     const XY third(outer.x.Spans()/3, outer.y.Spans()/3);
@@ -1683,9 +1717,14 @@ Contour CommandNote::GetRegionMask(const Block &outer, const XY &center, int dir
     return Contour(A, B, center);
 }
 
-//If the user proscribed an 'at' clause, get the points on the
-//contour of the target, which can be pointer targets.
-//return empty vector if any point on the contour can do
+/** If the user proscribed an 'at' clause, get the points on the
+ * contour of the target, which can be pointer targets.
+ * These points are essentially where the entity line of the entity or
+ * the horizontal line of the marker crosses the contour of the target.
+ * Return empty vector if the user specified no `at` clause or if there 
+ * are no valid crossings - thus any point on the contour can do.
+ * This generates error messages, if there are no valid entity/marker
+ * of the given name or there is no valid crossing. */
 std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
 {
     _ASSERT(is_float);
@@ -1854,12 +1893,20 @@ double ScoreRegion(const std::pair<bool, int> &wanted_dist,
     return score;
 }
 
-void CommandNote::CoverPenalty(const XY &pointto, const XY &center, Canvas &canvas,
+/** Scores a note placement based on overlaps with other arcs.
+ * @param [in] pointto The tip of the pointer
+ * @param [in] center The center of the note
+ * @param [in] block_all The contour of all arcs in this region - any overlap with 
+ *                       these shall be penalized
+ * @param [in] block_imp The contour of the important parts of the arcs in this region - 
+ *                       any overlap with these shall be _heavily_ penalized
+ * @param cover_penalty The score we update */
+void CommandNote::CoverPenalty(const XY &pointto, const XY &center, 
                                const Contour &block_all, const Contour &block_imp,
                                score_t &cover_penalty) const
 {
     _ASSERT(is_float);
-    const Contour cov = CoverAll(canvas, pointto, center);
+    const Contour cov = CoverAll(pointto, center);
     const double cov_area = cov.GetArea();
     const double cov_target_area = (cov * target->GetAreaToNote()).GetArea();
     const double cov_sng_ratio = (cov * block_all).GetArea()/ cov_area;
@@ -1904,6 +1951,14 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, Canvas &canv
 }
 
 //tangent is a fw tangent
+/** Score a placement based on the angle the pointer hits the target.
+ * Best is a 90 degree hit. There are tricky cases, such as when we hit the target 
+ * at a vertex of its (tip of an arrowhead, for example) or at a line-end (start of an
+ * arrow). 
+ * @param [in] pointto The tip of the pointer
+ * @param [in] center The center of the note
+ * @param [in] tangent A forward tangent of the target's contour at `pointto`.
+ * @param slant_penalty The score we update */
 void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &tangent,
                                score_t &slant_penalty) const
 {
@@ -1917,8 +1972,10 @@ void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &ta
             (dev_from_90 - 30);
 }
 
-//This returns a point inside c on the p1->p2 line.
-//The point should be as inside as possible.
+/** Returns a point inside `c` on the `p1`->`p2` line. 
+ * The point should be as inside as possible, that is in the middle of the
+ * largest section on the `p1`->`p2` line that falls inside `c`. 
+ * Returns false if no suitable point found (`p1`->`p2` does not cross `c`).*/
 bool CommandNote::GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY &ret)
 {
     if (p1.test_equal(p2)) {
@@ -1934,6 +1991,10 @@ bool CommandNote::GetAPointInside(const Contour &c, const XY &p1, const XY &p2, 
     return true;
 }
 
+/** Returns a point inside a true range in `map`. 
+ * The point should be as inside as possible, that is in the middle of the
+ * largest true range. 
+ * Returns false if no suitable point found (all of `map` is false)*/
 bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
 {
     Range candidate_range(0,0); //width of 0
@@ -1955,8 +2016,10 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
     return true;
 }
 
-//This is called for notes from Msc::CompleteParse, just before PostPosProcess
-void CommandNote::PlaceFloating(Canvas &canvas)
+/** Main routine for placing a note
+ * This is called for notes from Msc::CompleteParse() via Msc::PlaceFloatingNotes(), just 
+ * before PostPosProcess(). This is a computation intensive trial-score-select routine.*/
+void CommandNote::PlaceFloating()
 {
    if (!valid) return;
     _ASSERT(is_float);
@@ -2182,7 +2245,7 @@ void CommandNote::PlaceFloating(Canvas &canvas)
                     const Contour region_block_all = block_all * arrowspace;
                     const Contour region_block_imp = block_imp * arrowspace;
 
-                    CoverPenalty(tp, center, canvas, block_all, block_imp, local_penalty);
+                    CoverPenalty(tp, center, block_all, block_imp, local_penalty);
                     if (local_penalty < penalty) continue; //futile, try next point
 
                     //Calculate final score
@@ -2326,7 +2389,7 @@ void CommandNote::PlaceFloating(Canvas &canvas)
                 //chart->DebugContours.push_back(Msc::ContourAttr(Contour(pointto,5), LineAttr(), FillAttr(ColorType(255,0,0, 50))));
                 SlantPenalty(pointto, center, tangent, local_penalty);
                 if (local_penalty < penalty) continue; //futile, try next angle
-                CoverPenalty(pointto, center, canvas, block_all, block_imp, local_penalty);
+                CoverPenalty(pointto, center, block_all, block_imp, local_penalty);
                 if (local_penalty < penalty) continue; //futile, try next angle
 
                 //Calculate final score
@@ -2377,16 +2440,18 @@ void CommandNote::PlaceFloating(Canvas &canvas)
     //is assumed to return the midline.
     halfsize.x -= style.read().line.LineWidth()/2;
     halfsize.y -= style.read().line.LineWidth()/2;
-    area = CoverAll(canvas, best_pointto, best_center);
+    area = CoverAll(best_pointto, best_center);
     area_important = area;
     chart->NoteBlockers.Append(this);
 }
 
-//return height, but place to "y" (below other notes)
-//This is called from Layout() of the target for comments
-void CommandNote::PlaceSideTo(Canvas &, AreaList *cover, double &y)
+/** Main routine to place a comment
+ * This is called from Layout() of the target via its LayoutCommentsHelper().
+ * @param cover We add the cover of this comment to this AreaList 
+ * @param y We place the comment at this vertical location, we add our height to it at return */
+void CommandNote::PlaceSideTo(AreaList *cover, double &y)
 {
-   if (!valid) return;
+    if (!valid) return;
     _ASSERT(!is_float);
     yPos = y;
     if (style.read().side.second == SIDE_LEFT)
@@ -2408,10 +2473,6 @@ void CommandNote::ShiftCommentBy(double y)
 {
     _ASSERT(!is_float);
     ArcLabelled::ShiftBy(y);
-    //if (is_float) {
-    //    pos_center.y += y;
-    //    point_to.y += y;
-    //}
 }
 
 
@@ -2421,7 +2482,7 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
     if (is_float) {
         Contour cover;
         if (style.read().note.pointer.second == NoteAttr::ARROW) {
-            cover = CoverBody(canvas, pos_center);
+            cover = CoverBody(pos_center);
             const Range r = cover.CreateExpand(style.read().line.Spacing()).Cut(point_to, pos_center);
             const double len = r.from * point_to.Distance(pos_center);
             style.read().arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
@@ -2439,7 +2500,7 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
             style.read().arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.read().line, style.read().line, &canvas);
             style.read().arrow.UnTransformCanvas(canvas);
         } else
-            cover = CoverAll(canvas, point_to, pos_center);
+            cover = CoverAll(point_to, pos_center);
         canvas.Shadow(cover.CreateExpand(style.read().line.Spacing()), style.read().shadow);
         canvas.Fill(cover.CreateExpand(-style.read().line.Spacing()), style.read().fill);
         canvas.Line(cover, style.read().line);

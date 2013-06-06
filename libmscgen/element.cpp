@@ -137,8 +137,8 @@ void Element::ShiftBy(double y)
     area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
-    for (auto c = comments.begin(); c!=comments.end(); c++)
-        (*c)->ShiftCommentBy(y);
+    for (auto c : comments)
+        c->ShiftCommentBy(y);
 }
 
 /** A helper placing comments.
@@ -149,8 +149,8 @@ void Element::ShiftBy(double y)
  */
 void Element::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r)
 {
-    for (auto c = comments.begin(); c!=comments.end(); c++)
-        (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().read().side.second == SIDE_LEFT ? l : r);
+    for (auto c : comments)
+        c->PlaceSideTo(cover, c->GetStyle().read().side.second == SIDE_LEFT ? l : r);
     comment_height = std::max(l, r);
 }
 
