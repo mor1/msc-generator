@@ -422,10 +422,8 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", 
-"lcomment.line.color", "lcomment.line.type", "lcomment.line.width", 
-"rcomment.line.color", "rcomment.line.type", "rcomment.line.width",
-"lcomment.fill.color", "lcomment.fill.color2", "lcomment.fill.gradient",
-"rcomment.fill.color", "rcomment.fill.color2", "rcomment.fill.gradient",
+"comment.line.color", "comment.line.type", "comment.line.width", 
+"comment.fill.color", "comment.fill.color2", "comment.fill.gradient",
 "angle", "classic_parallel_layout", ""};
 
 /** Names of attributes for coloring.

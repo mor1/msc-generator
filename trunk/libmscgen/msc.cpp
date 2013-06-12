@@ -80,16 +80,6 @@ double EntityDistanceMap::Query(unsigned e1, int e2) const
     return i->second;
 }
 
-//BoxSide distances are pair of distances between two neighbouring entities.
-//One is a distance on the left side of the rightmost entity (say "e"); the other
-//is a distance on the right side of the other entity (e+1). If nothing special happens,
-//these two will be added and converted to a distance between e and e+1.
-//However this distance requirement comes from inside a box and the box ends between
-//e and e+1, we will have to space the side of the box appropriately and also make this wider
-//by the thickness of the box line width and gaps.
-//This is useful for arc elements (especially entity commands) that cover multiple disjoint
-//areas (the shown entities) some of which can fall into a box around them, some of them
-//can fall outside.
 void EntityDistanceMap::InsertBoxSide(unsigned e, double l, double r)
 {
     box_side[e].push_back(std::pair<double, double>(l, r));
@@ -101,30 +91,31 @@ std::pair<double, double> EntityDistanceMap::QueryBoxSide(unsigned e, bool left)
 {
     const auto l = box_side.find(e);
     if (l == box_side.end() || l->second.size()==0) return std::pair<double, double>(0,0);
-    auto hit = l->second.begin();
-    for (auto i = l->second.begin(); i!=l->second.end(); i++)
-        if ((!left && i->second > hit->second) || (left && i->first > hit->first))
+    auto hit = *l->second.begin();
+    for (auto i : l->second)
+        if ((!left && i.second > hit.second) || (left && i.first > hit.first))
             hit = i;
-    return *hit;
+    return hit;
 }
 
-void EntityDistanceMap::CopyBoxSideToPair(double gap)
+void EntityDistanceMap::CombineBoxSideToPair(double gap)
 {
-    for (auto k = box_side.begin(); k!=box_side.end(); k++) {
+    for (const auto k : box_side) {
         double req = 0;
-        for (auto l = k->second.begin(); l!=k->second.end(); l++)
-            req = std::max(req, l->first + l->second);
-        Insert(k->first, k->first+1, req + gap);
+        for (auto l : k.second)
+            req = std::max(req, l.first + l.second);
+        Insert(k.first, k.first+1, req + gap);
     }
+    box_side.clear();
 }
 
 
 //If there is X on the right side of e1 and Y on the e1+1 entity
 //convert these to a distance of X+Y+gap between e1 and e1+1
-void EntityDistanceMap::CombineLeftRightToPair_Sum(double gap)
+void EntityDistanceMap::CombinePairedLeftRightToPair_Sum(double gap)
 {
     std::map<unsigned, double>::iterator i, j;
-    for(i=right.begin(); i!=right.end(); ) {
+    for(i=right.begin(); i!=right.end(); /*nope*/) {
         unsigned index = i->first;
         j = left.find(index+1);
         if (j == left.end()) {
@@ -176,7 +167,7 @@ void EntityDistanceMap::CombineLeftRightToPair_Max(double gap, double act_size)
 
 //If there is X on the right side of e1 and nothing on the left side of e1+1
 //or vice versa, then convert this side distance to X+gap between the two.
-void EntityDistanceMap::CombineLeftRightToPair_Single(double gap)
+void EntityDistanceMap::CombineUnPairedLeftRightToPair(double gap)
 {
     std::map<unsigned, double>::iterator i, j;
     for(i=right.begin(); i!=right.end(); ) {
@@ -203,33 +194,30 @@ void EntityDistanceMap::CombineLeftRightToPair_Single(double gap)
 
 EntityDistanceMap &EntityDistanceMap::operator +=(const EntityDistanceMap &d)
 {
-    std::map<IPair, double, IPairComp>::const_iterator pi;
-    std::map<unsigned, double>::const_iterator i;
-    for(pi=d.pairs.begin(); pi!=d.pairs.end(); pi++)
-        Insert(pi->first.first, pi->first.second, pi->second);
-    for(i=d.left.begin(); i!=d.left.end(); i++)
-        Insert(i->first, DISTANCE_LEFT, i->second);
-    for(i=d.right.begin(); i!=d.right.end(); i++)
-        Insert(i->first, DISTANCE_RIGHT, i->second);
-    for(auto b = d.box_side.begin(); b!=d.box_side.end(); b++)
-        box_side[b->first].insert(box_side[b->first].end(), b->second.begin(), b->second.end());
+    for(auto pi : d.pairs)
+        Insert(pi.first.first, pi.first.second, pi.second);
+    for(auto i : d.left)
+        Insert(i.first, DISTANCE_LEFT, i.second);
+    for(auto i : d.right)
+        Insert(i.first, DISTANCE_RIGHT, i.second);
+    for(auto b : d.box_side)
+        box_side[b.first].insert(box_side[b.first].end(), b.second.begin(), b.second.end());
+    was_activated.insert(d.was_activated.begin(), d.was_activated.end());
     return *this;
 }
 
 string EntityDistanceMap::Print()
 {
     string s;
-    std::map<unsigned, double>::iterator i;
-    std::map<IPair, double, IPairComp>::const_iterator pi;
     s << "right"<<"\n";
-    for(i=right.begin(); i!=right.end(); i++)
-        s << "  " << i->first << " " << i->second << "\n";
+    for(auto i : right)
+        s << "  " << i.first << " " << i.second << "\n";
     s << "left" << "\n";
-    for(i=left.begin(); i!=left.end(); i++)
-        s << "  " << i->first << " " << i->second << "\n";
+    for(auto i : left)
+        s << "  " << i.first << " " << i.second << "\n";
     s << "pairs"<<"\n";
-    for(pi=pairs.begin(); pi!=pairs.end(); pi++)
-        s << "  (" << pi->first.first <<"," << pi->first.second<< ") " << pi->second << "\n";
+    for(auto pi : pairs)
+        s << "  (" << pi.first.first <<"," << pi.first.second<< ") " << pi.second << "\n";
 
     return s;
 }
@@ -258,8 +246,8 @@ Msc::Msc() :
     selfArrowYSize = 12;
     headingVGapAbove = 2;
     headingVGapBelow = 2;
-    emphVGapOutside = 2;
-    emphVGapInside = 2;
+    boxVGapOutside = 2;
+    boxVGapInside = 2;
     arcVGapAbove = 0;
     arcVGapBelow = 3;
     discoVgap = 5;
@@ -319,11 +307,15 @@ Msc::~Msc()
     Arcs.Empty();    //This must be before Notes, since Element::~ will use chart->Notes
 }
 
-//return value: 0 not found
-//0: found, OK
-//2: found, but is full, whereas should be partial
-//3: found, but is partiall, whereas should be full
-//also appends elements to Arcs !!! (e.g., background)
+/** Applies a design to the chart.
+ * @param [in] full True if the design to add is a full design, else it is a partial only
+ * @param [in] name The name of the design to apply
+ * @param [in] force If true, we apply the design even though Msc::ignore_designs is true
+ * @param [out] ret An arc (a list of arcs) that should be inserted to the chart at this point  (background changes, comment line changes), or NULL if none
+ * @param [in] l The place in the input file, where the design change was proscribed.
+ * @returns 0 if design not found; 1 if found and applied or found and ignored (via ignore_designs);
+ *          2 if found and applied, but is full, whereas should be partial;
+ *          3 if found and applied, but is partiall, whereas should be full */
 int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, const FileLineColRange &l)
 {
     *ret = NULL;
@@ -348,11 +340,14 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
     if (list.size()) {
         *ret = new CommandArcList(this, &list);
         (*ret)->AddAttributeList(NULL);
+    } else {
+        *ret = NULL;
     }
     if (full == i->second.is_full) return 1;
     return full ? 3 : 2;
 }
 
+/** Returns a space delimited string of all full or partial design names.*/
 string Msc::GetDesignNames(bool full) const
 {
     string retval;
@@ -378,8 +373,7 @@ EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
         return i;
 };
 
-/* Finds an entity in AllEntities. If not found, it creates one */
-EIterator Msc::FindAllocEntity(const char *e, FileLineColRange l)
+EIterator Msc::FindAllocEntity(const char *e, const FileLineColRange &l)
 {
     if (e==NULL || e[0] == 0) {
         _ASSERT (AllEntities.Find_by_Ptr(NoEntity) != AllEntities.end());
@@ -405,9 +399,16 @@ EIterator Msc::FindAllocEntity(const char *e, FileLineColRange l)
     return ei;
 }
 
-//ei is points to AllEntities. If grouped we return its leftmost or rightmost descendant
-//which may be several groups below. If stop_at_collapsed is true, we do not go down to
-//the descendants of a collapsed entity, if false, we treat as if all entities were expanded
+/** Find the leftmost or rightmost descendant of an entity.
+ * We search for the ultimate descendant, which is not a grouped entity itself and which 
+ * may be several nested groups below.
+ * @param [in] ei An interator in AllEntities to search the descendant for. 
+ *                If  not a group entity itself is returned.
+ * @param [in] left Governs if the leftmost or rightmost descendant is searched.
+ * @param [in] stop_at_collapsed If true, we do not go down to the descendants of a 
+ *             collapsed entity, so we may return a group entity, which is collapsed or a 
+ *             non group entity. If false, we work as if all entities were expanded.
+ * @returns An inerator pointing to AllEntities. */
 EIterator Msc::FindLeftRightDescendant(EIterator ei, bool left, bool stop_at_collapsed)
 {
     while ((*ei)->children_names.size() && !(stop_at_collapsed && (*ei)->collapsed)) {
@@ -420,11 +421,13 @@ EIterator Msc::FindLeftRightDescendant(EIterator ei, bool left, bool stop_at_col
     return ei;
 }
 
-//Searches in AllEntities for the highest parent of i which is collapsed and return it
-//If no parent is collapsed, it returns i.
-//In essence it tells, which entity is shown on the chart for i
-//If i is a grouped entity which is not collapsed, it will not show, but we return it.
-//Virtual entities (NoEntity, leftside, leftnote, etc. will return themselves)
+/** Find the lowest anscestor, which is not hidden due to collapsed group entities.
+ * - If `i` is not part (child) of a group entity, we return `i`.
+ * - If `i` is part of a group and none of our parents and ancestors are collapsed, we return `i`.
+ * - If `i` is part of a group and some parents are collapsed, we return the highest, which is
+ *   collapsed (and thus is not itself hidden).
+ * In essence we return, which entity is shown on the chart for `i`.
+ * (Virtual entities (NoEntity, leftside, leftnote, etc. will return themselves.)*/
 EIterator Msc::FindActiveParentEntity(EIterator i)  
 {
     if ((*i)->parent_name.length() == 0) return i;
@@ -436,9 +439,10 @@ EIterator Msc::FindActiveParentEntity(EIterator i)
     return i; //our parent would show and is not collapsed: we show up
 }
 
-//If a parent of "ei" is collapsed, return that
-//if "ei" is an expanded group entity with no parents collapsed, return the laft/rightmost descendant
-//that shows
+/** Return a non-grouped or collapsed entity that shows for `i`.
+ * If `i` itself is a not hidden not collapsed group entity, we return
+ * either the left or rightmost descendant that is not hidden.
+ * If `i` itself does not show, we return an ascendent that does.*/
 EIterator Msc::FindWhoIsShowingInsteadOf(EIterator ei, bool left)
 {
     EIterator sub = FindActiveParentEntity(ei);
@@ -446,18 +450,20 @@ EIterator Msc::FindWhoIsShowingInsteadOf(EIterator ei, bool left)
     return FindLeftRightDescendant(sub, left, true); //a child of us shows
 }
 
-
+/** Return a comma separated list of names of the descendant entities in single quotation marks. 
+ * If `ei` is not a group entity its name is returned.
+ * The order of the descendants is a result of a depth first tree traversal. */
 string Msc::ListGroupedEntityChildren(EIterator ei) 
 {
     if ((*ei)->children_names.size() == 0) return "'" + (*ei)->name + "'";
     string s = "'";
-    for (auto i = (*ei)->children_names.begin(); i!=(*ei)->children_names.end(); i++)
-        s.append(ListGroupedEntityChildren(AllEntities.Find_by_Name(*i))).append("', '");
+    for (const auto &i : (*ei)->children_names)
+        s.append(ListGroupedEntityChildren(AllEntities.Find_by_Name(i))).append("', '");
     s.erase(s.length()-3);
     return s;
 }
 
-//Check if the entity is a grouped one. If so, return true and give an error msg
+/** Emit an error and return true if the entity is grouped. */
 bool Msc::ErrorIfEntityGrouped(EIterator ei, FileLineCol l) 
 {
     if ((*ei)->children_names.size()==0) return false;
@@ -465,17 +471,17 @@ bool Msc::ErrorIfEntityGrouped(EIterator ei, FileLineCol l)
                 "Use one of its members (" + ListGroupedEntityChildren(ei) + ") instead."); 
     return true;
 }
-
-bool Msc::IsMyParentEntity(const string &children, const string &parent)
+/** Returns true if `child` is a (not necessarily direct) descendant of `parent`*/
+bool Msc::IsMyParentEntity(const string &child, const string &parent)
 {
-    if (children == parent) return false;
-    const string myparent = (*AllEntities.Find_by_Name(children))->parent_name;
+    if (child == parent) return false;
+    const string myparent = (*AllEntities.Find_by_Name(child))->parent_name;
     if (myparent.length()==0) return false;
     if (myparent == parent) return true;
     return IsMyParentEntity(myparent, parent);
 }
 
-//Get the "pos" of the highest entity (without leftside, rightside and noentity)
+/** Get the "pos" of the highest entity (excluding virtual entities)*/
 double Msc::GetEntityMaxPos() const
 {
     double ret = -1;  //first entity will be return + 1, which will be zero 
@@ -485,7 +491,7 @@ double Msc::GetEntityMaxPos() const
     return ret;
 }
             
-//Get the "pos_exp" of the highest entity (without leftside, rightside and noentity)
+/** Get the "pos_exp" of the highest entity (excluding virtual entities)*/
 double Msc::GetEntityMaxPosExp() const
 {
     double ret = -1;  //first entity will be return + 1, which will be zero 
@@ -495,8 +501,16 @@ double Msc::GetEntityMaxPosExp() const
     return ret;
 }
             
-ArcArrow *Msc::CreateArcArrow(EArcType t, const char*s, FileLineColRange sl,
-                              const char*d, bool fw, FileLineColRange dl)
+/** Create either an ArcSelfArrow or an ArcDirArrow.
+ * @param [in] t The type of the arrow segment (dotted, double, etc.)
+ * @param [in] s The name of the source entity.
+ * @param [in] sl The place where `s` is mentioned in the input file.
+ * @param [in] d The name of the destination entity.
+ * @param [in] fw True if the arrow is defined as 's->d'; false if 'd<-s'
+ * @param [in] dl The place where `d` is mentioned in the input file.
+ * @returns The created object (with the right default style).*/
+ArcArrow *Msc::CreateArcArrow(EArcType t, const char*s, const FileLineColRange &sl,
+                              const char*d, bool fw, const FileLineColRange &dl)
 {
     if (strcmp(s,d))
         return new ArcDirArrow(t, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
@@ -516,13 +530,11 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
     return new ArcBigArrow(*arrow, Contexts.back().styles["blockarrow"]);
 }
 
-void Msc::AddArcs(ArcList *a)
-{
-    Arcs.insert(Arcs.end(), a->begin(), a->end());
-    a->clear();
-    delete a;
-}
-
+/** Creates a CommandEntity object for the two comment lines and areas.
+ * @param [in] s The new style of the comment lines and areas - only the vline and fill part will be used.
+ * @param [in] l The range of the input file, that results in the change of comment line style.
+ * @returns The returned CommandEntity will hold two EntityApp objects: one for the left and 
+ * one for the right virtual entity representing the line of the comments.*/
 CommandEntity *Msc::CEForComments(const MscStyle &s, const FileLineColRange &l)
 {
     EntityApp *led = new EntityApp(LNOTE_ENT_STR, this);
@@ -540,6 +552,11 @@ CommandEntity *Msc::CEForComments(const MscStyle &s, const FileLineColRange &l)
     return ce;
 }
 
+/** Applies a chart option 
+ * @param [in] a The attribute to add
+ * @returns An arc to be inserted to the list of arcs at this point. 
+ * These can be CommandBackground, CommandEntity (to change comment line style), or 
+ * both of them in an ArcList (for applying design changes).*/
 ArcBase *Msc::AddAttribute(const Attribute &a)
 {
     //Chart options cannot be styles
@@ -708,8 +725,10 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     return NULL;
 }
 
-//Add an attribute only if it can be part of a design. Others trigger error.
-//This is called when a design definition is in progress.
+/** Add an attribute only if it can be part of a design. 
+ * Other attributes trigger error. This is called when a design definition is in progress. 
+ * @param [in] a The attribute to add.
+ * @returns True if the attribute is recognized and added, false if not (error is generated)*/
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
     if (a.Is("numbering.append")) 
@@ -739,6 +758,8 @@ error:
     return false;
 }
 
+/** Adds the attribute names as hints to `csh`. 
+ * If `designOnly` is true, only the attributes applicable for chart designs are added.*/
 void Msc::AttributeNames(Csh &csh, bool designOnly)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
@@ -756,25 +777,19 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.width", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color2", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.gradient", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.corner", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.width", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color2", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.gradient", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.corner", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color2", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.gradient", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", HINT_ATTR_NAME));
 }
 
+/** Adds the possible attribute values for a given attribute to csh.
+ * Returns true if we have recognize the attribute*/
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"msc")) {
@@ -801,11 +816,9 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveBeginsWith(attr, "text"))
         return StringFormat::AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWith(attr, "lcomment.line") ||
-        CaseInsensitiveBeginsWith(attr, "rcomment.line"))
+    if (CaseInsensitiveBeginsWith(attr, "comment.line"))
         return LineAttr::AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWith(attr, "lcomment.fill") ||
-        CaseInsensitiveBeginsWith(attr, "rcomment.fill"))
+    if (CaseInsensitiveBeginsWith(attr, "comment.fill"))
         return FillAttr::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
@@ -899,6 +912,25 @@ string Msc::Print(int ident) const
     return s;
 }
 
+/** Perform post-parse processing on an ArcList 
+ * See the notes for the libmscgen module for a details of what it includes.
+ * @param [in] canvas The canvas that can be used to learn geometry (font sizes, etc.)
+ * @param [in] hide True if this list will get hidden due to a box around it being collapsed.
+ *                  We still post-parse process them to collect info, reflect chart options, etc.
+ * @param arcs The list to process.
+ * @param [in] resetiterators If true, we call each arc in the list with a freshly empty left
+ *                            and right iterators - thus we do not attempt to collect the left
+ *                            and right extents of the arc list. Useful only for the top level
+ *                            arclist.
+ * @param left If any element in the list touches an entity leftward than this, we update
+ *             this parameter with that entity. Used for box auto-sizing.
+ * @param right If any element in the right touches an entity leftward than this, we update
+ *              this parameter with that entity. Used for box auto-sizing.
+ * @param number This is the running value for automatic numbering. It always contain the next
+ *               number to assign.
+ * @param target Contains the arc to which a subsequent note or comment will be targeted.
+ *               Updated on return for a potential note or command after this arc list.
+*/
 void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, Element **target)
@@ -1004,6 +1036,10 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     }
 }
 
+/** Performs the post parse processing for the whole chart 
+ * See the notes for the libmscgen module for a details of what it includes.
+ * (We sort entities, determine which shows, append automatically generated 
+ * entities, and process Msc::Arcs.) */
 void Msc::PostParseProcess(Canvas &canvas)
 {
 	Progress.StartSection(MscProgress::POST_PARSE);
@@ -1841,8 +1877,7 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
 	Progress.StartSection(MscProgress::WIDTH);
     WidthArcList(canvas, Arcs, distances);
     distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
-    distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-    distances.CopyBoxSideToPair(hscaleAutoXGap);
+    distances.CombineBoxSideToPair(hscaleAutoXGap);
     
     double unit = XCoord(1);
     const double lnote_size = distances.Query(NoEntity->index, LNote->index)/unit;
@@ -1859,17 +1894,17 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         //distances.pairs starts with requiremenst between neighbouring entities
         //and continues with requirements between second neighbours, ... etc.
         //we process these sequentially
-        for (auto i = distances.pairs.begin(); i!=distances.pairs.end(); i++) {
+        for (auto i : distances.GetPairs()) {
             //Get the requirement
-            double toadd = i->second;
+            double toadd = i.second;
             //Substract the distance already there
-            for (unsigned f = i->first.first; f!=i->first.second; f++)
+            for (unsigned f = i.first.first; f!=i.first.second; f++)
                 toadd -= dist[f];
             //If there is need to increase start with the closer ones
             //and gradually move to larger ones.
             while (toadd>0)
-                toadd = MscSpreadBetweenMins(dist, i->first.first,
-                                                i->first.second, toadd);
+                toadd = MscSpreadBetweenMins(dist, i.first.first,
+                                                i.first.second, toadd);
         }
         //Now dist[i] contains the needed space on the right of entity index i
         //Consider "sideNoteGap"
@@ -2053,8 +2088,6 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     total.x.till = ceil(total.x.till);
     total.y.till = ceil(total.y.till);
 
-    yDrawing = total.y;
-
     Progress.StartSection(MscProgress::POST_POS);
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs);
@@ -2077,7 +2110,7 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     Error.Sort();
 }
 
-void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass)
+void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassType pass)
 {
     for (auto i = arcs.begin();i!=arcs.end(); i++)
         if ((*i)->GetYExtent().Overlaps(yDrawing)) {
@@ -2087,7 +2120,7 @@ void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass)
         }
 }
 
-void Msc::DrawChart(Canvas &canvas, bool pageBreaks)
+void Msc::DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks)
 {
     if (total.y.Spans() <= 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
@@ -2126,62 +2159,14 @@ void Msc::DrawChart(Canvas &canvas, bool pageBreaks)
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
-    DrawArcList(canvas, Arcs, DRAW_BEFORE_ENTITY_LINES);
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(canvas, yDrawing.from, yDrawing.till);
-    DrawArcList(canvas, Arcs, DRAW_AFTER_ENTITY_LINES);
-    DrawArcList(canvas, Arcs, DRAW_DEFAULT);
-    DrawArcList(canvas, Arcs, DRAW_AFTER_DEFAULT);
-    DrawArcList(canvas, Arcs, DRAW_NOTE);
-    DrawArcList(canvas, Arcs, DRAW_AFTER_NOTE);
-
-    /* Debug: draw Debug Shapes */
-    //for (auto i=DebugContours.begin(); i!=DebugContours.end(); i++) {
-    //    i->fill.MakeComplete();
-    //    i->line.MakeComplete();
-    //    canvas.Fill(i->area, i->fill);
-    //    canvas.Line(i->area, i->line);
-    //}
-    // End of debug */
-
-
-    /* Debug: draw entity lines 
-    cairo_set_source_rgb(cr, 0, 0, 1);
-    cairo_set_line_width(cr,2);
-    HideELinesArea.Line(cr);
-    // End of debug */
-
-    /* Debug: draw cover 
-    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
-    bitmap.FillList(AllCovers);
-    bitmap.DrawOnto(canvas.GetContext());
-    // End of debug */
-
-    /* Debug: draw float_map 
-    Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
-        original_map_imp.Fill(**i);
-    for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
-        original_map_all.Fill(**i);
-    original_map_all.DrawOnto(canvas.GetContext());
-    // End of debug */
-
-    /* Debug: draw float_map 
-    unsigned m2 = 1;
-    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
-    for (auto i = AllArcs.begin(); i!=AllArcs.end(); i++)
-        bitmap.Fill(i->second->GetNoteMap());
-    bitmap.CreateDownscale(m2).DrawOnto(canvas.GetContext(), m2);
-    Contour tri(XY(0,0), XY(50,30), XY(30,50));
-    contour::Bitmap tri_b(51,51);
-    tri_b.Fill(tri);
-    unsigned x=100, y=100;
-    if (bitmap.Position(tri_b, x, y, Contour(), 4, 100))
-        tri_b.DrawOnto(canvas.GetContext(), 1, x, y);
-    else 
-        tri.Shift(XY(100,100)).Line(canvas.GetContext());
-    // End of debug */
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_AFTER_ENTITY_LINES);
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_DEFAULT);
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_AFTER_DEFAULT);
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_NOTE);
+    DrawArcList(canvas, Arcs, yDrawing, DRAW_AFTER_NOTE);
 }
 
 void Msc::DrawPageBreaks(Canvas &canvas)
@@ -2227,13 +2212,13 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 {
     Progress.StartSection(MscProgress::DRAW);
     if (page>pageBreakData.size() || total.x.Spans()<=0) return;
+    Range yDrawing;
     if (page) {
         yDrawing.from = pageBreakData[page-1].y;
         yDrawing.till = page < pageBreakData.size() ? pageBreakData[page].y : total.y.till;
     } else
         yDrawing = total.y;
-    DrawChart(canvas, page ? false : pageBreaks);
-    yDrawing = total.y;
+    DrawChart(canvas, yDrawing, page ? false : pageBreaks);
 
     DrawHeaderFooter(canvas, page);
 }

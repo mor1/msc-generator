@@ -554,7 +554,7 @@ double EntityApp::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
-        inner = std::max(inner, GetIndiactorSize().x + 2*chart->emphVGapInside);
+        inner = std::max(inner, GetIndiactorSize().x + 2*chart->boxVGapInside);
     const double width = ceil(style.read().line.LineWidth()*2 + inner);
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
@@ -577,11 +577,11 @@ Range EntityApp::Height(Area &cover, const EntityAppList &children)
     const double x = chart->XCoord((*itr)->pos); //integer
     if (children.size()==0) {
         if ((*itr)->children_names.size() && style.read().indicator.second)
-            indicator_ypos_offset = wh.y + lw + chart->emphVGapInside;
+            indicator_ypos_offset = wh.y + lw + chart->boxVGapInside;
         else
             indicator_ypos_offset = -1;
         const double width = Width();
-        const double indicator_height = (indicator_ypos_offset > 0) ? GetIndiactorSize().y + 2*chart->emphVGapInside : 0;
+        const double indicator_height = (indicator_ypos_offset > 0) ? GetIndiactorSize().y + 2*chart->boxVGapInside : 0;
         const double height = ceil(chart->headingVGapAbove + wh.y + indicator_height + 2*lw + chart->headingVGapBelow);
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)

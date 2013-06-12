@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file msc.h The declaration of the msc class describing a chart.
+ * @ingroup libmscgen_files */
 #if !defined(MSC_H)
 #define MSC_H
 
@@ -36,51 +38,50 @@
 
 using std::string;
 
-//Name and index of the virtual entities
+/** Name of the virtual entity representing a nonexistent entity. */
 #define NONE_ENT_STR  "()"
+/** Name of the virtual entity representing the line separating the left side comments from the chart body. */
 #define LNOTE_ENT_STR "(leftside_note)"
+/** Name of the virtual entity representing the left side of the chart body (some margin away from LNOTE_ENT_STR). */
 #define LSIDE_ENT_STR "(leftside)"
+/** Name of the virtual entity representing the right side of the chart body (some margin away from RNOTE_ENT_STR). */
 #define RSIDE_ENT_STR "(rightside)"
+/** Name of the virtual entity representing the line separating the right side comments from the chart body. */
 #define RNOTE_ENT_STR "(rightside_note)"
 
+/** Name of a virtual marker representing the current vertical location. Used in verticals when one end is not specified.*/
 #define MARKER_HERE_STR "\""
+/** Name of a virtual marker representing end of the last parallel block. Used in verticals when both ends are not specified. -- This feature is currently removed.*/
 #define MARKER_PREV_PARALLEL_STR "\"\""
 
-//General gap between boxes, etc. In pos space, will be fed into XCoord().
+/** General gap between boxes, etc. In 'pos' space, will be fed into Msc::XCoord(). */
 #define GAP 0.05
-//The margin on left and right side. In pos space, will be fed into XCoord().
+/** The margin on left and right side, if no autoscale. In pos space, will be fed into XCoord().*/
 #define MARGIN 0.25
+/** The margin on left and right side, if hscale is set to auto. In pos space, will be fed into XCoord().*/
 #define MARGIN_HSCALE_AUTO 0.1
 
 /////////////////////////////////////////////////////////////
 
-/* Compress mechanism changes Height behaviour of Arcs.
- * y input parameter to DrawHeight remains unchanged meaning: the total bottom of the item
- * above. However, the object can be placed higher if
- *  -its upper mainline is still below the lower mainline of the object above
- *  -it does not overlap in any way with the object above.
- * The object is never placed lower than y input parameter.
- * (In case of overlap a warning may be thrown.)
- * Return value will not be full object height, but rather the difference between
- * the placed objects bottomline and the original y. So next y can be
- * still calculated by adding the return value to a running y counter.
- *
- * As side effect DrawHeight(draw==false) for ArcBase descendants
- *  - adds its covering blocks to input parameter Geometry
- *  - advances Geometry.mainline to its own mainline (if parallel flag is not set)
- */
 
-//Types for hscale=auto mechanism
+/** A virtual entity index, used when we represent a distance required at the left side of an entity. */
+#define DISTANCE_LEFT -1
+/** A virtual entity index, used when we represent a distance required at the right side of an entity. */
+#define DISTANCE_RIGHT -2
+
+/** A pair of entity indexes for the purpose of later association with a required distance between them.*/
 class IPair {
 public:
-    //If both first>0 and second>0 then the ipair represents a pair of entities (via indexes)
-    //first can be< in that case -1:to the left, -2:to the right of the entity represented by second
-    //In the latter case Diff() is erroneous.
-    unsigned first, second;
+    unsigned first; ///<Index of the left entity. 
+    unsigned second;///<Index of the right entity.
     IPair(unsigned e1, unsigned e2) : first(std::min(e1,e2)), second(std::max(e1,e2)) {}
+    /** Calculates the difference between the two index values*/
     unsigned Diff() const {return second-first;}
 };
 
+/** An ordering comparison object for IPair object.
+ * IPairs holding two closer entities are deemed smaller. 
+ * Of IPairs with entities of same distance, the pair leftmost is smaller.*/
 class IPairComp {
 public:
     bool operator()(const IPair ei1, const IPair ei2) const{
@@ -93,21 +94,47 @@ public:
     }
 };
 
-//Used by the hscale=auto mechanism
-#define DISTANCE_LEFT -1
-#define DISTANCE_RIGHT -2
-
+/** Stores all type of horizontal distance requirements between entities for hscale = auto. 
+ * One such object holds the collected horizontal distance requirements from a part of the
+ * chart, such as the inside of a box or the whole chart. The collected requirements
+ * in a sub-part (in a box) are processed (aggregated), used to compute box parameters
+ * (in Width() of ArcBoxSeries, for example) and then copied from to the EntityDistanceMap 
+ * for the enclosing part (another box for nested boxes or that of the whole chart).
+ *
+ * Entities are identified here by their index (an enumeration from left to right, with 
+ * zero being the NoEntity (invalid) and 1 being the virtual entity representing the 
+ * line between the leftside comments and the chart body. The largest index shall be
+ * of the virtual entity representing the line between the right side comments and the 
+ * chart body.
+ *
+ * We store several type of distance requirements
+ * - Between pairs of entities (e.g., a label on an arrow between them)
+ * - On the left or right side of entities 
+ *   (e.g., entitiy headings, box/pipe sides, arrowheads expanding beyond the entity line)
+ * - BoxSide distances are pairs of distances between two neighbouring entities.
+ *   One part of the pair is a distance on the left side of an entity (say "e"); the other
+ *   is a distance on the right side of the other entity (e+1). If nothing special happens,
+ *   these two will be added and converted to a distance between e and e+1.
+ *   However, if this distance requirement comes from inside a box and the box ends between
+ *   e and e+1, we will have to space the side of the box appropriately and also make one 
+ *   of the pair (*) wider by the thickness of the box line width and gaps (* which one will 
+ *   depend on whether the right of left side of the box falls between e and e+1).
+ *   This is useful for arc elements (especially entity commands) that cover multiple disjoint
+ *   areas (e.g., the shown entity headings) some of which can fall into a box around them, some of them
+ *   can fall outside.
+ * - Entity activation size (how wide the activation is for each entity)
+ */
 class EntityDistanceMap
 {
-public:
-    //This contains entity pairs and the distance needed between them
-    //They are not necessarily neighbouring entities
+protected:
+    /** Entity pairs and the distance needed between them.
+     * They are not necessarily neighbouring entities. */
     std::map<IPair, double, IPairComp> pairs;
     //These two contain space requirements on the left and right side of an
     //entity. These are folded into "pairs" using the CombineLeftRightToPair_*
     //functions.
-    std::map<unsigned, double> left;
-    std::map<unsigned, double> right;
+    std::map<unsigned, double> left; ///<Space requirements on the left side of entities
+    std::map<unsigned, double> right;///<Space requirements on the left side of entities
     //This contain a list of distance pairs on the right side of an entity.
     //The "first" of the pair contains a distance on the right side of the entity,
     //while the 'second" of the pair contains a distance on the left side of the next
@@ -117,138 +144,200 @@ public:
     //entity.
     //QueryBoxSide finds the list element for an entity where the left or the right
     //(second or first, resp) is the biggest.
+    /** Contains a list of side requirement pairs on the left side of an entity `e` 
+     * and onthe right side of the next entity `e+1` */
     std::map<unsigned, std::list<std::pair<double, double>>> box_side;
-    //contains a set of entities that were active at any time while this map is used
+public:
+    /** Contains a set of entities that were active at any time while this map is used */
     std::set<unsigned> was_activated;
+    /** Return the set of pairwise distances. Ordered by entity pair distance.*/
+    const std::map<IPair, double, IPairComp> &GetPairs() const {return pairs;}
 
-    //Use DISTANCE_LEFT or DISTANCE_RIGHT as second param to insert into 'left' or 'right'
-    //Use two nonnegative values (entity indexes) if you want to insert into 'pairs'
-    void Insert(unsigned, int, double);
-    double Query(unsigned, int) const;
-    void InsertBoxSide(unsigned, double, double);
+    /** Insert a new distance requirement either between two entities or on one side of an entity.
+     * @param [in] e1 Entity index.
+     * @param [in] e2 Entity index or DISTANCE_LEFT or DISTANCE_RIGHT to represent one side of e1.
+     * @param [in] d The distance to insert (pixel space).
+     * If such a distance requirement was inserted, the max of the old and new values are stored.*/
+    void Insert(unsigned e1, int e2, double d);
+    /** Get the distance stored between two entities or on the side of one.*/
+    double Query(unsigned e1, int e2) const;
+    /** Insert a box side distance pair 
+     * @param [in] e The entity we refer to.
+     * @param [in] l The distance req on the left side of `e`
+     * @param [in] r The distance req on the right side of `e+1`*/
+    void InsertBoxSide(unsigned e, double l , double r);
+    /** Returns the pair of distances for an entity where the left or the right value is greatest*/
     std::pair<double, double> QueryBoxSide(unsigned, bool left) const;
-    void CopyBoxSideToPair(double gap);
-    void ClearBoxSize() {box_side.clear();}
-    void CombineLeftRightToPair_Sum(double gap);
+    /** Aggregate and move the values in box_side to pairs. Leaves box_side empty.
+     * @param [in] gap Adds this much space to the sum of left and right distances.*/
+    void CombineBoxSideToPair(double gap);
+    /** Aggregates and moves "paired" side distances to `pair`. 
+     * If for an entity we have registered distance requirements both right of and left of 
+     * the next entity, we add these, add `gap`, insert a pairwise distance requirmenet between
+     * the two neighbouring entity and remove the two side distance requirements. All other
+     * ("unpaired") side distance requirements remain.*/
+    void CombinePairedLeftRightToPair_Sum(double gap);
+    /** Moves "unpaired" side distances to `pair`. 
+     * If for an entity we have registered distance requirements only either right of it or left of 
+     * the next entity, we add `gap` to this side distance, insert a pairwise distance requirmenet between
+     * the two neighbouring entity and remove the the side distance requirement. All other
+     * ("paired") side distance requirements remain.*/
+    void CombineUnPairedLeftRightToPair(double gap);
+    /** Aggregates and moves side distances to `pair`. Aggregation is done by taking the larger of
+     * the distance left of an entity with the distance right of the next entity, plus `gap`.
+     * In addition if the entity of the larger distance was active, we also add `act_size`.
+     * At the end no side distances will remain.*/
     void CombineLeftRightToPair_Max(double gap, double act_size);
-    void CombineLeftRightToPair_Single(double gap);
     EntityDistanceMap &operator +=(const EntityDistanceMap &d);
     string Print();
 };
 
 /////////////////////////////////////////////////////////////////////
 
+/** Holds information about one page break */
 struct PageBreakData {
-    double y;
-    bool manual;
-    CommandEntity *autoHeading;
-    double autoHeadingSize;
+    double y;                    ///<The vertical position in chart space
+    bool manual;                 ///<True if insierted by a newpage command, false if inserted via autopagination
+    CommandEntity *autoHeading;  ///<A pointer to the automatically inserted heading command. NULL if none.
+    double autoHeadingSize;      ///<The height of the automaically inserted heading. 0 if none.
     PageBreakData(double _y, bool m, CommandEntity *ce=NULL, double h=0) :
         y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetHeight() : 0) {}
 };
 
+/** The main class holding a chart 
+  (This is a non movable, non copyable object, once it has arcs in it, due to the 
+  cross-references between them.)
 
+  # Coordinate Spaces
+
+  - The pixel coordinate space (1 pixel = 1/72 inch for vector output) is the most natural. 
+    Font heights are represented in pixels. This is also called "chart coordinate space" 
+    when drawing, see the comment for Canvas.
+  - The 'pos' coordinate space, which is only used on the horizontal axis to place entities.
+    The 'pos' attribute of entities uses this. For historical purposes 1 unit of the 'pos' 
+    coordinate space is 130 pixels. The conversion is done by Msc::XCoord().
+
+  # Compress mechanism
+
+    The compress mechanism (invoked by setting compress attribute to yes)
+    changes the layout of Arcs.
+    As normally they are placed in LayoutArcList() below the arc above.
+    However, they can be placed higher if
+    - its upper mainline is still below the lower mainline of the object above
+    - it does not overlap in any way with the object(s) above.
+
+    The object is never placed lower than the bottom of the arc above.
+*/
 class Msc {
 public:
-    typedef std::pair<FileLineCol, double> MarkerType;
-    struct RefType {
-        string    number_text; // the number of the arc
-        FileLineCol linenum;     //position of the value of the "refname" attr
-        ArcBase  *arc;         // the arc or NULL if not shown (set in FinalizeLabels())
-        RefType() : arc(NULL) {}
+    /** Data we store about a marker */
+    struct MarkerData {
+        FileLineCol line; ///<Marker's location in the input file 
+        double      y;    ///<Marker's vertical position in chart space
     };
+    /** Data we store about a named arc, that can be referenced via @\r(<name>) */
+    struct RefNameData {
+        string      number_text; ///<The number of the arc in text format
+        FileLineCol linenum;     ///<Position of the value of the "refname" attribute used to name the arc
+        ArcBase    *arc;         ///<The arc or NULL if not shown (set in FinalizeLabels())
+        RefNameData() : arc(NULL) {}
+    };
+    /** Maps ranges of the input file to trackable Elements*/
     typedef std::map<FileLineColRange, Element*, file_line_range_length_compare>
             LineToArcMapType;
-    struct ContourAttr {
-        Contour     area;
-        LineAttr line;
-        FillAttr fill;
-        ContourAttr() : fill(ColorType(0,0,0,0)) {} //transparent
-        ContourAttr(const Contour &c, const LineAttr &l=LineAttr(), const FillAttr &f=FillAttr(ColorType(0,0,0,0))) : area(c), line(l), fill(f) {}
-        ContourAttr(const Contour &c, const FillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
-    };
 
-    MscProgress  Progress;
-    MscError     Error;
-    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
+    /** @name Members holding chart content (entities, arcs, definitions, etc.)
+     * @{ */
+    MscProgress                   Progress;        ///<Tracks the progress of parsing, compilation and drawing
+    MscError                      Error;           ///<Collects error and warning messages
+    unsigned                      current_file;    ///<The number of the file under parsing. Used when generating errors.*/
 
-    EntityList                    AllEntities;
-    EntityList                    ActiveEntities;
-    Entity                       *NoEntity, *LNote, *LSide, *RSide, *RNote;
-    EntityAppList                 AutoGenEntities;
-    ArcList                       Arcs;
-    std::list<Context>            Contexts;
-    std::map<string, Context>     Designs;
-    std::map<string, MarkerType>  Markers;
-    std::map<string, RefType>     ReferenceNames;
-    std::map<double, FillAttr>    Background;
-    std::string                   copyrightText;
-    LineToArcMapType              AllArcs;
-    AreaList                      AllCovers;
-    Contour                       HideELinesHere;
-    PBDataVector                  pageBreakData; /** The starting ypos of each page, one for each page. pageBreakData[0] is always 0. */
-
-    CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
-    PtrList<const Element>        NoteBlockers;   /** Ptr to all elements that may block a floating note*/
+    EntityList                    AllEntities;     ///<A list of all entities defined (in no particular order)
+    EntityList                    ActiveEntities;  ///<A list of the entities that are not hidden as part of a collapsed group entity
+    Entity                       *NoEntity;        ///<A virtual entity representing no entity. (Used as a kind of NULL pointer or end() iterator.)
+    Entity                       *LNote;           ///<A virtual entity representing the line separating the left side comments from the chart body.
+    Entity                       *LSide;           ///<A virtual entity representing the left side of the chart body (some margin away from LNote)
+    Entity                       *RSide;           ///<A virtual entity representing the right side of the chart body (some margin away from RNote)
+    Entity                       *RNote;           ///<A virtual entity representing the line separating the right side comments from the chart body. 
+    EntityAppList                 AutoGenEntities; ///<A list of entity appearance objects, one for each implicitly defined entity. After parsing, they are appended to the first EntityCommand.
+    ArcList                       Arcs;            ///<The list of all arcs in the chart (in order of definition). Notes are moved away from here in PostParseProcess().
+    std::list<Context>            Contexts;        ///<A stack of Context objects used during parsing
+    std::map<string, Context>     Designs;         ///<A set of named designs. Each one was created via a `defdesign` command, except `plain`.
+    std::map<string, MarkerData>  Markers;         ///<A set of named markers. Each one was defined via a 'mark' command.
+    std::map<string, RefNameData> ReferenceNames;  ///<A set of named arcs. Each one was named via the 'refname' attribute.
+    std::map<double, FillAttr>    Background;      ///<A map of background fill indexed by the position downward of which this fill is applicable. Each entry was created by a background.* chart option.
+    std::string                   copyrightText;   ///<The copyright text we display at the bottom of each page.
+    LineToArcMapType              AllArcs;         ///<A map of input file ranges to trackable Element objects (essentially arcs and entity headings)
+    AreaList                      AllCovers;       ///<A set of arc contours with a pointer to the arcs. Used to identify the arc covering an XY coordinate.
+    Contour                       HideELinesHere;  ///<A complex contour used as a mask when drawing entity lines.
+    PBDataVector                  pageBreakData;   ///<Starting y pos and auto-heading info for each page break. pageBreakData[0].y is always 0. 
+    CommandNoteList               Notes;           ///<All notes are moved here after PostParseProcess 
+    PtrList<const Element>        NoteBlockers;    ///<Ptr to all elements that may block a floating note and which therefore should not overlap with them
+    /** @} */
     
-    std::list<ContourAttr>        DebugContours;
-
 protected:
-    Block  total;                //Total size of the chart (minus copyright)
-    Block  drawing;              //The area where chart elements can be (total minus the side note lanes)
+    /** @name Members holding calculated information on chart geometry
+     * @{ */
+    friend class CommandEntity;
+    Block  total;                ///<Total bounding box of the chart (minus copyright), in chart space, not considering pagination.
+    Block  drawing;              ///<The area where chart elements can be (total minus the comment lanes at the side)
+    double comments_right_side;  ///<The x coordinate of the right side of the right comments (or the drawing area if no rcomments). May be different from total.x due to notes. (calculated in CalculateWidthHeight())
+    double copyrightTextHeight;  ///<The y size of the copyright text (calculated in CalculateWidthHeight())
+    double headingSize;          ///<Y size of first heading row (collected during PostPosProcess())
+    /** @} */
+
 public:
+    /** Returns the total bounding box of the chart (minus copyright), in chart space, not considering pagination.*/
     const Block &GetTotal() const {return total;}
+    /** Returns the area where chart elements can be (total minus the comment lanes at the side)*/
     const Block &GetDrawing() const {return drawing;}
-    double comments_right_side;  //the right side of comments (or the drawing area if no rcomments)
-    double copyrightTextHeight;  //Y size of the copyright text calculated
-    double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
-    Range yDrawing;              //Restrict drawing to this range
+    /** Returns the x coordinate of the right side of the right comments 
+     * (or the drawing area if no rcomments). May be different from total.x due to notes. */
+    double GetCommentsRightSide() const {return comments_right_side;}  
+    /** Returns the y size of the copyright text */
+    double GetCopyrightTextHeight() const {return copyrightTextHeight;}
+    /** Returns the Y coordinate of the bottom of the top entity headings (for AutoSplit)*/
+    double GetHeadingSize() {return headingSize;}
 
-    //These below should have an integer value for nice drawing
-    /** Gap at the bottom of the page for lengthening entity lines */
-    double chartTailGap;
-    /** Self Pointing arc Y size. */
-    double selfArrowYSize;
-    /** Vertical gap above and below headings */
-    double headingVGapAbove, headingVGapBelow;
-    /** Vertical gap above and below emph boxes */
-    double emphVGapOutside, emphVGapInside;
-    /** Vertical gap above and below arcs */
-    double arcVGapAbove, arcVGapBelow;
-    /* How much extra space above and below a discontinuity line (...) */
-    double discoVgap;
-    /* How much extra space above and below a title */
-    double titleVgap, subtitleVgap;
-    /** Nudge size */
-    double nudgeSize;
-    /** The width of entity activation bars **/
-    double activeEntitySize;
-    /** Size of gap at compress. We expand by half of it */
-    double compressGap;
-    /** Size of gap at hscale=auto */
-    double hscaleAutoXGap;
-    /* Gap between the side note line and the comments */
-    double sideNoteGap;
-    /* Width of the frames used for tracking boxes on screen */
-    double trackFrameWidth;
-    /* How much do we expand tracking covers */
-    double trackExpandBy;
+    /** @name Members defining various spacing values.
+     * These should have an integer value for nice drawing on bitmaps.
+     * @{ */    
+    
+    double chartTailGap;     ///<Gap at the bottom of the page for lengthening entity lines 
+    double selfArrowYSize;   ///<Self Pointing arc Y size. 
+    double headingVGapAbove; ///<Vertical gap above headings 
+    double headingVGapBelow; ///<Vertical gap below headings 
+    double boxVGapOutside;   ///<Vertical gap above and below boxes 
+    double boxVGapInside;    ///<Vertical gap inside boxes 
+    double arcVGapAbove;     ///<Vertical gap above and below arcs 
+    double arcVGapBelow;     ///<Vertical gap above and below arcs 
+    double discoVgap;        ///<How much extra space above and below a discontinuity line (...) 
+    double titleVgap;        ///<How much extra space above and below a title 
+    double subtitleVgap;     ///<How much extra space above and below a subtitle     
+    double nudgeSize;        ///<Size of the `nudge` command
+    double activeEntitySize; ///<The width of entity activation bars 
+    double compressGap;      ///<Size of gap we keep between elements at compress. We expand by half of it 
+    double hscaleAutoXGap;   ///<Size of horizontal gap between elements at hscale=auto     
+    double sideNoteGap;      ///<Gap between the side comment line and the comments     
+    double trackFrameWidth;  ///<Width of the frames used for tracking boxes and pipes on screen 
+    double trackExpandBy;    ///<How much do we expand tracking covers 
+    /** @} */
 
-    /* Parse Options */
-    bool pedantic;   /* if we require pre-defined entities. */
-    bool ignore_designs; /* ignore design changes */
-    bool simple_arc_parallel_layout; /* if false, we use Msc::HeightArcLists() to lay out ArcParallel*/
-    bool prepare_for_tracking; /* If true, all elements shall compute an 'area' member, we fill 'AllCovers' and 'AllArcs'.*/
-
-    //Collapse/Expand instructions from and feedback to the GUI
-    EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
-    ArcSignatureCatalog   force_box_collapse;    //These boxes must be collapsed/expanded
-    ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
+    /** @name Parse Options 
+     * @{ */
+    bool pedantic;                   ///<If we require pre-defined entities. 
+    bool ignore_designs;             ///<Ignore design changes
+    bool simple_arc_parallel_layout; ///<If false, we use Msc::HeightArcLists() to lay out ArcParallel*/
+    bool prepare_for_tracking;       ///<If true, all elements shall compute an 'area' member, we fill 'AllCovers' and 'AllArcs'. 
+       
+    EntityCollapseCatalog force_entity_collapse;      ///<These entities must be collapsed/expanded
+    ArcSignatureCatalog   force_box_collapse;         ///<These boxes must be collapsed/expanded
+    ArcSignatureCatalog   force_box_collapse_instead; ///<After parsing, this holds an updated version of the box collapse/expanded instructions (removing nonexistent boxes, etc)
+    /** @} */
 
     Msc();
-    ~Msc();
+    virtual ~Msc();
 
-    void AddStandardDesigns(void);
     int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const FileLineColRange &l = FileLineColRange(FileLineCol(0,0,0), FileLineCol(0,0,0)));
     string GetDesignNames(bool full) const;
 
@@ -258,31 +347,43 @@ public:
     static void AttributeNames(Csh &csh, bool designOnly);
     static bool AttributeValues(const std::string attr, Csh &csh);
 
+    /** Return the entity with the smaller (min=true) or larger (min=false) `pos` value*/
     EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;
+    /** Return the entity with the smaller `pos` value*/
     EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
+    /** Return the entity with the larger `pos` value*/
     EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
-    EIterator FindAllocEntity(const char *, FileLineColRange);
+    /** Finds entity named `e` (mentioned at `l` inthe source file in AllEntities. 
+     * If not found, it creates one. */
+    EIterator FindAllocEntity(const char *e, const FileLineColRange &l);
     EIterator FindLeftRightDescendant(EIterator, bool left, bool stop_at_collapsed);
     EIterator FindActiveParentEntity(EIterator);
     EIterator FindWhoIsShowingInsteadOf(EIterator, bool left);
     string ListGroupedEntityChildren(EIterator ei);
     bool ErrorIfEntityGrouped(EIterator, FileLineCol l);
-    bool IsMyParentEntity(const string &children, const string &parent);
+    bool IsMyParentEntity(const string &child, const string &parent);
     double GetEntityMaxPos() const;
     double GetEntityMaxPosExp() const;
+    /** True if `e` is one of NoEntity, LSide, LNote, RSide or RNote.*/
     bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote;}
-    void AddArcs(ArcList *a);
-    ArcArrow *CreateArcArrow(EArcType t, const char*s, FileLineColRange sl,
-                             const char*d, bool fw, FileLineColRange dl);
+    /** Moves the contents of `a` to the end of the arc list of the chart*/
+    void AddArcs(ArcList *a) {if (!a) return; Arcs.splice(Arcs.end(), *a); delete a;}
+    ArcArrow *CreateArcArrow(EArcType t, const char*s, const FileLineColRange &sl,
+                             const char*d, bool fw, const FileLineColRange &dl);
+    /** Create a block arrow from an arrow. Returns null, emits an error if not possible*/
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
+    /** Push a new context to the context stack. 
+        If `empty` is true, an empty context is pushed (no styles, colors, etc.), if false, the top context is duplicated*/
     void PushContext(bool empty=false);
+    /** Pop the top context. May return arcs to be appended as a result (CommandNumbering)*/
     ArcBase *PopContext();
 
+    /** Parse a piece of input text as a new input file.*/
     void ParseText(const char *input, const char *filename);
-
     void PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, Element **note_target);
     void PostParseProcess(Canvas &canvas);
+    /** Call FinalizeLabels() for each element in `arcs*/
     template <typename list> void FinalizeLabelsArcList(list &arcs, Canvas &canvas);
 
     EDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, EDirType dir=MSC_DIR_INDETERMINATE) const;
@@ -325,8 +426,8 @@ public:
     void DrawEntityLines(Canvas &canvas, double y, double height)
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
-    void DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass);
-    void DrawChart(Canvas &canvas, bool pageBreaks);
+    void DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassType pass);
+    void DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks);
 
     void DrawCopyrightTextAndAutoHeading(Canvas &canvas, unsigned page=0);
     void DrawPageBreaks(Canvas &canvas);
@@ -357,9 +458,9 @@ void MscParse(Msc &msc, const char *buff, unsigned len);
 template <typename list>
 void Msc::FinalizeLabelsArcList(list &arcs, Canvas &canvas)
 {
-	for (auto i=arcs.begin(); i!=arcs.end(); i++) {
-		(*i)->FinalizeLabels(canvas);
-		Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->myProgressCategory);
+	for (auto i : arcs) {
+		i->FinalizeLabels(canvas);
+		Progress.DoneItem(MscProgress::FINALIZE_LABELS, i->myProgressCategory);
 	}
 }
 
