@@ -319,7 +319,7 @@ public:
      * @param m The name of the entity (can be NULL when omitted by user)
      * @param ml The location of the name in the input file.
      * @param l The location of the whole added segment (for error messages)*/
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l) = 0;
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l) = 0;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -344,9 +344,9 @@ protected:
     mutable double dx;     ///<Calculated right side of label
     mutable double src_act;///<Activation offset of entity 'src' at the arrow. 0 if not active.
 public:
-    ArcSelfArrow(EArcType t, const char *s, FileLineColRange sl,
+    ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl,
         Msc *msc, const StyleCoW &, double ys);
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -397,11 +397,11 @@ public:
      * @param msc The char we add the arrow to
      * @param fw True if declared as a->b and false if b<-a
      * @param st The style to apply*/
-    ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
-        const char *d, FileLineColRange dl, Msc *msc, bool fw, const StyleCoW &st);
+    ArcDirArrow(EArcType t, const char *s, const FileLineColRange &sl,
+        const char *d, const FileLineColRange &dl, Msc *msc, bool fw, const StyleCoW &st);
     /** Constructor used to convert a collapsed ArcBox to an ArcBigArrow*/
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
     virtual void AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -496,9 +496,9 @@ struct VertXPos {
     double offset;            ///<An arbitrary user specified horizontal offset on top of the poition defined by `pos`
 
     /** Create a position with 2 entities (always POS_CENTER) */
-    VertXPos(Msc&m, const char *e1, FileLineColRange e1l, const char *e2, FileLineColRange e2l, double off=0);
+    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, const char *e2, const FileLineColRange &e2l, double off=0);
     /** Create a position with one entity (must not be POS_CENTER) */
-    VertXPos(Msc&m, const char *e1, FileLineColRange e1l, EPosType p=POS_AT, double off=0);
+    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, EPosType p=POS_AT, double off=0);
     /** Create (yet) invalid object */
     explicit VertXPos(Msc&m);
     /** Calculate the x coordinate of the middle of the element we specify the location for (only after entities are placed) 
@@ -524,7 +524,7 @@ protected:
 public:
     /** Regular constructor with two marker names (one can be NULL)*/
     ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
-    ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
+    ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
     /** Add the parsed horizontal position (starting with the AT keyword) */
     ArcVerticalArrow* AddXpos(VertXPos *p);
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
@@ -567,8 +567,8 @@ protected:
     mutable double y_text;              ///<Top boundary of label
     mutable Contour text_cover;         ///<Area covered by the label
 public:
-    ArcBox(EArcType t, const char *s, FileLineColRange sl,
-        const char *d, FileLineColRange dl, Msc *msc);
+    ArcBox(EArcType t, const char *s, const FileLineColRange &sl,
+        const char *d, const FileLineColRange &dl, Msc *msc);
     virtual bool CanBeNoted() const {return true;}
     virtual const ArcSignature* GetSignature() const;
     ArcBox* AddArcList(ArcList*l);

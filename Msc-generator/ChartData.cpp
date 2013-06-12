@@ -554,19 +554,19 @@ unsigned CDrawingChartData::GetPages() const
 CSize CDrawingChartData::GetSize(unsigned page) const
 {
     const Msc &msc = *GetMsc();
-    CSize ret(int(msc.GetTotal().x.Spans()), int(msc.copyrightTextHeight));
+    CSize ret(int(msc.GetTotal().x.Spans()), int(msc.GetCopyrightTextHeight()));
     if (page==0) 
-        ret.cy = int(msc.GetTotal().y.Spans() + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y.Spans() + msc.GetCopyrightTextHeight());
     else if (page < msc.pageBreakData.size()) 
         ret.cy = int(msc.pageBreakData[page].y - 
                      msc.pageBreakData[page-1].y + 
                      msc.pageBreakData[page-1].autoHeadingSize +
-                     msc.copyrightTextHeight);
+                     msc.GetCopyrightTextHeight());
     else if (page >= msc.pageBreakData.size()) 
         ret.cy = int(msc.GetTotal().y.till - 
                      msc.pageBreakData[page-1].y + 
                      msc.pageBreakData[page-1].autoHeadingSize +
-                     msc.copyrightTextHeight);
+                     msc.GetCopyrightTextHeight());
     return ret;
 }
 
@@ -603,7 +603,7 @@ Block CDrawingChartData::GetNetPageBlock() const
 double CDrawingChartData::GetHeadingSize() const
 {
     if (m_page<=1 || m_page > GetMsc()->pageBreakData.size())
-        return GetMsc()->headingSize - GetMsc()->GetTotal().x.from;
+        return GetMsc()->GetHeadingSize() - GetMsc()->GetTotal().x.from;
     return GetMsc()->pageBreakData[m_page-1].autoHeadingSize;
 }
 

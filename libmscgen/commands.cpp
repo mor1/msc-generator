@@ -521,7 +521,7 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
             //find leftmost and rightmost active entity 
             //and expand us by linewidth and space
             const EIterator j_ent = (*i)->itr;
-            double expand = chart->emphVGapInside + (*i)->style.read().line.LineWidth();
+            double expand = chart->boxVGapInside + (*i)->style.read().line.LineWidth();
             (*i)->left_ent = chart->FindWhoIsShowingInsteadOf(j_ent, true);
             (*i)->right_ent= chart->FindWhoIsShowingInsteadOf(j_ent, false);
             (*i)->left_offset = dist[(*(*i)->left_ent)->index].first += expand; 
@@ -823,12 +823,12 @@ CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
     auto i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
 		chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
-        chart->Error.Error(i->second.first,  ml.start, "Location of previous definition.");
+        chart->Error.Error(i->second.line,  ml.start, "Location of previous definition.");
         valid = false;
         return;
     }
-    chart->Markers[name].first = ml.start;
-    chart->Markers[name].second = -1001;
+    chart->Markers[name].line = ml.start;
+    chart->Markers[name].y = -1001;
     offset = 0;
 }
 
@@ -863,7 +863,7 @@ void CommandMark::ShiftBy(double y)
 {
     if (!valid) return;
     ArcCommand::ShiftBy(y);
-    chart->Markers[name].second = yPos+offset;
+    chart->Markers[name].y = yPos+offset;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1261,7 +1261,7 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterato
     *target = this;
     if (!valid) return NULL;
     if (vpos.src.length()) {
-        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.src);
+        std::map<string, Msc::MarkerData>::const_iterator i = chart->Markers.find(vpos.src);
         if (i == chart->Markers.end()) {
             chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.src + "'."
                 " Ignoring symbol.");
@@ -1269,7 +1269,7 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterato
         }
     }
     if (vpos.dst.length()) {
-        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.dst);
+        std::map<string, Msc::MarkerData>::const_iterator i = chart->Markers.find(vpos.dst);
         if (i == chart->Markers.end()) {
             chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.dst + "'."
                 " Ignoring symbol.");
@@ -1409,9 +1409,9 @@ void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
     if (vpos.src.length())
-        outer_edge.y.from = chart->Markers.find(vpos.src)->second.second;
+        outer_edge.y.from = chart->Markers.find(vpos.src)->second.y;
     if (vpos.dst.length())
-        outer_edge.y.till = chart->Markers.find(vpos.dst)->second.second;
+        outer_edge.y.till = chart->Markers.find(vpos.dst)->second.y;
 
     if (vpos.src.length()==0)
         outer_edge.y.from = outer_edge.y.till - ysize.second;
@@ -1741,7 +1741,7 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
         if (mi != chart->Markers.end()) {
             chart->Error.Warning(point_toward_pos.start, "You have specified both an entity and a marker with the name '" + point_toward + "'. I use the entity here.");
             chart->Error.Warning((*ei)->file_pos, point_toward_pos.start, "Place of the entity definition.");
-            chart->Error.Warning(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
+            chart->Error.Warning(mi->second.line, point_toward_pos.start, "Place of the marker definition.");
         }
         ret.resize(2);
         const double x = chart->XCoord((*ei)->pos);
@@ -1760,7 +1760,7 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
     } 
     //now we must have a valid marker in "mi"
     ret.resize(2);
-    const double y = mi->second.second;
+    const double y = mi->second.y;
     const Range x = target->GetAreaToNote().GetBoundingBox().x;
     const Edge e(XY(x.from-1, y), XY(x.till+1, y));
     const Range r = target->GetAreaToNote().CutWithTangent(e, ret[0], ret[1]);
@@ -1769,7 +1769,7 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
         if (r2.IsInvalid()) {
             chart->Error.Error(point_toward_pos.start, "Marker '" + point_toward + "' is not level with the target of the note. Ignoring the 'at' clause.");
             chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
-            chart->Error.Error(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
+            chart->Error.Error(mi->second.line, point_toward_pos.start, "Place of the marker definition.");
             ret.clear();
             }
     }
@@ -2460,7 +2460,7 @@ void CommandNote::PlaceSideTo(AreaList *cover, double &y)
                                   yPos);
     else 
         area = parsed_label.Cover(chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, 
-                                  chart->comments_right_side-chart->sideNoteGap, 
+                                  chart->GetCommentsRightSide()-chart->sideNoteGap, 
                                   yPos);
     area.arc = this;
     height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
@@ -2519,7 +2519,7 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
         return;
     case SIDE_RIGHT:
         parsed_label.Draw(canvas, chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, 
-                          chart->comments_right_side - chart->sideNoteGap, 
+                          chart->GetCommentsRightSide() - chart->sideNoteGap, 
                           yPos);
         return;
     }
