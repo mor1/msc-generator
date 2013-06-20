@@ -62,6 +62,16 @@ enum ETriState {no=0, yes, invert};
 #define ESCAPE_CHAR_NUMBERFORMAT ((char)2)
 /** Same as ESCAPE_CHAR_NUMBERFORMAT, but in string*/
 #define ESCAPE_STRING_NUMBERFORMAT "\x02"
+/** Escape character representing a soft new line (a line break in the input file).
+ * Preceeded by backslash.*/
+#define ESCAPE_CHAR_SOFT_NEWLINE ((char)3)
+/** Same as ESCAPE_CHAR_SOFT_NEWLINE, but in string*/
+#define ESCAPE_STRING_SOFT_NEWLINE "\x03"
+/** Escape character representing a word_wrap status
+ * Preceeded by backslash, followed by a + or a - character.*/
+#define ESCAPE_CHAR_WORD_WRAP ((char)4)
+/** Same as ESCAPE_CHAR_WORD_WRAP, but in string*/
+#define ESCAPE_STRING_WORD_WRAP "\x04"
 
 bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p);
 
@@ -97,6 +107,8 @@ class StringFormat {
     std::pair<bool, double>      normalFontSize;    ///<The height of normal-sized font. Not set if `first` is false.
     std::pair<bool, double>      smallFontSize;     ///<The height of small, superscript and subscript font. Not set if `first` is false.
 
+    std::pair<bool, bool>        word_wrap;         ///<If true, this label shall be word wrapped
+
     mutable cairo_font_extents_t smallFontExtents;  ///<Cached extent of small fonts.
     mutable cairo_font_extents_t normalFontExtents; ///<Cached extent of normal-sized fonts.
     void ApplyFontTo(Canvas &) const;
@@ -110,6 +122,7 @@ class StringFormat {
         REFERENCE,     ///<A reference to another element "\r(xxx)"
         NON_ESCAPE,    ///<Literal text, not an escape
         LINE_BREAK,    ///<A line break "\n"
+        SOFT_LINE_BREAK,///<A soft line break (a newline in input file of a colon label)
         NUMBERING,     ///<A reference to the number of this label "\N"
         NUMBERING_FORMAT, ///<A replacement for a numbering format token (such as "abc" or "roman")
         SOLO_ESCAPE    ///<A single backslash "\"
@@ -144,6 +157,7 @@ class StringFormat {
     /** True if all attributes of text formatting is specified.*/
     bool IsComplete() const;
     void Default();
+    void UnsetWordWrap() {word_wrap.first = true; word_wrap.second = false;}
 
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad 
@@ -210,17 +224,18 @@ class StringFormat {
 class ParsedLine {
     friend class Label;
 protected:
-    StringFormat startFormat;       ///<The starting format valid at the beginning of the line
-    string     line;                ///<The text of the line (may contain escape sequences, but not \n)
-    double     width;               ///<The pre-computed width of the line in pixels
-    double     heightAboveBaseLine; ///<The pre-computed height of the line in pixels above the baseline
-    double     heightBelowBaseLine; ///<The pre-computed height of the line in pixels below the baseline
+    StringFormat startFormat;        ///<The starting format valid at the beginning of the line
+    string       line;               ///<The text of the line (may contain escape sequences, but not \n nor ESCAPE_CHAR_SOFT_NEWLINE)
+    double       width;              ///<The pre-computed width of the line in pixels
+    double       heightAboveBaseLine;///<The pre-computed height of the line in pixels above the baseline
+    double       heightBelowBaseLine;///<The pre-computed height of the line in pixels below the baseline
+    bool         hard_new_line;      ///<True if this line is terminated by a hard new line ("\n" escape)
 public:
     /** Creates a parsed line from a string.
      * We also specify a canvas to be used at calculating the geometry
      * and a starting format. The latter contains the formatting at the
      * end of the line. We pre-parse the text and determine geometry.*/
-    ParsedLine(const string&, Canvas &, StringFormat &sf);
+    ParsedLine(const string&, Canvas &, StringFormat &sf, bool h);
     /** Converts the line to an escape-free string*/
     operator std::string() const;
     /** Draws the line to a canvas.
@@ -238,17 +253,20 @@ class Label : public std::vector<ParsedLine>
 {
     using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
+    using std::vector<ParsedLine>::clear;
+    using std::vector<ParsedLine>::swap;
 protected:
+    double first_line_extra_spacing; ///<Extra spacing to add after first line (for arrow width). Must survive a reflow.
     /** Helper to determine cover & to draw*/
     void CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
 public:
     /** Creates a Label from a string.
      * We also specify a canvas to be used at calculating the geometry
      * and a starting format. We pre-parse the text and determine geometry.*/
-    Label(const string &s, Canvas &c , const StringFormat &f)
-        {Set(s,c,f);}
+    Label(const string &s, Canvas &c , const StringFormat &f) 
+        : first_line_extra_spacing(0) {Set(s,c,f);}
     /** Creates an empty label*/
-    Label() {}
+    Label() : first_line_extra_spacing(0) {}
 
     /** Set the content.
      * Split a string to substrings based on '\n' delimiters. 
@@ -256,12 +274,24 @@ public:
      * determine geometry (width and height of each line and in total).
      * @param [in] s The (potentially multi-line) text (potentially with escapes) to set to.
      * @param c The canvas to use to determine geometry.
-     * @param [in] f The starting text format.*/
+     * @param [in] f The starting text format.
+     * @returns the number of lines in the label.*/
     unsigned Set(const string &s, Canvas &c, StringFormat f);
-    /** Add extra spacing below a line */
-    void AddSpacing(unsigned line, double spacing);
+    /** Add extra spacing below the first line 
+     * This space remains even after a reflow. */
+    void AddSpacingAfterFirstLine(double spacing) {first_line_extra_spacing += spacing;}
     /** Converts the line to an escape-free string*/
     operator std::string() const;
+    /** Reflows the text top fit a box of x width.
+     * Honours hard line breaks, but not soft ones.
+     * returns if there was an ovefull event or not */
+    bool Reflow(Canvas &c, double x);
+    /** Return the width requirement of the label.
+     * If word_wrap is off, this is the width of the label.
+     * If it is on, it is the second parameter */
+    double getSpaceRequired(double def, int line = -1) const;
+    /** Returns true if word wrapping is enabled for this label */
+    bool IsWordWrap() const {if (size()==0) return false; return at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second;} 
 
     /** Return the size of a line of text. 
      * @param [in] line The number of the line starting from 0. If -1 we return the total size of all lines.*/

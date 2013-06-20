@@ -80,15 +80,18 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
         int end_line   = old_pos;
         int start_line = old_pos;
         //find the end of the line
-        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13) end_line++;
+        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13) 
+            end_line++;
         //store the ending char to later see how to proceed
         char ending = s[end_line];
         //skip over the heading whitespace at the beginning of the line
-        while (s[start_line]==' ' || s[start_line]=='\t') start_line++;
+        while (s[start_line]==' ' || s[start_line]=='\t') 
+            start_line++;
         //find the last non-whitespace in the line
         int term_line = end_line-1;
         //term_line can be smaller than start_line here if line is empty
-        while (term_line>=start_line && (s[term_line]==' ' || s[term_line]=='\t')) term_line--;
+        while (term_line>=start_line && (s[term_line]==' ' || s[term_line]=='\t'))
+            term_line--;
         //Generate a \l(file,line,col) escape and append
         FileLineCol pos(file_no, loc->last_line,
                       loc->last_column + (start_line-old_pos));
@@ -118,14 +121,16 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
             }
         }
         //We may have copied spaces before the comment, we skip those
-        while (ret.length()>0 && (ret[ret.length()-1]==' ' || ret[ret.length()-1]=='\t')) ret.erase(ret.length()-1);
+        while (ret.length()>0 && (ret[ret.length()-1]==' ' || ret[ret.length()-1]=='\t')) 
+            ret.erase(ret.length()-1);
         //if ending was a null we are done with processing all lines
         if (!ending) {
             loc->last_column += (end_line - old_pos) -1;
             break;
         }
-        //append "\n" escape for msc-generator, but only if not an empty first line
-        //append "\\n" if line ended with odd number of \s
+        //append ESCAPE_CHAR_SOFT_NEWLINE escape for msc-generator, 
+        //but only if not an empty first line
+        //append "\" + ESCAPE_CHAR_SOFT_NEWLINE if line ended with odd number of \s
         if (!emptyLine || loc->first_line != loc->last_line) {
             //add a space for empty lines, if line did not contain a comment
             if (emptyLine && !wasComment )
@@ -135,7 +140,7 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
             while (pp>=0 && ret[pp]=='\\') pp--;
             //if odd, we insert an extra '\' to keep lines ending with \s
             if ((ret.length()-pp)%2==0) ret += '\\';
-            ret += "\\n";
+            ret += "\\" ESCAPE_STRING_SOFT_NEWLINE;
         }
         //Check for a two character CRLF, skip over the LF, too
         if (ending == 13 && s[end_line+1] == 10) end_line++;

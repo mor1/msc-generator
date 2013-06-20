@@ -67,7 +67,7 @@ public:
         TINY_EFFORT,
         EMPTY,
         SYMBOL,
-        COMMENT,
+        COMMENT,  //includes endnotes
         NOTE,
         REMAINDER,
         MAX_CATEGORY

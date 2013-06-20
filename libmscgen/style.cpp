@@ -22,13 +22,22 @@
 
 #include "msc.h"
 
+/** Returns true if value `v` is valid for side type `t` */
+bool IsValidSideValue(ESideType t, ESide v) 
+{
+    return ((v==ESide::LEFT || v==ESide::RIGHT) && (t==ESideType::ANY || t==ESideType::LEFT_RIGHT)) ||
+                                                     (v==ESide::END && t==ESideType::ANY);
+}
+
+
 /** Create an empty style that contains all possible attributes.*/
 MscStyle::MscStyle(EStyleType tt) : type(tt)
 {
     f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
-    f_solid=f_numbering=f_compress=f_side=f_indicator=true;
+    f_solid=f_numbering=f_compress=f_indicator=true;
     f_makeroom=f_note=true;
     f_arrow=ArrowHead::ANY;
+    f_side = ESideType::ANY;
     Empty();
 }
 
@@ -50,7 +59,7 @@ MscStyle::MscStyle(EStyleType tt) : type(tt)
  * @param [in] n True if the style shall contain note attributes.
  */
 MscStyle::MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
-                   bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n) :
+                   bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n) :
     arrow(a), type(tt), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
     f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
     f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a)
@@ -81,8 +90,8 @@ void MscStyle::MakeCompleteButText()
     //text untouched
     solid.first=f_solid;
     solid.second = 128;
-    side.first = f_side;  
-    side.second = SIDE_RIGHT;
+    side.first = f_side != ESideType::NO;  
+    side.second = ESide::RIGHT;
     numbering.first = f_numbering;
     numbering.second = false;
     compress.first = f_compress;
@@ -125,7 +134,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_text && f_text) text += toadd.text;
     if (toadd.f_arrow!=ArrowHead::NONE && f_arrow!=ArrowHead::NONE) arrow += toadd.arrow;
     if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
-    if (toadd.f_side && f_side && toadd.side.first) side = toadd.side;
+    if (toadd.f_side != ESideType::NO && toadd.side.first && IsValidSideValue(f_side, toadd.side.second)) side = toadd.side;
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
     if (toadd.f_indicator && f_indicator && toadd.indicator.first) indicator = toadd.indicator;
@@ -135,8 +144,8 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
 }
 
 /** Possible values for the 'side' attribute.*/
-template<> const char EnumEncapsulator<ESideType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "left", "right", ""};
+template<> const char EnumEncapsulator<ESide>::names[][ENUM_STRING_LEN] =
+    {"invalid", "left", "right", "end", ""};
 
 
 /** Apply an attribute to us.
@@ -192,17 +201,20 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         a.InvalidValueError("0..1' or '0..255", msc->Error);
     }
-    if (a.Is("side") && f_side) {
+    if (a.Is("side") && f_side != ESideType::NO) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
                 side.first = false;
             return true;
         }
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, side.second)) {
-            side.first = true;
-            return true;
-        }
-        a.InvalidValueError(CandidatesFor(side.second), msc->Error);
+        ESide tmp_side;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, tmp_side)) 
+            if (IsValidSideValue(f_side, tmp_side)) {
+                side.first = true;
+                side.second = tmp_side;
+                return true;
+            }
+        a.InvalidValueError(f_side == ESideType::LEFT_RIGHT ? "left/right" : "left/right/end", msc->Error);
         return true;
     }
     if (a.Is("compress") && f_compress) {
@@ -270,7 +282,7 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_text) StringFormat::AttributeNames(csh);
     if (f_solid) 
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
-    if (f_side)
+    if (f_side != ESideType::NO)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", HINT_ATTR_NAME));
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", HINT_ATTR_NAME));
@@ -287,23 +299,27 @@ void MscStyle::AttributeNames(Csh &csh) const
 bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
-    const ESideType t = (ESideType)(int)p;
+    const ESide t = (ESide)(int)p;
+    XY bounds(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y);
+    if (t==ESide::END) bounds.SwapXY();
     std::vector<double> xPos(2); 
-    xPos[0] = t==SIDE_LEFT ? 0 : HINT_GRAPHIC_SIZE_X*0.3;
-    xPos[1] = t==SIDE_LEFT ? HINT_GRAPHIC_SIZE_X*0.7 : HINT_GRAPHIC_SIZE_X;
+    xPos[0] = 0;
+    xPos[1] = bounds.x*0.7;
     LineAttr eLine(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
-    canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += ColorType(0,32,192); //blue-green
-    ah.endType.second =   t==SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
-    ah.startType.second = t!=SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
+    ah.endType.second = MSC_ARROW_SOLID;
+    ah.startType.second = MSC_ARROW_NONE;
     ah.size.second = MSC_ARROWS_INVALID;
     ShadowAttr shadow;
-    FillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
+    FillAttr fill(ah.line.color.second.Lighter(0.7), t==ESide::RIGHT ? GRADIENT_DOWN : GRADIENT_UP);
     std::vector<double> active(2,0.);
-    ah.BigCalculateAndDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, 
+    canvas->Transform_Rotate(bounds/2, t==ESide::LEFT ? 0 : t==ESide::RIGHT ? M_PI : M_PI/2);
+    canvas->Clip(XY(bounds.x*0.1,1), XY(bounds.x-1, bounds.y-1));
+    ah.BigCalculateAndDraw(xPos, active, bounds.y*0.3, bounds.y*0.7, 
                            true, false, fill, shadow, *canvas);
     canvas->UnClip();
+    canvas->UnTransform();
     return true;
 }
 
@@ -342,8 +358,11 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "side")) {
-        csh.AddToHints(EnumEncapsulator<ESideType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForSide); 
+        for (auto s = ESide::LEFT; s<=ESide::END; s = ESide(int(s)+1))
+        if (IsValidSideValue(f_side, s))
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
+                                   HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
+                                   CshHintGraphicParam(s)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
@@ -370,7 +389,7 @@ string MscStyle::Print(int) const
     if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
     if (f_indicator) s.append("indicator:").append(solid.second?"yes":"no").append("\n");
     if (f_makeroom) s.append("makeroom:").append(solid.second?"yes":"no").append("\n");
-    if (f_side) s.append("side:").append(side.second==SIDE_LEFT?"left":"right").append("\n");
+    if (f_side != ESideType::NO) s.append("side:").append(side.second==ESide::LEFT?"left":side.second==ESide::RIGHT?"right":"end").append("\n");
 //    if (f_arrow!=ArrowHead::NONE) s.append(arrow.Print());
 //    if (f_text) s.append(text.Print());
     if (f_note) s.append(note.Print());
@@ -444,7 +463,7 @@ void Context::Empty()
     
     styles["arrow"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, 
-                 false, true, true, false, true, false, false, false); 
+                 false, true, true, ESideType::NO, true, false, false, false); 
                  //no fill, shadow, vline solid side vfill, makeroom, note;
     styles["->"] = styles["arrow"];
     styles[">"]  = styles["arrow"];
@@ -453,7 +472,7 @@ void Context::Empty()
 
     styles["blockarrow"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, 
-                 false, true, true, false, false, false, false, false);  
+                 false, true, true, ESideType::NO, false, false, false, false);  
                  //no vline solid side indicator vfill makeroom note;
     styles["box_collapsed_arrow"] = styles["blockarrow"];
     styles["block->"] = styles["blockarrow"];
@@ -463,7 +482,7 @@ void Context::Empty()
 
     styles["vertical"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, 
-                 false, true, true, true, false, false, true, false);  
+                 false, true, true, ESideType::LEFT_RIGHT, false, false, true, false);  
                  //no vline solid indicator vfill note
     styles["vertical->"] = styles["vertical"];
     styles["vertical>"]  = styles["vertical"];
@@ -476,14 +495,14 @@ void Context::Empty()
 
     styles["divider"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, 
-                 false, true, true, false, false, false, false, false); 
+                 false, true, true, ESideType::NO, false, false, false, false); 
                  //no arrow, fill, shadow solid side indicator vfill makeroom note
     styles["---"] = styles["divider"];
     styles["..."] = styles["divider"];
 
     styles["box"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, 
-                 false, true, true, false, true, false, false, false);
+                 false, true, true, ESideType::NO, true, false, false, false);
                  //no arrow, vline solid side vfill makeroom note;
     styles["box_collapsed"] = styles["box"];
     styles["emptybox"] = styles["box"];
@@ -494,7 +513,7 @@ void Context::Empty()
 
     styles["pipe"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false,
-                 true, true, true, true, false, false, false, false); 
+                 true, true, true, ESideType::LEFT_RIGHT, false, false, false, false); 
                  //no arrow, vline indicator vfill makeroom note;
     styles["pipe--"] = styles["pipe"];
     styles["pipe++"] = styles["pipe"];
@@ -503,33 +522,33 @@ void Context::Empty()
 
     styles["entity"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, false, true, true, false, false); 
+                 false, false, false, ESideType::NO, true, true, false, false); 
                  //no arrow, solid numbering compress side makeroom note
     styles["entitygroup_collapsed"] = styles["entity"];
     styles["entitygroup"] = styles["entity"];
 
     styles["indicator"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, false, false, false, false, false); 
+                 false, false, false, ESideType::NO, false, false, false, false); 
                  //fill line shadow only 
     styles["symbol"] =
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, false, false, false, false, false); 
+                 false, false, false, ESideType::NO, false, false, false, false); 
                  //only line fill and shadow
 
     styles["note"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NOTE, true, true, true, true, false, 
-                 false, true, false, false, false, false, false, true);  
+                 false, true, false, ESideType::NO, false, false, false, true);  
                  //no vline side solid indicator compress vfill makreoom
     
     styles["comment"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, false, false, false, false, 
-                 false, true, false, true, false, false, false, false);  
+                 false, true, false, ESideType::ANY, false, false, false, false);  
                  //only text numbering and side
 
     styles["title"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, false, false, false, false, false);  
+                 false, false, false, ESideType::NO, false, false, false, false);  
                  //line, fill, shadow, vline text  
     styles["subtitle"] = styles["title"];
 }

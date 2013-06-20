@@ -539,7 +539,7 @@ public:
 
 bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p);
 
-/** Stores the properties of notes (pointer type and position).*/
+/** Stores the properties of notes (pointer type and position; width).*/
 struct NoteAttr {
 public:
     enum EPointerType {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW};
@@ -548,8 +548,9 @@ public:
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;
     std::pair<bool, int> def_float_y;
+    struct {bool first; double second; std::string str;} width; ///<The width specified by the used. second<0 means the string contains the width
     NoteAttr() {Empty(); MakeComplete();} ///<Create a fully specified note style with default values (Callout type, no specific position preference.)
-    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;} ///<Clear all content from the note style.
+    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = width.first = false;} ///<Clear all content from the note style.
     void MakeComplete();
     bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;} ///<True if all of the note attributes are set. 
     NoteAttr &operator +=(const NoteAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.

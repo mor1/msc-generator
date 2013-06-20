@@ -330,6 +330,7 @@ public:
     void ClipInverse(const Contour &area);
     /** Undo a previous clip operation*/
     void UnClip() {cairo_restore(cr);}
+    void Transform_Rotate(const XY &center, double radian);
     void Transform_Rotate90(double s, double d, bool clockwise);
     /** Transform the canvas by swapping x and y coordinates*/
     void Transform_SwapXY();

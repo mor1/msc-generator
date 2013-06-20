@@ -341,7 +341,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual void ShiftBy(double /*y*/) {} //Comments are shifted by their owner, notes are laid out last and shall not be shifted anyway
+    virtual void ShiftBy(double y);
     /** A special shift function - we do not, in general shift, but comments shift with their target (called from Element::ShiftBy())*/
     virtual void ShiftCommentBy(double y);
     virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
@@ -388,8 +388,8 @@ protected:
     static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
     static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);
 public:
-    void PlaceFloating();
-    void PlaceSideTo(AreaList *cover, double &y);
+    void PlaceFloating(Canvas &canvas);
+    void PlaceSideTo(Canvas &canvas, AreaList *cover, double &y);
     //@}
 
     //virtual void PostPosProcess(Canvas &cover, double autoMarker);

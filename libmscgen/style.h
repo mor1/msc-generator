@@ -30,12 +30,21 @@
 #include "csh.h"
 
 /** Describes the values of the 'side' attribute*/
-enum ESideType {
-    SIDE_INVALID = 0,///<The invalid value.
-    SIDE_LEFT,       ///<The left side
-    SIDE_RIGHT       ///<The right side
+enum class ESide {
+    INVALID = 0,///<The invalid value.
+    LEFT,       ///<The left side
+    RIGHT,      ///<The right side
+    END         ///<At the bottom of the chart (used for comments only)
 };
 
+/** Describes if the style has the `side` attribute and what values are OK */
+enum class ESideType {
+    NO = 0,       ///<The invalid value
+    LEFT_RIGHT,   ///<Only left and right
+    ANY           ///<All values acceptable
+};
+
+bool IsValidSideValue(ESideType t, ESide v);
 bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p);
 
 /** A class bringing together all style-related attributes.
@@ -70,7 +79,7 @@ class MscStyle
 protected:
     friend class Context;
     MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
-             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
+             bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n);
 public:
     LineAttr line;     ///<The line attributes
     LineAttr vline;    ///<The vline attributes
@@ -80,7 +89,7 @@ public:
     ArrowHead arrow;      ///<The arrow attributes
     StringFormat text;    ///<The text attributes
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
-    std::pair<bool, ESideType>     side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
+    std::pair<bool, ESide>         side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
     std::pair<bool, bool>          numbering;///<The value of the 'number' attribute. Not set if `first` is false.
     std::pair<bool, bool>          compress; ///<The value of the 'compress' attribute. Not set if `first` is false.
     std::pair<bool, bool>          indicator;///<The value of the 'indicator' attribute. Not set if `first` is false.
@@ -98,7 +107,7 @@ public:
     bool f_solid;      ///<True if the style contains the 'solid' attributes.
     bool f_numbering;  ///<True if the style contains the 'number' attributes.
     bool f_compress;   ///<True if the style contains the 'compress' attributes.
-    bool f_side;       ///<True if the style contains the 'side' attributes.
+    ESideType f_side;  ///<Shows if the style contains the 'side' attributes and what values are acceptable
     bool f_indicator;  ///<True if the style contains the 'indicator' attributes.
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
     bool f_note;       ///<True if the style contains note attributes.
