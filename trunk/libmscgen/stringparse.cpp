@@ -68,6 +68,7 @@ void StringFormat::Empty()
     ident.first = false;
     normalFontSize.first = false;
     smallFontSize.first = false;
+    word_wrap.first = false;
 }
 
 bool StringFormat::IsComplete() const
@@ -87,7 +88,8 @@ bool StringFormat::IsComplete() const
         textVGapLineSpacing.first &&
         ident.first &&
         normalFontSize.first &&
-        smallFontSize.first;
+        smallFontSize.first &&
+        word_wrap.first;
 }
 
 /** Sets the fully specified default font. 
@@ -111,6 +113,7 @@ void StringFormat::Default()
     bold.first = true; bold.second = no;
     italics.first = true; italics.second = no; 
     underline.first = true; underline.second =  no;
+    word_wrap.first = true; word_wrap.second = false;
 }
 
 StringFormat &StringFormat::operator =(const StringFormat &f)
@@ -136,6 +139,8 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 
     smallFontExtents = f.smallFontExtents;
     normalFontExtents = f.normalFontExtents;
+
+    word_wrap = f.word_wrap;
 
     return *this;
 }
@@ -169,6 +174,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - \#[]{}"; - an escaped chars
  * - "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
  * - "\n" - a line break
+ * - "\0x3" - a soft line break, which is replaced to a space when doing word wrapping
  * - "\N" - insert line number here - should not appear in a numbering format
  * - "\r(ref)" - insert the line number of another entity here - "\r()" equals "\N"
  * - "\0x21" "\0x2a" "\0x2A" "\0x2i" "\0x2I" - used to define numbering formats, should not appear in a label
@@ -217,6 +223,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
  * - just literal text up until the next escape (NON_ESCAPE)
  * - a "\n" escape (LINE_BREAK)
+ * - a soft line break (SOFT_LINE_BREAK)
  * - a "\r(xxx)" escape (REFERENCE) - no lookups or replacement is offered if `references` is false
  * - a "\N" or "\r()" escape (NUMBERING) - the location of the number in this label
  * - a "\0x2{1aAiI}" escape (NUMBERING_FORMAT)
@@ -336,6 +343,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 3;
         goto ok;
 
+    case ESCAPE_CHAR_SOFT_NEWLINE: //soft line breaks: should disappear after splitting a parsedline into fragments
+        length = 2;
+        if (replaceto) replaceto->clear();
+        if (linenum) linenum->col += length;
+        return SOFT_LINE_BREAK;
+
     case 'n':           // enter: should disappear after splitting a parsedline into fragments
         length = 2;
         if (replaceto) replaceto->clear();
@@ -359,6 +372,15 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (replaceto) replaceto->assign(input, length);
         //No change to linenum, these should always be followed by position escapes
         return NUMBERING_FORMAT;
+
+    case ESCAPE_CHAR_WORD_WRAP:
+        length = 3;
+        _ASSERT(input[2] == '+' || input[2] == '-');
+        if (apply) {
+            word_wrap.first = true;
+            word_wrap.second = (input[2] == '+');
+        }
+        goto ok;
 
     case '\\':          // escaped "\"
     case '#':           // escaped "#"
@@ -725,6 +747,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
         case NUMBERING_FORMAT:
         case NUMBERING:
         case LINE_BREAK:
+        case SOFT_LINE_BREAK:
         case FORMATTING_OK:
         case NON_FORMATTING:
         case REFERENCE:
@@ -792,6 +815,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
         case LINE_BREAK:        //keep \n as is
+        case SOFT_LINE_BREAK:
         case NON_FORMATTING:
             replaceto.assign(text.c_str()+pos, length);
             break; //do not (yet) resolve: keep what is in input
@@ -872,6 +896,7 @@ void StringFormat::ConvertToPlainText(string &text)
             pos += length;
             break;
         case LINE_BREAK:
+        case SOFT_LINE_BREAK:
             text.replace(pos, length, "\n");
             pos++;
             break;
@@ -955,6 +980,9 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
     if (toadd.smallFontSize.first)
         smallFontSize = toadd.smallFontSize;
 
+    if (toadd.word_wrap.first)
+        word_wrap = toadd.word_wrap;
+
     return *this;
 }
 
@@ -1018,6 +1046,9 @@ string StringFormat::Print() const
 
     if (smallFontSize.first)
         ret << "\\ms(" << smallFontSize.second << ")";
+
+    if (word_wrap.first)
+        ret << ESCAPE_STRING_WORD_WRAP << (word_wrap.second ? "+" : "-");
 
     return ret;
 }
@@ -1117,6 +1148,21 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         a.InvalidValueError(CandidatesFor(fontType.second), msc->Error);
         return true;
     }
+
+    if (a.EndsWith("wrap")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                word_wrap.first = false;
+            return true;
+        }
+        if (a.CheckType(MSC_ATTR_BOOL, msc->Error)) {
+            word_wrap.first = true;
+            word_wrap.second = a.yes;
+            return true;
+        }
+        return true;
+    }
+
     std::pair<bool, ETriState> *tri = NULL;
     if (a.EndsWith("bold")) tri = &bold;
     else if (a.EndsWith("italic")) tri = &italics;
@@ -1168,7 +1214,7 @@ void StringFormat::AttributeNames(Csh &csh)
     "text.font.face", "text.font.type", 
     "text.bold", "text.italic", "text.underline", 
     "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-    "text.gap.spacing", "text.size.normal", "text.size.small", ""};
+    "text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -1225,10 +1271,11 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
     }
     if (CaseInsensitiveEndsWith(attr, "bold") || 
         CaseInsensitiveEndsWith(attr, "italic") ||
+        CaseInsensitiveEndsWith(attr, "wrap") ||
         CaseInsensitiveEndsWith(attr, "underline")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
-        return true;
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+            return true;
     }
     if (CaseInsensitiveEndsWith(attr, "gap.up") ||
         CaseInsensitiveEndsWith(attr, "gap.down") ||
@@ -1432,9 +1479,12 @@ double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool i
 
 //////////////////////////////////////////////////////////////
 
-ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format) :
-    line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0)
+ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, bool h) :
+    line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0), hard_new_line(h)
 {
+    //Remove heading and trailing whitespace.
+    while (line.size() && *line.begin() == ' ') line.erase(0,1);
+    while (line.size() && *line.rbegin() == ' ') line.erase(line.size()-1,1);
     format.Apply(line); //eats away initial formatting, ensures we do not start with escape
     startFormat = format;
     size_t pos = 0;
@@ -1524,28 +1574,22 @@ unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
     size_t pos = 0, line_start = 0;
     unsigned length=0;
     while (pos < input.length()) {
+        bool hard_line_break;
         //find next new line
         while (pos < input.length()) {
-            if (StringFormat::LINE_BREAK == format.ProcessEscape(input.c_str()+pos, length)) break; //format not changed here!!!
+            const auto ret = format.ProcessEscape(input.c_str()+pos, length);
+            hard_line_break = ret == StringFormat::LINE_BREAK;
+            if (ret == StringFormat::LINE_BREAK ||
+                ret == StringFormat::SOFT_LINE_BREAK) 
+                break; //format not changed here!!!
             pos += length;
         }
         //Add a new line
-        push_back(ParsedLine(input.substr(line_start, pos-line_start), canvas, format)); //format changed here
+        push_back(ParsedLine(input.substr(line_start, pos-line_start), canvas, format, hard_line_break)); //format changed here
         pos += length; //add the length of the line break itself
         line_start = pos;
     }
     return (unsigned)this->size();
-}
-
-void Label::AddSpacing(unsigned line, double spacing)
-{
-    if (this->size()<line) return;
-    if (at(line).startFormat.spacingBelow.first)
-        at(line).startFormat.spacingBelow.second += spacing;
-    else {
-        at(line).startFormat.spacingBelow.first = true;
-        at(line).startFormat.spacingBelow.second = spacing;
-    }
 }
 
 Label::operator std::string() const
@@ -1555,6 +1599,114 @@ Label::operator std::string() const
         for (unsigned i = 0; i<size(); i++)
             ret += at(i);
     return ret;
+}
+
+#define LETTERS_NUMBERS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
+
+bool Label::Reflow(Canvas &c, double x)
+{
+    if (size()==0) return false;
+    bool had_overflow = false;
+    std::vector<ParsedLine> reflown; //the resulted set of lines
+    unsigned lnum=0; //the number of the line we process
+    size_t pos = 0;  //the position within at(lnum)
+    string line;     //the line we gather in the new flow
+    double width = 0;//width of the text in "line"
+    StringFormat start_format = at(0).startFormat;  //format at the beginning of "line"
+    StringFormat running_format = start_format;
+    double available = x - start_format.textHGapPre.second 
+                         - start_format.textHGapPost.second;
+    do {
+        while (pos < at(lnum).line.length()) {
+            string replaceto;
+            unsigned length;
+            switch (running_format.ProcessEscape(at(lnum).line.c_str()+pos, length, 
+                                                 true, false, &replaceto, 
+                                                 &at(0).startFormat)) {
+            case StringFormat::FORMATTING_OK:
+                pos += running_format.Apply(line.c_str()+pos);
+                break;
+            case StringFormat::INVALID_ESCAPE:
+            case StringFormat::REFERENCE: 
+            case StringFormat::LINE_BREAK: 
+            case StringFormat::SOFT_LINE_BREAK: 
+            case StringFormat::NUMBERING: 
+            case StringFormat::NUMBERING_FORMAT: 
+                _ASSERT(0);  //These should not come here
+                pos+=length; //If they come we just ignore them
+                break;
+            case StringFormat::NON_FORMATTING: 
+            case StringFormat::NON_ESCAPE: 
+            case StringFormat::SOLO_ESCAPE: 
+                //Literal text. Calculate width using current format. Go word-by-word.
+                size_t replaceto_pos = 0; //position within `replace_to`
+                while (replaceto_pos < replaceto.length()) {
+                    size_t replaceto_end = replaceto.find_first_not_of(LETTERS_NUMBERS, replaceto_pos);
+                    if (replaceto_end == string::npos) //a single word remaining
+                        replaceto_end = replaceto.length();
+                    else if (replaceto_end == replaceto_pos) //non-letter first char: process a single char
+                        replaceto_end++; 
+                    const string word = replaceto.substr(replaceto_pos, replaceto_end-replaceto_pos);
+                    const double word_width = running_format.getFragmentWidth(word, c);
+                    if (word_width + width <= available || line.length() == 0) {
+                        //either the word fits or we are at the beginning of the 
+                        //line - add this word to the current line anyway
+                        if (replaceto[replaceto_pos] != ' ' || line.length() != 0) {
+                            //add only if "word" is not a space at or 
+                            //not at the beginning of the line
+                            line.append(word);
+                            width += word_width;
+                            had_overflow |= width > available;
+                        }
+                        replaceto_pos = replaceto_end;
+                    } else {
+                        // word has to move to a new line
+                        reflown.push_back(ParsedLine(line, c, start_format, false));
+                        start_format = running_format;
+                        line.clear();
+                        width = 0;
+                        available = x - start_format.textHGapPre.second 
+                                      - start_format.textHGapPost.second;
+                    } 
+                } //while (processing `replaceto`)
+                pos += length;
+            } //switch
+        } // while (processing at(lnum)
+        //if line ended in hard line break, we break line here
+        if (at(lnum).hard_new_line) {
+            if (line.length() == 0) 
+                reflown.rbegin()->hard_new_line = true;
+            else {
+                reflown.push_back(ParsedLine(line, c, start_format, false));
+                start_format = running_format;
+                line.clear();
+                width = 0;
+                available = x - start_format.textHGapPre.second 
+                              - start_format.textHGapPost.second;
+            }
+        }
+        //if not at the beginning of a new line, add a space
+        if (line.length() != 0) {
+            line.append(" ");
+            width += running_format.getFragmentWidth(" ", c);
+        }
+        lnum++;
+        pos = 0;
+    } while (lnum < size());
+    //Flush any remaining text to a last line
+    if (line.length())
+        reflown.push_back(ParsedLine(line, c, start_format, false));
+    //swap reflown in
+    std::vector<ParsedLine>::swap(reflown);    
+    return had_overflow;
+}
+
+double Label::getSpaceRequired(double def, int line) const 
+{
+    if (size()==0) return 0;
+    if (at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second)
+        return def;
+    return getTextWidthHeight(line).x;
 }
 
 
@@ -1631,5 +1783,8 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
             at(i).Draw(xy, *canvas, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
+        if (i==0) 
+            xy.y += first_line_extra_spacing;
     }
 }
+

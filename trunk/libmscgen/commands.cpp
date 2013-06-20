@@ -397,8 +397,11 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         //It can get drawn because we 1) said show=yes, or
         //2) because it is on, we mention it (without show=yes) and it is
         //a full heading.
+        //But it is never shown for virtual entities
         i_app->draw_heading = (i_app->show.second && i_app->show.first) 
                                  || (full_heading && ent->running_shown.IsOn());
+        if (chart->IsVirtualEntity(*i_app->itr))
+            i_app->draw_heading = false;
         //Adjust the running status of the entity, this is valid *after* this command. 
         //This is just for the Height process knwos whch entity is on/off
         if (i_app->show.first)
@@ -438,6 +441,7 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         for (auto i : chart->AllEntities) {
             if (!i->running_shown.IsOn()) continue;
             if (i->children_names.size()) continue;
+            if (chart->IsVirtualEntity(i)) continue;
             unsigned entsize = entities.size();
             EntityApp *ed = FindAddEntityDefForEntity(i->name, this->file_pos); //use the file_pos of the CommandEntity
             ed->draw_heading = true;
@@ -1020,6 +1024,10 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
         dist += Label(label.second, canvas, format).getTextWidthHeight().x;
     if (dist<0)
         chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
+    else if (*src == chart->LNote) //if src is LNote, this was a "hspace left comment" command
+        distances.comment_l = std::max(distances.comment_l, dist);
+    else if (*src == chart->RNote) //if src is LNote, this was a "hspace right comment" command
+        distances.comment_r = std::max(distances.comment_r, dist);
     else
         distances.Insert((*src)->index, (*dst)->index, dist);
 }
@@ -1541,6 +1549,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
                                        Numbering &number, Element **note_target)
 {
     if (!valid) return NULL;
+    //ensure we have label
     if (label.length()==0) {
         chart->Error.Error(file_pos.start, is_float ? "Notes" : "Comments" +
                            string(" must contain a label. Ignoring note."), 
@@ -1548,6 +1557,17 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
         valid = false;
         return NULL;
     }
+    //finalize width
+    if (!style.read().note.width.first) {
+        style.write().note.width.first = true;
+        style.write().note.width.second = chart->XCoord(chart->defWNoteWidth);
+        style.write().note.width.str.clear();
+    } else if (style.read().note.width.second < 0) {
+        Label tmp(style.read().note.width.str, canvas, style.read().text);
+        style.write().note.width.second = tmp.getTextWidthHeight().x;
+        style.write().note.width.str.clear();
+    }
+
     //Now try to attach to the target, if not yet attached (as is the case for comments to entities)
     if (target == NULL) {
         target = *note_target;
@@ -1558,6 +1578,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
             return NULL;
         }
     }
+    
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
     ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, note_target);
@@ -1567,7 +1588,9 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     //OK, now attach the note
     if (is_float) {
         chart->Notes.Append(this);
-    } else {
+    } else if (style.read().side.second != ESide::END) {
+        //Do not attach endnotes. Msc::PostParseProcessArcList will take them out 
+        //and will get appended to the end of the chart
         target->AttachComment(this);
     }
     return ret;
@@ -1587,27 +1610,59 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
     ArcLabelled::FinalizeLabels(canvas);
 }
 
-void CommandNote::Width(Canvas &/*canvas*/, EntityDistanceMap &distances)
+void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
     if (is_float) {
+        //reflow label if needed
+        if (parsed_label.IsWordWrap()) 
+            parsed_label.Reflow(canvas, style.read().note.width.second);
         halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.read().line.LineWidth(), style.read().line.LineWidth());
     } else {
         //Here we only make space if the note is on the side
-        const double w = parsed_label.getTextWidthHeight().x;
-        if (style.read().side.second == SIDE_LEFT)
+        const double w = parsed_label.getSpaceRequired(0);
+        switch (style.read().side.second) {
+        case ESide::LEFT:
             distances.Insert(chart->LNote->index, DISTANCE_LEFT, w);
-        else if (style.read().side.second == SIDE_RIGHT)
+            distances.had_l_comment = true;
+            break;
+        default:
+            _ASSERT(0);
+        case ESide::RIGHT:
             distances.Insert(chart->RNote->index, DISTANCE_RIGHT, w);
+            distances.had_r_comment = true;
+            break;
+        case ESide::END:
+            distances.Insert(chart->LSide->index, chart->LSide->index, w);
+            break;
+        }
     }
 }
 
-void CommandNote::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
+void CommandNote::Layout(Canvas &canvas, AreaList * cover)
 {
     if (!valid) return;
-    if (!is_float)  //Only comments added here. Notes will be added after their placement
+    if (!is_float)  {
+        //Only comments added here. Notes will be added after their placement
         chart->NoteBlockers.Append(this); 
+        if (style.read().side.second == ESide::END) {
+            //Endnotes are laid out normally here
+            //Start with reflowing the label if needed
+            if (parsed_label.IsWordWrap()) {
+                const double space = chart->XCoord(chart->RSide->pos) - 
+                                     chart->XCoord(chart->LSide->pos);
+                parsed_label.Reflow(canvas, space);
+            }
+            area = parsed_label.Cover(chart->XCoord(chart->LSide->pos), 
+                                      chart->XCoord(chart->RSide->pos), yPos);
+            area.arc = this;
+            height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
+            yPos = 0;
+            if (cover) 
+                *cover += GetCover4Compress(area);
+        }
+    }
     height = 0;
 }
 
@@ -2019,7 +2074,7 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
 /** Main routine for placing a note
  * This is called for notes from Msc::CompleteParse() via Msc::PlaceFloatingNotes(), just 
  * before PostPosProcess(). This is a computation intensive trial-score-select routine.*/
-void CommandNote::PlaceFloating()
+void CommandNote::PlaceFloating(Canvas &canvas)
 {
    if (!valid) return;
     _ASSERT(is_float);
@@ -2449,12 +2504,20 @@ void CommandNote::PlaceFloating()
  * This is called from Layout() of the target via its LayoutCommentsHelper().
  * @param cover We add the cover of this comment to this AreaList 
  * @param y We place the comment at this vertical location, we add our height to it at return */
-void CommandNote::PlaceSideTo(AreaList *cover, double &y)
+void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
 {
     if (!valid) return;
     _ASSERT(!is_float);
+    _ASSERT(style.read().side.second != ESide::END);
     yPos = y;
-    if (style.read().side.second == SIDE_LEFT)
+    //reflow if needed
+    if (parsed_label.IsWordWrap()) {
+        const double space = style.read().side.second == ESide::LEFT ? 
+            chart->XCoord(chart->LNote->pos) - 2*chart->sideNoteGap :
+            chart->GetCommentsRightSide() - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
+        parsed_label.Reflow(canvas, space);
+    }
+    if (style.read().side.second == ESide::LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, 
                                   chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, 
                                   yPos);
@@ -2469,9 +2532,21 @@ void CommandNote::PlaceSideTo(AreaList *cover, double &y)
         *cover += GetCover4Compress(area);
 }
 
+//Called during the Layout process.
+//But we shall only react for end-notes, side comments are 
+//shifted together with their target, floating notes are not even laid out yet.
+void CommandNote::ShiftBy(double y)
+{
+    if (!is_float && style.read().side.second == ESide::END)
+        ArcLabelled::ShiftBy(y);
+}
+
+
+//Called when a comment on the side is shifted together with its target
 void CommandNote::ShiftCommentBy(double y)
 {
     _ASSERT(!is_float);
+    _ASSERT(style.read().side.second != ESide::END);
     ArcLabelled::ShiftBy(y);
 }
 
@@ -2512,15 +2587,19 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
     default:
         _ASSERT(0);
         return;
-    case SIDE_LEFT:
+    case ESide::LEFT:
         parsed_label.Draw(canvas, chart->sideNoteGap, 
                           chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, 
                           yPos);
         return;
-    case SIDE_RIGHT:
+    case ESide::RIGHT:
         parsed_label.Draw(canvas, chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, 
                           chart->GetCommentsRightSide() - chart->sideNoteGap, 
                           yPos);
+        return;
+    case ESide::END:
+        parsed_label.Draw(canvas, chart->XCoord(chart->LSide->pos), 
+                          chart->XCoord(chart->RSide->pos), yPos);
         return;
     }
 }

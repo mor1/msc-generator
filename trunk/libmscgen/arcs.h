@@ -276,6 +276,7 @@ protected:
     StyleCoW        style;           ///<The style of the arc. `numbering` and `compress` fields of style are not used. The ArcBase member fields are used instead.
     NumberingStyle  numberingStyle;  ///<The numbering style to use. (This is not part of Styles in general, but is a property of contexts. This is a snapshot at the location of the arc.
     string          number_text;     ///<The formatted number assigned to this arc (used by references and notes/comments). Set in PostParseProcess()
+    Range           entityLineRange; ///<The y range to apply any vFill or vLine attributes
 public:
     ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const StyleCoW &);
     ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al);
@@ -327,6 +328,7 @@ public:
     bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
                                      type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR ||
                                      type == MSC_ARC_BIG_BIDIR;}
+    virtual void PostPosProcess(Canvas &cover);
 };
 
 /** An arrow with the same entity as start and end (like "a->a")*/

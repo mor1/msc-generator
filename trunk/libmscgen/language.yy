@@ -179,7 +179,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
 %type <extvertxpos> extvertxpos extvertxpos_no_string
-%type <namerel>    entityrel markerrel_no_string
+%type <namerel>    entityrel markerrel_no_string hspace_location
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes titlecommandtoken
@@ -538,7 +538,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    ($1)->AddAttributeList(NULL); 
+    ($1)->AddAttributeList(NULL);
     $$=($1);
   #endif
 }
@@ -925,7 +925,7 @@ arc:           arcrel
               | symbol_command
               | note
               | comment
-              | TOK_COMMAND_HSPACE entityrel full_arcattrlist_with_label_or_number
+              | TOK_COMMAND_HSPACE hspace_location full_arcattrlist_with_label_or_number
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -939,7 +939,7 @@ arc:           arcrel
   #endif
     free($1);
 }
-              | TOK_COMMAND_HSPACE entityrel
+              | TOK_COMMAND_HSPACE hspace_location
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -958,7 +958,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF)) {
+		csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
+		csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+	}
     csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
   #else
     $$ = NULL;
@@ -996,6 +999,68 @@ arc:           arcrel
 };
 
 titlecommandtoken: TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
+
+hspace_location: entityrel
+                 | TOK_AT_POS TOK_COMMAND_COMMENT
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
+		csh.AddCSH(@1, COLOR_KEYWORD);
+	else
+	    csh.AddCSH_Error(@1, "Use either `left` or `right` to specify which comment column to size.");
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    if (csh.CheckEntityHintAt(@1)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    if (CaseInsensitiveEqual($1, "left"))
+		$$ = new NamePair(LNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
+	else if (CaseInsensitiveEqual($1, "right"))
+		$$ = new NamePair(RNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
+	else {
+	    msc.Error.Error(MSC_POS(@1).start, "Use either `left` or `right` to specify which comment column to size. Ignoring command.");
+	    $$ = NULL;
+	}
+  #endif
+    free($1);
+    free($2);
+}
+                 | TOK_AT_POS
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
+		csh.AddCSH(@1, COLOR_KEYWORD);
+	else
+	    csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
+    if (csh.CheckEntityHintAt(@1)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+	msc.Error.Error(MSC_POS(@1).start, "Use <entity>-<entity>, `left comment`, `right comment` to specify horizontal spacing. Ignoring command.");
+	$$ = NULL;
+  #endif
+    free($1);
+}
+                 | TOK_COMMAND_COMMENT
+{
+  #ifdef C_S_H_IS_COMPILED
+	csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckEntityHintAt(@1)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+	msc.Error.Error(MSC_POS(@1).start, "Use `left comment` or `right comment` to specify horizontal spacing for comments. Ignoring command.");
+	$$ = NULL;
+  #endif
+    free($1);
+};
+
 
 full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
             | TOK_NUMBER

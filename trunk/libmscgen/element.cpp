@@ -150,7 +150,7 @@ void Element::ShiftBy(double y)
 void Element::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r)
 {
     for (auto c : comments)
-        c->PlaceSideTo(cover, c->GetStyle().read().side.second == SIDE_LEFT ? l : r);
+        c->PlaceSideTo(canvas, cover, c->GetStyle().read().side.second == ESide::LEFT ? l : r);
     comment_height = std::max(l, r);
 }
 

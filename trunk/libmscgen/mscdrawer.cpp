@@ -1216,6 +1216,17 @@ void Canvas::ClipInverse(const Contour &area)
     cairo_set_fill_rule(cr, old);
 }
 
+/** Rotates the canvas to arbitrary degree around 'center'
+ * Any arrow drawn from left to right will show up as rotated clockwise
+ * with y coordinate growing downwards*/
+void Canvas::Transform_Rotate(const XY &center, double radian)
+{
+    cairo_save(cr);
+    cairo_translate(cr, center.x, center.y);
+    cairo_rotate(cr, radian);
+    cairo_translate(cr, -center.x, -center.y);
+}
+                                        
 /** Rotate the canvas by 90 degrees.
   @param [in] clockwise True if the rotation is clockwise. That is, 
                         if after transformation you draw

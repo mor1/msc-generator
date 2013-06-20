@@ -246,6 +246,11 @@ bool EntityApp::AddAttribute(const Attribute& a)
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
+    if (a.Is("text.wrap")) {
+        s << "Word wrapping is not available for entity headings. Ignoring this attribute.";
+        chart->Error.Error(a, false, s);
+        return false;
+    }
     if (Element::AddAttribute(a)) return true;
     if (style.write().AddAttribute(a, chart)) return true;
     a.InvalidAttrError(chart->Error);
@@ -416,6 +421,10 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         style_to_use.write().text +=chart->Contexts.back().styles[style_name].read().text;  //entity style text
         style_to_use += style;
 
+        //Unset word wrapping as something not available for entity headings
+        //(not implemented by EntityApp::Width() and EntityApp::Height() anyway)
+        style_to_use.write().text.UnsetWordWrap();
+        
         //If "entity" style contains no "indicator" value (the default in plain)
         //we use the value from the context (true by default)
         if (!style_to_use.read().indicator.first) {
@@ -552,6 +561,7 @@ void EntityApp::Combine(EntityApp *ed)
 /** Returns how wide the entity is with this formatting, not including its shadow.*/
 double EntityApp::Width() const
 {
+    //Entity labels cannot be word wrapped
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
         inner = std::max(inner, GetIndiactorSize().x + 2*chart->boxVGapInside);

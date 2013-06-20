@@ -203,6 +203,10 @@ EntityDistanceMap &EntityDistanceMap::operator +=(const EntityDistanceMap &d)
     for(auto b : d.box_side)
         box_side[b.first].insert(box_side[b.first].end(), b.second.begin(), b.second.end());
     was_activated.insert(d.was_activated.begin(), d.was_activated.end());
+    comment_l = std::max(comment_l, d.comment_l);
+    comment_r = std::max(comment_r, d.comment_r);
+    had_l_comment |= d.had_l_comment;
+    had_r_comment |= d.had_r_comment;
     return *this;
 }
 
@@ -238,7 +242,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), Notes(false), NoteBlockers(false), 
+    Arcs(true), EndNotes(true), Notes(false), NoteBlockers(false), 
     total(0,0,0,0), drawing(0,0,0,0), 
     comments_right_side(0), copyrightTextHeight(0), headingSize(0)
 {
@@ -250,7 +254,7 @@ Msc::Msc() :
     boxVGapInside = 2;
     arcVGapAbove = 0;
     arcVGapBelow = 3;
-    discoVgap = 5;
+    discoVgap = 3;
     titleVgap = 10;
     subtitleVgap = 5;
     nudgeSize = 4;
@@ -258,6 +262,7 @@ Msc::Msc() :
     compressGap = 2;
     hscaleAutoXGap = 5;
     sideNoteGap = 5;
+    defWNoteWidth = 0.8;
     trackFrameWidth = 4;
     trackExpandBy = 2;
 
@@ -712,6 +717,12 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
                 return CEForComments(toadd, FileLineColRange(a.linenum_attr.start, a.linenum_value.end));
             }
             //fallthrough till error if not "OK"
+        } else if (CaseInsensitiveBeginsWith(a.name.substr(8), "side") ||
+                   CaseInsensitiveBeginsWith(a.name.substr(8), "text")) {
+            Attribute new_a(a);
+            new_a.name.erase(0,8); //erase "comment."
+            Contexts.back().styles["comment"].write().AddAttribute(new_a, this);
+            return NULL;
         }
     }
     if (a.Is("classic_parallel_layout")) {
@@ -879,11 +890,22 @@ void Msc::ParseText(const char *input, const char *filename)
         MscParse(*this, input, (unsigned)len);
 }
 
-EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, EDirType dir) const
+/** Get an (unordered) list of entities that arrows and boxes in this list touche.
+ * We also determine the general direction of the arrows contained within.
+ * If there are arrows in both directions (or any bidir arrow) we returm
+ * MSC_DIR_BIDIR. If there are no directional arrows (only self-arrows or boxes)
+ * we return MSC_DIR_INDETERMINATE.
+ * @param [in] al The list of arcs to consider.
+ * @param [inout] el We append the resulting entity list to this.
+ * @param [in] dir The direction of the arrows contained on a previous
+ *                 call to this function (with which we combine our directions).
+ * @return The direction of the arrows in `al` */
+EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, 
+                                        EDirType dir) const
 {
-    for (auto i = al.begin(); i!=al.end(); i++) {
+    for (auto i : al) {
         EntityList el2(false);
-        EDirType dir2 = (*i)->GetToucedEntities(el2);
+        EDirType dir2 = i->GetToucedEntities(el2);
         //update combined direction
         switch (dir2) {
         case MSC_DIR_BIDIR:
@@ -898,9 +920,9 @@ EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, EDirT
             break;
         }
         //merge the two lists
-        for (auto ei2 = el2.begin(); ei2!=el2.end(); ei2++) 
-            if (el.Find_by_Ptr(*ei2) == el.end())
-                el.Append(*ei2);
+        for (auto ei2 : el2) 
+            if (el.Find_by_Ptr(ei2) == el.end())
+                el.Append(ei2);
     }
     return dir;
 }
@@ -1013,8 +1035,15 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
         
 		//Below we only report elements done, that we do not delete
         if (replace == *i) {
+            //The arc requested no replacement
 			Progress.DoneItem(MscProgress::POST_PARSE, (*i)->myProgressCategory);
-			i++;
+            //If this is an endnote, move it to EndNotes
+            CommandNote *cn = dynamic_cast<CommandNote*>(*i);
+            if (cn && cn->GetStyle().read().side.second == ESide::END) {
+                EndNotes.Append(cn);
+                arcs.erase(i++);
+            } else 
+                i++;
 		} else {
             delete *i;
             if (replace == NULL) arcs.erase(i++);
@@ -1129,8 +1158,31 @@ void Msc::PostParseProcess(Canvas &canvas)
     _ASSERT(dummy1 != AllEntities.end());
     Element *note_target = NULL;
     PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, &note_target);
+
+    //Reinsert end-notes at the end (they have been post-processed)
+    if (EndNotes.size()) {
+        //Add separator
+        ArcDivider *ad = new ArcDivider(MSC_ARC_DIVIDER, this);
+        Attribute w("_wide", true, FileLineColRange(),  FileLineColRange(), "yes");
+        ad->AddAttribute(w);
+        Attribute a("line.type", "solid", FileLineColRange(),  FileLineColRange());
+        ad->AddAttribute(a);
+        ad->AddAttributeList(NULL);
+        ad->PostParseProcess(canvas, false, dummy1, dummy2, number, &note_target);
+        Arcs.Append(ad);
+        //Append end-notes
+        Arcs.splice(Arcs.end(), EndNotes);
+    }
 }
 
+/** Draw the entity lines in a vertical region and between two entities 
+ * We draw entity lines according to their styles and activation status.
+ * We do not draw them where they shall be hidden (by, e.g., a label).
+ * @param canvas The canvas onto which w draw.
+ * @param [in] y Top of the region to draw in
+ * @param [in] height Height of the region to draw in
+ * @param [in] from The leftmost entity to draw the line for
+ * @param [in] to The entity right of the rightmost entity to draw for.*/
 void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                           EIterator from, EIterator to)
 {
@@ -1221,27 +1273,33 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
     canvas.UnClip();
 }
 
-void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances)
+/** Calls the Width() function for all arcs in the list and collects distance requirements to `distances` */
+void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, 
+                       EntityDistanceMap &distances)
 {
     //Indicate entities active and showing already at the beginning of the list
     //(this will be updated with entities activated later)
     //(so that we can calcualte with the width of their entityline)
-    for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
-        if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
-            distances.was_activated.insert((*i)->index);
+    for (auto pEntity : ActiveEntities) 
+        if (pEntity->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
+            distances.was_activated.insert(pEntity->index);
     for (auto pArc : arcs) {
         pArc->Width(canvas, distances);
 		Progress.DoneItem(MscProgress::WIDTH, pArc->myProgressCategory);
 	}
 }
 
-//Places a full list of elements starting at y position==0
-//Calls Layout() for each element (recursively) and takes "compress" and "parallel" into account
-//We always place each element on an integer coordinates
-//returns the total height of the list and its coverage in "cover"
-//Automatic pagination is ignored by this
-//Ensures that elements in the list will have non-decreasing yPos order - thus a later
-//element will have same or higher yPos as any previous
+/** Places a full list of elements starting at y position==0
+ * Calls Layout() for each element (recursively) and takes "compress" and 
+ * "parallel" attributes into account.
+ * We always place each element on an integer y coordinate.
+ * Automatic pagination is ignored by this function and is applied later instead.
+ * Ensures that elements in the list will have non-decreasing yPos order - 
+ * thus an element later in the list will have same or higher yPos as any previous.
+ * @param canvas The canvas to calculate geometry on.
+ * @param arcs The list of arcs to place
+ * @param cover We add the area covered by each arc to this list.
+ * @returns the total height of the list*/
 double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
 {
     //Check if we need to calculate cover
@@ -1352,15 +1410,20 @@ struct TY {
         {return y < o.y ? true : y == o.y ? col < o.col : false;}
 };
 
-//Places a set of parallel lists of elements starting at y position==0
-//Calls Height() for each element (recursively) and takes "compress" and "parallel" into account
-//Attempts to avoid collisions and a balanced progress in each set.
-//We always place each element on an integer coordinates
-//returns the longest of the total height of the list and the combined coverage in "cover"
-//Automatic pagination is ignored by this
-//Ensures that elements in each column will have non-decreasing yPos order - thus a later
-//element will have same or higher yPos as any previous
-std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList *cover)
+/** Places a set of parallel lists of elements starting at y position==0.
+ * Calls Layout() for each element (recursively) and takes "compress" and 
+ * "parallel" attributes into account.
+ * Attempts to avoid collisions and a balanced progress in each list.
+ * We always place each element on an integer y coordinate.
+ * Automatic pagination is ignored by this function and is applied later instead.
+ * Ensures that elements in the list will have non-decreasing yPos order - 
+ * thus an element later in the list will have same or higher yPos as any previous.
+ * @param canvas The canvas to calculate geometry on.
+ * @param arcs The list of arc lists to place
+ * @param cover We add the area covered by each arc to this list.
+ * @returns the maximum of total height of the lists*/
+std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, 
+                                        AreaList *cover)
 {
     //we will never shift compress higher than this runnning value
     //(any element marked with "parallel" will set this to its top)
@@ -1481,18 +1544,29 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
     return y_bottom;
 }
 
-//This one places a list (arcs) at start_y (which is supposed to be
-//well below area_top), and calls Height for all of them and ShifyBy.
-//Then, if the first element has compress==yes or forcecompress==true, it
-//compresses the list up taking area_top into account, but no higher than top_y
-//Returns the bottommost coordinate touched by the list after completion.
-//The whole reason for this function is to prevent a big empty space
-//between the first and second arrow, when the first arrow can be
-//compressed a lot, but the second not. Here we move all the arrows
-//as one block only up till none of them collides with something.
-//No matter what input parameters we get we always place the list at an integer
-//y coordinate
-//If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
+/** Places a list of arcs at below an already laid out part of the chart.
+ * The list of arcs is normally placed at y coordinate `start_y` (which is supposed 
+ * to be well below the already laid out part. The elements in the arc list are
+ * placed by calling their Layout() and ShiftBy() functions.
+ * Then, if the first element has its 'compress' attribute set or the `forcecompress`
+ * parameter is true, it shifts the whole newly laid out list upwards until it bumps 
+ * into `area_top`, but no higher than `top_y`.
+ * The whole reason for this function is to prevent a big empty space
+ * between the first and second arrow, when the first arrow can be
+ * compressed a lot, but the second not. Here we move all the arrows (arcs)
+ * as one block only up till sone of them collides with something.
+ * No matter what input parameters we get we always place the list at an integer
+ * y coordinate.
+ * @param canvas The canvas to calculate geometry on.
+ * @param arcs The list of arcs to place.
+ * @param [in] start_y Place the list here (or above if we compress)
+ * @param [in] top_y Never compress the top of the list above this y coordinate.
+ * @param [in] area_top When the list is compressed, avoid overlap with these areas
+ * @param [in] forceCompress Always attempt to move the list upwards, even if the 
+ *                           first arc has its compress attribute set to false.
+ * @param [out] ret_cover If not NULL, we return the resulting cover of the list 
+ *                        at the final position placed.
+ * @returns The bottommost y coordinate touched by any arc on the list after completion. */
 double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                            double top_y, const AreaList &area_top, bool forceCompress,
                            AreaList *ret_cover)
@@ -1515,12 +1589,19 @@ double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
     return start_y + h;
 }
 
+/** Shifts a whole arc list up or down */
 void Msc::ShiftByArcList(ArcList &arcs, double y)
 {
     for (auto pArc : arcs) 
         pArc->ShiftBy(y);
 }
 
+/** Inserts an automatic page breaks to a list of arcs
+ * @param canvas The canvas to calculate geometry on.
+ * @param arcs The list of arc lists to insert the page break into
+ * @param [in] i The arcs before which the page break shall be inserted.
+ * @param [in] pageBreak The y coordinate of the page break in chart space
+ * @param [in] addHeading If true, the page break will also display an automatic heading.*/             
 void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i,
                               double pageBreak, bool addHeading)
 {
@@ -1777,6 +1858,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
     return shift + lowest_on_prev_page - (pageBreak-1);
 }
 
+ /** Collect the y position of page breaks in the list to pageBreakData. */
 void Msc::CollectPageBreakArcList(ArcList &arcs)
 {
     for (auto i= arcs.begin(); i!=arcs.end(); i++) {
@@ -1786,6 +1868,11 @@ void Msc::CollectPageBreakArcList(ArcList &arcs)
     }
 }
 
+/** Automatically paginate an already laid out chart.
+ * @param canvas The canvas on which to calculate geometries.
+ * @param [in] pageSize The height of a page in pixels.
+ * @param [in] addHeading If true automatically inserted page breaks will also
+ *                        have entity headings. */
 void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
 {
     _ASSERT(floor(pageSize)==pageSize);
@@ -1859,7 +1946,19 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 }
 
 
-//Calculate total.x and y. Ensure they are integers
+/** Lay out a parsed chart and calculate its extents. 
+ * This function calls the Width() and Layout() functions of 
+ * arcs to set x and y coordinates, respectively.
+ * It also performs automatic pagination, if needed.
+ * As a result, we fill in Msc::total, Msc::drawing, Msc::comments_right_side,
+ * and Msc::copyrightTextHeight. We ensure that Msc::total is all integer.
+ * @param canvas The canvas to calculate geometry on
+ * @param [in] autoPaginate If true, we do automatic pagination
+ * @param [in] addHeading If true, the automatic page breaks will also add a heading
+ * @param [in] pageSize Determines the page size for automatic pagination
+ * @param [in] fitWidth If true and automatic pagination is on, we select a zoom value
+ *                      to fit the width of the page and normalize the height of the page
+ *                      with it.*/
 void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate, 
                                bool addHeading, XY pageSize, bool fitWidth)
 {
@@ -1880,8 +1979,12 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     distances.CombineBoxSideToPair(hscaleAutoXGap);
     
     double unit = XCoord(1);
-    const double lnote_size = distances.Query(NoEntity->index, LNote->index)/unit;
-    const double rnote_size = distances.Query(RNote->index, RNote->index+1)/unit;
+    double l_comment_size = distances.Query(NoEntity->index, LNote->index)/unit;
+    double r_comment_size = distances.Query(RNote->index, RNote->index+1)/unit;
+    if (distances.had_l_comment) 
+        l_comment_size = std::max(l_comment_size, distances.comment_l);
+    if (distances.had_r_comment) 
+        r_comment_size = std::max(r_comment_size, distances.comment_r);
     total.x.from = 0;
     total.y.from = 0;
     if (GetHScale()<0) {
@@ -1908,10 +2011,10 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         }
         //Now dist[i] contains the needed space on the right of entity index i
         //Consider "sideNoteGap"
-        if (lnote_size) {
+        if (l_comment_size) {
             dist[LNote->index] += 2*sideNoteGap;
         }
-        if (rnote_size) {
+        if (r_comment_size) {
             dist[RSide->index] += 2*sideNoteGap;
         }
         double curr_pos = MARGIN_HSCALE_AUTO; //This is here only for bkw comp!!
@@ -1947,15 +2050,15 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         //rotal.x      = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
 
         //Here we only adjust the space for notes on the side
-        if (lnote_size) {
+        if (l_comment_size) {
             //Shift all entities (use twice of "sideNoteGap")
-            const double diff = lnote_size + sideNoteGap*2/unit;
+            const double diff = l_comment_size + sideNoteGap*2/unit;
             for (auto ei = ActiveEntities.Find_by_Ptr(LNote); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
         }
         total.x.till = XCoord(RNote->pos)+1; //XCoord is always integer
-        if (rnote_size) 
-            total.x.till += rnote_size*unit + 2*sideNoteGap;
+        if (r_comment_size) 
+            total.x.till += r_comment_size*unit + 2*sideNoteGap;
     }
     //Consider the copyright text
     StringFormat sf;
@@ -1966,9 +2069,9 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     comments_right_side = total.x.till; //save: total.x.till may be later increased by note placement
 
     //Turn on entity line for side note lines if there are side notes
-    if (lnote_size) 
+    if (l_comment_size) 
         LNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
-    if (rnote_size) 
+    if (r_comment_size) 
         RNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
 
     drawing.x.from = XCoord(LNote->pos) + sideNoteGap;
@@ -1992,37 +2095,42 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         CollectPageBreakArcList(Arcs);
 }
 
+/** Places elements that can be placed only when marker positions are known (verticals, some symbols).
+ * Calls ArcBase::PlaceWithMarkers for all elements in the list.*/
 void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker)
 {
-    for (auto j = arcs.begin(); j != arcs.end(); j++) {
-        (*j)->PlaceWithMarkers(canvas, autoMarker);
-        Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*j)->myProgressCategory);
+    for (auto pArc : arcs) {
+        pArc->PlaceWithMarkers(canvas, autoMarker);
+        Progress.DoneItem(MscProgress::PLACEWITHMARKERS, pArc->myProgressCategory);
     }
 }
 
-
+/* Places notes */
 void Msc::PlaceFloatingNotes(Canvas &canvas)
 {
     Block new_total;
     new_total.MakeInvalid();
-    for (auto note : Notes) {
-        note->PlaceFloating();
-        new_total += note->GetAreaToDraw().GetBoundingBox();
-        Progress.DoneItem(MscProgress::NOTES, note->myProgressCategory);
+    for (auto pNote : Notes) {
+        pNote->PlaceFloating(canvas);
+        new_total += pNote->GetAreaToDraw().GetBoundingBox();
+        Progress.DoneItem(MscProgress::NOTES, pNote->myProgressCategory);
     }
     if (new_total.IsInvalid()) return;
     new_total.Expand(sideNoteGap);
     total += new_total;
 }
 
-
+/** Invalidate all notes that point to this element. 
+ * Used in the destructor of Element - we also hide notes pointing to it.*/
 void Msc::InvalidateNotesToThisTarget(const Element *target)
 {
-    for(auto i=Notes.begin(); i!=Notes.end(); i++)
-        if ((*i)->GetTarget() == target)
-            (*i)->Invalidate();
+    for(auto pNote : Notes)
+        if (pNote->GetTarget() == target)
+            pNote->Invalidate();
 }
 
+/** Remove a note from the list of notes.
+ * Used from the destructor of CommandNote */
 void Msc::RemoveFromNotes(const CommandNote *note)
 {
     for(auto i=Notes.begin(); i!=Notes.end(); /*nope*/)
@@ -2030,18 +2138,28 @@ void Msc::RemoveFromNotes(const CommandNote *note)
         else i++;
 }
 
-
+/** Calls PostPosProcess for all members of the arc list */
 void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 {
-    for (auto j = arcs.begin(); j != arcs.end(); j++) {
-        (*j)->PostPosProcess(canvas);
-		Progress.DoneItem(MscProgress::POST_POS, (*j)->myProgressCategory);
+    for (auto pArc : arcs) {
+        pArc->PostPosProcess(canvas);
+		Progress.DoneItem(MscProgress::POST_POS, pArc->myProgressCategory);
 	}
 }
 
-//If autoPaginate is true, pagesize.y is the page height.
-//If fitWidth is true, we page height to get a scaling 
-//so that the chart fits the width.
+/** Prepares a chart for drawing after parse.
+ * We perform post-parse processing, lay out the chart and perform
+ * post-positioning processing. After this Draw() functions can be called.
+ * If autoPaginate is true, pagesize.y is the page height.
+ * If fitWidth is true, we adjust page height to get a scaling 
+ * so that the chart fits the width.
+ * @param canvas The canvas to calculate geometry on
+ * @param [in] autoPaginate If true, we do automatic pagination
+ * @param [in] addHeading If true, the automatic page breaks will also add a heading
+ * @param [in] pageSize Determines the page size for automatic pagination
+ * @param [in] fitWidth If true and automatic pagination is on, we select a zoom value
+ *                      to fit the width of the page and normalize the height of the page
+ *                      with it.*/
 void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty, 
                         bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth)
 {
@@ -2110,16 +2228,28 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     Error.Sort();
 }
 
+/** Draw arcs in an arc list 
+ * @param canvas The canvas to draw on
+ * @param [in] arcs The list of arcs to draw
+ * @param [in] yDrawing Draw only arcs in this vertical range 
+ *                      (speedup for drawing only a single page)
+ * @param [in] pass Draw only elements which need to be drawn in this drawing pass*/
 void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassType pass)
 {
-    for (auto i = arcs.begin();i!=arcs.end(); i++)
-        if ((*i)->GetYExtent().Overlaps(yDrawing)) {
-            (*i)->Draw(canvas, pass);
-            if ((*i)->draw_pass == pass)
-                Progress.DoneItem(MscProgress::DRAW, (*i)->myProgressCategory);
+    for (auto pArc : arcs)
+        if (pArc->GetYExtent().Overlaps(yDrawing)) {
+            pArc->Draw(canvas, pass);
+            if (pArc->draw_pass == pass)
+                Progress.DoneItem(MscProgress::DRAW, pArc->myProgressCategory);
         }
 }
 
+/** Draw the chart 
+ * This function draws entity lines and arcs (all passes)
+ * @param canvas The canvas to draw on
+ * @param [in] yDrawing Draw only arcs in this vertical range 
+ *                      (speedup for drawing only a single page)
+ * @param [in] pageBreaks If true, we draw dashed lines for page breaks and page numbers. */
 void Msc::DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks)
 {
     if (total.y.Spans() <= 0) return;
@@ -2169,6 +2299,7 @@ void Msc::DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks)
     DrawArcList(canvas, Arcs, yDrawing, DRAW_AFTER_NOTE);
 }
 
+/** Draw the page breaks */
 void Msc::DrawPageBreaks(Canvas &canvas)
 {
     if (pageBreakData.size()<=1) return;
@@ -2189,6 +2320,10 @@ void Msc::DrawPageBreaks(Canvas &canvas)
     }
 }
 
+/** Draw the header and footer for a page. 
+ * This means a potential automatic heading and the copyright text 
+ * @param canvas The canvas to draw on
+ * @param [in] page The page to draw for. Zero means the whole chart. */
 void Msc::DrawHeaderFooter(Canvas &canvas, unsigned page) 
 {
     canvas.PrepareForHeaderFoorter();
@@ -2205,9 +2340,11 @@ void Msc::DrawHeaderFooter(Canvas &canvas, unsigned page)
         pageBreakData[page-1].autoHeading->Draw(canvas, pageBreakData[page-1].autoHeading->draw_pass);
 }
 
-/** Draws one chart page or all pages onto a context.*/
-//page is 0 for all, 1..n for individual pages
-//Expects the context to be prepared and will unprpare it
+/** Draws one complete chart page or all pages.
+ * We draw header, footer and all chart content.
+ * Expects the context to be prepared and will unprpare it.
+ * @param canvas The canvas to draw on
+ * @param [in] page The page to draw. Zero means the whole chart. */
 void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 {
     Progress.StartSection(MscProgress::DRAW);
@@ -2224,15 +2361,30 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 }
 
 /** Draws the chart into one of more files.
+ * If the chart contains only one page, we create a single file. If there 
+ * are multiple pages, we create one for each. If case of PDF output format
+ * if pageSize is nonzero, we create a single file with multiple pages.
  * 'pageSize' can only be valid (positive `x` and `y`) if file format is PDF (which supports 
  * multiple pages). In that
  * case `scale` can be <zero,zero> indicating that the chart should be fitted to page width.
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
- * @returns False on error (but not on warning) irrespective of `generateErrors`.
-*/
+ * @param [in] ot The format of output. Determines what type of an output file to create.
+ * @param [in] scale A list of scaling values to try (avoiding overfill). A value of <zero,zero>
+ *                   means "fit to page" and can only be used if pageSize is nonzero.
+ * @param [in] fn The name of the file to create. In case of multiple files, we append a number.
+ * @param [in] bPageBreak If true, we draw dashed lines for page break, when the 
+ *                        whole chart is drawn in one.
+ * @param [in] pageSize If non-zero, a fixed page size is used and a single multi-page 
+ *                      file will be created (only with PDF).
+ * @param [in] margins For fixed size pages, these are the margins
+ * @param [in] ha The horizontal alignment for fix size pages (-1: left, 0: center, +1:right)
+ * @param [in] va The vertical alignment for fix size pages (-1:up, 0: center, +1:bottom)
+ * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
+ *                            Errors are also generated on file creation and similar hard errors.
+ * @returns False on error (but not on warning) irrespective of `generateErrors`. */
 bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
-                     const string &fn, bool bPageBreaks, 
+                     const string &fn, bool bPageBreak,
                      const XY &pageSize, const double margins[4], 
                      int ha, int va, bool generateErrors)
 {
@@ -2240,18 +2392,17 @@ bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale,
     _ASSERT(scale.size()==1 || (pageSize.x>0 && pageSize.y>0)); //Multiple scales must be fixed-size output
     const unsigned from = pageBreakData.size()<=1 ? 0 : 1;
     const unsigned till = pageBreakData.size()<=1 ? 0 : pageBreakData.size();
-    if (pageBreakData.size()>1) bPageBreaks = false;
     if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
             Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
             if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
-            DrawComplete(canvas, bPageBreaks, page);
+            DrawComplete(canvas, bPageBreak, page);
         }
     else {
         Canvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &pageBreakData);
         if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
         for (unsigned page=from; page<=till; page++) {
-            DrawComplete(canvas, bPageBreaks, page);
+            DrawComplete(canvas, bPageBreak, page);
             if (page<till) 
                 if (!canvas.TurnPage(&pageBreakData, page+1, generateErrors ? &Error : NULL))
                     return false;
@@ -2261,6 +2412,18 @@ bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale,
 }
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
+/** Draw the chart or one page of it to a metafile 
+ * @param [in] ot The format of output. Determines what type of metafile we use.
+ *                can only be WMF, EMF or EMFWMF.
+ * @param [in] page The page to draw, zero for the whole chart.
+ * @param [in] bPageBreaks If true and we draw the whole chart and the chart has multiple 
+ *                         pages, draw dashed lines for page breaks.
+ * @param [in] fallback_image_resolution Draw fallback images at this resolution.
+ * @param [out] metafile_size Return the size of the resultant metafile in bytes
+ * @param [out] fallback_images Return the area covered by fallback images (in chart space)
+ * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
+ *                            Errors are also generated on file creation and similar hard errors.
+ * @returns The EMF handle of the metafile created. */
 HENHMETAFILE Msc::DrawToMetaFile(Canvas::EOutputType ot,  
                                  unsigned page, bool bPageBreaks, 
                                  double fallback_image_resolution,
@@ -2285,6 +2448,18 @@ HENHMETAFILE Msc::DrawToMetaFile(Canvas::EOutputType ot,
     return ret;
 }
 
+/** Draw the chart or one page of it to a metafile or printer Device Context
+ * @param [in] ot The format of output. Determines what type of metafile we use.
+ *                can only be WMF, EMF, EMFWMF or PRINTER.
+ * @param hdc The DC to draw onto
+ * @param [in] scale Scale the chart by this amount
+ * @param [in] page The page to draw, zero for the whole chart.
+ * @param [in] bPageBreaks If true and we draw the whole chart and the chart has multiple 
+ *                         pages, draw dashed lines for page breaks.
+ * @param [in] fallback_image_resolution Draw fallback images at this resolution.
+ * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
+ *                            Errors are also generated on file creation and similar hard errors.
+ * @returns The size of the metafile or zero at error.*/
 size_t Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                    unsigned page, bool bPageBreaks,
                    double fallback_image_resolution, bool generateErrors)
@@ -2303,6 +2478,14 @@ size_t Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
 
 #endif
 
+/** Draw the whole chart (unscaled) to a cairo recording surface.
+ * @param [in] ot The format of output. Determines what type of approximations we use.
+ * @param [in] bPageBreaks If true and the chart has multiple 
+ *                         pages, draw dashed lines for page breaks.
+ * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
+ *                            Errors are also generated on file creation and similar hard errors.
+ * @returns The resultant cairo recording surface.
+ */
 cairo_surface_t *Msc::DrawToRecordingSurface(Canvas::EOutputType ot, bool bPageBreaks,
                                              bool generateErrors)
 {
@@ -2321,6 +2504,16 @@ cairo_surface_t *Msc::DrawToRecordingSurface(Canvas::EOutputType ot, bool bPageB
     return ret;
 }
 
+/** Replay the chart or one page of it onto a cairo recording surface using a version previously 
+ * recorded via DrawToRecordingSurface().
+ * This function is used when the user views just one page.
+ * @param [in] full A recording suface onto which we previously recorded the drawing 
+ *                  of the chart using DrawToRecordingSurface().
+ * @param [in] page The page to draw, zero for the whole chart.
+ * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
+ *                            Errors are also generated on file creation and similar hard errors.
+ * @returns The resultant cairo recording surface.
+ */
 cairo_surface_t *Msc::ReDrawOnePage(cairo_surface_t *full, unsigned page, 
                                     bool generateErrors)
 {

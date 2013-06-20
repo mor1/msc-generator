@@ -522,6 +522,7 @@ ArcLabelled::ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const S
     numberingStyle(msc->Contexts.back().numberingStyle)
 {
     SetStyleWithText();  //keep existing style, just combine with default text style, numbering and refinement
+    entityLineRange.MakeInvalid();
 }
 
 /** Custom constructor to convert arcs.
@@ -821,14 +822,15 @@ void ArcLabelled::PostPosProcess(Canvas &canvas)
 {
 	//If there is a vline or vfill in the current style, add that to entitylines
     if ((style.read().f_vline &&(style.read().vline.width.first || style.read().vline.type.first || style.read().vline.color.first)) ||
-        (style.read().f_vfill && !style.read().vfill.IsEmpty())) {
-		StyleCoW toadd;
-        if (style.read().f_vline) toadd.write().vline = style.read().vline;
-        if (style.read().f_vfill) toadd.write().vfill = style.read().vfill;
-        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
-            if (!chart->IsVirtualEntity(*i))
-                (*i)->status.ApplyStyle(area.GetBoundingBox().y, toadd);
-	}
+        (style.read().f_vfill && !style.read().vfill.IsEmpty())) 
+        if (!entityLineRange.IsInvalid()) {
+		    StyleCoW toadd;
+            if (style.read().f_vline) toadd.write().vline = style.read().vline;
+            if (style.read().f_vfill) toadd.write().vfill = style.read().vfill;
+            for(auto pEntity : chart->ActiveEntities)
+                if (!chart->IsVirtualEntity(pEntity))
+                    pEntity->status.ApplyStyle(entityLineRange, toadd);
+        }
     ArcBase::PostPosProcess(canvas);
 }
 
@@ -863,6 +865,13 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
     if (defaultDesign.styles.GetStyle("arrow").read().AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
+}
+
+void ArcArrow::PostPosProcess(Canvas &canvas)
+{
+    if (!valid) return;
+    entityLineRange = area.GetBoundingBox().y;
+    ArcLabelled::PostPosProcess(canvas);
 }
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -929,7 +938,7 @@ void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(XSizeUnit)+src_act+style.read().line.LineWidth()/2);
-    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
+    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getSpaceRequired(0) + src_act);
 }
 
 void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
@@ -945,6 +954,19 @@ void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
     wh.y = ceil(2*YSize);
     dx = chart->XCoord(src);
     sx = 0;
+    if (parsed_label.IsWordWrap()) {
+        //find entity left of `src` that is on
+        auto i = src;
+        i--;
+        while (*i != chart->LSide && !(*i)->status.GetStatus(yPos).IsOn())
+            i--;
+        //at worst we are at LSide
+        sx = chart->XCoord(i);
+        if ((*i)->status.GetStatus(yPos).IsActive())
+            sx += chart->activeEntitySize/2;
+        _ASSERT(dx - src_act - sx > 0);
+        parsed_label.Reflow(canvas, dx - src_act - sx);
+    }
 
     double y = chart->arcVGapAbove;
     area = parsed_label.Cover(sx, dx-src_act, y);
@@ -1298,7 +1320,7 @@ void ArcDirArrow::FinalizeLabels(Canvas &canvas)
     double lw_max = style.read().line.LineWidth();
     for (auto i : segment_lines)
         lw_max = std::max(lw_max, i.LineWidth());
-    parsed_label.AddSpacing(0, ARROW_TEXT_VSPACE_ABOVE + lw_max + ARROW_TEXT_VSPACE_BELOW);
+    parsed_label.AddSpacingAfterFirstLine(ARROW_TEXT_VSPACE_ABOVE + lw_max + ARROW_TEXT_VSPACE_BELOW);
 }
 
 
@@ -1307,14 +1329,14 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     if (!valid) return;
     //Here we have a valid canvas, so we adjust act_size
     if (canvas.HasImprecisePositioning() && slant_angle==0)
-        for (auto i = act_size.begin(); i!=act_size.end(); i++)
-            *i = floor(*i);
+        for (auto &i : act_size)
+            i = floor(i);
 
     //we lie about us being forward (we do not check), so we know which of first/second to use
     DoublePair end = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.read().line);
     DoublePair start = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.read().line);
     distances.Insert((*src)->index, (*dst)->index,
-                     (end.first + start.second + parsed_label.getTextWidthHeight().x +
+                     (end.first + start.second + parsed_label.getSpaceRequired(0) +
                      *act_size.begin() + *act_size.rbegin())*cos_slant);
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
@@ -1369,11 +1391,9 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
         aH = max(aH, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE).y);
 
     double y = chart->arcVGapAbove;
-    const XY text_wh = parsed_label.getTextWidthHeight();
+    XY text_wh = parsed_label.getTextWidthHeight();
     if (text_wh.y) {
-        double firstLineHeight = parsed_label.getTextWidthHeight(0).y;
-
-        //Determine coverage for the text (or draw it if we already draw)
+        //Determine space for the text, reflow if needed and calculate cover
         if (sx<dx) {
             sx_text = sx + xy_s.x;
             dx_text = dx - xy_e.x;
@@ -1381,10 +1401,15 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
             sx_text = dx + xy_e.x;
             dx_text = sx - xy_s.x;
         }
+        if (parsed_label.IsWordWrap()) {
+            parsed_label.Reflow(canvas, dx_text - sx_text);
+            text_wh = parsed_label.getTextWidthHeight();
+        }
         cx_text = (sx+dx)/2;
         area = text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
         area.arc = this;
         //determine top edge position of arrow midline
+        const double firstLineHeight = parsed_label.getTextWidthHeight(0).y;
         y += std::max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE);
     } else {
         /* no text */
@@ -1785,6 +1810,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     }
 
     //calculate text margin. segment_lines is now ordered from smaller x to larger x
+    //If label is word wrap, we shall perhaps use something else below than twh.x
     const Contour tcov = parsed_label.Cover(0, twh.x, sy + segment_lines[stext].LineWidth() + chart->boxVGapInside);
     const EArrowType s_type = style.read().arrow.GetType(fw, isBidir(), WhichArrow(stext), false);
     const EArrowType d_type = style.read().arrow.GetType(fw, isBidir(), WhichArrow(dtext), true);
@@ -1795,7 +1821,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     dm = style.read().arrow.getBigMargin(tcov, sy, dy, false, isBidir(), d_type,
                                   segment_lines[stext]);
     distances.Insert(indexes[stext], indexes[dtext], 
-        (sm + twh.x + dm + act_size[stext] +act_size[dtext])*cos_slant);
+        (sm + parsed_label.getSpaceRequired(0) + dm + act_size[stext] +act_size[dtext])*cos_slant);
 }
 
 
@@ -1804,8 +1830,6 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
     if (!valid) return;
     yPos = 0;
 
-    //Reuse sy and dy set in Width()
-    centerline = (sy+dy)/2; //Note that we rotate around (sx, yPos+centerline)
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
@@ -1825,6 +1849,17 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
     sx_text = xPos[stext] + sm + act_size[stext];
     dx_text = xPos[dtext] - dm - act_size[dtext];
     cx_text = (xPos[stext] + xPos[dtext])/2;
+
+    //reflow text if needed
+    if (parsed_label.IsWordWrap()) {
+        parsed_label.Reflow(canvas, dx_text - sx_text);
+        //recalculate dy: reuse sy set in Width()
+        dy = ceil(sy + parsed_label.getTextWidthHeight().y + 
+                  chart->boxVGapInside*2 + 2*segment_lines[stext].LineWidth());
+    }
+    //reuse sy dy set in Width()
+    centerline = (sy+dy)/2; //Note that we rotate around (sx, yPos+centerline)
+
     //text_cover = parsed_label.Cover(sx_text, dx_text, sy+style.read().line.LineWidth()/2 + chart->boxVGapInside, cx_text);
     area = style.read().arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
@@ -1965,9 +2000,9 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
     case VertXPos::POS_LEFT_SIDE:
-        style.write().side.second = SIDE_RIGHT; break;
+        style.write().side.second = ESide::RIGHT; break;
     default:
-        style.write().side.second = SIDE_LEFT; break;
+        style.write().side.second = ESide::LEFT; break;
     }
     //overwrite the style set by ArcArrow::ArcArrow
     SetStyleWithText("vertical");
@@ -2126,7 +2161,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
         GRADIENT_RIGHT};
 
     if (style.read().fill.gradient.first) {
-        if (style.read().side.second == SIDE_LEFT)
+        if (style.read().side.second == ESide::LEFT)
             style.write().fill.gradient.second = readfrom_left_gardient[style.read().fill.gradient.second];
         else
             style.write().fill.gradient.second = readfrom_right_gardient[style.read().fill.gradient.second];
@@ -2238,9 +2273,9 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
     const XY twh = parsed_label.getTextWidthHeight();
     const Contour text_cover = parsed_label.Cover(0, twh.x, lw);
 
-    const double sm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second == SIDE_LEFT,  
+    const double sm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second == ESide::LEFT,  
                                                isBidir(), style.read().arrow.startType.second, style.read().line);
-    const double dm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second != SIDE_LEFT, 
+    const double dm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second != ESide::LEFT, 
                                                isBidir(), style.read().arrow.endType.second, style.read().line);
     const double ss = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.startType.second, MSC_ARROW_START, 
                                                        twh.y+2*lw, 0, style.read().line);
@@ -2267,7 +2302,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
     xpos = floor(xpos + 0.5); //xpos is integer now: the centerline of arrow
     width -= lw; //not necessarily integer, the distance from midline to midline
 
-    if (style.read().side.second == SIDE_LEFT) {
+    if (style.read().side.second == ESide::LEFT) {
         sy_text = ypos[0] + (forward ? sm : dm);
         dy_text = ypos[1] - (forward ? dm : sm);
     } else {
@@ -2308,7 +2343,7 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
     std::vector<double> act_size(2,0);
     style.read().arrow.BigDrawFromContour(outer_contours, NULL, style.read().fill, style.read().shadow, canvas);
 
-    if (style.read().side.second == SIDE_LEFT)
+    if (style.read().side.second == ESide::LEFT)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
         canvas.Transform_Rotate90(ypos[0], ypos[1], true);
@@ -2461,7 +2496,7 @@ bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p
     case BOX_COLLAPSE_EXPAND:
         return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(0));
     case BOX_COLLAPSE_BLOCKARROW:
-        return CshHintGraphicCallbackForSide(canvas, CshHintGraphicParam(int(SIDE_LEFT)));
+        return CshHintGraphicCallbackForSide(canvas, CshHintGraphicParam(int(ESide::LEFT)));
     default:
         _ASSERT(0);
     } 
@@ -2722,20 +2757,19 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
 
     EntityDistanceMap d;
     double max_width = 0; //the widest label plus margins
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        if ((*i)->content.size())
-            chart->WidthArcList(canvas, ((*i)->content), d);
-        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
-        double width = (*i)->parsed_label.getTextWidthHeight().x;
+    for (auto pBox : series) {
+        if (pBox->content.size())
+            chart->WidthArcList(canvas, (pBox->content), d);
+        double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
-        if (i==series.begin()) {
-            const Contour tcov = (*i)->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
+        if (pBox==*series.begin()) {
+            const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
             DoublePair margins = overall_style.read().line.CalculateTextMargin(tcov, 0);
             width += margins.first + margins.second;
-            (*i)->sx_text = margins.first;
-            (*i)->dx_text = margins.second;
+            pBox->sx_text = margins.first;
+            pBox->dx_text = margins.second;
         } else {
-            (*i)->sx_text = (*i)->dx_text = overall_style.read().line.LineWidth();
+            pBox->sx_text = pBox->dx_text = overall_style.read().line.LineWidth();
         }
         max_width = max(max_width, width);
         chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::BOX);
@@ -2816,7 +2850,11 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         (*i)->y_text = y;
         (*i)->sx_text = sx + (*i)->sx_text - lw + chart->boxVGapInside;  //both sx and sx_text includes a lw
         (*i)->dx_text = dx - (*i)->dx_text + lw - chart->boxVGapInside;
-        //Add text cover & draw if necessary
+        //reflow label if necessary
+        if ((*i)->parsed_label.IsWordWrap()) {
+            (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
+        }
+        //Calculate text cover
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         //Advance label height
         const double th = (*i)->parsed_label.getTextWidthHeight().y;
@@ -3046,29 +3084,30 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     //For boxes we always add the background cover first then the content
     //And we do this for each segment sequentially
-    for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->valid) {
-            if ((*i)->content.size()) 
-                switch ((*i)->collapsed) {
+    for (auto pBox : series)
+        if (pBox->valid) {
+            if (pBox->content.size()) 
+                switch (pBox->collapsed) {
                 case BOX_COLLAPSE_EXPAND:
-                    (*i)->controls.push_back(MSC_CONTROL_COLLAPSE);        
+                    pBox->controls.push_back(MSC_CONTROL_COLLAPSE);        
                     if (series.size()==1) 
-                        (*i)->controls.push_back(MSC_CONTROL_ARROW);        
+                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
                     break;
                 case BOX_COLLAPSE_COLLAPSE:
-                    (*i)->controls.push_back(MSC_CONTROL_EXPAND);        
+                    pBox->controls.push_back(MSC_CONTROL_EXPAND);        
                     if (series.size()==1) 
-                        (*i)->controls.push_back(MSC_CONTROL_ARROW);        
+                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
                     break;
                 case BOX_COLLAPSE_BLOCKARROW:
                 default:
                     _ASSERT(0); //should not happen here
                     break;
                 }
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+            pBox->entityLineRange = pBox->area.GetBoundingBox().y;
+            pBox->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
-            if ((*i)->content.size()) 
-                chart->PostPosProcessArcList(canvas, (*i)->content);
+            if (pBox->content.size()) 
+                chart->PostPosProcessArcList(canvas, pBox->content);
         }
 
     //Hide entity lines during the lines inside the box
@@ -3490,7 +3529,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
 
     //Sort according to fromright: begin() should point to the leftmost pipe if side==right,
     //and to the rightmost if side=left
-    if ((*series.begin())->style.read().side.second == SIDE_LEFT) {
+    if ((*series.begin())->style.read().side.second == ESide::LEFT) {
         comp.fromright = false;
         series.sort(comp);
     }
@@ -3506,8 +3545,8 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         //Set flags if we are adjacent to previous one
         auto i_prev = i;
         i_prev--;
-        if (((*series.begin())->style.read().side.second == SIDE_RIGHT && (*i_prev)->dst == (*i)->src) ||
-            ((*series.begin())->style.read().side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
+        if (((*series.begin())->style.read().side.second == ESide::RIGHT && (*i_prev)->dst == (*i)->src) ||
+            ((*series.begin())->style.read().side.second == ESide::LEFT  && (*i_prev)->src == (*i)->dst)) {
             (*i)->pipe_connect_back = true;
             (*i_prev)->pipe_connect_forw = true;
         } else {
@@ -3556,54 +3595,53 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     if (content.size())
         chart->WidthArcList(canvas, content, d);
 
-    const ESideType side = (*series.begin())->style.read().side.second;
+    const ESide side = (*series.begin())->style.read().side.second;
     const double radius = (*series.begin())->style.read().line.radius.second;
 
     //(*i)->src and dst contain the left and right end of a pipe
     //The order of the pipe segments in follow depends on style.read().side
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
-        const double ilw = (*i)->style.read().line.LineWidth();
-        const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->boxVGapInside;
-        (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->boxVGapInside;
-        (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->boxVGapInside;
+    for (auto pPipe : series) {
+        const double ilw = pPipe->style.read().line.LineWidth();
+        const double width = pPipe->parsed_label.getSpaceRequired(0) + 2*chart->boxVGapInside;
+        pPipe->left_space = d.Query((*pPipe->src)->index, DISTANCE_LEFT) + chart->boxVGapInside;
+        pPipe->right_space = d.Query((*pPipe->dst)->index, DISTANCE_RIGHT) + chart->boxVGapInside;
         //Add extra space for curvature
-        if (side == SIDE_RIGHT)
-            (*i)->right_space += radius;
+        if (side == ESide::RIGHT)
+            pPipe->right_space += radius;
         else
-            (*i)->left_space += radius;
+            pPipe->left_space += radius;
 
         //The style.read().line.radius.second is understood to be the radius of the hole of the _outer edge_
-        if ((*i)->src==(*i)->dst) {
-            (*i)->left_space  = std::max(width/2, (*i)->left_space);
-            (*i)->right_space = std::max(width/2, (*i)->right_space);
+        if (pPipe->src==pPipe->dst) {
+            pPipe->left_space  = std::max(width/2, pPipe->left_space);
+            pPipe->right_space = std::max(width/2, pPipe->right_space);
         } else {
             //keep a big enough space between src and dst for the text + curvature of pipe
             //the text can go out of the entity lines, all the way to the left-space
-            d_pipe.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
-                                width - (*i)->left_space - (*i)->right_space +
+            d_pipe.Insert((*pPipe->src)->index, (*pPipe->dst)->index,
+                                width - pPipe->left_space - pPipe->right_space +
                                 radius);
         }
-        (*i)->left_space  = ceil((*i)->left_space);
-        (*i)->right_space = ceil((*i)->right_space);
-        bool connect_left = side == SIDE_RIGHT ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
-        bool connect_right = side == SIDE_RIGHT ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
+        pPipe->left_space  = ceil(pPipe->left_space);
+        pPipe->right_space = ceil(pPipe->right_space);
+        const bool connect_left = side == ESide::RIGHT ? pPipe->pipe_connect_back : pPipe->pipe_connect_forw;
+        const bool connect_right = side == ESide::RIGHT ? pPipe->pipe_connect_forw : pPipe->pipe_connect_back;
         //Check if we are connecting to a neighbour pipe segment
         if (connect_left)
-            (*i)->left_space = 0;
+            pPipe->left_space = 0;
         else
-            d_pipe.Insert((*(*i)->src)->index, DISTANCE_LEFT,
-                                (*i)->left_space + ilw + radius);
+            d_pipe.Insert((*pPipe->src)->index, DISTANCE_LEFT,
+                                pPipe->left_space + ilw + radius);
         //add shadow to the right size only if we are the rightmost entity
         double shadow_to_add = 0;
-        if ((side == SIDE_RIGHT && i==--series.end()) ||
-            (side == SIDE_LEFT  && i==series.begin()))
-            shadow_to_add = (*i)->style.read().shadow.offset.second;
+        if ((side == ESide::RIGHT && pPipe==*series.rbegin()) ||
+            (side == ESide::LEFT  && pPipe==*series.begin()))
+            shadow_to_add = pPipe->style.read().shadow.offset.second;
         if (connect_right)
-            (*i)->right_space = 0;
+            pPipe->right_space = 0;
         else
-            d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
-                                (*i)->right_space + ilw + radius + shadow_to_add);
+            d_pipe.Insert((*pPipe->dst)->index, DISTANCE_RIGHT,
+                                pPipe->right_space + ilw + radius + shadow_to_add);
         chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::PIPE);
     }
     d_pipe.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
@@ -3620,7 +3658,7 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
 void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
 {
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
-    const ESideType side = (*series.begin())->style.read().side.second;
+    const ESide side = (*series.begin())->style.read().side.second;
     const double radius = (*series.begin())->style.read().line.radius.second;
     //the largest of the shadow offsets
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -3631,7 +3669,7 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
         XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
         XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
         const XY rad(radius, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.radius
-        if (side == SIDE_LEFT) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
+        if (side == ESide::LEFT) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
         //now cd is the one with the hole
         const Contour back_end(cs, rad.x, rad.y);
         const Contour forw_end(cd, rad.x, rad.y);
@@ -3665,7 +3703,7 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
                 //the other way is not ok: Expand fails in expanding negative arcs
                 if (content.size() && (*i)->style.read().solid.second < 255) {
                     (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
-                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? chart->GetDrawing().x.from : chart->GetDrawing().x.till, cd.x,
+                    (*i)->area_draw *= Contour(side == ESide::RIGHT ? chart->GetDrawing().x.from : chart->GetDrawing().x.till, cd.x,
                                                 -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
                 }
             }
@@ -3692,7 +3730,7 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
                                            Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 270, 90)};
                 (*i)->pipe_hole_curve.assign_dont_check(hole_line);
                 //this is only half of the hole ellipsos
-                (*i)->pipe_hole_curve[0][side == SIDE_RIGHT ? 0 : 1].visible = false;
+                (*i)->pipe_hole_curve[0][side == ESide::RIGHT ? 0 : 1].visible = false;
             } else {
                 //just chop off from fill and line
                 (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
@@ -3754,7 +3792,7 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
     double lowest_label_on_opaque_segments_bottom = lowest_line_bottom;
     Area label_covers(this);
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
-    const ESideType side = (*series.begin())->style.read().side.second;
+    const ESide side = (*series.begin())->style.read().side.second;
     const double radius = (*series.begin())->style.read().line.radius.second;
     double note_l=0, note_r=0;
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -3780,9 +3818,13 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
         (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.read().line.LineWidth() + chart->boxVGapInside; //not rounded
         (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.read().line.LineWidth() - chart->boxVGapInside;
         switch (side) {
-        case SIDE_RIGHT: (*i)->dx_text -= radius; break;
-        case SIDE_LEFT:  (*i)->sx_text += radius; break;
+        case ESide::RIGHT: (*i)->dx_text -= radius; break;
+        case ESide::LEFT:  (*i)->sx_text += radius; break;
         default: _ASSERT(0);
+        }
+        //reflow label if necessary
+        if ((*i)->parsed_label.IsWordWrap()) {
+            (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
         }
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         // omit text cover for pipes if the pipe is fully opaque,
@@ -3912,6 +3954,7 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     //(this is because search is backwards and this arrangement fits the visual best
     for (auto i = series.begin(); i!=series.end(); i++) 
         if ((*i)->valid && (*i)->style.read().solid.second < 255) {
+            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
             (*i)->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
@@ -3919,6 +3962,7 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
         chart->PostPosProcessArcList(canvas, content);
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.read().solid.second == 255) {
+            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
             (*i)->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
@@ -3963,8 +4007,8 @@ void ArcPipe::DrawPipe(Canvas &canvas, bool topSideFill, bool topSideLine, bool 
     }
     if (topSideLine) {
         cairo_line_join_t t = canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
-        const double x = style.read().side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
-        Contour clip(x, style.read().side.second == SIDE_LEFT ? chart->GetDrawing().x.till : chart->GetDrawing().x.from,
+        const double x = style.read().side.second == ESide::RIGHT ? pipe_block.x.till : pipe_block.x.from;
+        Contour clip(x, style.read().side.second == ESide::LEFT ? chart->GetDrawing().x.till : chart->GetDrawing().x.from,
                      chart->GetDrawing().y.from, chart->GetDrawing().y.till);
         if (style.read().line.radius.second>0 && pipe_connect_forw) {
             const XY c(x, pipe_block.y.MidPoint());
@@ -4144,7 +4188,7 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances)
     if (title) 
         text_margin += style.read().line.LineWidth();
     //calculate space requirement between lside and rside
-    const double width = 2*text_margin + parsed_label.getTextWidthHeight().x;
+    const double width = 2*text_margin + parsed_label.getSpaceRequired(0);
     if (width>0)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
@@ -4168,6 +4212,10 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     if (title)
         y += style.read().line.LineWidth();
     const double charheight = style.read().text.getCharHeight(canvas);
+    //reflow text if needed
+    if (parsed_label.IsWordWrap()) {
+        parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
+    }
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
     centerline = y+wh.y/2;
@@ -4184,12 +4232,11 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
         area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
                       y-lw, y+wh.y+lw);
     else if (area.IsEmpty())
-        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
+        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+                     centerline-chart->nudgeSize/2, centerline+chart->nudgeSize/2);
     area.arc = this;
 
-    if (!wide)
-        wh.y += chart->arcVGapBelow;
-    height = wh.y + 2*extra_space;
+    height = wh.y + 2*extra_space + (wide ? 0 : chart->arcVGapAbove+chart->arcVGapBelow) ;
     if (title)
         height += 2*style.read().line.LineWidth() + style.read().shadow.offset.second;
     //Discontinuity lines cannot be compressed much
@@ -4218,6 +4265,10 @@ void ArcDivider::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     if (!nudge)
         chart->HideEntityLines(text_cover);
+    if (type == MSC_ARC_DISCO) 
+        entityLineRange = area.mainline.GetBoundingBox().y; //will never be compressed away
+    else
+        entityLineRange = area.GetBoundingBox().y;
     ArcLabelled::PostPosProcess(canvas);
 }
 
@@ -4279,15 +4330,15 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
                                        Numbering &number, Element **target)
 {
     if (!valid) return NULL;
-    for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->PostParseProcessArcList(canvas, hide, *i, false, left, right, number, target);
+    for (auto &pBlock : blocks)
+        chart->PostParseProcessArcList(canvas, hide, pBlock, false, left, right, number, target);
     if (hide) return NULL;
     //prune empty blocks
-    for (auto i=blocks.begin(); i != blocks.end(); /*nope*/)
-        if (i->size())
+    for (auto i=0; i < blocks.size(); /*nope*/)
+        if (blocks[i].size())
             i++;
         else 
-            blocks.erase(i++);
+            blocks.erase(blocks.begin()+i);
     return blocks.size() ? this : NULL;
 }
 

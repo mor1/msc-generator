@@ -1035,6 +1035,7 @@ void NoteAttr::MakeComplete()
     if (!def_float_dist.first) {def_float_dist.first = true; def_float_dist.second = 0;}
     if (!def_float_x.first) {def_float_x.first = true; def_float_x.second = 0;}
     if (!def_float_y.first) {def_float_y.first = true; def_float_y.second = 0;}
+    if (!width.first) {width.first=true; width.second = 0; width.str.clear();}
 }
 
 NoteAttr &NoteAttr::operator +=(const NoteAttr&a)
@@ -1043,6 +1044,7 @@ NoteAttr &NoteAttr::operator +=(const NoteAttr&a)
     if (a.def_float_dist.first) def_float_dist = a.def_float_dist;
     if (a.def_float_x.first) def_float_x = a.def_float_x;
     if (a.def_float_y.first) def_float_y = a.def_float_y;
+    if (a.width.first) width = a.width;
     return *this;
 };
 
@@ -1056,12 +1058,14 @@ bool NoteAttr::operator == (const NoteAttr &a)
     if (def_float_x.first && !(a.def_float_x.second == def_float_x.second)) return false;
     if (a.def_float_y.first != def_float_y.first) return false;
     if (def_float_y.first && !(a.def_float_y.second == def_float_y.second)) return false;
+    if (a.width.first != width.first) return false;
+    if (a.width.first && (a.width.second != width.second || (width.second<0 && a.width.str != width.str))) return false;
     return true;
 }
 
 /** Take an attribute and apply it to us.
  *
- * We consider attributes ending with 'pointer' and 'pos'; 
+ * We consider attributes ending with 'width', 'pointer' and 'pos'; 
  * or any style at the current context in `msc`. We also accept the clearing of
  * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
  * At a problem, we generate an error into msc->Error.
@@ -1120,6 +1124,28 @@ bool NoteAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         a.InvalidValueError(CandidatesFor(tmp), msc->Error);
         return true;
     }
+    if (a.EndsWith("width")) {
+        switch (a.type) {
+        default:
+        case MSC_ATTR_STYLE: 
+            _ASSERT(0);
+        case MSC_ATTR_CLEAR: 
+            if (a.EnsureNotClear(msc->Error, t))
+                width.first = false;
+            break;
+        case MSC_ATTR_NUMBER:
+            width.first = true;
+            width.second = a.number;
+            width.str.clear();
+            break;
+        case MSC_ATTR_BOOL:
+        case MSC_ATTR_STRING:
+            width.first = true;
+            width.second = -1;
+            width.str = a.value;
+            break;
+        }
+    }
     return false;
 }
 
@@ -1127,7 +1153,7 @@ bool NoteAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 void NoteAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "note.pointer", "note.pos", ""};
+    {"", "note.pointer", "note.pos", "note.width", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -1150,6 +1176,11 @@ bool NoteAttr::AttributeValues(const std::string &attr, Csh &csh)
     if (CaseInsensitiveEndsWith(attr, "pos")) {
         csh.AddToHints(EnumEncapsulator<NoteAttr::EPosType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForPos);
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "width")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<string>", HINT_ATTR_VALUE, false));
         return true;
     }
     return false;

@@ -150,6 +150,13 @@ protected:
 public:
     /** Contains a set of entities that were active at any time while this map is used */
     std::set<unsigned> was_activated;
+    double comment_l; ///<Explicit user-requested left comment size
+    double comment_r; ///<Explicit user-requested right comment size
+    bool had_l_comment; ///<We had comments on the left side actually showing
+    bool had_r_comment; ///<We had comments on the right side actually showing
+
+    EntityDistanceMap() : comment_l(0), comment_r(0), had_l_comment(false), had_r_comment(false) {}
+
     /** Return the set of pairwise distances. Ordered by entity pair distance.*/
     const std::map<IPair, double, IPairComp> &GetPairs() const {return pairs;}
 
@@ -271,6 +278,7 @@ public:
     AreaList                      AllCovers;       ///<A set of arc contours with a pointer to the arcs. Used to identify the arc covering an XY coordinate.
     Contour                       HideELinesHere;  ///<A complex contour used as a mask when drawing entity lines.
     PBDataVector                  pageBreakData;   ///<Starting y pos and auto-heading info for each page break. pageBreakData[0].y is always 0. 
+    ArcList                       EndNotes;        ///<We move all endnotes here during PostParseProcessArcList(). We reappend them in PostParseProcess().
     CommandNoteList               Notes;           ///<All notes are moved here after PostParseProcess 
     PtrList<const Element>        NoteBlockers;    ///<Ptr to all elements that may block a floating note and which therefore should not overlap with them
     /** @} */
@@ -319,6 +327,7 @@ public:
     double compressGap;      ///<Size of gap we keep between elements at compress. We expand by half of it 
     double hscaleAutoXGap;   ///<Size of horizontal gap between elements at hscale=auto     
     double sideNoteGap;      ///<Gap between the side comment line and the comments     
+    double defWNoteWidth;    ///<The default width for word wrapping notes in pos "space"
     double trackFrameWidth;  ///<Width of the frames used for tracking boxes and pipes on screen 
     double trackExpandBy;    ///<How much do we expand tracking covers 
     /** @} */
@@ -389,8 +398,11 @@ public:
     EDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, EDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
+    /** Returns the current value of the hscale chart option*/
     double GetHScale() const {_ASSERT(Contexts.size() && Contexts.back().hscale.first); return Contexts.back().hscale.second;}
+    /** Converts an x coordinate from pos coordinat space to pixel space. Always returns an integer */
     double XCoord(double pos) const {return floor(pos*130*(GetHScale()>0?GetHScale():1)+0.5);} //rounded
+    /** Returns the x coordinate of the middle of an entity in pixel space, rounded*/
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
@@ -415,7 +427,9 @@ public:
     void InvalidateNotesToThisTarget(const Element *target);
     void RemoveFromNotes(const CommandNote *note);
 
+    /** Hides the entity lines in `area` */
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
+    /** Hides the entity lines in `area` */
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
 
@@ -423,25 +437,25 @@ public:
                        bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);
 
     void DrawEntityLines(Canvas &canvas, double y, double height, EIterator from, EIterator to);
+    /** Draw all entity lines between vertical positions `y` and `y+height`*/
     void DrawEntityLines(Canvas &canvas, double y, double height)
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
     void DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassType pass);
     void DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks);
 
-    void DrawCopyrightTextAndAutoHeading(Canvas &canvas, unsigned page=0);
     void DrawPageBreaks(Canvas &canvas);
     void DrawHeaderFooter(Canvas &canvas, unsigned page);
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
-    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks,
+    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, 
+                    const string &fn, bool bPageBreak,
                     const XY &pageSize=XY(0,0), const double margins[4]=NULL,
                     int ha=-1, int va=-1, bool generateErrors=false);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks,
                                 double fallback_image_resolution=-1, size_t *metafile_size=NULL,
                                 Contour *fallback_images=NULL, bool generateErrors=false);
-    /** Returns the size of the metafile or zero at error.*/
     size_t DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                   unsigned page, bool bPageBreaks,
                   double fallback_image_resolution=-1,
@@ -453,6 +467,7 @@ public:
                                    bool generateErrors=false);
 };
 
+/** Global function used to parse a chart. Body defined in language.cc.*/
 void MscParse(Msc &msc, const char *buff, unsigned len);
 
 template <typename list>

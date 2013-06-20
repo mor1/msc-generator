@@ -421,9 +421,15 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.font.face", "text.font.type", 
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-"text.gap.spacing", "text.size.normal", "text.size.small", 
+"text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap",
 "comment.line.color", "comment.line.type", "comment.line.width", 
 "comment.fill.color", "comment.fill.color2", "comment.fill.gradient",
+"comment.side", 
+"comment.text.color", "comment.text.format", "comment.text.ident", 
+"comment.text.font.face", "comment.text.font.type", 
+"comment.text.bold", "comment.text.italic", "comment.text.underline", 
+"comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
+"comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap",
 "angle", "classic_parallel_layout", ""};
 
 /** Names of attributes for coloring.
@@ -439,7 +445,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "text.font.face", "text.font.type", 
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-"text.gap.spacing", "text.size.normal", "text.size.small",
+"text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "line.color", "line.type", "line.width", "line.corner", "line.radius", 
@@ -448,7 +454,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
 "compressable", "xsize", "ysize", "size", "space", "angle",
-"note.pointer", "note.pos", ""};
+"note.pointer", "note.pos", "note.width", ""};
 
 /** Names of symbols for coloring
  *
