@@ -421,4 +421,14 @@ public:
                                              {_ASSERT(0); return -1;}
 };
 
+class CommandEndNoteSeparator : public ArcCommand
+{
+public: 
+    explicit CommandEndNoteSeparator(Msc *m) :
+        ArcCommand(MSC_ARC_EN_SEPARATOR,  MscProgress::TINY_EFFORT, m) {}
+    virtual void Layout(Canvas &canvas, AreaList *cover);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+};
+
 #endif //COMMANDS_H

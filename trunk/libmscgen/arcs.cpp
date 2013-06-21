@@ -938,7 +938,7 @@ void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(XSizeUnit)+src_act+style.read().line.LineWidth()/2);
-    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getSpaceRequired(0) + src_act);
+    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getSpaceRequired() + src_act);
 }
 
 void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
@@ -1336,7 +1336,7 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     DoublePair end = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.read().line);
     DoublePair start = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.read().line);
     distances.Insert((*src)->index, (*dst)->index,
-                     (end.first + start.second + parsed_label.getSpaceRequired(0) +
+                     (end.first + start.second + parsed_label.getSpaceRequired() +
                      *act_size.begin() + *act_size.rbegin())*cos_slant);
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
@@ -1821,7 +1821,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     dm = style.read().arrow.getBigMargin(tcov, sy, dy, false, isBidir(), d_type,
                                   segment_lines[stext]);
     distances.Insert(indexes[stext], indexes[dtext], 
-        (sm + parsed_label.getSpaceRequired(0) + dm + act_size[stext] +act_size[dtext])*cos_slant);
+        (sm + parsed_label.getSpaceRequired() + dm + act_size[stext] +act_size[dtext])*cos_slant);
 }
 
 
@@ -3602,7 +3602,7 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     //The order of the pipe segments in follow depends on style.read().side
     for (auto pPipe : series) {
         const double ilw = pPipe->style.read().line.LineWidth();
-        const double width = pPipe->parsed_label.getSpaceRequired(0) + 2*chart->boxVGapInside;
+        const double width = pPipe->parsed_label.getSpaceRequired() + 2*chart->boxVGapInside;
         pPipe->left_space = d.Query((*pPipe->src)->index, DISTANCE_LEFT) + chart->boxVGapInside;
         pPipe->right_space = d.Query((*pPipe->dst)->index, DISTANCE_RIGHT) + chart->boxVGapInside;
         //Add extra space for curvature
@@ -4188,7 +4188,7 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances)
     if (title) 
         text_margin += style.read().line.LineWidth();
     //calculate space requirement between lside and rside
-    const double width = 2*text_margin + parsed_label.getSpaceRequired(0);
+    const double width = 2*text_margin + parsed_label.getSpaceRequired();
     if (width>0)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
