@@ -38,7 +38,7 @@
 
 using std::string;
 
-/** Name of the virtual entity representing a nonexistent entity. */
+/** Name of the virtual entity representing a nonexistent entity and the left of the chart (of left comments), but notes may extend leftward. */
 #define NONE_ENT_STR  "()"
 /** Name of the virtual entity representing the line separating the left side comments from the chart body. */
 #define LNOTE_ENT_STR "(leftside_note)"
@@ -48,6 +48,8 @@ using std::string;
 #define RSIDE_ENT_STR "(rightside)"
 /** Name of the virtual entity representing the line separating the right side comments from the chart body. */
 #define RNOTE_ENT_STR "(rightside_note)"
+/** Name of the virtual entity representing the ultimate right side of the chart (of left comments), but notes may extend rightward*/
+#define END_ENT_STR "(end)"
 
 /** Name of a virtual marker representing the current vertical location. Used in verticals when one end is not specified.*/
 #define MARKER_HERE_STR "\""
@@ -150,8 +152,8 @@ protected:
 public:
     /** Contains a set of entities that were active at any time while this map is used */
     std::set<unsigned> was_activated;
-    double comment_l; ///<Explicit user-requested left comment size
-    double comment_r; ///<Explicit user-requested right comment size
+    double comment_l; ///<Maximum explicit user-requested left comment size
+    double comment_r; ///<Maximum explicit user-requested right comment size
     bool had_l_comment; ///<We had comments on the left side actually showing
     bool had_r_comment; ///<We had comments on the right side actually showing
 
@@ -266,6 +268,7 @@ public:
     Entity                       *LSide;           ///<A virtual entity representing the left side of the chart body (some margin away from LNote)
     Entity                       *RSide;           ///<A virtual entity representing the right side of the chart body (some margin away from RNote)
     Entity                       *RNote;           ///<A virtual entity representing the line separating the right side comments from the chart body. 
+    Entity                       *EndEntity;       ///<A virtual entity representing the very right side of the chart. Equals to total.x.till.
     EntityAppList                 AutoGenEntities; ///<A list of entity appearance objects, one for each implicitly defined entity. After parsing, they are appended to the first EntityCommand.
     ArcList                       Arcs;            ///<The list of all arcs in the chart (in order of definition). Notes are moved away from here in PostParseProcess().
     std::list<Context>            Contexts;        ///<A stack of Context objects used during parsing
@@ -289,7 +292,6 @@ protected:
     friend class CommandEntity;
     Block  total;                ///<Total bounding box of the chart (minus copyright), in chart space, not considering pagination.
     Block  drawing;              ///<The area where chart elements can be (total minus the comment lanes at the side)
-    double comments_right_side;  ///<The x coordinate of the right side of the right comments (or the drawing area if no rcomments). May be different from total.x due to notes. (calculated in CalculateWidthHeight())
     double copyrightTextHeight;  ///<The y size of the copyright text (calculated in CalculateWidthHeight())
     double headingSize;          ///<Y size of first heading row (collected during PostPosProcess())
     /** @} */
@@ -299,9 +301,6 @@ public:
     const Block &GetTotal() const {return total;}
     /** Returns the area where chart elements can be (total minus the comment lanes at the side)*/
     const Block &GetDrawing() const {return drawing;}
-    /** Returns the x coordinate of the right side of the right comments 
-     * (or the drawing area if no rcomments). May be different from total.x due to notes. */
-    double GetCommentsRightSide() const {return comments_right_side;}  
     /** Returns the y size of the copyright text */
     double GetCopyrightTextHeight() const {return copyrightTextHeight;}
     /** Returns the Y coordinate of the bottom of the top entity headings (for AutoSplit)*/
@@ -373,8 +372,8 @@ public:
     bool IsMyParentEntity(const string &child, const string &parent);
     double GetEntityMaxPos() const;
     double GetEntityMaxPosExp() const;
-    /** True if `e` is one of NoEntity, LSide, LNote, RSide or RNote.*/
-    bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote;}
+    /** True if `e` is one of NoEntity, LSide, LNote, RSide, RNote or EndEntity.*/
+    bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote || e==EndEntity;}
     /** Moves the contents of `a` to the end of the arc list of the chart*/
     void AddArcs(ArcList *a) {if (!a) return; Arcs.splice(Arcs.end(), *a); delete a;}
     ArcArrow *CreateArcArrow(EArcType t, const char*s, const FileLineColRange &sl,

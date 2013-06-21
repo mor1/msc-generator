@@ -244,7 +244,7 @@ Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
     Arcs(true), EndNotes(true), Notes(false), NoteBlockers(false), 
     total(0,0,0,0), drawing(0,0,0,0), 
-    comments_right_side(0), copyrightTextHeight(0), headingSize(0)
+    copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -292,12 +292,15 @@ Msc::Msc() :
                        Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     RNote = new Entity(RNOTE_ENT_STR, RNOTE_ENT_STR, RNOTE_ENT_STR, 10001, 10001,
                        Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+    EndEntity = new Entity(END_ENT_STR , END_ENT_STR , END_ENT_STR , 10002, 10002,
+                           Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     
     AllEntities.Append(NoEntity);
     AllEntities.Append(LNote);
     AllEntities.Append(LSide);
     AllEntities.Append(RSide);
     AllEntities.Append(RNote);
+    AllEntities.Append(EndEntity);
 
     //This sets the global context to "plain" (redundant) 
     //and adds CommandEntities for lcomment.* and CommandBackground if needed.
@@ -1101,36 +1104,36 @@ void Msc::PostParseProcess(Canvas &canvas)
 
     //Set index field in Entities
     unsigned index = 0;
-    for (EIterator temp = ActiveEntities.begin(); temp!=ActiveEntities.end(); temp++, index++)
-        (*temp)->index = index;
+    for (auto pEntity : ActiveEntities)
+        pEntity->index = index++;
 
     //Find the first real entity
-    EIterator tmp = ActiveEntities.begin();
-    while (tmp != ActiveEntities.end() && IsVirtualEntity(*tmp))
-        tmp++;
+    EIterator iLeftmost = ActiveEntities.begin();
+    while (iLeftmost != ActiveEntities.end() && IsVirtualEntity(*iLeftmost))
+        iLeftmost++;
 
     //Ensure that leftmost real entity pos == 2*MARGIN
     double rightmost = 0;
-    if (tmp != ActiveEntities.end()) {
-        double leftmost = (*tmp)->pos - 2*MARGIN;
-        for  (EIterator i = AllEntities.begin(); i != AllEntities.end(); i++) 
-            (*i)->pos -= leftmost;
+    if (iLeftmost != ActiveEntities.end()) {
+        double leftmost = (*iLeftmost)->pos - 2*MARGIN;
+        for  (auto pEntity : AllEntities) 
+            pEntity->pos -= leftmost;
         //Find rightmost entity's pos
-        for  (EIterator i = ActiveEntities.begin(); i != ActiveEntities.end(); i++) {
-            if (IsVirtualEntity(*i)) continue;
-            if (rightmost < (*i)->pos)
-                rightmost = (*i)->pos;
-        }
+        for  (auto pEntity : ActiveEntities) 
+            if (!IsVirtualEntity(pEntity) && rightmost < pEntity->pos)
+                rightmost = pEntity->pos;
     } else {
         //if there are no real entities, just noentity, lside & rside, set this wide
         //so that copyright banner fits
         rightmost = 3*MARGIN;
     }
     //Set the position of the virtual side entities & resort
+    const_cast<double&>(NoEntity->pos) = 0;
     const_cast<double&>(LNote->pos) = 0;
     const_cast<double&>(LSide->pos) = MARGIN;
     const_cast<double&>(RSide->pos) = rightmost + MARGIN;
     const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN;
+    const_cast<double&>(EndEntity->pos) = rightmost + MARGIN + MARGIN;
     ActiveEntities.SortByPos();
 
     if (Arcs.size()==0) return;
@@ -1162,14 +1165,9 @@ void Msc::PostParseProcess(Canvas &canvas)
     //Reinsert end-notes at the end (they have been post-processed)
     if (EndNotes.size()) {
         //Add separator
-        ArcDivider *ad = new ArcDivider(MSC_ARC_DIVIDER, this);
-        Attribute w("_wide", true, FileLineColRange(),  FileLineColRange(), "yes");
-        ad->AddAttribute(w);
-        Attribute a("line.type", "solid", FileLineColRange(),  FileLineColRange());
-        ad->AddAttribute(a);
-        ad->AddAttributeList(NULL);
-        ad->PostParseProcess(canvas, false, dummy1, dummy2, number, &note_target);
-        Arcs.Append(ad);
+        CommandEndNoteSeparator *ens = new CommandEndNoteSeparator(this);
+        ens->AddAttributeList(NULL);
+        Arcs.Append(ens);
         //Append end-notes
         Arcs.splice(Arcs.end(), EndNotes);
     }
@@ -1946,6 +1944,9 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 }
 
 
+/** The default size of the comment area in `pos` units if all comments are wrapped*/
+#define DEFAULT_COMMENT_SIZE 1
+
 /** Lay out a parsed chart and calculate its extents. 
  * This function calls the Width() and Layout() functions of 
  * arcs to set x and y coordinates, respectively.
@@ -1978,22 +1979,55 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
     distances.CombineBoxSideToPair(hscaleAutoXGap);
     
-    double unit = XCoord(1);
-    double l_comment_size = distances.Query(NoEntity->index, LNote->index)/unit;
-    double r_comment_size = distances.Query(RNote->index, RNote->index+1)/unit;
-    if (distances.had_l_comment) 
-        l_comment_size = std::max(l_comment_size, distances.comment_l);
-    if (distances.had_r_comment) 
-        r_comment_size = std::max(r_comment_size, distances.comment_r);
+    //At this point distances related to side comments in `distances` are as follows.
+    //`comment_l` and `comment_r` contains the maximum of the "hspace left comment" and
+    //"hspace right comment" commands, or zero if none. These distances are not added as
+    //a pairwise distance.
+    //Pairwise distances betwen NoEntity-LNote and RNote-EndEntity contain the space
+    //required for left or right side comments. Zero if no such comments or if all
+    //such comments are word wrapped.
+    //`had_l_comment` and `had_r_comment` are true if there were such comments.
+    //
+    //The algorithm to calculate eventual space is as follows.
+    //If there are no comments, we use zero.
+    //Else if we have hscale=auto, we use the maximum of user specified and 
+    //     label requested spaces. If that is zero, we use XCoord(DEFAULT_COMMENT_SIZE)
+    //Else if the user specified something, we use that
+    //Else we use XCoord(DEFAULT_COMMENT_SIZE)
+
+    const double unit = XCoord(1);
+    double l_comment_size;
+    if (distances.had_l_comment) {
+        if (GetHScale()<0) {
+            l_comment_size = std::max(distances.Query(NoEntity->index, LNote->index), 
+                                      distances.comment_l);
+            if (l_comment_size==0) l_comment_size = XCoord(DEFAULT_COMMENT_SIZE);
+        } else 
+            l_comment_size = distances.comment_l ? distances.comment_l : XCoord(DEFAULT_COMMENT_SIZE);
+    } else 
+        l_comment_size = 0;
+    double r_comment_size;
+    if (distances.had_r_comment) {
+        if (GetHScale()<0) {
+            r_comment_size = std::max(distances.Query(RNote->index, EndEntity->index), 
+                                      distances.comment_r);
+            if (r_comment_size==0) r_comment_size = XCoord(DEFAULT_COMMENT_SIZE);
+        } else 
+            r_comment_size = distances.comment_r ? distances.comment_r : XCoord(DEFAULT_COMMENT_SIZE);
+    } else 
+        r_comment_size = 0;
+
     total.x.from = 0;
     total.y.from = 0;
+
     if (GetHScale()<0) {
         //Now go through all the pairwise requirements and calc actual pos.
         //dist will hold required distance to the right of entity with index []
         vector<double> dist(ActiveEntities.size(), 0);
-        dist[0] = 0;
-        dist[LSide->index] = XCoord(MARGIN_HSCALE_AUTO);
-        dist[RSide->index-1] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[0] = l_comment_size ? l_comment_size + 2*sideNoteGap : 0;
+        dist[LNote->index] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[RSide->index] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[RNote->index] = r_comment_size ? r_comment_size + 2*sideNoteGap : 0;
         //distances.pairs starts with requiremenst between neighbouring entities
         //and continues with requirements between second neighbours, ... etc.
         //we process these sequentially
@@ -2010,32 +2044,13 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
                                                 i.first.second, toadd);
         }
         //Now dist[i] contains the needed space on the right of entity index i
-        //Consider "sideNoteGap"
-        if (l_comment_size) {
-            dist[LNote->index] += 2*sideNoteGap;
-        }
-        if (r_comment_size) {
-            dist[RSide->index] += 2*sideNoteGap;
-        }
-        double curr_pos = MARGIN_HSCALE_AUTO; //This is here only for bkw comp!!
+
+        double curr_pos = 0; 
         unsigned index = 0;
-        for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
-            (*j)->pos = curr_pos;
-            ////Mark all parents of this active entity (they are not active) with this "pos"
-            ////In the end this will make any grouped entity to have the same "pos" as
-            ////one of its active descendants. It is unspecified, which, but that does not
-            ////matter, we just need this in CommandEntity::Width, where we want to find
-            ////the leftmost and rightmost active descendant of a grouped node
-            //EIterator j_loc = j;
-            //while ((*j_loc)->parent_name.length()>0) {
-            //    j_loc = AllEntities.Find_by_Name((*j_loc)->parent_name);
-            //    _ASSERT(*j_loc != NoEntity);
-            //    (*j_loc)->pos = curr_pos;
-            //}
-            //advance curr_pos to the next entity
+        for (auto pEntity : ActiveEntities) {
+            pEntity->pos = curr_pos;
             curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
         }
-        total.x.till = XCoord(curr_pos)+1;
     } else {
         //In postparseprocess we set the virtual entity's pos as follows
         //in the second column we show how they should be if there are
@@ -2047,26 +2062,25 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         //last entity  = x             |  L/unit + x                    | L/unit
         //RSIDE        = x + MARGIN    |  L/unit + x + MARGIN           | L/unit
         //RNOTE        = x + 2*MARGIN  |  L/unit + x + 2*MARGIN         | L/unit
-        //rotal.x      = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
+        //EndEntity    = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
 
         //Here we only adjust the space for notes on the side
-        if (l_comment_size) {
+        if (distances.had_l_comment) {
             //Shift all entities (use twice of "sideNoteGap")
-            const double diff = l_comment_size + sideNoteGap*2/unit;
+            const double diff = (l_comment_size + sideNoteGap*2)/unit;
             for (auto ei = ActiveEntities.Find_by_Ptr(LNote); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
         }
-        total.x.till = XCoord(RNote->pos)+1; //XCoord is always integer
-        if (r_comment_size) 
-            total.x.till += r_comment_size*unit + 2*sideNoteGap;
+        if (distances.had_r_comment) 
+            EndEntity->pos += (r_comment_size + 2*sideNoteGap)/unit;
     }
+    total.x.till = XCoord(EndEntity->pos)+1; //XCoord is always integer
     //Consider the copyright text
     StringFormat sf;
     sf.Default();
     XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
     if (total.x.till < crTexSize.x) total.x.till = crTexSize.x;
     copyrightTextHeight = crTexSize.y;
-    comments_right_side = total.x.till; //save: total.x.till may be later increased by note placement
 
     //Turn on entity line for side note lines if there are side notes
     if (l_comment_size) 

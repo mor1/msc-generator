@@ -84,6 +84,7 @@ enum EArcType
     MSC_COMMAND_SUBTITLE,        ///<A subtitle command (ArcDivider)
 
     MSC_ARC_ARCLIST,             ///<A list of arcs for internal use (CommandArcList)
+    MSC_ARC_EN_SEPARATOR,        ///<A list of arcs for internal use (CommandArcList)
     MSC_ARC_INDICATOR            ///<An indicator element inserted to replace hidden elements (ArcIndicator)
 };
 

@@ -1024,9 +1024,9 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
         dist += Label(label.second, canvas, format).getTextWidthHeight().x;
     if (dist<0)
         chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
-    else if (*src == chart->LNote) //if src is LNote, this was a "hspace left comment" command
+    else if (*src == chart->LNote) 
         distances.comment_l = std::max(distances.comment_l, dist);
-    else if (*src == chart->RNote) //if src is LNote, this was a "hspace right comment" command
+    else if (*src == chart->RNote)
         distances.comment_r = std::max(distances.comment_r, dist);
     else
         distances.Insert((*src)->index, (*dst)->index, dist);
@@ -1549,6 +1549,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
                                        Numbering &number, Element **note_target)
 {
     if (!valid) return NULL;
+    compress = false; //really relevant only for endnotes...
     //ensure we have label
     if (label.length()==0) {
         chart->Error.Error(file_pos.start, is_float ? "Notes" : "Comments" +
@@ -1610,6 +1611,8 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
     ArcLabelled::FinalizeLabels(canvas);
 }
 
+//Side comments report zero width if they are word wrapped,
+//but always set the 'had_X_comment' flag of 'distances'
 void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
@@ -1621,7 +1624,7 @@ void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances)
         halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.read().line.LineWidth(), style.read().line.LineWidth());
     } else {
         //Here we only make space if the note is on the side
-        const double w = parsed_label.getSpaceRequired(0);
+        const double w = parsed_label.getSpaceRequired();
         switch (style.read().side.second) {
         case ESide::LEFT:
             distances.Insert(chart->LNote->index, DISTANCE_LEFT, w);
@@ -1650,17 +1653,19 @@ void CommandNote::Layout(Canvas &canvas, AreaList * cover)
             //Endnotes are laid out normally here
             //Start with reflowing the label if needed
             if (parsed_label.IsWordWrap()) {
-                const double space = chart->XCoord(chart->RSide->pos) - 
-                                     chart->XCoord(chart->LSide->pos);
+                const double space = chart->XCoord(chart->EndEntity->pos) - 2*chart->sideNoteGap;
                 parsed_label.Reflow(canvas, space);
             }
-            area = parsed_label.Cover(chart->XCoord(chart->LSide->pos), 
-                                      chart->XCoord(chart->RSide->pos), yPos);
+            yPos = 0;
+            area = parsed_label.Cover(chart->sideNoteGap, 
+                          chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap, 
+                          yPos);
             area.arc = this;
             height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
-            yPos = 0;
+            area.mainline = Block(chart->GetTotal().x, area.GetBoundingBox().y);
             if (cover) 
                 *cover += GetCover4Compress(area);
+            return;
         }
     }
     height = 0;
@@ -2514,7 +2519,7 @@ void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
     if (parsed_label.IsWordWrap()) {
         const double space = style.read().side.second == ESide::LEFT ? 
             chart->XCoord(chart->LNote->pos) - 2*chart->sideNoteGap :
-            chart->GetCommentsRightSide() - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
+            chart->XCoord(chart->EndEntity->pos) - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
         parsed_label.Reflow(canvas, space);
     }
     if (style.read().side.second == ESide::LEFT)
@@ -2523,7 +2528,7 @@ void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
                                   yPos);
     else 
         area = parsed_label.Cover(chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, 
-                                  chart->GetCommentsRightSide()-chart->sideNoteGap, 
+                                  chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap, 
                                   yPos);
     area.arc = this;
     height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
@@ -2594,13 +2599,48 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
         return;
     case ESide::RIGHT:
         parsed_label.Draw(canvas, chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, 
-                          chart->GetCommentsRightSide() - chart->sideNoteGap, 
+                          chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap, 
                           yPos);
         return;
     case ESide::END:
-        parsed_label.Draw(canvas, chart->XCoord(chart->LSide->pos), 
-                          chart->XCoord(chart->RSide->pos), yPos);
+        parsed_label.Draw(canvas, chart->sideNoteGap, 
+                          chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap, 
+                          yPos);
         return;
     }
 }
 
+
+//////////////////////////////////////////////////////////////////////
+
+void CommandEndNoteSeparator::Layout(Canvas &canvas, AreaList *cover)
+{
+    yPos = 0;
+    height = chart->nudgeSize;
+    compress = false;
+    const Block b(chart->GetTotal().x.from, chart->GetTotal().x.till, 0, chart->nudgeSize);
+    area.mainline = b;
+}
+
+void CommandEndNoteSeparator::PostPosProcess(Canvas &cover)
+{
+    //Stop the potential fill of the side comment lanes
+    StyleCoW no_fill; //empty style
+    no_fill.write().fill.color.second.valid = false;
+    chart->LNote->status.ApplyStyle(yPos, no_fill);
+    chart->RNote->status.ApplyStyle(yPos, no_fill);
+
+    //turn all entities off
+    for (auto pEntity : chart->ActiveEntities)
+        pEntity->status.SetStatus(yPos, EEntityStatus::SHOW_OFF);
+}
+
+void CommandEndNoteSeparator::Draw(Canvas &canvas, EDrawPassType pass)
+{
+    if (pass == EDrawPassType::DRAW_DEFAULT) 
+        canvas.Line(XY(chart->GetTotal().x.from+chart->sideNoteGap*2, yPos + height/2), 
+                    XY(chart->GetDrawing().x.till-chart->sideNoteGap*2, yPos + height/2), 
+                    LineAttr(ELineType::LINE_SOLID, 
+                             chart->LNote->status.GetStyle(yPos).read().line.color.second,  
+                             1, ECornerType::CORNER_NONE, 0));
+}

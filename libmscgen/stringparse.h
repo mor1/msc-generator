@@ -288,8 +288,8 @@ public:
     bool Reflow(Canvas &c, double x);
     /** Return the width requirement of the label.
      * If word_wrap is off, this is the width of the label.
-     * If it is on, it is the second parameter */
-    double getSpaceRequired(double def, int line = -1) const;
+     * If it is on, it is the first parameter */
+    double getSpaceRequired(double def = 0, int line = -1) const;
     /** Returns true if word wrapping is enabled for this label */
     bool IsWordWrap() const {if (size()==0) return false; return at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second;} 
 
