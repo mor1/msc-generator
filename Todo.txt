@@ -57,12 +57,19 @@ FIX: test.signalling from Michael on end of January, draws thicker text sometime
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 
-In 3.5.21
-ADDED wrap attribute
-width for notes
-comment.text, comment.side == defstlye comment
-side=end for comments
-
+In 3.5.22
+FIXED: OLE bug (no drawing when system DLLs open Msc-generator with an embedded object)
+FIXED: A 64-bit integer bug
+FIXED: Gcc 4.8 STL destroyed an array on resize: The inability of ArcList to copy was apparent. 
+ADDED: wrap attribute and text wrapping
+ADD: warning on overfill when wrapping
+ADDED: width attribute for notes
+ADDED: comment.text, comment.side chart options, they are equal to "defstlye comment"
+ADDED: Endnotes and side=end attribute option for comments
+ADD: endnote command
+DOCED: Text wrapping
+FIX: Boxes on the right side with hscale=1.5
+FIX: Small tips at the top of entities removed
 
 In 3.5.20
 FIXED: If An arrange view is on, no zooming

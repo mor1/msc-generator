@@ -2079,7 +2079,7 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
 /** Main routine for placing a note
  * This is called for notes from Msc::CompleteParse() via Msc::PlaceFloatingNotes(), just 
  * before PostPosProcess(). This is a computation intensive trial-score-select routine.*/
-void CommandNote::PlaceFloating(Canvas &canvas)
+void CommandNote::PlaceFloating(Canvas &/*canvas*/)
 {
    if (!valid) return;
     _ASSERT(is_float);
@@ -2101,7 +2101,7 @@ void CommandNote::PlaceFloating(Canvas &canvas)
         float_dir_y = style.read().note.def_float_y.second;
 
     //Normalize attributes
-    if (abs(float_dist.second) > RD/2)
+    if (unsigned(abs(float_dist.second)) > RD/2)
         float_dist.second = float_dist.second>0 ? RD/2 : -int(RD/2);
     float_dir_x = std::max(-1, std::min(+1, float_dir_x));
     float_dir_y = std::max(-1, std::min(+1, float_dir_y));
@@ -2613,7 +2613,7 @@ void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////
 
-void CommandEndNoteSeparator::Layout(Canvas &canvas, AreaList *cover)
+void CommandEndNoteSeparator::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     yPos = 0;
     height = chart->nudgeSize;
@@ -2622,7 +2622,7 @@ void CommandEndNoteSeparator::Layout(Canvas &canvas, AreaList *cover)
     area.mainline = b;
 }
 
-void CommandEndNoteSeparator::PostPosProcess(Canvas &cover)
+void CommandEndNoteSeparator::PostPosProcess(Canvas &/*cover*/)
 {
     //Stop the potential fill of the side comment lanes
     StyleCoW no_fill; //empty style

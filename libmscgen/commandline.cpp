@@ -108,6 +108,7 @@ static void usage()
 "             specified, scale cannot be 'auto'. Specifying -ah will\n"
 "             insert a heading after automatically inserted page breaks.\n"
 " -Wno        No warnings displayed.\n"
+" -Pno        No progress indicator displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
 " -x=<width>  Specifies chart width (in pixels). Only for PNG output.\n"
 " -y=<height> Specifies chart height (in pixels). If only one of -x or -y\n"
@@ -196,6 +197,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     string                  oOutputFile;
     string                  oInputFile;
     bool                    oWarning = true;
+    bool                    oProgress = true;
     bool                    oCshize = false;
     int                     oX = -1;
     int                     oY = -1;
@@ -216,10 +218,15 @@ int do_main(const std::list<std::string> &args, const char *designs,
             return EXIT_SUCCESS;
         }
     }
-
+    //Check if we need a progress indicator
+    for (auto &arg : args) 
+        if (arg == "-Pno") {
+            oProgress = false;
+	    break;
+	}
     Msc msc;
     msc.prepare_for_tracking = false;
-    msc.Progress.callback = cb;
+    msc.Progress.callback = oProgress ? cb : NULL;
     msc.Progress.data = param;
     if (load_data)
         msc.Progress.ReadLoadData(load_data->c_str());
@@ -391,6 +398,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
             return EXIT_SUCCESS;
         } else if (*i == "-Wno") {
             oWarning = false;
+        } else if (*i == "-Pno") {
+            oProgress = false;
         } else if (*i == "--nocopyright") {
             msc.copyrightText.clear();
         } else if (*i == "--pedantic") {
@@ -588,7 +597,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.CompleteParse(oOutType, true, oA, oAH, pageSize, oScale.size() ? oScale[0]==-1 : false);
 
         //Determine scaling
-        std::vector<XY> scale(std::max(1U, oScale.size()), XY(1., 1.));
+        std::vector<XY> scale(std::max(std::vector<XY>::size_type(1), oScale.size()), XY(1., 1.));
         if (oX>0 || oY>0) {
             if (oScale.size())
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");

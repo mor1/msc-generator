@@ -211,6 +211,9 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * @param [in] references If true, indicates that msc->References is complete and therefore we attempt 
  *                        to replace "\r" escapes with actual numbers. (Empty "\r()" is always treated
  *                        as equal to "\N" and we return NUMBERING.)
+ *                        If true, we emit error/warning messages only in relation to "\r" escapes,
+ *                        others are silently ignored. This allows calling this function twice, once
+ *                        with references=false and once with references=true.
  * @param linenum When called, this contains the position of the first character of `input`.
  *                At return it is updated (if not NULL) to point to the first character after
  *                the escape.
@@ -255,7 +258,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 0;
         while (input[length] && input[length]!='\\') {
             //If there is an unescaped ']' or '}' in the verbatim string give a warning
-            if (linenum && msc)
+            if (linenum && msc && !references)
                 if (input[length] == '}' || input[length] == ']') 
                     msc->Error.Warning(FileLineCol(linenum->file, linenum->line, linenum->col+length),
                     string("'") + input[length] + "' character found in label without escape. Is this what you want?",
@@ -328,7 +331,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         default: id = MSC_IDENT_INVALID; break;
         }
         if (id == MSC_IDENT_INVALID) {
-            if (msc && linenum) {
+            if (msc && linenum && !references) {
                 FileLineCol l = *linenum;
                 l.col += 2;
                 msc->Error.Warning(l, "Escape '\\p' shall be followed by one of 'lrc'." + errorAction);
@@ -366,7 +369,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 3;
         if (!strchr("1aAiI", input[2])) { //not one of 1, a, A, i, I
             if (replaceto) replaceto->clear();
-            if (msc) msc->Error.Error(*linenum, "Internal error: bad number format escape.");
+            if (msc && !references) msc->Error.Error(*linenum, "Internal error: bad number format escape.");
             return FORMATTING_OK;
         }
         if (replaceto) replaceto->assign(input, length);
@@ -405,7 +408,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     if (!strchr(ESCAPE_STRING_LOCATION "csfmr", input[1])) {
         //Unrecognized escape comes here
         length = 2;
-        if (msc && linenum)
+        if (msc && linenum && !references)
             msc->Error.Error(*linenum, "Unrecognized escape: '" + string(input, 2) + "'." + errorAction);
         goto nok;
     }
@@ -422,11 +425,11 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         //skip silently if a location escape: we have inserted a bad one???
         if (input[1] == ESCAPE_CHAR_LOCATION) {
             if (replaceto) replaceto->clear();
-            if (msc) msc->Error.Error(*linenum, "Internal error: no '(' after position escape.");
+            if (msc && !references) msc->Error.Error(*linenum, "Internal error: no '(' after position escape.");
             return FORMATTING_OK;
         }
 
-        if (msc && linenum) {
+        if (msc && linenum && !references) {
             FileLineCol l = *linenum;
             l.col += 2+was_m;
             msc->Error.Error(l, "Missing parameter after " + string(input, length) +
@@ -444,10 +447,10 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         //skip silently if a location escape: we have inserted a bad one???
         if (input[1] == ESCAPE_CHAR_LOCATION) {
             if (replaceto) replaceto->clear();
-            if (msc) msc->Error.Error(*linenum, "Internal error: no matching ')' for position escape.");
+            if (msc && !references) msc->Error.Error(*linenum, "Internal error: no matching ')' for position escape.");
             return FORMATTING_OK;
         }
-        if (msc && linenum)
+        if (msc && linenum && !references)
             msc->Error.Error(*linenum, "Missing closing parenthesis after " + string(input, length) +
                              " control escape." + errorAction);
         length = 3 + was_m;
@@ -463,7 +466,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (linenum) {
             FileLineCol l = *linenum;
             if (3!=sscanf(parameter.c_str(), "%d,%u,%u", &l.file, &l.line, &l.col)) {
-                if (msc) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
+                if (msc && !references) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
                 return FORMATTING_OK;
             }
             *linenum = l;
@@ -495,7 +498,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
-        if (msc && linenum) {
+        if (msc && linenum && !references) {
             FileLineCol l = *linenum;
             l.col += 3;
             msc->Error.Error(l, "Unrecognized color name or definition: '" + parameter + "'." + errorAction);
@@ -550,7 +553,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             auto itr = msc->ReferenceNames.find(parameter);
             if (itr!=msc->ReferenceNames.end()) {
                 *replaceto = itr->second.number_text;
-            } else if (linenum){ 
+            } else if (linenum) { 
                 //here we did not find the reference
                 msc->Error.Error(*linenum, "Unrecognized reference '" + parameter +
                                         "'. Ignoring it.", "References are case-sensitive.");
@@ -600,7 +603,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         default: p = NULL; break;
         }
         if (!p) {
-            if (msc && linenum) {
+            if (msc && linenum && !references) {
                 FileLineCol l = *linenum;
                 l.col += 2;
                 msc->Error.Warning(l, "Escape '\\m' shall be followed by one of 'udlrins'." + errorAction);
@@ -646,7 +649,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                     msg.append(" Ignoring control escape.");
                 else
                     msg.append(" Keeping escape as verbatim text.");
-                if (msc && linenum) {
+                if (msc && linenum && !references) {
                     FileLineCol l = *linenum;
                     l.col += 4;
                     msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
@@ -655,7 +658,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             }
             msg.append(" Using value '").append(parameter.substr(0, local_pos));
             msg.append("' instead.");
-            if (msc && linenum) {
+            if (msc && linenum && !references) {
                 FileLineCol l = *linenum;
                 l.col += 4;
                 msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
@@ -668,7 +671,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 msg.append(" Ignoring control escape.");
             else
                 msg.append(" Keeping escape as verbatim text.");
-            if (msc && linenum) {
+            if (msc && linenum && !references) {
                 FileLineCol l = *linenum;
                 l.col += 4;
                 msc->Error.Error(*linenum, msg, TOO_LARGE_M_VALUE_MSG);
@@ -708,7 +711,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             fontType.first = true;
             fontType.second = MSC_FONT_SMALL;
         }
-        if (msc && linenum)
+        if (msc && linenum && !references)
             msc->Error.Warning(*linenum, maybe_s_msg, PER_S_DEPRECATED_MSG);
         if (linenum) linenum->col += length;
         return FORMATTING_OK;
@@ -779,6 +782,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
  *                   Can be NULL if not available, in this case the above escapes are left as is.
  *                   If not null, it must point to a fully specified StringFormat object.
  * @param [in] references True if the msc->References are complete. If false, "\r" escapes left intact.
+ *                        If true, we emit error/warning messages only for "\r" substitution.
  * @param [in] ignore If true then in error messages we say we ignore the erroneous escape and also 
  *                    remove it from the string, if not then we say we keep verbatim and we do so.
  * @param [in] textType The type of text we process. This is to generate the right errors. 

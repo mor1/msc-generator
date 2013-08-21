@@ -738,7 +738,7 @@ public:
     /** Create a parallel construct from its first block */
     ArcParallel(Msc *msc, ArcList*l) : ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc) {AddArcList(l);}
     /** Add one more parallel block */
-    ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l; keep_together = false;} return this;}
+    ArcParallel* AddArcList(ArcList*l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
