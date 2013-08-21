@@ -560,7 +560,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	m_charts.erase(m_charts.begin(), m_itrEditing);
 	m_itrSaved = m_itrEditing;
 
-	// if the app was started only to print, don't set user control
+	// if the app was started only to print or to display an embedded object, don't set user control
 	//Copied from COleLinkingDoc
     const bool user = pApp->m_pCmdInfo == NULL ||
 		(pApp->m_pCmdInfo->m_nShellCommand != CCommandLineInfo::FileDDE &&
@@ -569,7 +569,11 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-    CompileEditingChart(true, !user);
+    //if the main window is invisible, do a blocking compilation
+    //Needed for single thread operation when the system DLLs start our
+    //application to draw an embedded object, for instance.
+    CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    CompileEditingChart(true, pWnd || !pWnd->IsWindowVisible());
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;

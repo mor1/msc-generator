@@ -621,21 +621,23 @@ void ArcLabelled::AddAttributeList(AttributeList *l)
 {
     if (!valid) return;
     //Find position of label attribute (if any), prepend it via an escape
+    FileLineCol label_pos;
     if (l)
         for (auto pAttr : *l)
             if (pAttr->Is("label")) 
-                pAttr->value.insert(0, pAttr->linenum_value.start.Print());
+                label_pos = pAttr->linenum_value.start;
     //Add attributest 
     ArcBase::AddAttributeList(l);
     //compress went to the style, copy it
     if (style.read().compress.first)
         compress = style.read().compress.second;
     //Then convert color and style names in labels
-    if (label.length()>0)
-        //we can start with a dummy pos, since the label's pos is prepended
-        //during parse for colon labels and during AddAttributeList for others
-        StringFormat::ExpandReferences(label, chart, FileLineCol(), &style.read().text,
+    if (label.length()>0) {
+        StringFormat::ExpandReferences(label, chart, label_pos, &style.read().text,
                                           false, true, StringFormat::LABEL);
+        //re-insert position, so that FinalizeLabels has one
+        label.insert(0, label_pos.Print());
+    }
 }
 
 bool ArcLabelled::AddAttribute(const Attribute &a)
@@ -809,9 +811,12 @@ void ArcLabelled::FinalizeLabels(Canvas &canvas)
     //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
     StringFormat::AddNumbering(label, number_text, pre_num_post);
     //Next we add reference numbers to labels, and also kill off any \s or the like
-    //escapes that came with numbers
-    //we can start with a dummy pos, since the label's pos is prepended
-    //during parse for colon labels and during AddAttributeList for others
+    //escapes that came with numbers in pre_num_post
+    //We can start with a dummy pos, since the label's pos is prepended
+    //during AddAttributeList. Note that with this calling
+    //(references parameter true), ExpandReferences will only emit errors
+    //to missing references - all other errors were already emitted in
+    //the call in AddAttributeList()
     StringFormat copy(style.read().text);
     StringFormat::ExpandReferences(label, chart, FileLineCol(), 
         &copy, true, true, StringFormat::LABEL);
@@ -4302,6 +4307,29 @@ void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+ArcParallel* ArcParallel::AddArcList(ArcList*l) 
+{
+    if (l) {
+        //If the container grows we cannot simply use push_back
+        //As ArcList does not support copy (as none of the arcs do)
+        //So we work around to prevent destroying ArcLists with content
+        if (blocks.size() == blocks.capacity()) {
+	    std::vector<ArcList> tmp;
+	    tmp.resize(blocks.size()*2);
+	    for (auto &arcList : blocks) {
+	        tmp.push_back(arcList);
+	        arcList.clear(); //free the arclist without deleting the arcs
+	    }
+	    blocks.swap(tmp);
+	}
+        blocks.push_back(*l); 
+        l->clear();
+        delete l; 
+        keep_together = false;
+    } 
+    return this;
+}
+
 EDirType ArcParallel::GetToucedEntities(class EntityList &el) const
 {
     EDirType dir = MSC_DIR_INDETERMINATE;
@@ -4330,11 +4358,12 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
                                        Numbering &number, Element **target)
 {
     if (!valid) return NULL;
-    for (auto &pBlock : blocks)
-        chart->PostParseProcessArcList(canvas, hide, pBlock, false, left, right, number, target);
+    for (auto &block : blocks) 
+        chart->PostParseProcessArcList(canvas, hide, block, false, 
+                                       left, right, number, target);
     if (hide) return NULL;
     //prune empty blocks
-    for (auto i=0; i < blocks.size(); /*nope*/)
+    for (size_t i=0; i < blocks.size(); /*nope*/)
         if (blocks[i].size())
             i++;
         else 

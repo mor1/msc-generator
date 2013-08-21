@@ -335,7 +335,7 @@ public:
     ///<The radius of the corners. Not set if `first` is false. 
     ///<Ignored if `corner` is CORNER_NONE. It is also used for pipes to set the size of the oval
     ///<and also for ArcSelfArrow to set the radius of the arrow.
-    std::pair<bool, double>        radius; 
+    std::pair<bool, double>      radius; 
     std::pair<bool, ECornerType> corner; ///<The style of the corners. Not set if `first` is false. 
     LineAttr();   
     LineAttr(ELineType t)  {Empty(); type.first = true;  type.second = t;}  ///<Creates an empty style, where only the type is set to `t`.
