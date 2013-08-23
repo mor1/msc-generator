@@ -324,7 +324,8 @@ protected:
     mutable XY           point_to;         ///<The tip of the arrow for a note
 
 public:
-    CommandNote(Msc*, bool is_note, const char *pt=NULL, const FileLineColRange &ptm=FileLineColRange());
+    CommandNote(Msc*, const char *pt=NULL, const FileLineColRange &ptm=FileLineColRange());
+    CommandNote(Msc*msc, ESide side);
     ~CommandNote();
     virtual bool CanBeNoted() const {return false;}
     /** Return the target arc of the note or command */

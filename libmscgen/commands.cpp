@@ -660,8 +660,8 @@ void CommandEntity::PostPosProcess(Canvas &canvas)
 {
     if (!valid) return;
     ArcCommand::PostPosProcess(canvas);
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->PostPosProcess(canvas);
+    for (auto pEntity : entities)
+        pEntity->PostPosProcess(canvas);
     if (height>0 && !hidden) {
         if (chart->headingSize == 0) chart->headingSize = yPos + height;
         chart->headingSize = std::min(chart->headingSize, yPos + height);
@@ -1482,10 +1482,21 @@ void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const FileLineColRange &ptm)
-    : ArcLabelled(MSC_COMMAND_NOTE, is_note ? MscProgress::NOTE : MscProgress::COMMENT, 
-                  msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
-    is_float(is_note), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
+/** Construct a floating note */
+CommandNote::CommandNote(Msc*msc, const char *pt, const FileLineColRange &ptm)
+    : ArcLabelled(MSC_COMMAND_NOTE, MscProgress::NOTE, 
+                  msc, msc->Contexts.back().styles["note"]),
+    is_float(true), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
+    float_dist(false, 0), float_dir_x(0), float_dir_y(0)
+{
+    draw_pass = DRAW_NOTE;
+}
+
+/** Construct a comment, endnote or footnote */
+CommandNote::CommandNote(Msc*msc, ESide side)
+    : ArcLabelled(MSC_COMMAND_NOTE, MscProgress::COMMENT, msc, 
+        msc->Contexts.back().styles[side==ESide::END ? "endnote" : "comment"]),
+    is_float(false), target(NULL), 
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
     draw_pass = DRAW_NOTE;
@@ -1619,8 +1630,10 @@ void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances)
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
     if (is_float) {
         //reflow label if needed
-        if (parsed_label.IsWordWrap()) 
-            parsed_label.Reflow(canvas, style.read().note.width.second);
+        if (parsed_label.IsWordWrap()) {
+            const double overflow = parsed_label.Reflow(canvas, style.read().note.width.second);
+            OverflowWarning(overflow, "Use the 'width' attribute to increase note width.");
+        }
         halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.read().line.LineWidth(), style.read().line.LineWidth());
     } else {
         //Here we only make space if the note is on the side
@@ -1654,7 +1667,8 @@ void CommandNote::Layout(Canvas &canvas, AreaList * cover)
             //Start with reflowing the label if needed
             if (parsed_label.IsWordWrap()) {
                 const double space = chart->XCoord(chart->EndEntity->pos) - 2*chart->sideNoteGap;
-                parsed_label.Reflow(canvas, space);
+                const double overflow = parsed_label.Reflow(canvas, space);
+                OverflowWarning(overflow, "");
             }
             yPos = 0;
             area = parsed_label.Cover(chart->sideNoteGap, 
@@ -2520,7 +2534,11 @@ void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
         const double space = style.read().side.second == ESide::LEFT ? 
             chart->XCoord(chart->LNote->pos) - 2*chart->sideNoteGap :
             chart->XCoord(chart->EndEntity->pos) - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
-        parsed_label.Reflow(canvas, space);
+        const double overflow = parsed_label.Reflow(canvas, space);
+        OverflowWarning(overflow, 
+            "Use 'hscale=auto' or add space via 'hspace "+
+            string(style.read().side.second == ESide::LEFT ? "left" : "right")+
+            " comment <number|label>'.");
     }
     if (style.read().side.second == ESide::LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, 

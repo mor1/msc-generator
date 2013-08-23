@@ -287,6 +287,14 @@ public:
     void SetStyleWithText(const char *style_name); 
     /** Set style to this name, but combine it with default text style. Use existing style if NULL.*/
     void SetStyleWithText(const StyleCoW *style_to_use=NULL); 
+    /** Generate a warning on overflown labels
+     * @param [in] overflow The amount of overflow.
+     * @param [in] msg The message to display. NULL if the space depends on entities and a
+     *                 corresponding message shall be displayed.
+     * @param [in] e1 The left entity governing the space available for the label.
+     * @param [in] e2 The right entity governing the space available for the label. */
+    void OverflowWarning(double overflow, const string &msg, 
+                         EIterator e1=EIterator(),  EIterator e2=EIterator());
     /** Depending on the arc type return the refinement style.
      * An example of a refinement style is the style named '->', which (by default)
      * sets the line type to solid and is applied after the 'arrow' style, to reflect

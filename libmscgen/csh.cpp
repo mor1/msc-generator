@@ -407,7 +407,8 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
-"bye", "hspace", "vspace", "symbol", "note", "comment", "title", "subtitle", ""};
+"bye", "hspace", "vspace", "symbol", "note", "comment", "endnote", /*"footnote",*/
+"title", "subtitle", ""};
 
 /** Names of chart options for coloring.
  *

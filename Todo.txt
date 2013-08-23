@@ -62,14 +62,16 @@ FIXED: OLE bug (no drawing when system DLLs open Msc-generator with an embedded 
 FIXED: A 64-bit integer bug
 FIXED: Gcc 4.8 STL destroyed an array on resize: The inability of ArcList to copy was apparent. 
 ADDED: wrap attribute and text wrapping
-ADD: warning on overfill when wrapping
+ADDED: warning on overfill when wrapping
 ADDED: width attribute for notes
 ADDED: comment.text, comment.side chart options, they are equal to "defstlye comment"
 ADDED: Endnotes and side=end attribute option for comments
-ADD: endnote command
+ADDED: endnote command
 DOCED: Text wrapping
-FIX: Boxes on the right side with hscale=1.5
-FIX: Small tips at the top of entities removed
+FIXED: Small tips at the top of entities removed
+FIX: Boxes on the right side with hscale=1.5 and arrow->
+FIX: Boxes.signalling autogen "f" in separate line
+FIX: Box autoscaling: a..{a->b->;};
 
 In 3.5.20
 FIXED: If An arrange view is on, no zooming
