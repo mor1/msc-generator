@@ -576,6 +576,24 @@ void ArcLabelled::SetStyleWithText(const StyleCoW *style_to_use)
     if (refinement) style += *refinement;
 }
 
+void ArcLabelled::OverflowWarning(double overflow, const string &msg, EIterator e1,  EIterator e2)
+{
+    if (overflow < 1) return;
+    string bigger_hscale;
+    bigger_hscale << ceil(chart->GetHScale()+0.5);
+    chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.",
+        msg.length() ? msg :
+        (chart->GetHScale()<=0 ? 
+            "Don't use 'hscale=auto'" : 
+            "Try increasing 'hscale', e.g., 'hscale="+bigger_hscale+"'") +
+        (chart->IsVirtualEntity(*e1) && chart->IsVirtualEntity(*e2) ? "." :
+             " or add space using 'hspace " + 
+             (chart->IsVirtualEntity(*e1) ? "" : (*e1)->name) +
+             "-" +
+             (chart->IsVirtualEntity(*e2) ? "" : (*e2)->name) +
+             "'."));
+};
+
 const StyleCoW *ArcLabelled::GetRefinementStyle(EArcType t) const
 {
     //refinement for all arrows, boxes and dividers
@@ -970,7 +988,8 @@ void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
         if ((*i)->status.GetStatus(yPos).IsActive())
             sx += chart->activeEntitySize/2;
         _ASSERT(dx - src_act - sx > 0);
-        parsed_label.Reflow(canvas, dx - src_act - sx);
+        const double overflow = parsed_label.Reflow(canvas, dx - src_act - sx);
+        OverflowWarning(overflow, "", i, src);
     }
 
     double y = chart->arcVGapAbove;
@@ -1407,7 +1426,8 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
             dx_text = sx - xy_s.x;
         }
         if (parsed_label.IsWordWrap()) {
-            parsed_label.Reflow(canvas, dx_text - sx_text);
+            const double overflow = parsed_label.Reflow(canvas, dx_text - sx_text);
+            OverflowWarning(overflow, "", sx<dx ? src : dst, sx<dx ? dst : src);
             text_wh = parsed_label.getTextWidthHeight();
         }
         cx_text = (sx+dx)/2;
@@ -1857,7 +1877,8 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
 
     //reflow text if needed
     if (parsed_label.IsWordWrap()) {
-        parsed_label.Reflow(canvas, dx_text - sx_text);
+        const double overflow = parsed_label.Reflow(canvas, dx_text - sx_text);
+        OverflowWarning(overflow, "", sx<dx ? src : dst, sx<dx ? dst : src);
         //recalculate dy: reuse sy set in Width()
         dy = ceil(sy + parsed_label.getTextWidthHeight().y + 
                   chart->boxVGapInside*2 + 2*segment_lines[stext].LineWidth());
@@ -2857,7 +2878,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         (*i)->dx_text = dx - (*i)->dx_text + lw - chart->boxVGapInside;
         //reflow label if necessary
         if ((*i)->parsed_label.IsWordWrap()) {
-            (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
+            const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
+            (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
         }
         //Calculate text cover
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
@@ -3829,7 +3851,8 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
         }
         //reflow label if necessary
         if ((*i)->parsed_label.IsWordWrap()) {
-            (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
+            const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
+            (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
         }
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         // omit text cover for pipes if the pipe is fully opaque,
@@ -4219,7 +4242,8 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     const double charheight = style.read().text.getCharHeight(canvas);
     //reflow text if needed
     if (parsed_label.IsWordWrap()) {
-        parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
+        const double overflow = parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
+        OverflowWarning(overflow, "", chart->AllEntities.begin(), chart->AllEntities.begin());
     }
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
@@ -4311,19 +4335,21 @@ ArcParallel* ArcParallel::AddArcList(ArcList*l)
 {
     if (l) {
         //If the container grows we cannot simply use push_back
-        //As ArcList does not support copy (as none of the arcs do)
+        //As ArcList does not support copy of if this array is responsible
+        //and not empty (as none of the arcs do)
         //So we work around to prevent destroying ArcLists with content
         if (blocks.size() == blocks.capacity()) {
-	    std::vector<ArcList> tmp;
-	    tmp.resize(blocks.size()*2);
-	    for (auto &arcList : blocks) {
-	        tmp.push_back(arcList);
-	        arcList.clear(); //free the arclist without deleting the arcs
-	    }
-	    blocks.swap(tmp);
-	}
-        blocks.push_back(*l); 
-        l->clear();
+            std::vector<ArcList> tmp;
+            tmp.reserve(blocks.size()*2+1);
+            for (auto &arcList : blocks) {
+                tmp.push_back(ArcList(arcList.responsible));
+                tmp.rbegin()->splice(tmp.rbegin()->begin(), arcList);
+                arcList.clear(); //free the arclist without deleting the arcs
+            }
+            blocks.swap(tmp);
+        }
+        blocks.push_back(ArcList(l->responsible)); 
+        blocks.rbegin()->splice(blocks.rbegin()->begin(), *l);
         delete l; 
         keep_together = false;
     } 

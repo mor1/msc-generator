@@ -545,6 +545,8 @@ void Context::Empty()
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, false, false, false, false, 
                  false, true, false, ESideType::ANY, false, false, false, false);  
                  //only text numbering and side
+    styles["endnote"] = styles["comment"];
+    //styles["footnote"] = styles["comment"];
 
     styles["title"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
@@ -713,6 +715,16 @@ void Context::Plain()
     styles["comment"].write().MakeCompleteButText();
     styles["comment"].write().numbering.first = false;
     styles["comment"].write().text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+
+    styles["endnote"].write().MakeCompleteButText();
+    styles["endnote"].write().numbering.first = false;
+    styles["endnote"].write().text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+    styles["endnote"].write().side.second = ESide::END;
+
+    //styles["footnote"].write().MakeCompleteButText();
+    //styles["footnote"].write().numbering.first = false;
+    //styles["footnote"].write().text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+    //styles["footnote"].write().side.second = ESide::END;
 
     styles["title"].write().MakeCompleteButText();
     styles["title"].write().vline.type.second = LINE_NONE;

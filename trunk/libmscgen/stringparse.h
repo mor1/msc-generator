@@ -284,8 +284,10 @@ public:
     operator std::string() const;
     /** Reflows the text top fit a box of x width.
      * Honours hard line breaks, but not soft ones.
-     * returns if there was an ovefull event or not */
-    bool Reflow(Canvas &c, double x);
+     * @param c The canvas to calculate on.
+     * @param x The width to reflow in.
+     * @returns nonzero, if there was overflow and the size of overflow. */
+    double Reflow(Canvas &c, double x);
     /** Return the width requirement of the label.
      * If word_wrap is off, this is the width of the label.
      * If it is on, it is the first parameter */
@@ -323,6 +325,5 @@ public:
      *                       for surfaces that do not support rotated text (WMF)*/
     void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
 };
-
 
 #endif //STRINGPARSE_H

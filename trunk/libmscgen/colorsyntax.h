@@ -92,9 +92,11 @@
      TOK_COMMAND_SYMBOL = 310,
      TOK_COMMAND_NOTE = 311,
      TOK_COMMAND_COMMENT = 312,
-     TOK_COMMAND_TITLE = 313,
-     TOK_COMMAND_SUBTITLE = 314,
-     TOK__NEVER__HAPPENS = 315
+     TOK_COMMAND_ENDNOTE = 313,
+     TOK_COMMAND_FOOTNOTE = 314,
+     TOK_COMMAND_TITLE = 315,
+     TOK_COMMAND_SUBTITLE = 316,
+     TOK__NEVER__HAPPENS = 317
    };
 #endif
 /* Tokens.  */
@@ -153,9 +155,11 @@
 #define TOK_COMMAND_SYMBOL 310
 #define TOK_COMMAND_NOTE 311
 #define TOK_COMMAND_COMMENT 312
-#define TOK_COMMAND_TITLE 313
-#define TOK_COMMAND_SUBTITLE 314
-#define TOK__NEVER__HAPPENS 315
+#define TOK_COMMAND_ENDNOTE 313
+#define TOK_COMMAND_FOOTNOTE 314
+#define TOK_COMMAND_TITLE 315
+#define TOK_COMMAND_SUBTITLE 316
+#define TOK__NEVER__HAPPENS 317
 
 
 
@@ -165,7 +169,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 136 "language.yy"
+#line 137 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -187,11 +191,12 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
     CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
+    CHAR_IF_CSH(ESide)            eside;
 
 
 
 /* Line 2068 of yacc.c  */
-#line 195 "colorsyntax.h"
+#line 200 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

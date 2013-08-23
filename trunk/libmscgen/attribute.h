@@ -118,12 +118,14 @@ inline bool CaseInsensitiveEndsWith(const string &base, const char *a)
 /** A list of object pointers.
  * Used as a container supporting polymorphic objects.
  * It can be created such that it destroys its objects at deletion 
- * or it does not.*/
+ * or it does not. This is called whether the list is 
+ * "responsible" for its objects or not. Not being responsible 
+ * allows a second list of pointers to the same objects.*/
 template <class Object>
 class PtrList : public std::list<Object*>
 {
-    const bool responsible; ///<Ture if we have to delete our objects in the destructor.
 public:
+    const bool responsible; ///<Ture if we have to delete our objects in the destructor.
     using std::list<Object*>::begin;
     using std::list<Object*>::end;
     using std::list<Object*>::push_back;
@@ -132,7 +134,9 @@ public:
     using std::list<Object*>::clear;
 
     explicit PtrList(bool r=true) : std::list<Object*>(), responsible(r) {}
-    PtrList(const PtrList<Object> &o) : std::list<Object*>(o), responsible(o.responsible) {_ASSERT(!responsible);}
+    /** Copy constructor. 
+     * Does not work, if the list is responsible for its content and not empty*/
+    PtrList(const PtrList<Object> &o) : std::list<Object*>(o), responsible(o.responsible) {_ASSERT(!responsible || o.size()==0);}
     PtrList(PtrList<Object> &&o) : std::list<Object*>(std::move(static_cast<std::list<Object*>&>(o))), responsible(o.responsible) {o.clear();}
     PtrList & operator = (const PtrList<Object> &o) {std::list<Object*>::operator=(o); const_cast<bool&>(responsible)=o.responsible; _ASSERT(!responsible); return *this;}
     PtrList & operator = (PtrList<Object> &&o) {std::list<Object*>::operator=(std::move(o)); const_cast<bool&>(responsible)=o.responsible; return *this;}

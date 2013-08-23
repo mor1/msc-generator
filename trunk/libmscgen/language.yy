@@ -130,7 +130,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
        TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
-       TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+       TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
+	   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
        TOK__NEVER__HAPPENS
 %union
 {
@@ -154,6 +155,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
     CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
+    CHAR_IF_CSH(ESide)            eside;
 };
 
 %type <msc>        msc
@@ -176,6 +178,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_REL_SOLID_BIDIR TOK_REL_DOUBLE_BIDIR TOK_REL_DASHED_BIDIR
                    TOK_REL_DOTTED_BIDIR
                    TOK_SPECIAL_ARC TOK_EMPH
+%type <eside>      comment_command
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
 %type <extvertxpos> extvertxpos extvertxpos_no_string
@@ -192,7 +195,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
-                   TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+                   TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
+				   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
@@ -214,7 +218,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
 %destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
 %destructor {free($$);}  TOK_ACTIVATE TOK_DEACTIVATE TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
-%destructor {free($$);}   TOK_COMMAND_NOTE TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+%destructor {free($$);}  TOK_COMMAND_NOTE TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
+%destructor {free($$);}  TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 
 %%
 
@@ -3018,7 +3023,7 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    $$ = new CommandNote(&msc, true, $3, MSC_POS(@3));
+    $$ = new CommandNote(&msc, $3, MSC_POS(@3));
     ($$)->AddAttributeList($4);
   #endif
     free($1);
@@ -3034,7 +3039,7 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    $$ = new CommandNote(&msc, true);
+    $$ = new CommandNote(&msc);
     ($$)->AddAttributeList($2);
   #endif
     free($1);
@@ -3067,14 +3072,36 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    $$ = new CommandNote(&msc, true);
+    $$ = new CommandNote(&msc);
     ($$)->AddAttributeList($3);
   #endif
     free($1);
     free($2);
 };
 
-comment:            TOK_COMMAND_COMMENT full_arcattrlist_with_label
+comment_command: TOK_COMMAND_COMMENT
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$= ESide::LEFT;
+  #endif
+    free($1);
+}
+               | TOK_COMMAND_ENDNOTE
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$= ESide::END;
+  #endif
+    free($1);
+}
+			   | TOK_COMMAND_FOOTNOTE
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$= ESide::END;
+  #endif
+    free($1);
+};
+
+comment:            comment_command full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -3083,22 +3110,20 @@ comment:            TOK_COMMAND_COMMENT full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, false);
   #else
-    $$ = new CommandNote(&msc, false);
+    $$ = new CommandNote(&msc, $1);
     ($$)->AddAttributeList($2);
   #endif
-    free($1);
 }
-               | TOK_COMMAND_COMMENT
+               | comment_command
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH_ErrorAfter(@1, "Comments need a label.");
+    csh.AddCSH_ErrorAfter(@1, "Comments and notes need a label.");
     if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF))
         csh.addMarkersAtEnd = true;
   #else
     $$ = NULL;
   #endif
-    free($1);
 };
 
 colon_string: TOK_COLON_QUOTED_STRING
@@ -3359,8 +3384,8 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
                        TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
-                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT |
-                       TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
+                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT | TOK_COMMAND_ENDNOTE |
+                       TOK_COMMAND_FOOTNOTE | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

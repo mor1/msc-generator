@@ -275,6 +275,8 @@ do {                                                \
 (?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
 (?i:note)      yylval_param->str = strdup(yytext); return TOK_COMMAND_NOTE;
 (?i:comment)   yylval_param->str = strdup(yytext); return TOK_COMMAND_COMMENT;
+(?i:endnote)   yylval_param->str = strdup(yytext); return TOK_COMMAND_ENDNOTE;
+(?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
 (?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
 (?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
 

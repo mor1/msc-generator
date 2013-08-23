@@ -1607,10 +1607,10 @@ Label::operator std::string() const
 
 #define LETTERS_NUMBERS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
 
-bool Label::Reflow(Canvas &c, double x)
+double Label::Reflow(Canvas &c, double x)
 {
     if (size()==0) return false;
-    bool had_overflow = false;
+    double overflow = 0;
     std::vector<ParsedLine> reflown; //the resulted set of lines
     unsigned lnum=0; //the number of the line we process
     size_t pos = 0;  //the position within at(lnum)
@@ -1660,7 +1660,7 @@ bool Label::Reflow(Canvas &c, double x)
                             //not at the beginning of the line
                             line.append(word);
                             width += word_width;
-                            had_overflow |= width > available;
+                            overflow = std::max(overflow, width - available);
                         }
                         replaceto_pos = replaceto_end;
                     } else {
@@ -1702,7 +1702,7 @@ bool Label::Reflow(Canvas &c, double x)
         reflown.push_back(ParsedLine(line, c, start_format, false));
     //swap reflown in
     std::vector<ParsedLine>::swap(reflown);    
-    return had_overflow;
+    return overflow;
 }
 
 double Label::getSpaceRequired(double def, int line) const 
