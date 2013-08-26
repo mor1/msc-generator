@@ -2538,7 +2538,7 @@ void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
         OverflowWarning(overflow, 
             "Use 'hscale=auto' or add space via 'hspace "+
             string(style.read().side.second == ESide::LEFT ? "left" : "right")+
-            " comment <number|label>'.");
+            " comment <number>'.");
     }
     if (style.read().side.second == ESide::LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, 

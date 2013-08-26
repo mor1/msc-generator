@@ -665,9 +665,10 @@ void EntityApp::PostPosProcess(Canvas &canvas)
         new_status.Show(show.second);
     if (active.first)
         new_status.Activate(active.second);
+    const double at_y = yPos + (draw_heading ? chart->headingVGapAbove : 0);
     if (new_status != old_status)
-        (*itr)->status.SetStatus(yPos + chart->headingVGapAbove, new_status);
-    (*itr)->status.ApplyStyle(yPos + chart->headingVGapAbove, style);
+        (*itr)->status.SetStatus(at_y, new_status);
+    (*itr)->status.ApplyStyle(at_y, style);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
     //    if (shown)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "
