@@ -1139,10 +1139,20 @@ void Msc::PostParseProcess(Canvas &canvas)
     if (Arcs.size()==0) return;
 
     if (AutoGenEntities.size()) {
-        //Add the Auto generated entities to the list of entities
-        //Add them to the the first arc if it is an EntityCommand,
-        //Otherwise, generate a new entity command as first arc
+        //Add the Auto generated entities to the first definition of entities
+        //Search for this kind of first definition CommandEntity from the
+        //beginning or Arcs, but skip objects of the following type
+        //- CommandArcList: these are inserted by chart options only
+        //- ArcDividers with no entities: these are likely (sub)title commands
+        //If we find a CommandEntity having only the above before it,
+        //append the automatically generated entities to that.
+        //Otherwise, generate a new entity command at that location
         ArcList::iterator i = Arcs.begin();
+        //Skip over the titles and chart options
+        while ((*i)->type==MSC_ARC_ARCLIST || (*i)->type==MSC_COMMAND_TITLE ||
+               (*i)->type==MSC_COMMAND_SUBTITLE)
+            i++;
+        //Insert a new CommandEntity if we have none
         if ((*i)->type != MSC_COMMAND_ENTITY) {
             CommandEntity *ce = new CommandEntity(new EntityAppHelper, this, false);
             ce->AddAttributeList(NULL);

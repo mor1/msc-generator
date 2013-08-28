@@ -1261,10 +1261,6 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
 
-    //Save our left and right (as specified by the user)
-    const EIterator our_left =  chart->EntityMinByPos(src, dst);
-    const EIterator our_right = chart->EntityMaxByPos(src, dst);
-
     //Update src, dst and mid
     EIterator sub;
     sub = chart->FindActiveParentEntity(src);
@@ -1275,20 +1271,23 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     _ASSERT(dst != chart->ActiveEntities.end());
     if (src == dst && !(*src)->running_style.read().indicator.second) //We became a degenerate arrow, do not show us
         return NULL;
-    //Update left and right using our original left and right
-    const EIterator _left = chart->AllEntities.Find_by_Ptr(chart->LSide); // leftmost entity;
-    const EIterator _right = chart->AllEntities.Find_by_Ptr(chart->RSide);  // rightmost entiry
     //Change left and right only if they actually point to a "real entity"
     //and not (left) or (right). If they do, consider our other "end"
-    if (our_left != _left)
-        left = chart->EntityMinByPos(left, our_left);
-    else
-        left = chart->EntityMinByPos(left, our_right);
-
-    if (our_right != _right)
-        right = chart->EntityMaxByPos(right, our_right);
-    else
-        right = chart->EntityMaxByPos(right, our_left);
+    if (!chart->IsVirtualEntity(*src)) {
+        left = chart->EntityMinByPos(left, src);
+        right = chart->EntityMaxByPos(right, src);
+    }
+    if (!chart->IsVirtualEntity(*dst)) {
+        right = chart->EntityMaxByPos(right, dst);
+        left = chart->EntityMinByPos(left, dst);
+    }
+    //Consider the middle elements if any of our endpoints is virtual
+    //(else we are good only by checkind the endpoints above
+    if (chart->IsVirtualEntity(*src) || chart->IsVirtualEntity(*dst))
+        for (auto iMiddle : middle) {
+            left = chart->EntityMinByPos(left, iMiddle);
+            right = chart->EntityMaxByPos(right, iMiddle);
+        }
 
     if (hide) return NULL;
     if (src == dst) //We became a degenerate arrow, do not show us, but an indicator

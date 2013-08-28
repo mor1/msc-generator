@@ -10,6 +10,7 @@ g2: group 2 {
 };
 note: This is a\ngroup enttity [note.pos=right_up];
 e[show=no, pos=-0.5];
+mark top;
 {
       --: Arrows {
             a->b-c:solid line with\_subscript [arrow.midtype=dot];
@@ -54,9 +55,8 @@ e[show=no, pos=-0.5];
             note: These are example
                     block arrows;
       };
-} {
-      vertical -> at e+: All the way down...[makeroom=yes];
 };
+vertical top-> at e+: All the way down...[makeroom=yes];
 ---: Separator;
 pipe aa--bb: Solid pipe []
        --cc: Solid, too;
