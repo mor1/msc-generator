@@ -1,0 +1,358 @@
+In cairo
+Alt #1: Add win32_printing_surface_create_with_size
+Alt #2: Add a cairo_pdf_surface_set_size like function to the win32_printing backend
+Two helpers needed:
+  - _extract_pdf_surface - like
+  - _cairo_pdf_surface_set_size_internal - like
+
+ Add a test for metafiles
+ Allow new function only for metafiles
+
+
+In future releases
+ADD: shadow to arrows and labels
+Divider package
+	ADD: Make divider only within a box
+	ADD: Allow divider to have entities
+To be considered
+	ADD: more styles to design lib
+	ADD: More arrow types --> ==> >>> ..> 
+ADD: variant #1 double and triple-line joints for emphasis
+ADD: Style and color explorer (show what a style or color contains at any place in the chart)
+ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
+ADD: symbol cross/text [marker] at vertxpos [rotate];
+ADD: message lost (and lost arrowhead)
+ADD: mark centerline
+FIX: Regression Bugs in Contour Expand still remain...
+FIX: Too much compress after adding MITER_LIMIT
+FIX: Triple bevel changes size when size limited.
+FIX: Node hideentitylines, for radius bigger than 70
+CHANGE: Mesh gradients.
+ADD: Tip of the day
+ADD: Check if file changed on disk
+ADD: URL's to PNG
+CHANGE: Remove area calcualtion from arcs (if not needed)
+CHANGE: Remove note related area calculation from arcs (if not needed)
+CHANGE: move CSH calculation to a parallel thread
+ADD: Rectangle in SimpleContour
+FIX: Contour test mistakes (esp 740_006)
+FIX: EntityDef leaks
+
+Later
+Rethink entity positioning and allow freer group definitions....
+ADD: Button to disable tracking rectangles & controls (if much faster)
+ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+     Add also to comments (including the ability to hide). Allow 'hspace comments'.
+ADD: Ability to change page setup during print preview
+ADD: Print preview even without a printer...?
+ADD: Ability to do multipage PDF export
+ADD: box around grouped entities all along the chart
+ADD: group entities without a label
+ADD: Allow arrow to a group entity...
+ADD: hints for built-in styles after defstyle
+ADD: 'box' as syntactic sugar
+ADD: diagonal gradients
+ADD: more colors
+FIX: test.signalling from Michael on end of January, draws thicker text sometimes
+FIX: Full screen not covering entire screen
+FIX: Add bitmaps to Full screen images
+FIX: Boxes on the right side with hscale=1.5 and arrow->
+
+In 3.5.22
+FIXED: OLE bug (no drawing when system DLLs open Msc-generator with an embedded object)
+FIXED: A 64-bit integer bug
+FIXED: Gcc 4.8 STL destroyed an array on resize: The inability of ArcList to copy was apparent. 
+ADDED: wrap attribute and text wrapping
+ADDED: warning on overfill when wrapping
+ADDED: width attribute for notes
+ADDED: comment.text, comment.side chart options, they are equal to "defstlye comment"
+ADDED: Endnotes and side=end attribute option for comments
+ADDED: endnote command
+DOCED: Text wrapping
+FIXED: Small tips at the top of entities removed
+FIXED: Implicitly generated entities now correctly add after titles & chart options.
+FIXED: Box autoscaling: a..{a->b->;};
+
+In 3.5.20
+FIXED: If An arrange view is on, no zooming
+FIXED: Autoheading calculates badly (NIB1)
+Added documentation to Msc and Commands. Progress is missing only from libmscgen.
+
+In 3.5.19
+FIXED: A bug with numbering formats mixing with line numbers (123) Thanks Simon.
+Added documentation to arcs.cpp. Progress, Msc, Commands missing.
+
+In 3.5.17
+CHANGED: Switched to VS 2012 build engine
+FIXED: \r references did not work at all.
+FIXED: Crash when typing erroneous pipe
+
+In 3.5.16
+FIXED: mouse-wheel scrolling of editor (strange behaviour)
+FIXED: Fullscreen page changes...?
+FIXED: AutoSplit, split with autoHeadings
+FIXED: Graham boxes hscale=1.
+FIXED: thin lines in EMF: This is due to the too small rclBounds value in EMR_STROKEPATH.
+ - Fixes include drawing on 0.5 boundary (then bounds are +1 fixel)
+ - and a small serif at the top of entity lines to make rclBounds wider
+ - Also changed entityVGapAbove to zero to hide the small serif.
+ ADDED: Exporting now remembers last used export type.
+
+In 3.5.15
+FIXED: Fit to width is useless.
+FIXED: Demo signalling
+CHECKED: Stripes block arrowheads
+FIXED: After Page change move focus back to view/internal editor
+FIXED: Green color to collapse control.
+FIXED: ex37 breaks
+DOC'D: Add Hide/Show to commands. Document Activate/deactivate better.
+DOC'D: auto_heading chart option and attribute.
+DOC'D: classic_parallel_layout
+DOC'D: Document full page printing for command line
+DOC'D: Document full page printing for GUI (both ribbons)
+ADDED: Out-of-memory checks for large canvas
+CHECKED: No unnecessary csh label ops.
+FIXED: controls are not clipped in GUI
+
+In 3.5.14
+FIXED: ex74, ex77 problem.
+FIXED: Graham command line: could not open canvas
+ADDED: All pagination options to GUI. 
+
+In 3.5.13
+ADD: Pagination options to the GUI (preferably in print preview)
+ADD: Page +- buttons
+FIX: -h in commandline
+
+In 3.5.12
+CHANGED: Speedup
+- CSH in parallel thread, incremental update of richedit - PARTIAL
+- Remove cover if not compress or parallel - DONE
+- Remove Area if not needed - PARTIAL
+FIXED: Progress indicator at wrong position when view is scrolled
+CHECKED: Moved objects containment
+CHANGED: Memory
+- StyleCOW - DONE
+- EdgeArc - DONE
+FIXED: Why Michael.signalling disappears from time to time? (was cairo not being thread-safe)
+FIXED: Hideentitylines problem of michael
+ADDED: Progress feedback (both to command-line and GUI)
+ADDED: Automatic pagination
+CHANGED: Parallel layout - add switch to reset to old behaviour 'classic_parallel_layout'
+
+In 3.5.8
+FIXED: Element references were empty.
+ADDED: -va, -ha and multiple -s options for full page output in commandline
+
+In 3.5.7
+FIXED: PDF format bad
+FIXED: Allow multiple pages in a single PDF output file
+
+In 3.5.6
+CANCELLED: What is exactly the size of the WMF image?
+FIXED: Nicer tracking of fallback image
+FIXED: Update ribbon with fallback percentage & two panels: Fallback image and Object size
+
+
+In 3.5.5
+FIXED: cairo bug with text on scaled contexts
+FIXED: Controls, mouse events, track rects adjusted for pages & non-00 origins
+FIXED: Installation issue
+
+
+In 3.5.4
+FIXED: Printing sucks: added EMF layer in-between
+FIXED: Recompile if pbembedded is changed
+FIXED: Embedded objects loose text
+FIXED: Add more linewidth to labels
+FIXED: recording bug (a cairo bug in recording_surface->bbtree)
+FIXED: self arrows on the leftside cropped
+
+In 3.5.3
+CHANGED: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
+CHANGED: Switched to cairo 1.12.8 and the new pixman 
+ADDED: Embedded Object Context Category to the Ribbon
+ADDED: PB Embedded and fallback resolution is now saved with embedded object
+
+In 3.5.2
+REMOVED: In place editing
+
+In 3.5.1
+ADDED: Option to re-open accidentally closed internal editor
+
+In 3.5
+FIX: regression with stripes - also test contour fully
+DOC'd: Add titles, vspace, symbol, mark to commands section
+DOC'd: Add titles and detail notes in doc.
+FIXED: pink color
+FIXED: Background command does not work (old test)
+FIXED: Grouped entity 2 note problem.
+FIXED: merge lcomment and rcomment
+FIXED: pipes note, test1 note
+CHANGE: Add Comments to arclist and remove them only at postparseprocess
+ADDED: Notes and comments
+ADDED: Titles and subtitles
+ADDED: Partial designs and msc +=
+ADDED: Bkg and lcomment.fill et al to designs
+ADDED: Many more designs
+FIXED: some layout bugs
+
+In 3.4
+FIXED: Label attribute CSH if specified via a quoted string (3.4.19)
+FIXED: Problem with round boxes and extra long labels (simon)
+FIXED: Why dot and diamond arrow heads make arrow lines disappear?
+FIXED: Dinand's pipe label: turned out to be a problem with missing cairo fallback images if fake_scale is too large (unexplained) (3.4.18)
+FIXED: Parallel with non-compress (3.4.16)
+ADDED: A bit of an XP compatibility (3.4.15)
+ADDED: text.* attributes and options (3.4.14)
+ADDED: 'colores' design
+FIXED: Numbering in parallel
+FIXED: Disco compress
+FIXED: parallel compress
+FIXED: totally empty box... (3.4.13)
+DOC'D: number in vertxpos and symbol ...
+FIXED: Embedded objects pageing
+ADDED: number in vertxpos
+ADDED: symbol ...
+FIXED: Shadow direction with angled block arrows
+FIXED: side and angle attributes were not hinted 
+ADDED download link to version check window
+ADDED verstion check info to About Dialog
+TESTED: openoffice linking, Libreoffice linking
+- Openoffice and LibreOffice does not support inserting Links
+FIXED: examples. Missing lines ???
+CANCELLED: Expand parallel behaviour
+	- add valign={top, center, bottom} attribute
+	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+		should return one)
+	- add overlap=no attribute to use compress, but downward...
+	- add these attributes to the style under parallel.valign and parallel.overlaps
+ADDED: arrows in an angle
+CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+CANCELLED: Re-add escape key to exit in-place editing...
+ADDDED: Entity activate/deactivate
+CHANGED: Create an order in CreateRectangle - do it at one place
+FIXED: Box drawing suchks
+FIXED: Pipe draws vertical line
+FIXED: test1.signalling fails
+FIXED: Make all examples compile with full active entities
+FIXED: A collapsed group entity activated just draws a line (but gaps are kept)
+FIXED: Three-layered nested entities do not draw, due to stupid listing with string
+FIXED: Entity attributes does not get hinted well
+FIXED: triple-half, double half arrowheads should have the line extended to line
+FIXED: --- with no label;
+FIXED: make arrows keep more space from the entity line (esp. dbl line block arrows)
+FIXED: Diamond and dot arrowheads at end are drawn badly for block arrows
+FIXED: Diamond and dot normal arrowheads do not align with middle of entity line
+FIXED: Block arrows ->a-> should keep gap if a is active
+CANCELLED: why cannot I defstyle entity [active=yes]? (Because it is not a style attr. Now we give error.)
+FIXED: Canvas and MscBase and Msc
+FIXED: Block arrowheads draw well
+FIXED: Block arrow space for sharp - take linewidth into account: add line formatting to big calls
+FIXED: Line segment stuff not copied to all segments
+FIXED: Why block arrows compress badly?
+FIXED: stripes with thick lines should expand...
+CHANGED: Rewritten Edge into a single class
+FIXED: Regression problems in contour
+FIXED: labels should keep gap if a->b:aaa is between two active entities
+CANCELLED: Pipes should be wider if entity is active
+CANCELLED: if box radius is decreased due to low height, recalc label position
+FIXED: the indicator inside a collapsed block arrow should have more space below it
+FIXED: add shadow to the indicator for certain styles
+FIXED: test1.signalling
+ADDED: symbol circle/box [marker] at vertxpos [xsize, ysize, style];
+FIXED: What is the problem with ex37??? in GNU
+
+In 3.2
+FIXED: Dashed entity line now never falls back to image
+FIXED: Box sizing now fixed on the left side
+ADDED: New styles for designs
+FIXED: Why box_collapse_arrow & entity collapse in grouped entities2.signalling
+FIXED: Entity has margin and indicator
+FIXED: Copy parallel from first box in a series to the series.
+FIXED: Style copy does not work well (e.g., radius)
+FIXED: Tipography for group headings bad with comrpess
+FIXED: Label of group entities cannot be wider if only one contained entity.
+FIXED: ArcHeightList returns bad height when compress effectively does something.
+DOC: Updated.
+CHANGED: Unescaped } and ] in labels gives warning.
+ADDED: Toolbar button to turn controls on/off
+FIXED: FullScreen view should not allow modification
+FIXED: No immediate hint after collapse=
+FIXED: parallel shows strange symptoms
+FIXED: individual compress on/off does not work
+FIXED: Why do we get bidir block arrow all the time if collapsing a box
+FIXED: Entity hide does not work
+ADDED: Box collapse, box_collapsed + box_collapsed_arrow styles
+FIXED: hinting is bad for entity attributes inside a group.
+FIXED: Indicator should have cover and mainline.
+ADDED: Show indicators in collapsed attributes (but show them upwards)
+FIXED: thick lines with dot mid do not show in WMF
+ADDED: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
+CHANGED:Split ArcEmphasis to ArcBox and ArcPipe & Series in c++ code
+ADDED: Grouping of entities, entitygroup + entitygroup_collapsed + indicator style. Also indicator option and attribute.
+FIXED: vline was quite much ignored.
+CANCELLED: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
+
+In 3.0
+FIXED: Upgrade install
+ADDED: Uninstall shortcut
+DONE: faster drawing on screen using meta surfaces
+ADDED: More precise tracking mode
+ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
+ADDED: More arrowheads (double_*, triple_*, sharp, empty_sharp; also xmul and ymul attributes)
+ADDED: A richer variety of block arrowhead (*_empty, added empty_inv and sharp)
+ADDED: Combined directional arrow styles such as a<->b<<>>c (also for block arrows)
+ADDED: shadow attribute to block arrows and verticals (updated designlib)
+ADDED: More space to ... dividers
+ADDED: line.corner attribute with bevel, note 
+ADDED: global text.format chart option to impact all text (can be part of a design too)
+ADDED: SHOW and HIDE keywords (showexplicit flag to EntityDef)
+ADDED: Command bye so that file end can be used for comments
+ADDED: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+ADDED: AutoSplit mode (also for full screen)
+ADDED: Page combo to fulls screen toolbar
+FIXED: missing ; at the end of last command creates an empty chart
+FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
+FIXED: allow hint when typing just before another word
+FIXED: Hints now do auto-completion
+FIXED: Focus always goes back to the internal editor.
+FIXED: Move caching from CChartData to a separate object.
+ADDED: Scale to all drawing operations. Direct drawing to windows surface & bitmap caching
+ADDED: onlyforboxes side requirement for widths
+CHANGE: pipe::fromright and vertical::readfromleft are both renamed into "side"
+
+In 2.6
+FIXED: Many improvements to parsing, but missing the ; still result in empty chart
+ADDED: IntelliSense-like suggestions and auto-completion
+
+In 2.5.6
+FIXED: A critical bug (new in 2.5.5): freeze when copying the chart to the clipboard or opening an embedded one
+
+In 2.5.5
+FIXED: Under XP now we use cairo_text_path, so it works.
+FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
+FIXED: Tabbing a multiline label (all of it) works bad
+FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
+
+In 2.5.4
+FIXED: Notification of new version showed the old version in the dialog.
+FIXED: non-empty boxes were not numbered by default even if numbering=yes
+UPDATE DOC: with empty escape and numbering updates (formats & multi-level)
+CHANGED: Number format was too cryptic, changed to simpler escapes
+
+In 2.5.3
+CHANGED: Introduced Context into code
+CHANGED: if adding levels just at the beginning of a numbered box, block arrow, etc., decrement that.
+ADDED: Multi-level numbering
+ADDED: Number formats
+ADDED: Possibility to place the number anywhere you want inside a label
+
+In 2.5.2
+FIXED again: ... makes vlines dotted till end of chart
+
+In 2.5.1
+FIXED: Applying a style kills numbering
+ADDED: Add empty escape to allow number style to be different from beginning of text
+FIXED: ... makes vlines dotted till end of chart
+ 
