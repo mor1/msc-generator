@@ -56,7 +56,14 @@ ADD: more colors
 FIX: test.signalling from Michael on end of January, draws thicker text sometimes
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
-FIX: Boxes on the right side with hscale=1.5 and arrow->
+
+In 3.5.24:
+ADDED: A warning when many labels are expanding out to suggest using either text.wrap=yes or hscale=auto.
+FIXED: Entity lines creeped left, when drawn in many segments.
+ADD: Centerline activation
+
+In 3.5.23
+FIXED: In hscale=1 case the left side of “--:label;” boxes is cropped (Thanks Graham!)
 
 In 3.5.22
 FIXED: OLE bug (no drawing when system DLLs open Msc-generator with an embedded object)
@@ -72,6 +79,8 @@ DOCED: Text wrapping
 FIXED: Small tips at the top of entities removed
 FIXED: Implicitly generated entities now correctly add after titles & chart options.
 FIXED: Box autoscaling: a..{a->b->;};
+FIXED: AutoSplit does not work with automatic headers.
+FIXED: Full page view is not working nice with multiple pages
 
 In 3.5.20
 FIXED: If An arrange view is on, no zooming

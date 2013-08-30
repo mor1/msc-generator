@@ -38,30 +38,33 @@ using namespace std;
 //space between them.
 //If there was a previous requirement for this (these) entities,
 //we only increase if xdist is bigger.
-void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
+void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist, bool hspace)
 {
     if (int(e1)==e2) return;
     if (e2==DISTANCE_LEFT) {
+        _ASSERT(!hspace); //hspace shall insert only entity-to-entity distances
         std::map<unsigned, double>::iterator i = left.find(e1);
         if (i!=left.end() && i->second >= xdist) return;
         _ASSERT(e1>0);
         left[e1] = xdist;
     } else if (e2==DISTANCE_RIGHT) {
+        _ASSERT(!hspace);
         std::map<unsigned, double>::iterator i = right.find(e1);
         if (i!=right.end() && i->second >= xdist) return;
         right[e1] = xdist;
     } else {
         IPair eip(e1, e2);
-        std::map<IPair, double, IPairComp>::iterator i = pairs.find(eip);
-        if (i!=pairs.end() && i->second >= xdist) return;
-        pairs[eip] = xdist;
+        std::map<IPair, double, IPairComp> &collection_to_use = hspace ? hspace_pairs : pairs;
+        auto i = collection_to_use.find(eip);
+        if (i!=collection_to_use.end() && i->second >= xdist) return;
+        collection_to_use[eip] = xdist;
     }
 }
 
 //Query what was the (largest) requirement.
 //e2 can again be DISTANCE_{LEFT,RIGHT}. we return 0 if there were no
 //requirements for these entities.
-double EntityDistanceMap::Query(unsigned e1, int e2) const
+double EntityDistanceMap::Query(unsigned e1, int e2, bool hspace) const
 {
     if (int(e1)==e2) return 0;
     if (e2==DISTANCE_LEFT) {
@@ -75,8 +78,9 @@ double EntityDistanceMap::Query(unsigned e1, int e2) const
         return i->second;
     }
     IPair eip(e1, e2);
-    auto i = pairs.find(eip);
-    if (i==pairs.end()) return 0;
+    const std::map<IPair, double, IPairComp> &collection_to_use = hspace ? hspace_pairs : pairs;
+    auto i = collection_to_use.find(eip);
+    if (i==collection_to_use.end()) return 0;
     return i->second;
 }
 
@@ -196,6 +200,8 @@ EntityDistanceMap &EntityDistanceMap::operator +=(const EntityDistanceMap &d)
 {
     for(auto pi : d.pairs)
         Insert(pi.first.first, pi.first.second, pi.second);
+    for(auto pi : d.hspace_pairs)
+        Insert(pi.first.first, pi.first.second, pi.second);
     for(auto i : d.left)
         Insert(i.first, DISTANCE_LEFT, i.second);
     for(auto i : d.right)
@@ -244,7 +250,7 @@ Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
     Arcs(true), EndNotes(true), Notes(false), NoteBlockers(false), 
     total(0,0,0,0), drawing(0,0,0,0), 
-    copyrightTextHeight(0), headingSize(0)
+    copyrightTextHeight(0), headingSize(0), noLabels(0), noOverflownLabels(0)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -1243,8 +1249,6 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                     canvas.UnClip();
             } else {
                 const double offset = canvas.HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
-                up.x += offset;
-                down.x += offset;
                 if (canvas.NeedsStrokePath_rclBoundsFix()) {
                     /* We draw such a shape for an entity line:
                      *  .....   Where dotted lines are invisible.
@@ -1256,15 +1260,15 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                      *          Surprisingly the bounds remain large even if we clip 
                      *          away the serifs (which we do). */
                     const double gap = 10 + style.vline.LineWidth();
-                    const Block clip (up   - XY(gap,0), 
-                                      down + XY(gap,0));
+                    const Block clip (up   + XY(-gap+offset,0), 
+                                      down + XY( gap+offset,0));
                     canvas.Clip(clip);
-                    const XY points[] = {down + XY(-2*gap,  +gap),
-                                         up   + XY(-2*gap, -gap*2),
-                                         up   + XY(+2*gap, -gap*2),
-                                         up   + XY(+2*gap, -gap),
-                                         up   + XY(     0, -gap),
-                                         down + XY(     0, +gap)};
+                    const XY points[] = {down + XY(-2*gap+offset,  +gap),
+                                         up   + XY(-2*gap+offset, -gap*2),
+                                         up   + XY(+2*gap+offset, -gap*2),
+                                         up   + XY(+2*gap+offset, -gap),
+                                         up   + XY(     0+offset, -gap),
+                                         down + XY(     0+offset, +gap)};
                     Contour line_shape;
                     line_shape.assign_dont_check(points);
                     line_shape[0][0].visible = false;
@@ -1273,7 +1277,7 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                     canvas.Line(line_shape, style.vline);
                     canvas.UnClip();
                 } else 
-                    canvas.Line(up, down, style.vline);
+                    canvas.Line(up+XY(0,offset), down+XY(0,offset), style.vline);
             }
         }
         from++;
@@ -1330,6 +1334,8 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
                                //(will be returned, not always that of the last element)
     bool previous_was_parallel = false;
     bool had_parallel_above = false;
+    bool previous_had_centerline = false;
+    double centerline = 0;
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
     //if that arc is compressed up, they are not _below_
@@ -1347,41 +1353,49 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
         //maintain at least compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
         double touchpoint = y;
-        if ((*i)->IsCompressed() || previous_was_parallel) {
-            //if arc is of zero height, just collect it.
-            //Its position may depend on the next arc if that is compressed.
-            if (h==0) {
-                if (first_zero_height == arcs.end()) first_zero_height = i;
-                continue;
+        if ((*i)->IsCenterlined() && previous_had_centerline) {
+            y = centerline;
+            touchpoint = y;
+        } else {
+            if ((*i)->IsCompressed() || previous_was_parallel) {
+                //if arc is of zero height, just collect it.
+                //Its position may depend on the next arc if that is compressed.
+                if (h==0) {
+                    if (first_zero_height == arcs.end()) 
+                        first_zero_height = i;
+                    previous_had_centerline = false;
+                    continue;
+                }
+                const double new_y = std::max(y_upper_limit, -cover->OffsetBelow(arc_cover, touchpoint));
+                //Here the new_y can be larger than the one before, if some prior element 
+                //prevented the current one to shift all the way to below the previous one.
+                if ((*i)->IsCompressed()) 
+                    y = new_y;
+                else //we must have previous_was_parallel==true here
+                    //if the immediately preceeding element (not including zero_height_ones) was
+                    //marked with "parallel", we attempt to shift this element up to the top of that one
+                    //even if the current element is not marked by "compress".
+                    //If we can shift it all the way to the top of the previous element, we place it
+                    //there. But if we can shift only halfway, we place it strictly under the previous
+                    //element - as we are not compressing.
+                    //Note that "y_upper_limit" contains the top of the preceeding element (marked with "parallel")
+                    if (new_y == y_upper_limit) 
+                        touchpoint = y = y_upper_limit;
+                    else 
+                        touchpoint = y; //OffsetBelow() may have destroyed it above
+            } else if (had_parallel_above && h>0) {
+                //If this element is not compressed, but we had an element marked with "parallel" above
+                //it may be that we overlap with a prior element, so we want to avoid that.
+                //But we place zero_height elements to just below the previous one nevertheless
+                //We also keep touchpoint==y for the very same reason
+                double dummy_touchpoint;
+                y = std::max(y, -cover->OffsetBelow(arc_cover, dummy_touchpoint));
             }
-            const double new_y = std::max(y_upper_limit, -cover->OffsetBelow(arc_cover, touchpoint));
-            //Here the new_y can be larger than the one before, if some prior element 
-            //prevented the current one to shift all the way to below the previous one.
-            if ((*i)->IsCompressed()) 
-                y = new_y;
-            else //we must have previous_was_parallel==true here
-                //if the immediately preceeding element (not including zero_height_ones) was
-                //marked with "parallel", we attempt to shift this element up to the top of that one
-                //even if the current element is not marked by "compress".
-                //If we can shift it all the way to the top of the previous element, we place it
-                //there. But if we can shift only halfway, we place it strictly under the previous
-                //element - as we are not compressing.
-                //Note that "y_upper_limit" contains the top of the preceeding element (marked with "parallel")
-                if (new_y == y_upper_limit) 
-                    touchpoint = y = y_upper_limit;
-                else 
-                    touchpoint = y; //OffsetBelow() may have destroyed it above
-        } else if (had_parallel_above && h>0) {
-            //If this element is not compressed, but we had an element marked with "parallel" above
-            //it may be that we overlap with a prior element, so we want to avoid that.
-            //But we place zero_height elements to just below the previous one nevertheless
-            //We also keep touchpoint==y for the very same reason
-            double dummy_touchpoint;
-            y = std::max(y, -cover->OffsetBelow(arc_cover, dummy_touchpoint));
+            touchpoint = floor(touchpoint+0.5);
+            y = ceil(y);
         }
-        touchpoint = floor(touchpoint+0.5);
-        y = ceil(y);
-        //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
+        //We got a non-zero height or a non-compressed one or a centerline one, 
+        //flush zero_height ones (if any)
         while (first_zero_height != arcs.end() && first_zero_height != i)
             (*first_zero_height++)->ShiftBy(touchpoint);
         first_zero_height = arcs.end();
@@ -1398,6 +1412,8 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
             y_upper_limit = y;
         }
         previous_was_parallel = (*i)->IsParallel();
+        previous_had_centerline = (*i)->GetCenterline() >= 0;
+        centerline = (*i)->GetPos() + (*i)->GetCenterline(); 
         if (cover)
             *cover += arc_cover;
         y = y_bottom;
@@ -2030,38 +2046,7 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     total.x.from = 0;
     total.y.from = 0;
 
-    if (GetHScale()<0) {
-        //Now go through all the pairwise requirements and calc actual pos.
-        //dist will hold required distance to the right of entity with index []
-        vector<double> dist(ActiveEntities.size(), 0);
-        dist[0] = l_comment_size ? l_comment_size + 2*sideNoteGap : 0;
-        dist[LNote->index] = XCoord(MARGIN_HSCALE_AUTO);
-        dist[RSide->index] = XCoord(MARGIN_HSCALE_AUTO);
-        dist[RNote->index] = r_comment_size ? r_comment_size + 2*sideNoteGap : 0;
-        //distances.pairs starts with requiremenst between neighbouring entities
-        //and continues with requirements between second neighbours, ... etc.
-        //we process these sequentially
-        for (auto i : distances.GetPairs()) {
-            //Get the requirement
-            double toadd = i.second;
-            //Substract the distance already there
-            for (unsigned f = i.first.first; f!=i.first.second; f++)
-                toadd -= dist[f];
-            //If there is need to increase start with the closer ones
-            //and gradually move to larger ones.
-            while (toadd>0)
-                toadd = MscSpreadBetweenMins(dist, i.first.first,
-                                                i.first.second, toadd);
-        }
-        //Now dist[i] contains the needed space on the right of entity index i
-
-        double curr_pos = 0; 
-        unsigned index = 0;
-        for (auto pEntity : ActiveEntities) {
-            pEntity->pos = curr_pos;
-            curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
-        }
-    } else {
+    if (GetHScale()>=0) {
         //In postparseprocess we set the virtual entity's pos as follows
         //in the second column we show how they should be if there are
         //side commets of L and R size resp. (including 2*sideNoteGap)
@@ -2083,7 +2068,47 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         }
         if (distances.had_r_comment) 
             EndEntity->pos += (r_comment_size + 2*sideNoteGap)/unit;
+
+        //OK, now copy the actual pos's to distances.hscape_pairs (where we may have
+        //additional requirements from hspace commands.
+        for (auto ei = ++ActiveEntities.begin(); ei!=ActiveEntities.end(); ei++) {
+            const EIterator prev_ei = --EIterator(ei);
+            distances.Insert((*prev_ei)->index, (*ei)->index, unit*((*ei)->pos - (*prev_ei)->pos), true);
+        }
     }
+    //Now if we have auto-scaling, the space requirements are in distances.pairs
+    //if we have fixed scaling the requirements are in distances.hspace_pairs
+    //Go through all the pairwise requirements and calc actual pos.
+    //dist will hold required distance to the right of entity with index []
+    vector<double> dist(ActiveEntities.size(), 0);
+    dist[0] = l_comment_size ? l_comment_size + 2*sideNoteGap : 0;
+    dist[LNote->index] = XCoord(MARGIN_HSCALE_AUTO);
+    dist[RSide->index] = XCoord(MARGIN_HSCALE_AUTO);
+    dist[RNote->index] = r_comment_size ? r_comment_size + 2*sideNoteGap : 0;
+    //distances.pairs starts with requiremenst between neighbouring entities
+    //and continues with requirements between second neighbours, ... etc.
+    //we process these sequentially
+    for (auto i : GetHScale()<0 ? distances.GetPairs() : distances.GetHSpacePairs()) {
+        //Get the requirement
+        double toadd = i.second;
+        //Substract the distance already there
+        for (unsigned f = i.first.first; f!=i.first.second; f++)
+            toadd -= dist[f];
+        //If there is need to increase start with the closer ones
+        //and gradually move to larger ones.
+        while (toadd>0)
+            toadd = MscSpreadBetweenMins(dist, i.first.first,
+                                            i.first.second, toadd);
+    }
+    //Now dist[i] contains the needed space on the right of entity index i
+    //Copy these values to the pos field of entities
+    double curr_pos = 0; 
+    unsigned index = 0;
+    for (auto pEntity : ActiveEntities) {
+        pEntity->pos = curr_pos;
+        curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
+    }
+
     total.x.till = XCoord(EndEntity->pos)+1; //XCoord is always integer
     //Consider the copyright text
     StringFormat sf;
@@ -2102,9 +2127,17 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
 
     Progress.StartSection(MscProgress::LAYOUT);
+    noLabels = noOverflownLabels = 0;
     total.y.till = LayoutArcList(canvas, Arcs, NULL) + chartTailGap;
     //total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
     drawing.y = total.y;  
+    //If at least 10% of the labels are overflown (but at least 3), emit warning
+    if (noOverflownLabels>2 && noOverflownLabels > noLabels/10) 
+        if (GetHScale()>0 && !Contexts.back().text.IsWordWrap())
+            Error.Warning(FileLineCol(Error.Files.size()-1, 1, 1), 
+                 "There are quite some labels wider than the space available.",
+                 "Consider using horizontal auto-scaling ('hscale=auto;') or "
+                 "word wrapping ('text.wrap=yes;').");
 
     if (autoPaginate) {
         if (fitWidth)

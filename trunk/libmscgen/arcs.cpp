@@ -285,7 +285,7 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), had_add_attr_list(false), valid(true), 
-    compress(false), parallel(false),
+    compress(false), parallel(false), centerlined(false),
     keep_together(true), keep_with_next(false),
     type(t), myProgressCategory(c)
 {
@@ -593,6 +593,13 @@ void ArcLabelled::OverflowWarning(double overflow, const string &msg, EIterator 
              (chart->IsVirtualEntity(*e2) ? "" : (*e2)->name) +
              "'."));
 };
+
+void ArcLabelled::CountOverflow(double space)
+{
+    _ASSERT(!parsed_label.IsWordWrap());
+    chart->CountLabel(parsed_label.getTextWidthHeight().x > space + 1);
+}
+
 
 const StyleCoW *ArcLabelled::GetRefinementStyle(EArcType t) const
 {
@@ -990,6 +997,8 @@ void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
         _ASSERT(dx - src_act - sx > 0);
         const double overflow = parsed_label.Reflow(canvas, dx - src_act - sx);
         OverflowWarning(overflow, "", i, src);
+    } else {
+        CountOverflow(dx - src_act - sx);
     }
 
     double y = chart->arcVGapAbove;
@@ -1427,7 +1436,9 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
         if (parsed_label.IsWordWrap()) {
             const double overflow = parsed_label.Reflow(canvas, dx_text - sx_text);
             OverflowWarning(overflow, "", sx<dx ? src : dst, sx<dx ? dst : src);
-            text_wh = parsed_label.getTextWidthHeight();
+            text_wh = parsed_label.getTextWidthHeight(); //refresh
+        } else {
+            CountOverflow(dx_text - sx_text);
         }
         cx_text = (sx+dx)/2;
         area = text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
@@ -1881,6 +1892,8 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
         //recalculate dy: reuse sy set in Width()
         dy = ceil(sy + parsed_label.getTextWidthHeight().y + 
                   chart->boxVGapInside*2 + 2*segment_lines[stext].LineWidth());
+    } else {
+        CountOverflow(dx_text - sx_text);
     }
     //reuse sy dy set in Width()
     centerline = (sy+dy)/2; //Note that we rotate around (sx, yPos+centerline)
@@ -2712,20 +2725,31 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
     if (*src==chart->NoEntity) 
-        for (auto i = series.begin(); i!=series.end(); i++) 
-            src = chart->EntityMinByPos(src, (*i)->src);
+        for (auto pBox : series) 
+            src = chart->EntityMinByPos(src, pBox->src);
     if (*dst==chart->NoEntity) 
-        for (auto i = series.begin(); i!=series.end(); i++) 
-            dst = chart->EntityMaxByPos(dst, (*i)->dst);
+        for (auto pBox : series) 
+            dst = chart->EntityMaxByPos(dst, pBox->dst);
 
     //Src and dst can still be == NoEntity, if no arcs specified
     //inside the content and no enity specified at box declaration.
     //In this case emph box spans to leftmost and rightmost entity in chart.
     //At PostParse chart->AllEntities is already sorted by pos values
     //we only do this step if we are the first in a box series.
-    if (*src==chart->NoEntity) src = ++ ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
-    if (*dst==chart->NoEntity) dst = -- -- --chart->AllEntities.end();    //rightmost entity (before (right)
-
+    if (*src==chart->NoEntity) 
+        for (src = chart->AllEntities.begin(); src!=chart->AllEntities.end(); src++)
+            if (!chart->IsVirtualEntity(*src)) break;  //leftmost non-virtual entity
+    //If we end up in end() it means we only have virtual entities.
+    //In this case an automatic box has no meaning, we drop it
+    if (src==chart->AllEntities.end()) {
+        chart->Error.Error(file_pos.start, "The chart has no entities I can adjust the size of this box to. Ignoring the box.");
+        src=dst; //do not let this to point to no entity. dst must == NoEntity here.
+        return NULL;
+    }
+    if (*dst==chart->NoEntity) 
+        for (dst = -- chart->AllEntities.end(); dst!=chart->AllEntities.end(); dst--)
+            if (!chart->IsVirtualEntity(*dst)) break;  //rightmost non-virtual entity
+    _ASSERT(dst!=chart->AllEntities.end()); //No need to check dst validity, we have ensured we have valid entities above.
     //Now see how entities change due to entity collapse
     EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
     EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
@@ -2879,6 +2903,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         if ((*i)->parsed_label.IsWordWrap()) {
             const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
             (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
+        } else {
+            (*i)->CountOverflow((*i)->dx_text - (*i)->sx_text);
         }
         //Calculate text cover
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
@@ -3852,6 +3878,8 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
         if ((*i)->parsed_label.IsWordWrap()) {
             const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
             (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
+        } else {
+            (*i)->CountOverflow((*i)->dx_text - (*i)->sx_text);
         }
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         // omit text cover for pipes if the pipe is fully opaque,
@@ -4243,6 +4271,8 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     if (parsed_label.IsWordWrap()) {
         const double overflow = parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
         OverflowWarning(overflow, "", chart->AllEntities.begin(), chart->AllEntities.begin());
+    } else {
+        CountOverflow(chart->GetDrawing().x.Spans() - 2*text_margin);
     }
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;

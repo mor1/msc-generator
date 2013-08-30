@@ -2375,6 +2375,7 @@
 		<col key="yes" def="s255">ISMergeModule_</col>
 		<col key="yes" def="i2">Language_</col>
 		<row><td>AlwaysInstall</td><td>Microsoft_VC110_CRT_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC110_MFC_x86.8F364BD8_5C29_332B_9A0E_43DF52AD4A09</td><td>0</td></row>
 		<row><td>AlwaysInstall</td><td>Microsoft_VC110_MFC_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td></row>
 	</table>
 
@@ -2499,6 +2500,7 @@
 		<col def="S255">Destination</col>
 		<col def="I4">ISAttributes</col>
 		<row><td>Microsoft_VC110_CRT_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td><td>Visual C++ 11.0 CRT (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC110_MFC_x86.8F364BD8_5C29_332B_9A0E_43DF52AD4A09</td><td>0</td><td>Visual C++ 11.0 MFC (x86)</td><td/><td/></row>
 		<row><td>Microsoft_VC110_MFC_x86.D371D00B_69EC_3F8E_A622_74710A89ADC1</td><td>0</td><td>Visual C++ 11.0 MFC (x86)</td><td/><td/></row>
 	</table>
 
@@ -4644,9 +4646,9 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>PROGMSG_IIS_ROLLBACKVROOTS</td><td>##IDS_PROGMSG_IIS_ROLLBACKVROOTS##</td><td/></row>
 		<row><td>PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS</td><td>##IDS_PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS##</td><td/></row>
 		<row><td>PROGRAMFILETOLAUNCHATEND</td><td>[INSTALLDIR]Msc-generator.Primary Output</td><td/></row>
-		<row><td>ProductCode</td><td>{8C5C3B80-0FC7-4095-9B9F-FC548033F08B}</td><td/></row>
+		<row><td>ProductCode</td><td>{95DBF14D-9217-426E-B071-2F9D6E3DE0CD}</td><td/></row>
 		<row><td>ProductName</td><td>Msc-generator</td><td/></row>
-		<row><td>ProductVersion</td><td>3.5.22</td><td/></row>
+		<row><td>ProductVersion</td><td>3.5.23</td><td/></row>
 		<row><td>ProgressType0</td><td>install</td><td/></row>
 		<row><td>ProgressType1</td><td>Installing</td><td/></row>
 		<row><td>ProgressType2</td><td>installed</td><td/></row>

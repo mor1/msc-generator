@@ -133,6 +133,7 @@ protected:
     bool   valid;          ///<If false, then construction failed, arc does not exist 
     bool   compress;       ///<True if compress mechanism is on for this arc (compress attribute set)
     bool   parallel;       ///<If true, subsequent arcs can be drawn beside this.
+    bool   centerlined;    ///<If true, this arc must be positioned exactly to the centreline of the previous one.
     bool   keep_together;  ///<If true, do not split this by automatic pagination.
     bool   keep_with_next; ///<If true, do not separate this from following element by automatic pagination 
     string refname;        ///<Value of the "refname" attribute, to reference numbers & others. Empty if none.
@@ -151,6 +152,8 @@ public:
     bool IsParallel() const {return parallel;}
     /** True, if compress mechanism is on foe this arc and can be shifted upwards.*/
     bool IsCompressed() const {return compress;}
+    /** True if this arc shall be placed at the centerline of a previous one.*/
+    bool IsCenterlined() const {return centerlined;}
     /** If true, do not split this by automatic pagination.*/
     bool IsKeepTogether() const {return keep_together;}
     /** If true, do not separate this from following element by automatic pagination */
@@ -163,6 +166,9 @@ public:
     double GetHeight() const {return std::max(height, comment_height);}
     /** Get the Y coordinate range occupied by the arc.*/
     virtual Range GetYExtent() const {return Range(yPos, yPos+GetHeight());}
+    /** Get the Centerline Delta from the top of the arc.
+     * A negative return value indicates the object has no centerline. */
+    virtual double GetCenterline() const {return -1;}
     /** Get an (ordered) list of entities that this arrow or box touches.
       * @return the direction of the arrows inside (left is all arrows are left; bidir if mixed.*/
     virtual EDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -287,7 +293,8 @@ public:
     void SetStyleWithText(const char *style_name); 
     /** Set style to this name, but combine it with default text style. Use existing style if NULL.*/
     void SetStyleWithText(const StyleCoW *style_to_use=NULL); 
-    /** Generate a warning on overflown labels
+    /** Generate a warning on overflown labels.
+     * Shall be called from Layout().
      * @param [in] overflow The amount of overflow.
      * @param [in] msg The message to display. NULL if the space depends on entities and a
      *                 corresponding message shall be displayed.
@@ -295,6 +302,13 @@ public:
      * @param [in] e2 The right entity governing the space available for the label. */
     void OverflowWarning(double overflow, const string &msg, 
                          EIterator e1=EIterator(),  EIterator e2=EIterator());
+    /** Counts non-word-wrapped labels in the chart and also how many has been overflown.
+     * It is used to display a warning at the end if may labels were 
+     * overflown. Shall be called from Layout();
+     * @param [in] space Says how much vertial space the label has.
+     *                   If the label is wider, we mark it as overflown,
+     *                   but only if no word_wrapping is used for the labels. */
+    void CountOverflow(double space);
     /** Depending on the arc type return the refinement style.
      * An example of a refinement style is the style named '->', which (by default)
      * sets the line type to solid and is applied after the 'arrow' style, to reflect
@@ -417,6 +431,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual double GetCenterline() const {return !slant_angle ? centerline : -1;}
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
