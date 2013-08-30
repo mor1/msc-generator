@@ -158,6 +158,7 @@ class StringFormat {
     bool IsComplete() const;
     void Default();
     void UnsetWordWrap() {word_wrap.first = true; word_wrap.second = false;}
+    bool IsWordWrap() const {_ASSERT(word_wrap.first); return word_wrap.second;}
 
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad 

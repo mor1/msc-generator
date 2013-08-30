@@ -233,18 +233,24 @@ void CommandEntity::Combine(CommandEntity *ce)
 CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 {
     _ASSERT(!internally_defined);
-    for (auto i=entities.begin(); i!=entities.end(); i++) {
-		if (CaseInsensitiveEqual(prefix, "show") || CaseInsensitiveEqual(prefix, "hide")) {
-			if ((*i)->show_is_explicit) continue;	
-			(*i)->show.first = true;	
-			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
-		} else if (CaseInsensitiveEqual(prefix, "activate") || CaseInsensitiveEqual(prefix, "deactivate")) {
-            if ((*i)->active_is_explicit) continue;
-			(*i)->active.first = true;	
-			(*i)->active.second = CaseInsensitiveEqual(prefix, "activate");
-            (*i)->active.third = (*i)->file_pos.start;
+    const bool show = CaseInsensitiveEqual(prefix, "show");
+    const bool show_or_hide = show || CaseInsensitiveEqual(prefix, "hide");
+    const bool activate = CaseInsensitiveEqual(prefix, "activate");
+    const bool activate_or_deactivate = activate || CaseInsensitiveEqual(prefix, "deactivate");
+    for (auto pEntityApp : entities) 
+		if (show_or_hide) {
+			if (pEntityApp->show_is_explicit) continue;	
+			pEntityApp->show.first = true;	
+			pEntityApp->show.second = show;
+        } else if (activate_or_deactivate) {
+            if (pEntityApp->active_is_explicit) continue;
+			pEntityApp->active.first = true;	
+            pEntityApp->active.second = activate;
+            pEntityApp->active.third = pEntityApp->file_pos.start;
         }
-    }
+    //try to align activations and deactivations to the centerline of previous object
+    if (activate_or_deactivate || CaseInsensitiveEqual(prefix, "centerline")) 
+        centerlined = true;
     return this;
 }
 
@@ -471,9 +477,13 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //Collapse is not considered yet, we will do it below
 
     //7. Finally prune the list: do not show those that shall not be displayed due to collapse
-    for (auto i_app : entities) 
+    // Also, if any header is shown, kill "centerline"
+    for (auto i_app : entities)  {
         if (chart->FindActiveParentEntity(i_app->itr) != i_app->itr) 
             i_app->draw_heading = false;
+        if (i_app->draw_heading) 
+            centerlined = false;
+    }
 
     //8. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth
@@ -1029,7 +1039,7 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
     else if (*src == chart->RNote)
         distances.comment_r = std::max(distances.comment_r, dist);
     else
-        distances.Insert((*src)->index, (*dst)->index, dist);
+        distances.Insert((*src)->index, (*dst)->index, dist, true);
 }
 
 
@@ -1665,10 +1675,12 @@ void CommandNote::Layout(Canvas &canvas, AreaList * cover)
         if (style.read().side.second == ESide::END) {
             //Endnotes are laid out normally here
             //Start with reflowing the label if needed
+            const double space = chart->XCoord(chart->EndEntity->pos) - 2*chart->sideNoteGap;
             if (parsed_label.IsWordWrap()) {
-                const double space = chart->XCoord(chart->EndEntity->pos) - 2*chart->sideNoteGap;
                 const double overflow = parsed_label.Reflow(canvas, space);
                 OverflowWarning(overflow, "");
+            } else {
+                CountOverflow(space);
             }
             yPos = 0;
             area = parsed_label.Cover(chart->sideNoteGap, 
@@ -2530,15 +2542,17 @@ void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
     _ASSERT(style.read().side.second != ESide::END);
     yPos = y;
     //reflow if needed
+    const double space = style.read().side.second == ESide::LEFT ? 
+        chart->XCoord(chart->LNote->pos) - 2*chart->sideNoteGap :
+        chart->XCoord(chart->EndEntity->pos) - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
     if (parsed_label.IsWordWrap()) {
-        const double space = style.read().side.second == ESide::LEFT ? 
-            chart->XCoord(chart->LNote->pos) - 2*chart->sideNoteGap :
-            chart->XCoord(chart->EndEntity->pos) - chart->XCoord(chart->RNote->pos) - 2*chart->sideNoteGap;
         const double overflow = parsed_label.Reflow(canvas, space);
         OverflowWarning(overflow, 
             "Use 'hscale=auto' or add space via 'hspace "+
             string(style.read().side.second == ESide::LEFT ? "left" : "right")+
             " comment <number>'.");
+    } else {
+        CountOverflow(space);
     }
     if (style.read().side.second == ESide::LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, 

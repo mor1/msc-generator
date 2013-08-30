@@ -132,6 +132,9 @@ protected:
     /** Entity pairs and the distance needed between them.
      * They are not necessarily neighbouring entities. */
     std::map<IPair, double, IPairComp> pairs;
+    /** Entity pairs and the distance needed between them requested via the hspace command.
+     * They are not necessarily neighbouring entities. */
+    std::map<IPair, double, IPairComp> hspace_pairs;
     //These two contain space requirements on the left and right side of an
     //entity. These are folded into "pairs" using the CombineLeftRightToPair_*
     //functions.
@@ -161,15 +164,21 @@ public:
 
     /** Return the set of pairwise distances. Ordered by entity pair distance.*/
     const std::map<IPair, double, IPairComp> &GetPairs() const {return pairs;}
+    /** Return the set of pairwise hspace distances. Ordered by entity pair distance.*/
+    const std::map<IPair, double, IPairComp> &GetHSpacePairs() const {return hspace_pairs;}
 
     /** Insert a new distance requirement either between two entities or on one side of an entity.
      * @param [in] e1 Entity index.
      * @param [in] e2 Entity index or DISTANCE_LEFT or DISTANCE_RIGHT to represent one side of e1.
      * @param [in] d The distance to insert (pixel space).
+     * @param [in] hspace True, if the distance was requested by a hspace command.
      * If such a distance requirement was inserted, the max of the old and new values are stored.*/
-    void Insert(unsigned e1, int e2, double d);
-    /** Get the distance stored between two entities or on the side of one.*/
-    double Query(unsigned e1, int e2) const;
+    void Insert(unsigned e1, int e2, double d, bool hspace=false);
+    /** Get the distance stored between two entities or on the side of one.
+     * Set the `hspace` param to true if you are interested in the distance requirement
+     * specified exclusively by hspace commands. If set to false, all type of requirements
+     * are included. */
+    double Query(unsigned e1, int e2, bool hspace=false) const;
     /** Insert a box side distance pair 
      * @param [in] e The entity we refer to.
      * @param [in] l The distance req on the left side of `e`
@@ -294,6 +303,8 @@ protected:
     Block  drawing;              ///<The area where chart elements can be (total minus the comment lanes at the side)
     double copyrightTextHeight;  ///<The y size of the copyright text (calculated in CalculateWidthHeight())
     double headingSize;          ///<Y size of first heading row (collected during PostPosProcess())
+    unsigned noLabels;           ///<The number of labels (except entities)
+    unsigned noOverflownLabels;  ///<The number of labels overflown
     /** @} */
 
 public:
@@ -430,6 +441,7 @@ public:
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     /** Hides the entity lines in `area` */
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
+    void CountLabel(bool overflown) {noLabels++; if (overflown) noOverflownLabels++;}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
 
     void CompleteParse(Canvas::EOutputType, bool avoidEmpty,
