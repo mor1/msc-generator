@@ -144,6 +144,7 @@ EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
     show_is_explicit(false),
     active_is_explicit(false),
+    centerline_target(NULL),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
     defining(false),
     draw_heading(false)
@@ -648,27 +649,35 @@ void EntityApp::AddAreaImportantWhenNotShowing()
 }
 
 /** Record y-position dependent status of the Entity. 
- * Called when the EntityApp is ShiftBy()ed to its final position.
+ * Called after the EntityApp is ShiftBy()ed to its final position.
  * We hide entity lines behind us, record our style and status
  * in Entity::status and if we are a group entity we
- * create a control (for the GUI).*/
+ * create a control (for the GUI).
+ * If `centerline_target` is not NULL, we do this at the
+ * centerline of it, not at yPos.*/
 void EntityApp::PostPosProcess(Canvas &canvas)
 {
+    //If we have a centerline target, we must not draw a heading
+    _ASSERT((centerline_target==NULL) || !draw_heading);
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
         if ((*itr)->children_names.size())
             Element::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
     }
-    const EEntityStatus old_status = (*itr)->status.GetStatus(yPos);
+    const double yUse = centerline_target  && centerline_target->GetCenterline(chart->XCoord(itr))>=0 ? 
+        centerline_target->GetCenterline(chart->XCoord(itr)) + centerline_target->GetPos() : 
+        draw_heading ? 
+            yPos + chart->headingVGapAbove :
+            yPos;
+    const EEntityStatus old_status = (*itr)->status.GetStatus(yUse);
     EEntityStatus new_status = old_status;
     if (show.first)
         new_status.Show(show.second);
     if (active.first)
         new_status.Activate(active.second);
-    const double at_y = yPos + (draw_heading ? chart->headingVGapAbove : 0);
     if (new_status != old_status)
-        (*itr)->status.SetStatus(at_y, new_status);
-    (*itr)->status.ApplyStyle(at_y, style);
+        (*itr)->status.SetStatus(yUse, new_status);
+    (*itr)->status.ApplyStyle(yUse, style);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
     //    if (shown)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "

@@ -50,11 +50,11 @@ void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 
 CommandEntity::CommandEntity(EntityAppHelper *e, Msc *msc, bool in)
     : ArcCommand(MSC_COMMAND_ENTITY, MscProgress::ENTITY, msc), 
+    full_heading(e==NULL), centerlined(false),
     tmp_stored_notes(true), internally_defined(in)
     //tmp_stored_notes is responsible for its content - if the CommandEntity is
     //destroyed during parse, these notes must also get deleted
 {
-    full_heading = (e==NULL);
     if (e) {
         entities.splice(entities.end(), e->entities);
         tmp_stored_notes.splice(tmp_stored_notes.end(), e->notes);
@@ -225,9 +225,11 @@ void CommandEntity::Combine(CommandEntity *ce)
     tmp_stored_note_targets.splice(tmp_stored_note_targets.end(), ce->tmp_stored_note_targets);
     target_entity = ce->target_entity;
     CombineComments(ce); //noves notes from 'ce' to us
+    centerlined &= ce->centerlined; //remain centerlined only if ce is also centerlined.
 }
 
-/** Apply the relevant attributes if the entity command was prefixed with "show", "hide", "activate" or "deactivate".
+/** Apply the relevant attributes if the entity command was prefixed with 
+ * "show", "hide", "activate" or "deactivate" or "centerline".
  * Take care that if the entity had a specific show or active attribute, such 
  * attributes take precedence over the prefix.*/
 CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
@@ -485,7 +487,19 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
             centerlined = false;
     }
 
-    //8. At last we have all entities among "entities" that will show here/change status or style
+    //8. If we remained centerline, go back to our target (if an ArcDirArrow) 
+    //so that it can update activate status of its entities
+    //In addition, inform the EntityApp object about where they should 
+    //make effect (the centerline of '*target'
+    ArcDirArrow * const prev = dynamic_cast<ArcDirArrow *>(*target);
+    centerlined &= (prev!=NULL);
+    if (centerlined) {
+        prev->UpdateActiveSizes();
+        for (auto pEntityApp : entities)
+            pEntityApp->centerline_target = prev;
+    }
+
+    //9. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth
     //Also, PostParseProcess their notes, too
     //Also, set target to the entity we received in the constructor
@@ -942,6 +956,12 @@ void CommandEmpty::Draw(Canvas &canvas, EDrawPassType pass)
 }
 
 /////////////////////////////////////////////////////////////////
+/** Call this with 
+ * 1. two entities
+ * 2. one entity and a NULL (in which case the NULL will be replaced by RSide)
+ * 3. NULL and one entity (in which case the NULL will be replaced by LSide)
+ * 4. LNote and NULL (will result in NoEntity-LNote)
+ * 5. RNote and NULL (will result in RNote-EndEntity)*/
 CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
     ArcCommand(MSC_COMMAND_HSPACE, MscProgress::TINY_EFFORT, msc), 
     format(msc->Contexts.back().text),
@@ -956,7 +976,14 @@ CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
         sline = enp->sline;
     } else
         src = chart->AllEntities.Find_by_Ptr(chart->LSide);
-    if (enp->dst.length()) {
+    if (*src == chart->LNote) {
+        _ASSERT(!enp->dst.length());
+        dst = src;
+        src = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
+    } else if (*src == chart->RNote) {
+        _ASSERT(!enp->dst.length());
+        dst = chart->AllEntities.Find_by_Ptr(chart->EndEntity);
+    } else if (enp->dst.length()) {
         dst = chart->FindAllocEntity(enp->dst.c_str(), enp->dline);
         dline = enp->dline;
     } else
@@ -1034,10 +1061,6 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
         dist += Label(label.second, canvas, format).getTextWidthHeight().x;
     if (dist<0)
         chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
-    else if (*src == chart->LNote) 
-        distances.comment_l = std::max(distances.comment_l, dist);
-    else if (*src == chart->RNote)
-        distances.comment_r = std::max(distances.comment_r, dist);
     else
         distances.Insert((*src)->index, (*dst)->index, dist, true);
 }

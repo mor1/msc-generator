@@ -285,7 +285,7 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), had_add_attr_list(false), valid(true), 
-    compress(false), parallel(false), centerlined(false),
+    compress(false), parallel(false), 
     keep_together(true), keep_with_next(false),
     type(t), myProgressCategory(c)
 {
@@ -1192,7 +1192,6 @@ bool ArcDirArrow::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-
 EDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
 {
     el.push_back(*src);
@@ -1339,10 +1338,26 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     act_size.reserve(2+middle.size());
     act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
-        act_size.push_back(std::max(0., cos_slant*(*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
-    act_size.push_back(std::max(0., cos_slant*(*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
+        act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
+    act_size.push_back(std::max(0., (*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     return this;
 }
+
+void ArcDirArrow::UpdateActiveSizes() 
+{
+    //We take the maximum of the existing activation size and the ones in the
+    //running state of entities.
+
+    //We assume act_size is still ordered as after PostParseProcess() and 
+    //before Layout(), that is {src,middle[],dst}
+    auto i = act_size.begin();
+    *i = std::max(*i, (*src)->GetRunningWidth(chart->activeEntitySize)/2/cos_slant);
+    for (unsigned u = 1; u<=middle.size(); u++) 
+        act_size[u] = std::max(act_size[u], (*middle[u-1])->GetRunningWidth(chart->activeEntitySize)/2/cos_slant);
+    i = --act_size.end();
+    *i = std::max(*i, (*dst)->GetRunningWidth(chart->activeEntitySize)/2/cos_slant);
+}
+
 
 void ArcDirArrow::FinalizeLabels(Canvas &canvas)
 {
@@ -1524,6 +1539,25 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     LayoutComments(canvas, cover);
 }
 
+double ArcDirArrow::GetCenterline(double x) const
+{
+    if (!slant_angle) 
+        return centerline;
+    //if we are left of a -> arrow or right from a <- arrow
+    //(Latter is an example of below, 'x' is at the + sign)
+    //        o---+--------
+    //       /
+    //_____|/_
+    //return the top line
+    if ( (sx<dx && x<=sx) || (sx>dx && x>=sx) ) 
+        return centerline;
+    //if we are on the other side return the bottom line
+    if ( (sx<dx && x>=dx) || (sx>dx && x<=dx) ) 
+        return sin_slant*fabs(dx-sx) + centerline;
+    //We are on the arrow
+    return sin_slant*fabs(x-sx) + centerline;
+}
+
 
 void ArcDirArrow::CalculateMainline(double thickness)
 {
@@ -1532,7 +1566,7 @@ void ArcDirArrow::CalculateMainline(double thickness)
     else {
         thickness /= cos_slant;
         const double src_y = yPos+centerline;
-        const double dst_y = sin_slant*(dx-sx) + src_y;
+        const double dst_y = sin_slant*fabs(dx-sx) + src_y;
         const double real_dx = sx + cos_slant*(dx-sx);
         if (sx<dx) {
             const XY ml[] = {XY(chart->GetDrawing().x.from,   src_y-thickness/2), XY(sx, src_y-thickness/2),

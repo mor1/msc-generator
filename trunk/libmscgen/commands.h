@@ -50,6 +50,7 @@ class CommandEntity : public ArcCommand
 protected:
     EntityAppList          entities;                 ///<The list of EntityApp this command includes
     bool                   full_heading;             ///<True if created from a 'heading' command (or merged with a heading command)
+    bool                   centerlined;              ///<true if entity changes shall be aligned to the centerline above
     PtrList<CommandNote>   tmp_stored_notes;         ///<A set of notes attached to one EntityApp in `entities`.
     std::list<std::string> tmp_stored_note_targets;  ///<The name of the target entity for each note in `tmp_stored_notes` (matched by position in list)
     std::string            target_entity;            ///<Subsequent note commands shall target this entity (present in `entities`)
