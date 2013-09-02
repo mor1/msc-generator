@@ -1,0 +1,13 @@
+a, group [collapsed=yes] {
+    b, c, d;
+}, e;
+a->b: Message;
+b--d: Box {
+    b->c->d: Message;
+};
+d->e: Message;
+d<-e: Message \#2;
+group--group: Box {
+    b<-c-d: Message \#2;
+};
+a<-b: Message \#2;
