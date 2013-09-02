@@ -192,6 +192,8 @@ struct EntityAppHelper
     EntityAppHelper *Prepend(EntityAppHelper*edh) {if (edh) {entities.Prepend(&edh->entities); notes.Prepend(&edh->notes); note_targets.splice(note_targets.begin(), edh->note_targets);} return this;} //leave "target" as that of the latter edh
 };
 
+class ArcDirArrow;
+
 /** Describes information for each appearance of an entity in the input.
  * Each time we mention an entity (not as part of an arc, but to change its attributes)
  * one EntityApp is created. 
@@ -232,6 +234,7 @@ public:
     triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     bool                             show_is_explicit;    ///<True if a show attribute was specified by the user. In this case a "show/hide" command/prefix will not override the `show` member.
     bool                             active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
+    const ArcDirArrow*               centerline_target;   ///<If we need to activate at the centerline of an arrow, this is the one. Else NULL.
 
     EIterator                        itr;         ///<Points to the entity in Msc::AllEntities, set during PostParse.
     StyleCoW                         style;       ///<The complete style of the entity at this point. Finalized during PostParse taking unset attributes from running_style.

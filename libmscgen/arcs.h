@@ -133,7 +133,6 @@ protected:
     bool   valid;          ///<If false, then construction failed, arc does not exist 
     bool   compress;       ///<True if compress mechanism is on for this arc (compress attribute set)
     bool   parallel;       ///<If true, subsequent arcs can be drawn beside this.
-    bool   centerlined;    ///<If true, this arc must be positioned exactly to the centreline of the previous one.
     bool   keep_together;  ///<If true, do not split this by automatic pagination.
     bool   keep_with_next; ///<If true, do not separate this from following element by automatic pagination 
     string refname;        ///<Value of the "refname" attribute, to reference numbers & others. Empty if none.
@@ -153,8 +152,6 @@ public:
     /** True, if compress mechanism is on foe this arc and can be shifted upwards.*/
     bool IsCompressed() const {return compress;}
     /** True if this arc shall be placed at the centerline of a previous one.*/
-    bool IsCenterlined() const {return centerlined;}
-    /** If true, do not split this by automatic pagination.*/
     bool IsKeepTogether() const {return keep_together;}
     /** If true, do not separate this from following element by automatic pagination */
     bool IsKeepWithNext() const {return keep_with_next;}
@@ -166,9 +163,6 @@ public:
     double GetHeight() const {return std::max(height, comment_height);}
     /** Get the Y coordinate range occupied by the arc.*/
     virtual Range GetYExtent() const {return Range(yPos, yPos+GetHeight());}
-    /** Get the Centerline Delta from the top of the arc.
-     * A negative return value indicates the object has no centerline. */
-    virtual double GetCenterline() const {return -1;}
     /** Get an (ordered) list of entities that this arrow or box touches.
       * @return the direction of the arrows inside (left is all arrows are left; bidir if mixed.*/
     virtual EDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -431,15 +425,22 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual double GetCenterline() const {return !slant_angle ? centerline : -1;}
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
+    /** Update the stored activation status of entities.
+     * Called if a centierlined entity command after us has changed active entities.*/
+    virtual void UpdateActiveSizes(); 
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList *cover);
-    /** Calculates `area.mainline`. Tricky for slanted arrows*/
+    /** Get the Centerline Delta from the top of the arc at horizontal position `x`.
+     * A negative return value indicates the object has no centerline. 
+     * Shall be called only after Layout()*/
+    virtual double GetCenterline(double x) const;
+    /** Calculates `area.mainline`. Tricky for slanted arrows.
+     * @param [in] thickness The y thinckess of the mainline*/
     void CalculateMainline(double thickness);
     /** Is this the start or end of the arrow?
      * From the index of `xPos` and `specified_as_forward` give MSC_ARROW_{START,MIDDLE,END}*/

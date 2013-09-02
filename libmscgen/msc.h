@@ -155,12 +155,10 @@ protected:
 public:
     /** Contains a set of entities that were active at any time while this map is used */
     std::set<unsigned> was_activated;
-    double comment_l; ///<Maximum explicit user-requested left comment size
-    double comment_r; ///<Maximum explicit user-requested right comment size
     bool had_l_comment; ///<We had comments on the left side actually showing
     bool had_r_comment; ///<We had comments on the right side actually showing
 
-    EntityDistanceMap() : comment_l(0), comment_r(0), had_l_comment(false), had_r_comment(false) {}
+    EntityDistanceMap() : had_l_comment(false), had_r_comment(false) {}
 
     /** Return the set of pairwise distances. Ordered by entity pair distance.*/
     const std::map<IPair, double, IPairComp> &GetPairs() const {return pairs;}
@@ -179,6 +177,9 @@ public:
      * specified exclusively by hspace commands. If set to false, all type of requirements
      * are included. */
     double Query(unsigned e1, int e2, bool hspace=false) const;
+    /** Increase an existing distance requirement if already nonzero.
+     * Returns true, if an increase has been made. */
+    bool IncreaseIfNonZero(unsigned e1, int e2, double d, bool hspace=false);
     /** Insert a box side distance pair 
      * @param [in] e The entity we refer to.
      * @param [in] l The distance req on the left side of `e`
