@@ -677,7 +677,8 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
     cairo_status_t st = cairo_surface_status(surface);
     if (st != CAIRO_STATUS_SUCCESS) {
         CloseOutput();
-        return st == CAIRO_STATUS_NO_MEMORY ? ERR_CANVAS_MEM : ERR_CANVAS;
+        return (st == CAIRO_STATUS_NO_MEMORY || st == CAIRO_STATUS_INVALID_SIZE) ? 
+            ERR_CANVAS_MEM : ERR_CANVAS;
     }
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     return ERR_OK;

@@ -57,10 +57,18 @@ FIX: test.signalling from Michael on end of January, draws thicker text sometime
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 
+In 3.5.26:
+FIXED: I crashed with autoheadings.
+FIXED: Too large image size now reported.
+
+In 3.5.25:
+FIXED: Bug with label positioning in ArcDirArrow & activated entities
+FIXED: Bug with slanted arrows and entity activation.
+
 In 3.5.24:
 ADDED: A warning when many labels are expanding out to suggest using either text.wrap=yes or hscale=auto.
 FIXED: Entity lines creeped left, when drawn in many segments.
-ADD: Centerline activation
+ADDED: Centerline activation
 
 In 3.5.23
 FIXED: In hscale=1 case the left side of “--:label;” boxes is cropped (Thanks Graham!)

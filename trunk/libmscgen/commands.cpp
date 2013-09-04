@@ -747,7 +747,7 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
         EIterator dummy1 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
         EIterator dummy2 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
         Numbering dummy3;
-        Element *dummy4;
+        Element *dummy4=NULL;
         //at_to_level must be true, or else it complains...
         autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4);
         chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->myProgressCategory);
