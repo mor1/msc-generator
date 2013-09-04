@@ -1,0 +1,6 @@
+a->b: Label
+      in two lines;
+aaa->bbb: Another label
+          in two lines;
+aaaaaa->bbbbbb: A third label.
+                Two lines, too.;
