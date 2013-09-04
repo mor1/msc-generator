@@ -1442,11 +1442,11 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     if (text_wh.y) {
         //Determine space for the text, reflow if needed and calculate cover
         if (sx<dx) {
-            sx_text = sx + xy_s.x;
-            dx_text = dx - xy_e.x;
+            sx_text = sx + xy_s.x + *act_size.begin();
+            dx_text = dx - xy_e.x - *act_size.rbegin();
         } else {
-            sx_text = dx + xy_e.x;
-            dx_text = sx - xy_s.x;
+            sx_text = dx + xy_e.x + *act_size.rbegin();
+            dx_text = sx - xy_s.x - *act_size.begin();
         }
         if (parsed_label.IsWordWrap()) {
             const double overflow = parsed_label.Reflow(canvas, dx_text - sx_text);
@@ -1543,19 +1543,26 @@ double ArcDirArrow::GetCenterline(double x) const
 {
     if (!slant_angle) 
         return centerline;
+
+    //Calculate the x coordinate of the tip of the arrow
+    //Here act_size is sorted from left to right and not from src->dst
+    const double _sx = sx + cos_slant*(sx<dx ? *act_size.begin() : -*act_size.rbegin());
+    const double _dx = sx + (dx-sx)*cos_slant + 
+                            cos_slant*(sx<dx ? -*act_size.rbegin() : *act_size.begin());
+
     //if we are left of a -> arrow or right from a <- arrow
     //(Latter is an example of below, 'x' is at the + sign)
     //        o---+--------
     //       /
     //_____|/_
     //return the top line
-    if ( (sx<dx && x<=sx) || (sx>dx && x>=sx) ) 
+    if ( (sx<dx && x<=_sx) || (sx>dx && x>=_sx) ) 
         return centerline;
     //if we are on the other side return the bottom line
-    if ( (sx<dx && x>=dx) || (sx>dx && x<=dx) ) 
-        return sin_slant*fabs(dx-sx) + centerline;
+    if ( (sx<dx && x>=_dx) || (sx>dx && x<=_dx) ) 
+        return sin_slant*(_dx-_sx) + centerline;
     //We are on the arrow
-    return sin_slant*fabs(x-sx) + centerline;
+    return sin_slant*(x-_sx) + centerline;
 }
 
 
@@ -1566,7 +1573,7 @@ void ArcDirArrow::CalculateMainline(double thickness)
     else {
         thickness /= cos_slant;
         const double src_y = yPos+centerline;
-        const double dst_y = sin_slant*fabs(dx-sx) + src_y;
+        const double dst_y = sin_slant*(dx-sx) + src_y;
         const double real_dx = sx + cos_slant*(dx-sx);
         if (sx<dx) {
             const XY ml[] = {XY(chart->GetDrawing().x.from,   src_y-thickness/2), XY(sx, src_y-thickness/2),
