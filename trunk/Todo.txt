@@ -57,6 +57,11 @@ FIX: test.signalling from Michael on end of January, draws thicker text sometime
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 
+In 3.5.28
+ADDED: ismap as an output format (generates empty file) - for mscgen/Doxygen compatibility
+ADDED: -i command line switch: an alternative to specify the input file - for mscgen/Doxygen compatibility
+
+
 In 3.5.26:
 FIXED: I crashed with autoheadings.
 FIXED: Too large image size now reported.

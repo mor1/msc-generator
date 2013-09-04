@@ -126,7 +126,8 @@ public:
         WMF,     ///<Old-format Windows Metafile vector output type
         EMFWMF,  ///<EMF output, but only uses features compatible with a WMF
         WIN,     ///<Bitmap output to a Windows window DC
-        PRINTER  ///<Output to a Windows printer DC
+        PRINTER, ///<Output to a Windows printer DC
+        ISMAP    ///<Server-side image map - just an empty file
     };
     /** Describes the error status of Canvas */
     enum EErrorType {

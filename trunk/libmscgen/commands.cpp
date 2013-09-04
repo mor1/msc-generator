@@ -2556,6 +2556,7 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
 
 /** Main routine to place a comment
  * This is called from Layout() of the target via its LayoutCommentsHelper().
+ * @param canvas The canvas we use for geometry.
  * @param cover We add the cover of this comment to this AreaList 
  * @param y We place the comment at this vertical location, we add our height to it at return */
 void CommandNote::PlaceSideTo(Canvas &canvas, AreaList *cover, double &y)
