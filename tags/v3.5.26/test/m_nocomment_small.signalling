@@ -1,0 +1,80 @@
+title: test;
+
+layer1024_m: l5\ninitiator;
+layer32_m: l4\ninitiator;
+layer16_m: l3\ninitiator;
+layer2097152_m: l2\ninitiator;
+layer1048576_m: l1\ninitiator;
+dummy;
+layer1048576_s: l1\nresponder;
+layer2097152_s: l2\nresponder;
+layer16_s: l3\nresponder;
+layer32_s: l4\nresponder;
+layer1024_s: l5\nresponder;
+
+hide dummy;
+hide layer1048576_m, layer1048576_s;
+hide layer2097152_m, layer2097152_s;
+hide layer16_m, layer16_s;
+hide layer32_m, layer32_s;
+hide layer1024_m, layer1024_s;
+
+show layer1048576_m, layer1048576_s;
+
+layer1048576_m->layer1048576_s: Connection\n\- ("Notebook" 00:02:76:1E:10:E6 > "Headset" 00:15:7F:01:E2:B0, responded, 4.43 s);
+#comment: 6.391 402 625;
+
+show layer2097152_m, layer2097152_s;
+
+layer2097152_m..layer2097152_s: l2 Features Exchange {
+
+layer2097152_m->layer2097152_s: l2 Features Request;
+#comment: 10.828 963 250;
+
+layer2097152_m<-layer2097152_s: l2 Features Response;
+#comment: 10.833 339 750;
+
+};
+
+layer2097152_m..layer2097152_s: l2 Version Exchange\n\- (2.1) {
+
+layer2097152_m->layer2097152_s: l2 Version Request\n\- (2.1);
+#comment: 10.835 213 375;
+
+layer2097152_m<-layer2097152_s: l2 Version Response\n\- (2.1);
+#comment: 10.840 839 000;
+
+};
+
+layer2097152_m..layer2097152_s: l2 Extended Features Exchange {
+
+layer2097152_m->layer2097152_s: l2 Extended Features Request;
+#comment: 10.842 714 625;
+
+layer2097152_m<-layer2097152_s: l2 Extended Features Response;
+#comment: 10.847 089 000;
+
+};
+
+layer2097152_m..layer2097152_s: l2 Host Connection\n\- (Accepted) {
+
+layer2097152_m->layer2097152_s: l2 Host Connection Request;
+#comment: 10.861 463 750;
+
+layer2097152_m<-layer2097152_s: l2 Accepted\n\- (l2 Host Connection Request);
+#comment: 10.875 840 125;
+
+};
+
+layer2097152_m..layer2097152_s: l2 Setup Complete {
+
+layer2097152_m<-layer2097152_s: l2 Setup Complete;
+#comment: 10.877 090 125;
+
+layer2097152_m->layer2097152_s: l2 Setup Complete;
+#comment: 11.040 216 250;
+
+};
+
+layer2097152_m->layer2097152_s: l2 Set AFH;
+#comment: 10.890 214 250;

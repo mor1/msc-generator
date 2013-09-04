@@ -1,0 +1,19 @@
+msc=green_earth;
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit [strong];
+C==C: Generate\nrequest;
+C=>S: Request;
+S--S: Check cache;
+S--B: Alt\#1: cache miss
+{
+    S->B: Query;
+    S<-B: Response;
+}
+..: Alt\#2: cache hit
+{
+    S->S: Read\ncache [weak];
+};
+C<=S: Reply;
+---: All done;
