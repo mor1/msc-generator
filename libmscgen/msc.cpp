@@ -914,7 +914,7 @@ void Msc::ParseText(const char *input, const char *filename)
  * MSC_DIR_BIDIR. If there are no directional arrows (only self-arrows or boxes)
  * we return MSC_DIR_INDETERMINATE.
  * @param [in] al The list of arcs to consider.
- * @param [inout] el We append the resulting entity list to this.
+ * @param el We append the resulting entity list to this.
  * @param [in] dir The direction of the arrows contained on a previous
  *                 call to this function (with which we combine our directions).
  * @return The direction of the arrows in `al` */
@@ -2198,7 +2198,9 @@ void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
  * If autoPaginate is true, pagesize.y is the page height.
  * If fitWidth is true, we adjust page height to get a scaling 
  * so that the chart fits the width.
- * @param canvas The canvas to calculate geometry on
+ * @param [in] ot The type of the output (PDF, PNG, etc.)
+ * @param [in] avoidEmpty If true, we generate a rounded box saying "empty chart" to 
+ *                        avoid a completely empty chart.
  * @param [in] autoPaginate If true, we do automatic pagination
  * @param [in] addHeading If true, the automatic page breaks will also add a heading
  * @param [in] pageSize Determines the page size for automatic pagination
@@ -2389,6 +2391,7 @@ void Msc::DrawHeaderFooter(Canvas &canvas, unsigned page)
  * We draw header, footer and all chart content.
  * Expects the context to be prepared and will unprpare it.
  * @param canvas The canvas to draw on
+ * @param [in] pageBreaks Governs if we draw page break indicators for multi-page charts.
  * @param [in] page The page to draw. Zero means the whole chart. */
 void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 {

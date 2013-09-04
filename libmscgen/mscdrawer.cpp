@@ -677,6 +677,9 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
     cairo_status_t st = cairo_surface_status(surface);
     if (st != CAIRO_STATUS_SUCCESS) {
         CloseOutput();
+        //We get CAIRO_STATUS_INVALID_SIZE if the bitmap image is larger
+        //than 32767 (for cairo 12.8), which is because they send 
+        //coordinates to pixman in 16.16 fixpoint format.
         return (st == CAIRO_STATUS_NO_MEMORY || st == CAIRO_STATUS_INVALID_SIZE) ? 
             ERR_CANVAS_MEM : ERR_CANVAS;
     }

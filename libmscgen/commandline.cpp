@@ -82,6 +82,8 @@ static void usage()
 "             used.\n"
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
+" -i <infile> To retain compatibility with mscgen, this is an alternate way to\n"
+"             specify the input file.\n"
 " -p=[<page size]\n"
 "             Full-page output. (PDF only now.) In this case the chart is \n"
 "             drawn on fixed-size pages (following pagination) with one pixel\n"
@@ -367,6 +369,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
                      oOutType = Canvas::WMF;
                  else
 #endif
+                 if (*i == "ismap")  //undocumented
+                     oOutType = Canvas::ISMAP;
+                 else
                  {
                      msc.Error.Error(opt_pos,
                                      "Unknown output format '" + *i + "'."
@@ -447,6 +452,22 @@ int do_main(const std::list<std::string> &args, const char *designs,
                     msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos_range,
                                                opt_pos_range));
             }
+        } else if (*i == "-i") {
+            if (i==--args.end()) {
+                if (oInputFile=="")
+                    msc.Error.FatalError(opt_pos, "Missing input filename after '-i'.");
+                else 
+                    msc.Error.FatalError(opt_pos, "You have specified an input file, "
+                                                  "ignoring '-i' at the end of command line.");
+                show_usage = true;
+            } else
+                if (oInputFile=="")
+                    oInputFile = *(++i);
+                else {
+                    msc.Error.Error(opt_pos, "Already specified the input file as: '"  
+                                             + oInputFile + "'. Ignoring this option.");
+                    show_usage = true;
+                }
         } else
             if (oInputFile=="")
                 oInputFile=*i;
@@ -488,6 +509,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
             oOutputFile.append(".svg"); break;
         case Canvas::EMF:
             oOutputFile.append(".emf"); break;
+        case Canvas::ISMAP:
+            oOutputFile.append(".map"); break;
         default:
             assert(0);
         }
@@ -560,7 +583,14 @@ int do_main(const std::list<std::string> &args, const char *designs,
     }
     if (msc.Error.hasFatal()) goto fatal;
 
-    if (oCshize) {
+    if (oOutType == Canvas::ISMAP) {
+        //Generate an empty *.map file
+        FILE *out = fopen(oOutputFile.c_str(), "w");
+        if (out) {
+            fclose(out);
+        } else
+            msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
+    } else if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
         Csh csh(ArcBase::defaultDesign);

@@ -28,6 +28,11 @@
   - to help a Windows client with auxiliary functions (controls, grouping state,
     tracking rectangle generation, header size calculation for autosplit, etc.)
 
+  # Example
+  \msc
+  a->b;
+  \endmsc
+  
   # Terminology
 
   - An *entity* is something the messages go in between. They have three classes
@@ -242,13 +247,12 @@
    - `attribute`, `arrowhead`, `stringparse` and `numbering` provide element 
      attribute handling for lines, fills, shadows, arrows, text formatting and
      numbering.
-   - `style` collects attribues to a common Style class and add Context and
-     Design.
+   - `style` collects attribues to a common Style class and add Context and Design.
    - `mscdrawer` contains Canvas, a helper class to encapsulate a cairo
      surface and context. We add logic for pages and fallback operations here
      (e.g., for output types (like WMF) that do not support certain operations, 
      like dashed lines.)
-   - `trackable`, `entity`, `arcs` and `commands` define the classes that represent 
+   - `element`, `entity`, `arcs` and `commands` define the classes that represent 
      the elements of the chart. Element as root, entities and related
      classes in `entity` and various chart elements, all descendants of ArcBase
      (`arcs` and `commands` are loose groups of chart commands and various arcs, 

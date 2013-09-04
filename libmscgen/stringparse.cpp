@@ -175,8 +175,8 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
  * - "\n" - a line break
  * - "\0x3" - a soft line break, which is replaced to a space when doing word wrapping
- * - "\N" - insert line number here - should not appear in a numbering format
- * - "\r(ref)" - insert the line number of another entity here - "\r()" equals "\N"
+ * - "\ N" - insert line number here - should not appear in a numbering format
+ * - "\ r(ref)" - insert the number line of another entity here - "\ r()" equals "\ N"
  * - "\0x21" "\0x2a" "\0x2A" "\0x2i" "\0x2I" - used to define numbering formats, should not appear in a label
  * - "\0x1(file,line,col)" - notes the position of the next char in the original file
  *
