@@ -1,0 +1,13 @@
+hscale = 0.8;
+parallel {
+    a->b: first msg;
+    a<-b: second msg;
+};
+c--d: This will
+      be besides;
+
+parallel {
+    c->d: third msg;
+    c<-d: fourth msg;
+};
+a--c: This cannot be besides;

@@ -1,0 +1,9 @@
+hscale = auto;
+defstyle entity
+   [fill.color="yellow-25",
+    text.format= "\mu(10)\md(10)\ml(10)\mr(10)"];
+Up     [fill.gradient=up],
+Down   [fill.gradient=down],
+In     [fill.gradient=in],
+Out    [fill.gradient=out],
+Button [fill.gradient=button];
