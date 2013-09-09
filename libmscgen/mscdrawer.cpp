@@ -1097,6 +1097,9 @@ void Canvas::CloseOutput()
     if (surface && !external_surface) {
         /* Output the image to the disk file in PNG format. */
         switch (outType) {
+        case ISMAP:
+            _ASSERT(0);
+            break;
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
         case PNG:
             if (outFile)

@@ -50,7 +50,7 @@ void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 
 CommandEntity::CommandEntity(EntityAppHelper *e, Msc *msc, bool in)
     : ArcCommand(MSC_COMMAND_ENTITY, MscProgress::ENTITY, msc), 
-    full_heading(e==NULL), centerlined(false),
+    full_heading(e==NULL), 
     tmp_stored_notes(true), internally_defined(in)
     //tmp_stored_notes is responsible for its content - if the CommandEntity is
     //destroyed during parse, these notes must also get deleted
@@ -225,7 +225,6 @@ void CommandEntity::Combine(CommandEntity *ce)
     tmp_stored_note_targets.splice(tmp_stored_note_targets.end(), ce->tmp_stored_note_targets);
     target_entity = ce->target_entity;
     CombineComments(ce); //noves notes from 'ce' to us
-    centerlined &= ce->centerlined; //remain centerlined only if ce is also centerlined.
 }
 
 /** Apply the relevant attributes if the entity command was prefixed with 
@@ -252,7 +251,8 @@ CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
         }
     //try to align activations and deactivations to the centerline of previous object
     if (activate_or_deactivate || CaseInsensitiveEqual(prefix, "centerline")) 
-        centerlined = true;
+        for (auto pEntityApp : entities) 
+            pEntityApp->centerlined = true;
     return this;
 }
 
@@ -484,7 +484,7 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         if (chart->FindActiveParentEntity(i_app->itr) != i_app->itr) 
             i_app->draw_heading = false;
         if (i_app->draw_heading) 
-            centerlined = false;
+            i_app->centerlined = false;
     }
 
     //8. If we remained centerline, go back to our target (if an ArcDirArrow) 
@@ -492,12 +492,13 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //In addition, inform the EntityApp object about where they should 
     //make effect (the centerline of '*target'
     ArcDirArrow * const prev = dynamic_cast<ArcDirArrow *>(*target);
-    centerlined &= (prev!=NULL);
-    if (centerlined) {
-        prev->UpdateActiveSizes();
-        for (auto pEntityApp : entities)
+    for (auto pEntityApp : entities) {
+        pEntityApp->centerlined &= (prev!=NULL);
+        if (pEntityApp->centerlined) 
             pEntityApp->centerline_target = prev;
     }
+    if (prev)
+        prev->UpdateActiveSizes();
 
     //9. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth

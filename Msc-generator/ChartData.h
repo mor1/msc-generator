@@ -17,6 +17,8 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file ChartData.h The declaration of the ChartData class.
+ * @ingroup Msc_generator_files */
 
 #pragma once
 #include <list>

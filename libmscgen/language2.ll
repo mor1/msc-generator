@@ -221,15 +221,15 @@ do {                                                \
     return TOK_COLON_STRING;
 %}
 
- /* A simple quoted string. */
-\"[^\"\x0d\x0a]*\" %{
+ /* A simple quoted string, that can have escaped quotation marks inside.*/
+\"([^\"\x0d\x0a]*(\\\")*)*\" %{
     yylval_param->str = strdup(yytext+1);
     yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
     return TOK_QSTRING;
 %}
 
  /* A simple quoted string, missing a closing quotation mark */
-\"[^\"\x0d\x0a]*/\x0d\x0a %{
+\"([^\"\x0d\x0a]*(\\\")*)*/[\x0d\x0a] %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext+1);
   #else

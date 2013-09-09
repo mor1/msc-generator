@@ -17,8 +17,9 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Msc-generator.h : main header file for the Msc-generator application
-//
+/** @file Msc-generator.h Main header file for the Msc-generator application
+ * @ingroup Msc_generator_files */
+
 #pragma once
 
 #ifndef __AFXWIN_H__
@@ -33,16 +34,18 @@
 #include "csh.h"
 #include "mscdrawer.h"
 
-//Extending WinGDI definitions for trackrects color fill and line
+/** Gets Alpha channel value. 
+ * Complementing WinGDI macros (like GetRValue())
+ * for trackrects color fill and line*/
 #define GetAValue(rgb)      (LOBYTE((rgb)>>24))
+/** Coverts a color having alpha channel to a 32-bit COLORREF */
 #define RGBA(r,g,b,a)       ((COLORREF)(((BYTE)(r)|((WORD)((BYTE)(g))<<8))|(((DWORD)(BYTE)(b))<<16)|(((DWORD)(BYTE)(a))<<24)))
 
-// CMscGenApp:
-// See Msc-generator.cpp for the implementation of this class
-//
-
+/** The main application class.
+ * This is an SDI application, so only one Document per app.*/
 class CMscGenApp : public CWinAppEx
 {
+    /** Get our one and only document */
     CMscGenDoc *GetDoc(void);
 public:
 	CMscGenApp();
