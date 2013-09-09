@@ -144,6 +144,7 @@ EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
     show_is_explicit(false),
     active_is_explicit(false),
+    centerlined(false),
     centerline_target(NULL),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
     defining(false),

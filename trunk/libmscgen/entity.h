@@ -234,6 +234,7 @@ public:
     triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     bool                             show_is_explicit;    ///<True if a show attribute was specified by the user. In this case a "show/hide" command/prefix will not override the `show` member.
     bool                             active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
+    bool                             centerlined;         ///<true if entity changes shall be aligned to the centerline target (the arrow above the entity, defined below).
     const ArcDirArrow*               centerline_target;   ///<If we need to activate at the centerline of an arrow, this is the one. Else NULL.
 
     EIterator                        itr;         ///<Points to the entity in Msc::AllEntities, set during PostParse.

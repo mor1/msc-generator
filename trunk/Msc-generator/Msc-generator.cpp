@@ -17,6 +17,19 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
+/** @defgroup Msc-generator The Windows GUI of Msc-generator.
+This part of the code compiles only on Windows and implements the GUI.
+It is an OLE server object, providing an "Msc-generator siganlling chart" object
+to other applications.
+It is written using the Microsoft Foundation Classes (MFC) library using the 
+Document/View architecture. */
+
+/** @defgroup Msc_generator_files The files comprising of the Msc-generator GUI.*/
+
+/** @file Msc-generator.cpp The implementation of CAboutDialog and MscGenApp classes.
+ * @ingroup Msc_generator_files */
+
 // Msc-generator.cpp : Defines the class behaviors for the application.
 //
 
@@ -40,6 +53,7 @@
 #endif
 
 // CAboutDlg dialog used for App About
+
 
 class CAboutDlg : public CDialog
 {
@@ -246,6 +260,9 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
 }
 
 
+/** Default constructor.
+ * As per MFC custioms, this is not doing real initialization, just
+ * sets the main fields to meaningful defaults.*/
 CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
 {
 	m_bHiColorIcons = TRUE;
@@ -275,20 +292,25 @@ CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
 }
 
 
-// The one and only CMscGenApp object
-
+/** The one and only CMscGenApp object */
 CMscGenApp theApp;
-// This identifier was generated to be statistically unique for your app
-// You may change it if you prefer to choose a specific identifier
-// {453AC3C8-F260-4D88-832A-EC957E92FDEC}
+/** This identifier was generated to be statistically unique for your app
+ * You may change it if you prefer to choose a specific identifier
+ * {453AC3C8-F260-4D88-832A-EC957E92FDEC} */
 static const CLSID clsid =
 { 0x453AC3C8, 0xF260, 0x4D88, { 0x83, 0x2A, 0xEC, 0x95, 0x7E, 0x92, 0xFD, 0xEC } };
 
 
 UINT CheckVersionFreshness(LPVOID);
 
-// CMscGenApp initialization
-
+/** CMscGenApp initialization 
+ * This is doing all the important initialization.
+ * - Init the OLE libs, Taskbar, RichEdit, context menu mgr, tooltips, keyboard
+ * - Register our OLE object class and document template
+ * - Parse command line, act on it
+ * - Obtain current printer data (margins, paper size)
+ * - Show our window, enable drag and drop and focus the internal editor.
+ */
 BOOL CMscGenApp::InitInstance()
 {
 	srand((unsigned)time(NULL)); 
@@ -427,6 +449,8 @@ BOOL CMscGenApp::InitInstance()
 	return TRUE;
 }
 
+/** Terminate us.
+ * Just add AfxOleTerm() to the default method*/
 int CMscGenApp::ExitInstance()
 {
 	//TODO: handle additional resources you may have added
@@ -436,15 +460,14 @@ int CMscGenApp::ExitInstance()
 }
 
 
-// App command to run the dialog
+/** App command to run the about dialog */
 void CMscGenApp::OnAppAbout()
 {
 	CAboutDlg aboutDlg;
 	aboutDlg.DoModal();
 }
 
-// CMscGenApp customization load/save methods
-
+/** CMscGenApp customization load/save methods*/
 void CMscGenApp::PreLoadState()
 {
 	BOOL bNameValid;
@@ -454,14 +477,18 @@ void CMscGenApp::PreLoadState()
 	GetContextMenuManager()->AddMenu(strName, IDR_POPUP_EDIT);
 }
 
+/** Do nothing*/
 void CMscGenApp::LoadCustomState()
 {
 }
 
+/** Do nothing*/
 void CMscGenApp::SaveCustomState()
 {
 }
 
+/** Convert a libmscgen color sytnax flag (defined in csh.h) to
+ * that of Windows' CHARFORMAT*/
 DWORD ConvertMscColorSyntaxFlagsToCHARFORMATFlags(int input)
 {
 	return ((input & COLOR_FLAG_BOLD     ) ? CFM_BOLD      : 0) |
@@ -470,6 +497,8 @@ DWORD ConvertMscColorSyntaxFlagsToCHARFORMATFlags(int input)
 		   ((input & COLOR_FLAG_COLOR    ) ? CFM_COLOR     : 0);
 }
 
+/** Convert a libmscgen color sytnax appearance (defined in csh.h) to
+ * that of Windows' CHARFORMAT*/
 void ConvertMscCshAppearanceToCHARFORMAT(const ColorSyntaxAppearance &app, CHARFORMAT &cf)
 {
 	cf.cbSize      = sizeof(cf);
@@ -478,6 +507,7 @@ void ConvertMscCshAppearanceToCHARFORMAT(const ColorSyntaxAppearance &app, CHARF
 	cf.crTextColor = RGB(app.r, app.g, app.b);
 }
 
+/** Reads page geometry for the default printer and stores it in MscGenApp.*/
 void CMscGenApp::UpdatePrinterData()
 {
     CDC dc;
@@ -513,6 +543,10 @@ void CMscGenApp::UpdatePrinterData()
     NormalizeUserMargins();
 }
 
+/** Adjust the margins specified by the user such that
+ * there is always at least 72 points of printable space among them
+ * (if possible).
+ * @returns FALSE, if paper is too small for this.*/
 bool CMscGenApp::NormalizeUserMargins()
 {
     //Normalize user margins, have at least 72 points of printable space
@@ -528,6 +562,8 @@ bool CMscGenApp::NormalizeUserMargins()
     return ps.x<0 || ps.y<0;
 }
 
+/** Read our stored settings from the registry and reads the design library.
+ * @param [in] reportProblem If true, we report any problems.*/
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
 {
 	//Load Registry values
@@ -598,7 +634,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		"#This is the default signalling chart\r\n"
 		"#Edit and press Ctrl+W to see the result\r\n"
 		"#You can change the default chart\r\n"
-		"#in the Edit|Preferences... menu.\r\n"
+		"#with the leftmost button on the Preferences pane of the ribbon.\r\n"
 		"\r\n"
 		"a,b,c;\r\n"
 		"b->c:trallala;\r\n"
@@ -619,13 +655,15 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
 }
 
-//Read the designs from m_DesignDir, display a modal dialog if there is a problem.
-//Filename can contain wildcards, all matching files are loaded
-//Always updates m_ChartSourcePreamble and m_SetOfDesigns (at problem they may be empty or partial)
-//returns 0 if OK
-//returns 1 if no file found
-//returns 2 if file found but there were errors in it (you can probably ignore them)
-
+/** Read the designs from the design library and display a modal dialog 
+ * if there is a problem.
+ * Always updates m_ChartSourcePreamble and m_SetOfDesigns (at problem they 
+ * may be empty or partial).
+ * @param [in] reportProblem If false, we silently ignore errors.
+ * @param [in] fileName The name of the file to read from. 
+ *                      Searched in the executable's directory.
+ *                      Can contain wildcards, all matching files are loaded.
+ * @returns 0 if OK; 1 if no file found; 2 if file found but there were errors in it (you can probably ignore them)*/
 int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 {
 	char buff[1024]; 
@@ -672,7 +710,7 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 }
 
 
-//Version reminder dialog
+/** Version reminder dialog */
 class CVersionDlg : public CDialog
 {
 public:
@@ -681,13 +719,15 @@ public:
 
 // Dialog Data
 	enum { IDD = IDD_DIALOG_VERSION };
-	CMFCLinkCtrl m_btnLink;
+	CMFCLinkCtrl m_btnLink; ///<The link of the msc-generator home page
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog( );
+	virtual void DoDataExchange(CDataExchange* pDX);    ///< DDX/DDV support
+	virtual BOOL OnInitDialog( );                       ///< Main initialization
 public:
-	int a, b, c;
+	int a; ///<Major version
+    int b; ///<Minor version
+    int c; ///<Superminor (or micro) version
 };
 
 void CVersionDlg::DoDataExchange(CDataExchange* pDX)
@@ -713,7 +753,11 @@ BOOL CVersionDlg::OnInitDialog( )
 }
 
 
-
+/** The main function of a background thread that checks
+ * if our version is current. If yes, it silently returns.
+ * If no, and the user has not blocked reminders for the
+ * latest version available, we display a reminder message box.
+ * We handle user wishes on that box. (Ignore this version, remind later)*/
 UINT CheckVersionFreshness(LPVOID)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -787,20 +831,28 @@ UINT CheckVersionFreshness(LPVOID)
 	return true;
 }
 
+/** @name GUI control functions
+ * These functions are called when a control is invoked on the GUI. */
+/** @{ */
 
+
+/** Store the current chart text as default chart text in the registry.
+ * Updates the registry.*/
 void CMscGenApp::OnButtonDefaultText()
 {
     m_DefaultText = GetDoc()->m_itrEditing->GetText();
     WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
 }
 
-
+/** Enable/Disable the button if the curren text is different/same as the default.*/
 void CMscGenApp::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_DefaultText != GetDoc()->m_itrEditing->GetText());
 }
 
-
+/** Toggles the pedantic compilation flag.
+ * Updates the registry.
+ * Recompile if the current compiled version is up-tp-date.*/
 void CMscGenApp::OnCheckPedantic()
 {
     m_Pedantic = !m_Pedantic;
@@ -811,13 +863,15 @@ void CMscGenApp::OnCheckPedantic()
         pDoc->CompileEditingChart(false, false);
 }
 
-
+/** Copy the m_Pedantic flag to the button*/
 void CMscGenApp::OnUpdateCheckPedantic(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_Pedantic);
 }
 
-
+/** Toggles the "include warnings" flag. 
+ * Updates the registry.
+* Recompile if the current compiled version is up-tp-date.*/
 void CMscGenApp::OnCheckWarnings()
 {
     m_Warnings = !m_Warnings;
@@ -829,29 +883,37 @@ void CMscGenApp::OnCheckWarnings()
 }
 
 
+/** Copy the m_Warnings flag to the button*/
 void CMscGenApp::OnUpdateCheckWarnings(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_Warnings);
 }
 
 
+/** Toggles the "include page breaks" flag. 
+ * Updates the registry.
+* Recompile if the current compiled version is up-to-date and has
+* multiple pages.*/
 void CMscGenApp::OnCheckPageBreaks()
 {
     m_bPageBreaks = !m_bPageBreaks;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPageBreaks);
     //recompile
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing)
+    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing && 
+        pDoc->m_ChartShown.GetPages()>1)
         pDoc->CompileEditingChart(false, false);
 }
 
-
+/** Enable the button always*/
 void CMscGenApp::OnUpdateCheckPageBreaks(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bPageBreaks);
 }
 
-
+/** Toggles the Color Sytnax Highlighting flag.
+ * Updates the registry.
+ * Updates CSH in the internal editor if any.*/
 void CMscGenApp::OnCheckCsh()
 {
     m_bShowCsh = !m_bShowCsh;
@@ -861,13 +923,16 @@ void CMscGenApp::OnCheckCsh()
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 }
 
-
+/** Enables/disables the button if we have an internal editor.*/
 void CMscGenApp::OnUpdateCheckCsh(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bShowCsh);
     pCmdUI->Enable(IsInternalEditorRunning());
 }
 
+/** Reads the current value of the Csh scheme combo box,
+ * updates the registry
+ * Updates csh info in the internal editor, if any.*/
 void CMscGenApp::OnComboCsh()
 {
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
@@ -883,13 +948,17 @@ void CMscGenApp::OnComboCsh()
 }
 
 
-
+/** Enables the Csh combo box if csh is enabled and we have 
+ * an internal editor*/
 void CMscGenApp::OnUpdateComboCsh(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
 }
 
 
+/** Toggles the smart identation button.
+ * Updates the registry.
+ * Updates the csh info if the internal editor is running.*/
 void CMscGenApp::OnCheckSmartIdent()
 {
     m_bSmartIdent = !m_bSmartIdent;
@@ -898,13 +967,17 @@ void CMscGenApp::OnCheckSmartIdent()
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 }
 
-
+/** Enables the button only if we show csh and the internal editor is running.
+ * Checks it if m_bSmartIdent is true.*/
 void CMscGenApp::OnUpdateCheckSmartIdent(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bSmartIdent);
 }
 
+/** Toggels the colorize errors checkbox.
+ * Updates the registry.
+ * Updates the csh info if the internal editor is running.*/
 void CMscGenApp::OnCheckCshError()
 {
     m_bShowCshErrors = !m_bShowCshErrors;
@@ -913,15 +986,17 @@ void CMscGenApp::OnCheckCshError()
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 }
 
-
-
+/** Enables the button only if we show csh and the internal editor is running.
+ * Checks it if m_bShowCshErrors is true.*/
 void CMscGenApp::OnUpdateCheckCshError(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bShowCshErrors);
 }
 
-
+/** Toggles whether the csh errors are listed in the error window.
+ * Updates the registry.
+ * Updates the csh info if the internal editor is running.*/
 void CMscGenApp::OnCheckCshErrorInWindow()
 {
     m_bShowCshErrorsInWindow = !m_bShowCshErrorsInWindow;
@@ -930,13 +1005,15 @@ void CMscGenApp::OnCheckCshErrorInWindow()
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 }
 
-
+/** Enables the button only if we show csh and the internal editor is running.
+ * Checks it if m_bShowCshErrorsInWindow is true.*/
 void CMscGenApp::OnUpdateCheckCshErrorInWindow(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bShowCshErrorsInWindow);
 }
 
+/** Opens the external text editor preferences dialog*/
 void CMscGenApp::OnEditPreferences()
 {
 	CMscGenDoc *pDoc = GetDoc();
@@ -960,6 +1037,7 @@ void CMscGenApp::OnEditPreferences()
 	}
 }
 
+/** Enables the button if the other external text editor is selected.*/
 void CMscGenApp::OnUpdateEditPreferences(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_iTextEditorType==OTHER);
@@ -969,6 +1047,7 @@ void CMscGenApp::OnUpdateEditPreferences(CCmdUI *pCmdUI)
 //;-n%l -nosession %n;
 
 
+/** Selects the "other" external editor type. Restarts the external editor if needed*/
 void CMscGenApp::OnCheckEeOther()
 {
     if (m_iTextEditorType == OTHER) return;
@@ -981,7 +1060,8 @@ void CMscGenApp::OnCheckEeOther()
         pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
 }
 
-
+/** Selects the notepad as external editor type. 
+ * Restarts the external editor if needed*/
 void CMscGenApp::OnCheckEeNotepad()
 {
     if (m_iTextEditorType == NOTEPAD) return;
@@ -994,7 +1074,8 @@ void CMscGenApp::OnCheckEeNotepad()
         pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
 }
 
-
+/** Selects the notepad++ as external editor type. 
+ * Restarts the external editor if needed*/
 void CMscGenApp::OnCheckEeNotepadpp()
 {
     if (m_iTextEditorType == NPP) return;
@@ -1008,13 +1089,16 @@ void CMscGenApp::OnCheckEeNotepadpp()
 }
 
 
+/** Always enable the button.
+ * Check it if the type of external editor selected is other */
 void CMscGenApp::OnUpdateCheckEeOther(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable();
     pCmdUI->SetCheck(m_iTextEditorType==OTHER);
 }
 
-
+/** Always enable the button.
+ * Check it if the type of external editor selected is notepad*/
 void CMscGenApp::OnUpdateCheckEeNotepad(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable();
@@ -1022,13 +1106,16 @@ void CMscGenApp::OnUpdateCheckEeNotepad(CCmdUI *pCmdUI)
 }
 
 
+/** Always enable the button.
+ * Check it if the type of external editor selected is notepad++*/
 void CMscGenApp::OnUpdateCheckEeNotepadpp(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_NppPath.GetLength()>0);
     pCmdUI->SetCheck(m_iTextEditorType==NPP);
 }
 
-
+/** Toggle whether hints are provided or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckHints()
 {
     m_bHints = !m_bHints;
@@ -1036,11 +1123,14 @@ void CMscGenApp::OnCheckHints()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints);
 }
 
+/** Check the button if hints are provided*/
 void CMscGenApp::OnUpdateCheckHints(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bHints);
 }
 
+/** Toggle whether hints are provided or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintCompact()
 {
     m_bHintCompact = !m_bHintCompact;
@@ -1048,6 +1138,8 @@ void CMscGenApp::OnCheckSmartHintCompact()
 }
 
 
+/** Toggle whether hints are filtered or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintFilter()
 {
     m_bHintFilter = !m_bHintFilter;
@@ -1055,6 +1147,8 @@ void CMscGenApp::OnCheckSmartHintFilter()
 }
 
 
+/** Toggle whether hints are provided at the beginning of a line or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintLineStart()
 {
     m_bHintLineStart = !m_bHintLineStart;
@@ -1062,6 +1156,8 @@ void CMscGenApp::OnCheckSmartHintLineStart()
 }
 
 
+/** Toggle whether hints are provided for entities or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintEntity()
 {
     m_bHintEntity = !m_bHintEntity;
@@ -1069,6 +1165,8 @@ void CMscGenApp::OnCheckSmartHintEntity()
 }
 
 
+/** Toggle whether hints are provided for attribute names or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintAttrName()
 {
     m_bHintAttrName = !m_bHintAttrName;
@@ -1076,6 +1174,8 @@ void CMscGenApp::OnCheckSmartHintAttrName()
 }
 
 
+/** Toggle whether hints are provided for attribute values or not.
+* Updates the registry*/
 void CMscGenApp::OnCheckSmartHintAttrValue()
 {
     m_bHintAttrValue = !m_bHintAttrValue;
@@ -1083,6 +1183,8 @@ void CMscGenApp::OnCheckSmartHintAttrValue()
 }
 
 
+/** Enables the button if we provide hints.
+ * Sets it according to its current value.*/
 void CMscGenApp::OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_bHints);
@@ -1101,7 +1203,8 @@ void CMscGenApp::OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI)
 
 
 
-
+/** Updates the tracking color after a change of the respective button on the ribbon.
+ * Updates the registry*/
 void CMscGenApp::OnButtonTrackColor()
 {
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
@@ -1116,9 +1219,12 @@ void CMscGenApp::OnButtonTrackColor()
     const unsigned char b = GetBValue(c); 
     m_trackFillColor = RGBA(r, g, b, 128); //50% transparent
     m_trackLineColor = RGBA(r/2, g/2, b/2, 255); //50% darker, fully opaque
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, m_trackLineColor);
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKFILLRGBA, m_trackFillColor);
 }
 
-
+/** Updates the fallback image resolution after a change on the slider.
+ * Updates the registry*/
 void CMscGenApp::OnEmbeddedoptionsFallbackRes()
 {
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
@@ -1142,6 +1248,8 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
 }
 
 
+/** Toggles autopaginate 
+ * Updates registry. Recompiles if no changes since last compilation.*/
 void CMscGenApp::OnAutoPaginate()
 {
     m_bAutoPaginate = !m_bAutoPaginate;
@@ -1153,13 +1261,15 @@ void CMscGenApp::OnAutoPaginate()
     }
 }
 
-
+/** Checks the button if autopaginate is enabled.*/
 void CMscGenApp::OnUpdateAutoPaginate(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bAutoPaginate);
 }
 
 
+/** Toggles autoheaders.
+ * Updates registry. Recompiles if no changes since last compilation.*/
 void CMscGenApp::OnAutoHeaders()
 {
     m_bAutoHeading = !m_bAutoHeading;
@@ -1172,13 +1282,16 @@ void CMscGenApp::OnAutoHeaders()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, m_bAutoHeading);
 }
 
-
+/** Enables the button if automatic pagination is on, checks it if auto headings
+ * are generated.*/
 void CMscGenApp::OnUpdateAutoHeaders(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bAutoHeading);
     pCmdUI->Enable(m_bAutoPaginate);
 }
 
+/** Updates the scaling value after a change of it on the GUI.
+ * Updates the registry and recompiles if automatic pagination is on.*/
 void CMscGenApp::OnComboScale()
 {
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
@@ -1204,7 +1317,7 @@ void CMscGenApp::OnComboScale()
     }
 }
 
-
+/** Invokes the print setup dialog. */
 void CMscGenApp::OnComboPageSize()
 {
     OnFilePrintSetup();
@@ -1228,12 +1341,14 @@ void CMscGenApp::OnComboPageSize()
  //       pDoc->CompileEditingChart(false, false);
 }
 
+/** Always disable this control (not implemented yet)*/
 void CMscGenApp::OnUpdatePrintPreviewPageSize(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(false);
 }
 
-
+/** Update our user specified margins after a change of them on the GUI.
+ * Update the registry and recompile if needed.*/
 void CMscGenApp::DoEditMargin(UINT id)
 {
     _ASSERT(id == ID_EDIT_MARGIN_L || id == ID_EDIT_MARGIN_R ||
@@ -1279,12 +1394,15 @@ void CMscGenApp::DoEditMargin(UINT id)
     }
 }
 
+/** Enable these edit boxes if we are in print preview*/
 void CMscGenApp::OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI) 
 {
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetMainWnd());
     pCmdUI->Enable(pWnd ? pWnd->IsPrintPreview() : false);
 }
 
+/** Open the print setup dialog, read the page size after and
+ * update our internal values. Recompile if needed.*/
 void CMscGenApp::OnFilePrintSetup()
 {
     CMainFrame *pMainWnd= dynamic_cast<CMainFrame *>(GetMainWnd());
@@ -1305,9 +1423,11 @@ void CMscGenApp::OnFilePrintSetup()
     }
 }
 
+/** Enable these edit boxes if we are in print preview*/
 void CMscGenApp::OnUpdatePrintSetup(CCmdUI *pCmdUI) 
 {
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetMainWnd());
     pCmdUI->Enable(pWnd ? !pWnd->IsPrintPreview() : false);
 }
 
+/** @} */

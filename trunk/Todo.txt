@@ -56,11 +56,15 @@ ADD: more colors
 FIX: test.signalling from Michael on end of January, draws thicker text sometimes
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
+ADD: ISMAPs, floating comments, none commets
+
+In 3.6
+CHANGED: centerline property to be assigned to EntityApp not to CommandEntity. This makes merges better.
+FIXED: Quoted text parsing failed with escaped quotation marks. Thanks George!
 
 In 3.5.28
 ADDED: ismap as an output format (generates empty file) - for mscgen/Doxygen compatibility
 ADDED: -i command line switch: an alternative to specify the input file - for mscgen/Doxygen compatibility
-
 
 In 3.5.26:
 FIXED: I crashed with autoheadings.
