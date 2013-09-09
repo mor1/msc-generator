@@ -1,0 +1,44 @@
+hscale=auto; compress=yes; note:
+numbering=yes;
+defstyle pipe [number=no];
+UE; note: note\nhere;
+CGW: Car GW; note: note\nhere;
+OP1: Operator \#1  {
+    SGSN: SGSN [vfill.color = green, vfill.color2 = blue,
+                vfill.gradient=down, vline.radius=10]; note: note\nhere;
+}; note: note\nhere;
+Net {
+    MVNO {
+        MGGSN: GGSN; note: note\nhere;
+        MPCRF: PCRF; note: note\nhere;
+        MBNG: SmartEdge; note: note\nhere;
+        MAAA: AAA server; note: note\nhere;
+    }; note: note\nhere;
+    HPLMN {
+        HGGSN: GGSN; note: note\nhere;
+        HPCRF: PCRF; note: note\nhere;
+        HAAA: HSS; note: note\nhere;
+    }; note: note\nhere;
+}; note: note\nhere;
+
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+UE->HGGSN; note: note\nhere;
+activate SGSN; note: note\nhere;
+
+UE<->CGW<=>SGSN<=>MGGSN<=>MBNG<=>MAAA<=>HAAA: 802.1 EAP SIM Auth; note: note\nhere;
+
+hide MVNO; note: note\nhere;
+
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+SGSN [vfill.color = red, vline.radius=3, vline.width=3, vline.corner=bevel]; note: note\nhere;
+show MAAA, MBNG; note: note\nhere;
+UE->HGGSN; note: note\nhere;
+hide MAAA; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+:\pl\bSolution Alt \#1: GRE tunnels [number=no]; note: note\nhere;
+show MAAA; note: note\nhere;
