@@ -774,8 +774,9 @@ bool Msc::AddDesignAttribute(const Attribute &a)
         }
         return true;
     }
-    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("auto_heading") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
-        a.StartsWith("text") || a.StartsWith("comment") || a.StartsWith("background")) {
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("auto_heading") || 
+        a.Is("hscale") || a.Is("msc") || a.Is("msc+") || a.StartsWith("text") || 
+        a.StartsWith("comment") || a.StartsWith("background")) {
         ArcBase *ret = AddAttribute(a);
         if (ret)
             delete ret;
@@ -800,9 +801,7 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", HINT_ATTR_NAME));
-    StringFormat::AttributeNames(csh);
-    if (designOnly) return;
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "angle", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
@@ -814,7 +813,21 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.gradient", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", HINT_ATTR_NAME));
+
+    static const char names[][ENUM_STRING_LEN] =
+    {"", "comment.text.color", "comment.text.ident", "comment.text.format", 
+    "comment.text.font.face", "comment.text.font.type", 
+    "comment.text.bold", "comment.text.italic", "comment.text.underline", 
+    "comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
+    "comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+
+    StringFormat::AttributeNames(csh);
+    if (designOnly) return;
+    
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
 }
 
 /** Adds the possible attribute values for a given attribute to csh.
@@ -834,6 +847,10 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", HINT_ATTR_VALUE));
         return true;
     }
+    if (CaseInsensitiveEqual(attr,"angle")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
     if (CaseInsensitiveEqual(attr,"compress") ||
         CaseInsensitiveEqual(attr,"numbering") ||
         CaseInsensitiveEqual(attr,"auto_heading") ||
@@ -843,12 +860,21 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (CaseInsensitiveBeginsWith(attr, "text"))
+    if (CaseInsensitiveBeginsWith(attr, "text") || 
+        CaseInsensitiveBeginsWith(attr, "comment.text") )
         return StringFormat::AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWith(attr, "comment.line"))
         return LineAttr::AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWith(attr, "comment.fill"))
         return FillAttr::AttributeValues(attr, csh);
+    if (CaseInsensitiveBeginsWith(attr, "comment.side")) {
+        for (auto s = ESide::LEFT; s<=ESide::END; s = ESide(int(s)+1))
+            if (IsValidSideValue(ESideType::ANY, s))
+                csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
+                                       HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
+                                       CshHintGraphicParam(s)));
+        return true;
+    }
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         FillAttr::AttributeValues(attr, csh);
@@ -1989,9 +2015,6 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 }
 
 
-/** The default size of the comment area in `pos` units if all comments are wrapped*/
-#define DEFAULT_COMMENT_SIZE 1
-
 /** Lay out a parsed chart and calculate its extents. 
  * This function calls the Width() and Layout() functions of 
  * arcs to set x and y coordinates, respectively.
@@ -2055,11 +2078,15 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         distances.Insert(RNote->index, EndEntity->index, XCoord(DEFAULT_COMMENT_SIZE), true);
 
     if (GetHScale()>=0) {
+        //Add some margins
+        distances.Insert(LNote->index, LSide->index, XCoord(MARGIN), true);
+        distances.Insert(RSide->index, RNote->index, XCoord(MARGIN), true);
         //Copy the actual pos's to distances.hscape_pairs (where we may have
         //additional requirements from hspace commands.
         for (auto ei = ++ActiveEntities.begin(); ei!=ActiveEntities.end(); ei++) {
             const EIterator prev_ei = --EIterator(ei);
-            distances.Insert((*prev_ei)->index, (*ei)->index, unit*((*ei)->pos - (*prev_ei)->pos), true);
+            distances.Insert((*prev_ei)->index, (*ei)->index, 
+                             unit*((*ei)->pos - (*prev_ei)->pos), true);
         }
     } else {
         //Add some margins
@@ -2091,7 +2118,12 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
                                             i.first.second, toadd);
     }
     //Now dist[i] contains the needed space on the right of entity index i
-    //Copy these values to the pos field of entities
+    //Kill comment space if we have no comments on that side (user could still have
+    //specified comments)
+    if (!distances.had_l_comment) dist[0] = 0;
+    if (!distances.had_r_comment) dist[dist.size()-2] = 0;
+
+    //Copy dist[i] values to the pos field of entities
     double curr_pos = 0; 
     unsigned index = 0;
     for (auto pEntity : ActiveEntities) {
@@ -2121,12 +2153,14 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
 
     //If at least 10% of the labels are overflown (but at least 3), emit warning
     if (noOverflownLabels>2 && noOverflownLabels > noLabels/10) 
-        if (GetHScale()>0 && !Contexts.back().text.IsWordWrap())
+        if (GetHScale()>0 && !Contexts.back().text.IsWordWrap()) {
+            string ss;
+            ss << noOverflownLabels;
             Error.Warning(FileLineCol(Error.Files.size()-1, 1, 1), 
-                 "There are quite some labels wider than the space available.",
+                 "There are " + ss + " labels wider than the space available.",
                  "Consider using horizontal auto-scaling ('hscale=auto;') or "
                  "word wrapping ('text.wrap=yes;').");
-
+        }
     if (autoPaginate) {
         if (fitWidth)
             pageSize.y *= total.x.Spans()/pageSize.x;

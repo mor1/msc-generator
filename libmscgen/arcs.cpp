@@ -2781,20 +2781,22 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
     //In this case emph box spans to leftmost and rightmost entity in chart.
     //At PostParse chart->AllEntities is already sorted by pos values
     //we only do this step if we are the first in a box series.
-    if (*src==chart->NoEntity) 
+    if (*src==chart->NoEntity) {
         for (src = chart->AllEntities.begin(); src!=chart->AllEntities.end(); src++)
             if (!chart->IsVirtualEntity(*src)) break;  //leftmost non-virtual entity
-    //If we end up in end() it means we only have virtual entities.
-    //In this case an automatic box has no meaning, we drop it
-    if (src==chart->AllEntities.end()) {
-        chart->Error.Error(file_pos.start, "The chart has no entities I can adjust the size of this box to. Ignoring the box.");
-        src=dst; //do not let this to point to no entity. dst must == NoEntity here.
-        return NULL;
+        //If we end up in end() it means we only have virtual entities.
+        //In this case an automatic box has no meaning, we drop it
+        if (src==chart->AllEntities.end()) {
+            chart->Error.Error(file_pos.start, "The chart has no entities I can adjust the size of this box to. Ignoring the box.");
+            src=dst; //do not let this to point to no entity. dst must == NoEntity here.
+            return NULL;
+        }
     }
-    if (*dst==chart->NoEntity) 
+    if (*dst==chart->NoEntity) {
         for (dst = -- chart->AllEntities.end(); dst!=chart->AllEntities.end(); dst--)
             if (!chart->IsVirtualEntity(*dst)) break;  //rightmost non-virtual entity
-    _ASSERT(dst!=chart->AllEntities.end()); //No need to check dst validity, we have ensured we have valid entities above.
+        _ASSERT(dst!=chart->AllEntities.end()); //No need to check dst validity, we have ensured we have valid entities above.
+    }
     //Now see how entities change due to entity collapse
     EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
     EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
@@ -2854,7 +2856,8 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     for (auto pBox : series) {
         if (pBox->content.size())
             chart->WidthArcList(canvas, (pBox->content), d);
-        double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
+        double width = std::min(chart->XCoord(0.95), 
+                       pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95)));
         //calculated margins (only for first segment) and save them
         if (pBox==*series.begin()) {
             const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);

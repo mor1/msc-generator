@@ -53,12 +53,11 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
     }    
     //Now process the list of hints: fill extra fields, compute size, filter by uc and compact
     if (csh.Hints.size()) {
-        //Display all hints (not only the ones matching the string under cursor) if Ctrl+Space
-        const bool filter_by_uc = pApp->m_bHintFilter && !userRequest;
         CDC* pDC = GetDC();
         {
             Canvas canvas(Canvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
-            csh.ProcessHints(canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
+            csh.ProcessHints(canvas, &m_format, uc, pApp->m_bHintFilter, 
+                             pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }
         ReleaseDC(pDC);
@@ -131,21 +130,21 @@ void CHintListBox::SetStringUnderCursor(const char *uc)
             if (!item->selectable) continue; 
             const char *p = item->plain.c_str(); 
             unsigned len = CaseInsensitiveCommonPrefixLen(p, uc);
-            if (len==item->plain.length()) {
-                if (len==uc_len) 
-                    //if p == uc, we select
-                    ChangeSelectionTo(i, HINT_ITEM_SELECTED);
-                else 
-                    //if uc is longer than p, we select half
-                    ChangeSelectionTo(i, HINT_ITEM_SELECTED_HALF);
-                return;
-            }
             if (len <= match_len) continue;
             match_index = i;
             match_len = len;
         }
-    }
-    ChangeSelectionTo(match_index);
+        if (match_len==uc_len) 
+            //if string under cursor is a prefix of the longest mathcing hint, 
+            //we select fully (if the hint is selectable)
+            ChangeSelectionTo(match_index);
+        else 
+            //if the string under the cursor differs by its end from the hint,
+            //we selet conly halfway.
+            ChangeSelectionTo(match_index, HINT_ITEM_SELECTED_HALF);
+    } else
+        //no string under cursor: select nothing
+        ChangeSelectionTo(-1, HINT_ITEM_NOT_SELECTED); //second param is dummy
 }
 
 //offset +-1 for up/down arrow, +-2 for pgup/dn
