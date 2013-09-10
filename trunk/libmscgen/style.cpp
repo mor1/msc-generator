@@ -359,10 +359,10 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
     }
     if (CaseInsensitiveEndsWith(attr, "side")) {
         for (auto s = ESide::LEFT; s<=ESide::END; s = ESide(int(s)+1))
-        if (IsValidSideValue(f_side, s))
-            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
-                                   HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
-                                   CshHintGraphicParam(s)));
+            if (IsValidSideValue(f_side, s))
+                csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
+                                       HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
+                                       CshHintGraphicParam(s)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {

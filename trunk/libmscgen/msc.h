@@ -58,10 +58,18 @@ using std::string;
 
 /** General gap between boxes, etc. In 'pos' space, will be fed into Msc::XCoord(). */
 #define GAP 0.05
-/** The margin on left and right side, if no autoscale. In pos space, will be fed into XCoord().*/
-#define MARGIN 0.25
-/** The margin on left and right side, if hscale is set to auto. In pos space, will be fed into XCoord().*/
+/** The margin on left and right side, if no autoscale. 
+ * In pos space, will be fed into XCoord().*/
+#define MARGIN 0.35
+/** The margin on left and right side, if hscale is set to auto. 
+ * In pos space, will be fed into XCoord().*/
 #define MARGIN_HSCALE_AUTO 0.1
+/** The default size of the comment area in `pos` space if 
+ * - we have comments
+ * - we have no 'hspace comment' commands and
+ * - all comments are wrapped */
+#define DEFAULT_COMMENT_SIZE 1
+
 
 /////////////////////////////////////////////////////////////
 
