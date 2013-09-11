@@ -1163,6 +1163,8 @@ void Msc::PostParseProcess(Canvas &canvas)
         iLeftmost++;
 
     //Ensure that leftmost real entity pos == 2*MARGIN
+    //Note that the distance between LSide and the first real entity 
+    //will be auto-scaled.
     double rightmost = 0;
     if (iLeftmost != ActiveEntities.end()) {
         double leftmost = (*iLeftmost)->pos - 2*MARGIN;
@@ -1178,21 +1180,10 @@ void Msc::PostParseProcess(Canvas &canvas)
         rightmost = 3*MARGIN;
     }
     //Set the position of the virtual side entities & resort
-    //in the second column we show how they should be if there are
-    //side commets of L and R size resp. (including 2*sideNoteGap)
-    //L and R will be inserted in CalcualteWidthAndHeight()
-    //Noentity     = 0             |  0                             | 0 
-    //LNote        = 0             |  L/unit                        | L/unit
-    //LSide        = MARGIN        |  L/unit + MARGIN               | L/unit
-    //first entity = 2*MARGIN      |  L/unit + 2*MARGIN             | L/unit
-    //last entity  = x             |  L/unit + x                    | L/unit
-    //RSIDE        = x + MARGIN    |  L/unit + x + MARGIN           | L/unit
-    //RNOTE        = x + 2*MARGIN  |  L/unit + x + 2*MARGIN         | L/unit
-    //EndEntity    = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
     const_cast<double&>(NoEntity->pos) = 0;
     const_cast<double&>(LNote->pos) = 0;
-    const_cast<double&>(LSide->pos) = MARGIN;
-    const_cast<double&>(RSide->pos) = rightmost + MARGIN;
+    const_cast<double&>(LSide->pos) = MARGIN; 
+    const_cast<double&>(RSide->pos) = rightmost + MARGIN; 
     const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN;
     const_cast<double&>(EndEntity->pos) = rightmost + MARGIN + MARGIN;
     ActiveEntities.SortByPos();
@@ -2077,10 +2068,11 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     if (distances.had_r_comment && (GetHScale()>=0 ? !rhs : !rs))
         distances.Insert(RNote->index, EndEntity->index, XCoord(DEFAULT_COMMENT_SIZE), true);
 
+    //Add some margins between note line and side line.
+    //Add to hspace distance, since these will be needed even for fixed h scale
+    distances.Insert(LNote->index, LSide->index, XCoord(MARGIN), true);
+    distances.Insert(RSide->index, RNote->index, XCoord(MARGIN), true);
     if (GetHScale()>=0) {
-        //Add some margins
-        distances.Insert(LNote->index, LSide->index, XCoord(MARGIN), true);
-        distances.Insert(RSide->index, RNote->index, XCoord(MARGIN), true);
         //Copy the actual pos's to distances.hscape_pairs (where we may have
         //additional requirements from hspace commands.
         for (auto ei = ++ActiveEntities.begin(); ei!=ActiveEntities.end(); ei++) {
@@ -2088,10 +2080,18 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
             distances.Insert((*prev_ei)->index, (*ei)->index, 
                              unit*((*ei)->pos - (*prev_ei)->pos), true);
         }
+        //Copy the collected distance between LSide and the leftmost real entity; 
+        //and between the rightmost real entity and RSide to the hspace 
+        //distances. We do autoscaling at the left and right side, such that
+        //no element of the chart falls off.
+        //(If there are no real entities the two below commands work on the
+        //same indexes. They are still needed e.g., for charts with a
+        //title only.)
+        distances.Insert(LSide->index, LSide->index+1, 
+                         distances.Query(LSide->index, LSide->index+1), true);
+        distances.Insert(RSide->index-1, RSide->index, 
+                         distances.Query(RSide->index-1, RSide->index), true);
     } else {
-        //Add some margins
-        distances.Insert(LNote->index, LSide->index, XCoord(MARGIN_HSCALE_AUTO));
-        distances.Insert(RSide->index, RNote->index, XCoord(MARGIN_HSCALE_AUTO));
         //Merge hspace distances to normal distances
         for (auto i : distances.GetHSpacePairs()) 
             distances.Insert(i.first.first, i.first.second, i.second);
