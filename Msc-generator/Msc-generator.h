@@ -126,6 +126,7 @@ public:
     bool NormalizeUserMargins();
 	void ReadRegistryValues(bool reportProblem);
 	int ReadDesigns(bool reportProblem, const char *fileName);
+    /** True if the internal editor is running */
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
 
