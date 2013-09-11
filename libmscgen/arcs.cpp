@@ -2856,8 +2856,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     for (auto pBox : series) {
         if (pBox->content.size())
             chart->WidthArcList(canvas, (pBox->content), d);
-        double width = std::min(chart->XCoord(0.95), 
-                       pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95)));
+        double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
         if (pBox==*series.begin()) {
             const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
@@ -4287,7 +4286,7 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances)
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
     //Get marging from lside and rside
-    text_margin = wide ? 0 : chart->XCoord((chart->GetHScale()>=0 ? MARGIN : MARGIN_HSCALE_AUTO)/2);
+    text_margin = wide ? 0 : chart->XCoord(MARGIN)*2;
     if (title) 
         text_margin += style.read().line.LineWidth();
     //calculate space requirement between lside and rside

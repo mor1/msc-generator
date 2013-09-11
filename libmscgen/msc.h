@@ -56,14 +56,9 @@ using std::string;
 /** Name of a virtual marker representing end of the last parallel block. Used in verticals when both ends are not specified. -- This feature is currently removed.*/
 #define MARKER_PREV_PARALLEL_STR "\"\""
 
-/** General gap between boxes, etc. In 'pos' space, will be fed into Msc::XCoord(). */
-#define GAP 0.05
-/** The margin on left and right side, if no autoscale. 
+/** The margin on left and right side, between LNote-LSide and RSide-RNote. 
  * In pos space, will be fed into XCoord().*/
-#define MARGIN 0.35
-/** The margin on left and right side, if hscale is set to auto. 
- * In pos space, will be fed into XCoord().*/
-#define MARGIN_HSCALE_AUTO 0.1
+#define MARGIN 0.1
 /** The default size of the comment area in `pos` space if 
  * - we have comments
  * - we have no 'hspace comment' commands and

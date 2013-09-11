@@ -56,61 +56,67 @@ public:
     int ExitInstance();
 
 // Implementation
-	COleTemplateServer m_server; // Server object for document creation
-	UINT               m_nAppLook;
-	BOOL			   m_bHiColorIcons;
-	COutputViewBar    *m_pWndOutputView;  //shortcut to the error window
-	CEditorBar        *m_pWndEditor;      //shortcut to the internal editor
-    PageSizeInfo::EPageSize m_pageSize;   //raw printer page size, NO_PAGE means a custom size
-    XY                 m_PhyPrinterPageSize; //raw page size in points
-    double             m_printer_phy_margins[4]; //left,right, up,down in points
-    double             m_printer_usr_margins[4]; //left,right, up,down in points
-    XY                 m_PrinterScale;    //The scale to apply so that we get from points to printer pixels
+	COleTemplateServer m_server;                 ///<Server object for document creation
+	UINT               m_nAppLook;               ///<The visual style of the Ribbon and other MFC components
+	COutputViewBar    *m_pWndOutputView;         ///<Shortcut to the error window
+	CEditorBar        *m_pWndEditor;             ///<Shortcut to the internal editor
+    PageSizeInfo::EPageSize m_pageSize;          ///<Raw printer page size, NO_PAGE means a custom size
+    XY                 m_PhyPrinterPageSize;     ///<raw page size in points
+    double             m_printer_phy_margins[4]; ///<left,right, up, down physical margins of the printer in points
+    double             m_printer_usr_margins[4]; ///<left,right, up,down margins specified by the user in points
+    XY                 m_PrinterScale;           ///<The scale to apply so that we get from points to printer pixels
 
-    /// Return printable area in points (physical page - user margins)
+    ///< Return printable area in points (physical page - user margins)
     XY GetPrintablePaperSize() const {return m_PhyPrinterPageSize - XY(m_printer_usr_margins[0] + m_printer_usr_margins[1], m_printer_usr_margins[2] + m_printer_usr_margins[3]);}
 
 //Status 
-	bool m_bFullScreenViewMode; //we were opened by "ViewFullScreen OLE verb"
+	bool m_bFullScreenViewMode; ///<True if we were opened by "ViewFullScreen OLE verb"
 
-//Options
-	bool m_Pedantic;
-	bool m_Warnings;
-	bool m_bPageBreaks;
-	unsigned m_uFallbackResolution;
-    std::map<string, Context> m_Designs;
-    MscError m_DesignErrors;
-	Csh m_designlib_csh;
-	CString m_CopyrightText;
-	bool m_bAlwaysOpen;
-    bool m_bDoCshProcessing;
-	bool m_bShowCsh;
-    bool m_bShowCshErrors;
-    bool m_bShowCshErrorsInWindow;
-	unsigned m_nCshScheme;
-	bool m_bSmartIdent;
-	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
-	COLORREF m_trackFillColor;
-	COLORREF m_trackLineColor;
-    bool m_bHints;
-    bool m_bHintLineStart;
-    bool m_bHintEntity;
-    bool m_bHintAttrName;
-    bool m_bHintAttrValue;
-    bool m_bHintFilter;
-    bool m_bHintCompact;
-    bool m_bShowControls;
-    bool m_bAutoPaginate;
-    bool m_bAutoHeading;
-    int m_iScale4Pagination; //Percentage, -1=Fix Witdth, -2=Fix Page
-    int m_iPageAlignment; //-1/0/+1 horizontal -3/0/+3 vertical
+    /** @name User selected preferences
+     * These can be set on the preferences category of the ribbon. */
+    /** @{ */
+	bool m_Pedantic;                     ///<True if pedantic compilation should be used
+	bool m_Warnings;                     ///<True if warnings are to be displayed
+	bool m_bPageBreaks;                  ///<True if page breaks are to be displayed
+	unsigned m_uFallbackResolution;      ///<The resolution of fallback images (OLE objects)
+    std::map<string, Context> m_Designs; ///<The list of designs in the design library.
+    MscError m_DesignErrors;             ///<Errors collected during the compilation of the design lib.
+	Csh m_designlib_csh;                 ///<The color & other info collected during design library. Used to seed the Csh of the internal editor.
+	CString m_CopyrightText;             ///<The copyright text to display at the bottom of the charts.
+    bool m_bDoCshProcessing;             ///<True if we do CSH processing of the internal editor text. (Needed not just for coloring, but also for smart ident.)
+	bool m_bShowCsh;                     ///<True if we show CSH markings in internal editor.
+    bool m_bShowCshErrors;               ///<True if we show CSH discovered parse errors
+    bool m_bShowCshErrorsInWindow;       ///<True if we list the CSH discovered parse errors in the output window.
+	unsigned m_nCshScheme;               ///<Which color shceme do we use for CSH
+	bool m_bSmartIdent;                  ///<Whether we do smart ident or not
+	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX]; ///<The colors used for each color scheme
+	COLORREF m_trackFillColor;           ///<The color used to fill element tracking outlines
+	COLORREF m_trackLineColor;           ///<The color used to draw element tracking outlines
+    bool m_bHints;                       ///<True if hinting is turned on
+    bool m_bHintLineStart;               ///<true if we provide hints at the beginning of a line
+    bool m_bHintEntity;                  ///<True if we provide hints for entity names
+    bool m_bHintAttrName;                ///<True if we provide hints for attribute names
+    bool m_bHintAttrValue;               ///<True if we provide hints for attribute values
+    bool m_bHintFilter;                  ///<True if we filter the hint list to possible candidates
+    bool m_bHintCompact;                 ///<True if we compact the hint list hiding hints with same prefix
+    bool m_bShowControls;                ///<True if we show element controls (collapse/expand)
+    bool m_bAutoPaginate;                ///<True if we auto-paginate the chart
+    bool m_bAutoHeading;                 ///<True if we add an auto heading for each automatic page break
+    int m_iScale4Pagination;             ///<The scale used for auto-pagination. In percentage, -1=Fit Witdth -2=Fit Page
+    int m_iPageAlignment;                ///<Alignment of chart in the fix-size page: -1/0/+1 left/center/right + -3/0/+3 bottom/center/top
 
 	//Editor related
-	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
-	CString m_sStartTextEditor;
-	CString m_sJumpToLine;
-	CString m_DefaultText;
-	CString m_NppPath;
+    /** Types of External editor */
+	enum EEditorType {
+        NOTEPAD=0, ///<Windows notepad
+        NPP=1,     ///<Notepad++ (supports jump into file)
+        OTHER=2    ///<Some other external editor
+    } m_iTextEditorType; ///<Which external editor to use
+	CString m_sStartTextEditor; ///<Command line to start the "other" external editor
+	CString m_sJumpToLine;      ///<Command line to jump to a specific line in the "other" external editor
+	CString m_NppPath;          ///<The path of the Notepad++ program, empty if not installed here.
+	CString m_DefaultText;      ///<The default text of a new chart
+    /** @} */
 
 	virtual void PreLoadState();
 	virtual void LoadCustomState();
@@ -123,11 +129,14 @@ public:
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
 
+	DECLARE_MESSAGE_MAP()
+    /** @name GUI control functions
+     * These functions are called when a control is invoked on the GUI. */
+    /** @{ */
 	afx_msg void OnAppAbout();
     afx_msg void OnFilePrintSetup();
     afx_msg void OnUpdatePrintSetup(CCmdUI *pCmdUI);
 	afx_msg void OnEditPreferences();
-	DECLARE_MESSAGE_MAP()
     afx_msg void OnButtonDefaultText();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
     afx_msg void OnCheckPedantic();
@@ -177,6 +186,8 @@ public:
             void DoEditMargin(UINT id); 
     afx_msg void OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI);
     afx_msg void OnUpdatePrintPreviewPageSize(CCmdUI *pCmdUI);
+    /** @} */
+
 };
 
 extern CMscGenApp theApp;

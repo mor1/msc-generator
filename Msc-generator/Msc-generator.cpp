@@ -571,7 +571,6 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_Warnings       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
 	m_bPageBreaks    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
     m_uFallbackResolution = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, 300);
-	m_bAlwaysOpen    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
 	m_bShowCsh       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
@@ -830,11 +829,6 @@ UINT CheckVersionFreshness(LPVOID)
 	}
 	return true;
 }
-
-/** @name GUI control functions
- * These functions are called when a control is invoked on the GUI. */
-/** @{ */
-
 
 /** Store the current chart text as default chart text in the registry.
  * Updates the registry.*/
@@ -1430,4 +1424,3 @@ void CMscGenApp::OnUpdatePrintSetup(CCmdUI *pCmdUI)
     pCmdUI->Enable(pWnd ? !pWnd->IsPrintPreview() : false);
 }
 
-/** @} */

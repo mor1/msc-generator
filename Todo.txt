@@ -59,10 +59,9 @@ FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 
 In 3.6.1
-FIXED: auto-boxes in hscale=1 on the left side (As a side effect, removed a--a box autoscaling for hscale==fixed.)
+FIXED: automatic adjustments so no element is outside the chart even for fixed hscale 
 FIXED: Not hints for comment.wrap, comment.text;
 FIXED: have space after hspace for comments even if no comments
-
 
 In 3.6
 CHANGED: centerline property to be assigned to EntityApp not to CommandEntity. This makes merges better.
