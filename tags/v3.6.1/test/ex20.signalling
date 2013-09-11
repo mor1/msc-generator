@@ -1,0 +1,12 @@
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+C=>S: Request;
+S>>B: Query;
+: the server is very busy here;
+S<<B: Response;
+C<=S: Reply;
+[];
+C->S [weak]: Next Request;
+

@@ -1,0 +1,18 @@
+a, b, c, d;
+vspace 0;
+activate a, b, c;
+a->b: Message 1
+      goes here;
+mark m1;
+b->c: Message 2
+      goes here;
+mark m2;
+c->d: Messgae 3
+      goes here;
+deactivate a, b, c;
+---: end;
+defstyle symbol [fill.color="yellow,200"];
+symbol rectangle m1-m2 center at a- [xsize=30, draw_time=before_entity_lines];
+symbol rectangle   -m2 center at b  [xsize=30, ysize=30, draw_time=after_entity_lines];
+symbol rectangle m1-   center at c- [xsize=30, ysize=30, draw_time=after_default];
+
