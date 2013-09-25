@@ -490,8 +490,11 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //8. If we remained centerline, go back to our target (if an ArcDirArrow) 
     //so that it can update activate status of its entities
     //In addition, inform the EntityApp object about where they should 
-    //make effect (the centerline of '*target'
-    ArcDirArrow * const prev = dynamic_cast<ArcDirArrow *>(*target);
+    //make effect (the centerline of '*target')
+    //*target may be DELETE_NOTE, which means that the target before us have been
+    //deleted. We treat it as if there were no target. 
+    //Need to watch for this as dynamic casting DELETE_NOTE crashes.
+    ArcDirArrow * const prev = dynamic_cast<ArcDirArrow *>(*target==DELETE_NOTE ? NULL : *target);
     for (auto pEntityApp : entities) {
         pEntityApp->centerlined &= (prev!=NULL);
         if (pEntityApp->centerlined) 

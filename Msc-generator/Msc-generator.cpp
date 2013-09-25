@@ -265,8 +265,6 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
  * sets the main fields to meaningful defaults.*/
 CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
 {
-	m_bHiColorIcons = TRUE;
-
 	// replace application ID string below with unique ID string; recommended
 	// format for string is CompanyName.ProductName.SubProduct.VersionInformation
     char buff[200];
@@ -280,7 +278,7 @@ CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
     m_bShowControls = false;
     m_bAutoPaginate = false;
     m_bAutoHeading = true;
-    m_iScale4Pagination = -1; //Percentage, -1=Fix Witdth, -2=Fix Page
+    m_iScale4Pagination = -1; //Percentage, -1=Fit Witdth, -2=Fit Page
     m_iPageAlignment = -4;
     m_PrinterScale = XY(1,1);
     m_PhyPrinterPageSize = PageSizeInfo::GetPhysicalPageSize(PageSizeInfo::A4P);
