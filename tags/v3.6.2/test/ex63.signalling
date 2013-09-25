@@ -1,0 +1,19 @@
+hscale=auto;
+
+a->b: Not numbered;
+a->b: Numbered [number=yes];
+a->b: Numbered [number=10];
+a->b: Not numbered;
+numbering=yes;
+a->b: \bNumber is bold;
+a->b: \|\bNumber is not bold;
+a->b: Our number is: \N;
+a->b: (\N) This may be optional;
+numbering.pre="Step #";
+numbering.post=" is: ";
+a->b: Some action;
+a->b: Some action;
+numbering.pre="\c(red)\b";
+numbering.post=": \s()";
+a->b: Some action;
+a->b: \c(blue)\uSome action;

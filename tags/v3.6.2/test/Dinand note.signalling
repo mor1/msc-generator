@@ -1,0 +1,51 @@
+msc=Dinand {
+background.color=white;
+UE [label="\bUE"],
+RGW [lblue, label="\bAP/RG\n\-\n802.1X authenticator\n"],
+BNG [lblue, label="\bBNG\n\-first-hop router\nDHCP server"],
+AAA [lblue, label="\bFixed AAA\n\-(proxy)"],
+PDN [lyellow, label="\bPDN-GW"],
+HSS [lyellow, label="\bAAA/HSS"]; note: note\nhere;
+
+block UE<->RGW-AAA-HSS: Authentication (EAP) [lblue]; note: note\nhere;
+
+++:Setup of first PDN connection [lred, line.type=none] {
+    UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="first"; note: note\nhere;
+    BNG->AAA: Get UE context\n\-\c(red)MAC@; note: note\nhere;
+    AAA->BNG: UE context\n\-\c(red)NAI, APNs, etc; note: note\nhere;
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="first"; note: note\nhere;
+    PDN--PDN: Allocate/HO IP prefix; note: note\nhere;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b; note: note\nhere;
+    BNG..BNG: Generate IP@\nfrom prefix; note: note\nhere;
+    BNG->UE [label= "RA\n\-\c(red)prefix=a"]; note: note\nhere;
+    BNG->UE: DHCP Ack\n\-\c(red)IP@; note: note\nhere;
+}; note: note\nhere;
+
+++:Setup of second PDN connection [lyellow, line.type=none] {
+    pipe UE--BNG:GRE-in-MAC tunnel (key=PDNconnID) [number=no,lyellow]{
+        UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="second"; note: note\nhere;
+    }; note: note\nhere;
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="second"; note: note\nhere;
+    PDN--PDN: Allocate/HO IP prefix; note: note\nhere;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b; note: note\nhere;
+    BNG..BNG: Generate IP@\nfrom prefix; note: note\nhere;
+    pipe UE--BNG:GRE-in-MAC(key=PDNconnID) [number=no,lyellow]{
+        BNG->UE: RA\n\-\c(red)prefix=b; note: note\nhere;
+        BNG->UE: DHCP Ack\n\-\c(red)IP@; note: note\nhere;
+    }; note: note\nhere;
+}; note: note\nhere;
+
+
+pipe BNG--PDN:GTP tunnel [number=no,lred]{
+    UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (first PDN); note: note\nhere;
+}; note: note\nhere;
+
+
+pipe UE--BNG:"GRE-in-MAC tunnel (key=PDNconnID)" [number=no,lyellow]{
+    pipe BNG--PDN:GTP tunnel [number=no,lyellow]{
+        UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (second PDN); note: note\nhere;
+    }; note: note\nhere;
+}; note: note\nhere;
+
+
+}
