@@ -24,22 +24,25 @@
 #define CSH_H
 
 #include <cassert>
-#include<vector>
-#include<list>
-#include<string>
-#include<set>
-#include<map>
-#include<stack>
+#include <vector>
+#include <list>
+#include <string>
+#include <set>
+#include <map>
+#include <stack>
+#include <algorithm>
 #include "color.h"
 
 /** A range inside an input file. */
-struct CshPos
+struct CshPos 
 {
-  int first_pos; ///<The index of the first character of the range.
-  int last_pos;  ///<The index of the last character of the range.
-  CshPos() : first_pos(0), last_pos(0) {}
-  bool IsWithin(int p) const {return first_pos<=p && last_pos>=p;} ///<Returns true if positin p is inside the range.
-  bool IsWithin(const CshPos &p) const {return IsWithin(p.first_pos) && IsWithin(p.last_pos);} ///<Returns true if another range is completely within the range.
+    int first_pos; ///<The index of the first character of the range.
+    int last_pos;  ///<The index of the last character of the range.
+    CshPos() = default;
+    CshPos(int a, int b) : first_pos(a), last_pos(b) {}
+    CshPos operator + (const CshPos &a) const {return CshPos(std::min(first_pos, a.first_pos), std::max(first_pos, a.first_pos));}
+    bool IsWithin(int p) const { return first_pos<=p && last_pos>=p; } ///<Returns true if positin p is inside the range.
+    bool IsWithin(const CshPos &p) const {return IsWithin(p.first_pos) && IsWithin(p.last_pos);} ///<Returns true if another range is completely within the range.
 };
 
 /** Describes types of language elements to color differently.*/
@@ -100,7 +103,7 @@ struct CshError : public CshEntry
 class CshErrorList : public std::vector<CshError> 
 {
 public:
-    void Add(CshPos &pos, const char *t); ///<Add an error to the collection
+    void Add(const CshPos &pos, const char *t); ///<Add an error to the collection
 };
 
 /** Flags to describe appearance of colored text*/
@@ -291,18 +294,19 @@ public:
 
     /** @name Functions to add a CSH entry 
      * @{  */
-    void AddCSH(CshPos&, EColorSyntaxType); ///<The basic variant: color a range to this language element type
-    void AddCSH_Error(CshPos&pos, const char *text) {CshErrors.Add(pos, text);} ///<The basic variant for errors: add error "text" at this location
-    void AddCSH_ErrorAfter(CshPos&pos, const char *text); ///<Add an error just after this range
-    void AddCSH_KeywordOrEntity(CshPos&pos, const char *name); 
-    void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
-    void AddCSH_AttrName(CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
-    void AddCSH_AttrValue(CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
-    void AddCSH_StyleOrAttrName(CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
-    void AddCSH_EntityName(CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
-    void AddCSH_EntityOrMarkerName(CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
-    void AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name); ///<At pos there is an ext pos designator name. Search and color.
-    void AddCSH_SymbolName(CshPos&pos, const char *name); ///<At pos there is a symbol. Color it.
+    void AddCSH(const CshPos&, EColorSyntaxType); ///<The basic variant: color a range to this language element type
+    void AddCSH_Error(const CshPos&pos, const char *text) {CshErrors.Add(pos, text);} ///<The basic variant for errors: add error "text" at this location
+    void AddCSH_ErrorAfter(const CshPos&pos, const char *text); ///<Add an error just after this range
+    void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name); 
+    void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
+    void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
+    void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
+    void AddCSH_AttrColorValue(const CshPos& pos, const char *name); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
+    void AddCSH_StyleOrAttrName(const CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
+    void AddCSH_EntityName(const CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
+    void AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
+    void AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name); ///<At pos there is an ext pos designator name. Search and color.
+    void AddCSH_SymbolName(const CshPos&pos, const char *name); ///<At pos there is a symbol. Color it.
     void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);} ///<Add error coloring for each error collected.
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
