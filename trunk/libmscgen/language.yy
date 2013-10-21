@@ -1,13 +1,21 @@
 %locations
+%glr-parser
 %pure-parser
 %lex-param {yyscan_t *yyscanner}
 %parse-param{YYMSC_RESULT_TYPE &RESULT}
 %parse-param{void *yyscanner}
+%initial-action
+{
+  #ifdef C_S_H_IS_COMPILED
+    @$.first_pos = 0;
+    @$.last_pos = 0;
+  #endif
+};
 
 %{
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -33,12 +41,6 @@
 #define C_S_H (0)
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <list>
-#include <iostream>
-
 #ifdef C_S_H_IS_COMPILED
 
 #define YYMSC_RESULT_TYPE Csh
@@ -52,73 +54,26 @@
 #define YYLTYPE CshPos
 #define CHAR_IF_CSH(A) char
 
-#include "colorsyntax.h"
-#include "language_misc.h"
-#include "colorsyntax2.h"
-#include "arcs.h"//For AttrNames and AttrValues
-#include "msc.h" //For AttrNames and AttrValues
-//redefine default loc action for CSH
-#define YYRHSLOC(Rhs, K) ((Rhs)[K])
-#define YYLLOC_DEFAULT(Current, Rhs, N)                       \
-    do                                                        \
-        if (YYID (N)) {                                       \
-            (Current).first_pos = YYRHSLOC(Rhs,1).first_pos;  \
-	        (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos;	  \
-        } else {                                              \
-	        (Current).first_pos = (Current).last_pos =        \
-	            YYRHSLOC (Rhs, 0).last_pos;                   \
-        }                                                     \
-    while (YYID (0))
-
-/* yyerror
- *  Error handling function.  Do nothing for CSH
- */
-void yyerror(YYLTYPE* /*loc*/, Csh & /*csh*/, void * /*yyscanner*/, const char * /*str*/)
-{}
-
 #else
 
 #define YYMSC_RESULT_TYPE Msc
 #define RESULT msc
 
-#include "msc.h"
 #define YYMSC_RESULT_TYPE Msc
 #define RESULT msc
 
 #define CHAR_IF_CSH(A) A
-#include "language.h"
-#include "language_misc.h"
-#include "language2.h"
-
-/* Use verbose error reporting such that the expected token names are dumped */
-#define YYERROR_VERBOSE
-
-#include "parse_tools.h"
 #endif
 
-#ifdef C_S_H_IS_COMPILED
-void CshParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
-#else
-void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
-#endif
-{
-    parse_parm  pp;
-    pp.buf = const_cast<char*>(buff);
-    pp.length = len;
-    pp.pos = 0;
-    pp.RESULT = &RESULT;
-    yylex_init(&pp.yyscanner);
-    yyset_extra(&pp, pp.yyscanner);
-    yyparse(RESULT, pp.yyscanner);
-    yylex_destroy(pp.yyscanner);
-}
-
+#include "arcs.h"//For AttrNames and AttrValues
+#include "msc.h" //For AttrNames and AttrValues
 %}
 
 %token TOK_STRING TOK_QSTRING TOK_NUMBER TOK_DASH TOK_EQUAL TOK_COMMA
        TOK_SEMICOLON TOK_PLUS TOK_PLUS_EQUAL
-       TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET TOK_MSC
-       TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
+       TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
+       TOK_ASTERISK
+       TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
        TOK_BOOLEAN
        TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM	TOK_REL_SOLID_BIDIR
        TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM	TOK_REL_DOUBLE_BIDIR
@@ -131,7 +86,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
-	   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+       TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
        TOK__NEVER__HAPPENS
 %union
 {
@@ -186,7 +141,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes titlecommandtoken
-                   entity_string reserved_word_string string symbol_string colon_string symbol_type_string
+                   entity_string reserved_word_string string number_or_string
+				   symbol_string colon_string symbol_type_string
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -210,7 +166,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {if (!C_S_H) delete $$;} full_arcattrlist_with_label_or_number
-%destructor {free($$);}  entity_string reserved_word_string string symbol_string colon_string symbol_type_string
+%destructor {free($$);}  entity_string reserved_word_string string number_or_string symbol_string colon_string symbol_type_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -220,6 +176,68 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_ACTIVATE TOK_DEACTIVATE TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
 %destructor {free($$);}  TOK_COMMAND_NOTE TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
 %destructor {free($$);}  TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <list>
+#include <iostream>
+
+#ifdef C_S_H_IS_COMPILED
+
+//#include "colorsyntax.h"
+#include "language_misc.h"
+#include "colorsyntax2.h"
+
+//redefine default loc action for CSH
+#define YYLLOC_DEFAULT(Current, Rhs, N)                         \
+    do                                                          \
+        if (YYID (N)) {                                         \
+            (Current).first_pos = YYRHSLOC(Rhs,1).first_pos;    \
+	        (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos;	\
+        } else {                                                \
+	        (Current).first_pos = (Current).last_pos =      \
+	            YYRHSLOC (Rhs, 0).last_pos;                 \
+        }                                                       \
+    while (YYID (0))
+
+/* yyerror
+ *  Error handling function.  Do nothing for CSH
+ */
+void yyerror(YYLTYPE* /*loc*/, Csh & /*csh*/, void * /*yyscanner*/, const char * /*str*/)
+{}
+
+#else
+
+//#include "language.h"
+#include "language_misc.h"
+#include "language2.h"
+
+/* Use verbose error reporting such that the expected token names are dumped */
+//#define YYERROR_VERBOSE
+
+#include "parse_tools.h"
+#endif
+
+#ifdef C_S_H_IS_COMPILED
+void CshParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
+#else
+void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
+#endif
+{
+    parse_parm  pp;
+    pp.buf = const_cast<char*>(buff);
+    pp.length = len;
+    pp.pos = 0;
+    pp.RESULT = &RESULT;
+    yylex_init(&pp.yyscanner);
+    yyset_extra(&pp, pp.yyscanner);
+    yyparse(RESULT, pp.yyscanner);
+    yylex_destroy(pp.yyscanner);
+}
+
+%}
 
 %%
 
@@ -296,9 +314,10 @@ msc:
                  | top_level_arclist error
 {
   #ifdef C_S_H_IS_COMPILED
+    CshPos pos = @2;
     if ((@1).last_pos >= (@2).first_pos)
-        (@2).first_pos = (@1).last_pos;
-    csh.AddCSH_Error(@2, "Could not recognize this as a valid line.");
+        pos.first_pos = (@1).last_pos;
+    csh.AddCSH_Error(pos, "Could not recognize this as a valid line.");
   #else
     msc.AddArcs($1);
     msc.Error.Error(MSC_POS(@2).start, "Could not recognize this as a valid line.");
@@ -2704,14 +2723,14 @@ extvertxpos: extvertxpos_no_string
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAt(@1, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_RIGHT)));
         csh.hintStatus = HINT_FILLING;
     }
@@ -2766,14 +2785,14 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_RIGHT)));
         csh.hintStatus = HINT_FILLING;
     }
@@ -2825,14 +2844,14 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_RIGHT)));
         csh.hintStatus = HINT_FILLING;
     }
@@ -2885,14 +2904,14 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_RIGHT)));
         csh.hintStatus = HINT_READY;
     }
@@ -2957,14 +2976,14 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
         csh.hintStatus = HINT_READY;
     }
     else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
-                               CshHintGraphicCallbackForTextIdent, 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
                                CshHintGraphicParam(MSC_IDENT_RIGHT)));
         csh.hintStatus = HINT_READY;
 
@@ -3303,6 +3322,7 @@ arcattrlist:    arcattr
 
 arcattr:         string TOK_EQUAL string
 {
+  //string=string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
@@ -3314,6 +3334,95 @@ arcattr:         string TOK_EQUAL string
   #endif
     free($1);
     free($3);
+}
+        | string TOK_EQUAL string TOK_NUMBER
+{
+  //string=string+number
+  //string=string-number
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrColorValue(@3 + @4, $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @4, HINT_ATTR_VALUE, $1);
+  #else
+        //Ensure the NUMBER starts with either + or -
+        $$ = new Attribute($1, string($3) + (atof($4)>=0 && ($4)[0]!='+' ? "+" : "") + $4, MSC_POS(@1), MSC_POS2(@3, @4));
+  #endif
+    free($1);
+    free($3);
+    free($4);
+}
+        | string TOK_EQUAL string TOK_COMMA TOK_NUMBER TOK_NUMBER
+{
+  //string=string,number+number
+  //string=string,number-number
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrColorValue(@3 + @6, $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @6, HINT_ATTR_VALUE, $1);
+  #else
+        //Ensure the NUMBER starts with either + or -
+        $$ = new Attribute($1, string($3) + "," + $5 + (atof($6)>=0 && ($6)[0]!='+' ? "+" : "") +$6, MSC_POS(@1), MSC_POS2(@3, @6));
+  #endif
+    free($1);
+    free($3);
+	free($5);
+    free($6);
+}
+        | string TOK_EQUAL number_or_string TOK_COMMA TOK_NUMBER
+{
+  //string=string,number
+  //string=number,number
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrColorValue(@3 + @5, $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @5, HINT_ATTR_VALUE, $1);
+  #else
+        $$ = new Attribute($1, string($3) + "," + $5, MSC_POS(@1), MSC_POS2(@3, @5));
+  #endif
+    free($1);
+    free($3);
+	free($5);
+}
+        | string TOK_EQUAL TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER
+{
+  //string=number,number,number
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrColorValue(@3 + @7, $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @7, HINT_ATTR_VALUE, $1);
+  #else
+        $$ = new Attribute($1, string($3) + "," + $5 + "," + $7, MSC_POS(@1), MSC_POS2(@3, @7));
+  #endif
+    free($1);
+    free($3);
+	free($5);
+	free($7);
+}
+        | string TOK_EQUAL TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER
+{
+  //string=number,number,number,number
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrColorValue(@3 + @9, $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @9, HINT_ATTR_VALUE, $1);
+  #else
+        $$ = new Attribute($1, string($3) + "," + $5 + "," + $7 + "," + $9, MSC_POS(@1), MSC_POS2(@3, @9));
+  #endif
+    free($1);
+    free($3);
+	free($5);
+	free($7);
+	free($9);
 }
 	    | string TOK_EQUAL TOK_NUMBER
 {
@@ -3419,6 +3528,8 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
 };
 
 string: entity_string | reserved_word_string | symbol_string | TOK_STYLE_NAME;
+
+number_or_string: TOK_NUMBER | string;
 
 scope_open: TOK_OCBRACKET
 {

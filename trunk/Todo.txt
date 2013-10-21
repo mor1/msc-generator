@@ -58,6 +58,7 @@ FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 
+
 In 3.6.1
 FIXED: automatic adjustments so no element is outside the chart even for fixed hscale 
 FIXED: Not hints for comment.wrap, comment.text;

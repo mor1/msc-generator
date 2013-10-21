@@ -42,7 +42,7 @@ bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) co
 }
 
 
-void CshErrorList::Add(CshPos &pos, const char *t)
+void CshErrorList::Add(const CshPos &pos, const char *t)
 {
     resize(size()+1);
     CshError &e = at(size()-1);
@@ -319,7 +319,7 @@ void CshHint::swap(CshHint &o)
 
 
 ////////////////////////////////////////////////////////////////////
-void Csh::AddCSH(CshPos&pos, EColorSyntaxType i)
+void Csh::AddCSH(const CshPos&pos, EColorSyntaxType i)
 {
     if (use_scheme && 
           MscCshAppearanceList[*use_scheme][i] == 
@@ -333,7 +333,7 @@ void Csh::AddCSH(CshPos&pos, EColorSyntaxType i)
     CshList.AddToBack(e);
 }
 
-void Csh::AddCSH_ErrorAfter(CshPos&pos, const char *text)
+void Csh::AddCSH_ErrorAfter(const CshPos&pos, const char *text)
 {
     CshPos pos2;
     pos2.first_pos = pos.last_pos;
@@ -341,7 +341,7 @@ void Csh::AddCSH_ErrorAfter(CshPos&pos, const char *text)
     CshErrors.Add(pos2, text);
 }
 
-void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
+void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
         CaseInsensitiveEqual(name, "text.format") ||
@@ -367,7 +367,12 @@ void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
     }
 }
 
-void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComments)
+void Csh::AddCSH_AttrColorValue(const CshPos& pos, const char * /*name*/)
+{
+    AddCSH(pos, COLOR_ATTRVALUE);
+}
+
+void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments)
 {
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
@@ -494,7 +499,7 @@ unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN
  * Csh::partial_at_cursor_pos
  * @param [in] pos The range to color 
  * @param [in] name The content of the range: the supposed keyword or entity.*/
-void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
+void Csh::AddCSH_KeywordOrEntity(const CshPos&pos, const char *name)
 {
     EColorSyntaxType type = COLOR_KEYWORD;
     unsigned match_result = find_opt_attr_name(name, keyword_names);
@@ -526,7 +531,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
     return;
 }
 
-void Csh::AddCSH_AttrName(CshPos&pos, const char *name, EColorSyntaxType color)
+void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType color)
 {
     static const char empty_names[][ENUM_STRING_LEN] = {""};
     const char (*array)[ENUM_STRING_LEN];
@@ -557,7 +562,7 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, EColorSyntaxType color)
 //All-in-all partial matches are only given if the cursor is just after the
 //string in question. In this case we also store the partial match in
 // Csh::partial_at_cursor_pos
-void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
+void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, attr_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
@@ -577,7 +582,7 @@ void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
     return;
 }
 
-void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
+void Csh::AddCSH_EntityName(const CshPos&pos, const char *name)
 {
     if (EntityNames.find(string(name)) != EntityNames.end()) {
         AddCSH(pos, COLOR_ENTITYNAME);
@@ -598,7 +603,7 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
-void Csh::AddCSH_EntityOrMarkerName(CshPos&pos, const char *name)
+void Csh::AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name)
 {
     if (EntityNames.find(string(name)) != EntityNames.end()) 
         AddCSH(pos, COLOR_ENTITYNAME);
@@ -613,7 +618,7 @@ void Csh::AddCSH_EntityOrMarkerName(CshPos&pos, const char *name)
 //All-in-all partial matches are only given if the cursor is just after the
 //string in question. In this case we also store the partial match in
 // Csh::partial_at_cursor_pos
-void Csh::AddCSH_SymbolName(CshPos&pos, const char *name)
+void Csh::AddCSH_SymbolName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, symbol_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
@@ -631,7 +636,7 @@ void Csh::AddCSH_SymbolName(CshPos&pos, const char *name)
     //if no keyword match, we assume an entityname
 }
 
-void Csh::AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name)
+void Csh::AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, extvxpos_designator_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {

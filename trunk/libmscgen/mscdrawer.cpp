@@ -632,7 +632,7 @@ Canvas::EErrorType Canvas::CreateSurface(const XY &size)
     case Canvas::EMF:
     case Canvas::EMFWMF:
         // Create the Enhanced Metafile
-        if (fileName.length() > 0)
+        if (fileName.length() > 0) 
             original_hdc = CreateEnhMetaFile(NULL, fileName.c_str(), NULL, "Msc-generator\0\0");
         else {
             _ASSERT(0);

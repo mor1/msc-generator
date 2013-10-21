@@ -1,8 +1,8 @@
 /* A Bison parser, made by GNU Bison 2.5.  */
 
-/* Bison interface for Yacc-like parsers in C
+/* Skeleton interface for Bison GLR parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+      Copyright (C) 2002-2011 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,126 +50,64 @@
      TOK_CCBRACKET = 268,
      TOK_OSBRACKET = 269,
      TOK_CSBRACKET = 270,
-     TOK_MSC = 271,
-     TOK_COLON_STRING = 272,
-     TOK_COLON_QUOTED_STRING = 273,
-     TOK_STYLE_NAME = 274,
-     TOK_BOOLEAN = 275,
-     TOK_REL_SOLID_TO = 276,
-     TOK_REL_SOLID_FROM = 277,
-     TOK_REL_SOLID_BIDIR = 278,
-     TOK_REL_DOUBLE_TO = 279,
-     TOK_REL_DOUBLE_FROM = 280,
-     TOK_REL_DOUBLE_BIDIR = 281,
-     TOK_REL_DASHED_TO = 282,
-     TOK_REL_DASHED_FROM = 283,
-     TOK_REL_DASHED_BIDIR = 284,
-     TOK_REL_DOTTED_TO = 285,
-     TOK_REL_DOTTED_FROM = 286,
-     TOK_REL_DOTTED_BIDIR = 287,
-     TOK_SPECIAL_ARC = 288,
-     TOK_EMPH = 289,
-     TOK_COMMAND_HEADING = 290,
-     TOK_COMMAND_NUDGE = 291,
-     TOK_COMMAND_NEWPAGE = 292,
-     TOK_COMMAND_DEFCOLOR = 293,
-     TOK_COMMAND_DEFSTYLE = 294,
-     TOK_COMMAND_DEFDESIGN = 295,
-     TOK_COMMAND_BIG = 296,
-     TOK_COMMAND_PIPE = 297,
-     TOK_COMMAND_MARK = 298,
-     TOK_COMMAND_PARALLEL = 299,
-     TOK_VERTICAL = 300,
-     TOK_AT = 301,
-     TOK_AT_POS = 302,
-     TOK_SHOW = 303,
-     TOK_HIDE = 304,
-     TOK_ACTIVATE = 305,
-     TOK_DEACTIVATE = 306,
-     TOK_BYE = 307,
-     TOK_COMMAND_VSPACE = 308,
-     TOK_COMMAND_HSPACE = 309,
-     TOK_COMMAND_SYMBOL = 310,
-     TOK_COMMAND_NOTE = 311,
-     TOK_COMMAND_COMMENT = 312,
-     TOK_COMMAND_ENDNOTE = 313,
-     TOK_COMMAND_FOOTNOTE = 314,
-     TOK_COMMAND_TITLE = 315,
-     TOK_COMMAND_SUBTITLE = 316,
-     TOK__NEVER__HAPPENS = 317
+     TOK_ASTERISK = 271,
+     TOK_MSC = 272,
+     TOK_COLON_STRING = 273,
+     TOK_COLON_QUOTED_STRING = 274,
+     TOK_STYLE_NAME = 275,
+     TOK_BOOLEAN = 276,
+     TOK_REL_SOLID_TO = 277,
+     TOK_REL_SOLID_FROM = 278,
+     TOK_REL_SOLID_BIDIR = 279,
+     TOK_REL_DOUBLE_TO = 280,
+     TOK_REL_DOUBLE_FROM = 281,
+     TOK_REL_DOUBLE_BIDIR = 282,
+     TOK_REL_DASHED_TO = 283,
+     TOK_REL_DASHED_FROM = 284,
+     TOK_REL_DASHED_BIDIR = 285,
+     TOK_REL_DOTTED_TO = 286,
+     TOK_REL_DOTTED_FROM = 287,
+     TOK_REL_DOTTED_BIDIR = 288,
+     TOK_SPECIAL_ARC = 289,
+     TOK_EMPH = 290,
+     TOK_COMMAND_HEADING = 291,
+     TOK_COMMAND_NUDGE = 292,
+     TOK_COMMAND_NEWPAGE = 293,
+     TOK_COMMAND_DEFCOLOR = 294,
+     TOK_COMMAND_DEFSTYLE = 295,
+     TOK_COMMAND_DEFDESIGN = 296,
+     TOK_COMMAND_BIG = 297,
+     TOK_COMMAND_PIPE = 298,
+     TOK_COMMAND_MARK = 299,
+     TOK_COMMAND_PARALLEL = 300,
+     TOK_VERTICAL = 301,
+     TOK_AT = 302,
+     TOK_AT_POS = 303,
+     TOK_SHOW = 304,
+     TOK_HIDE = 305,
+     TOK_ACTIVATE = 306,
+     TOK_DEACTIVATE = 307,
+     TOK_BYE = 308,
+     TOK_COMMAND_VSPACE = 309,
+     TOK_COMMAND_HSPACE = 310,
+     TOK_COMMAND_SYMBOL = 311,
+     TOK_COMMAND_NOTE = 312,
+     TOK_COMMAND_COMMENT = 313,
+     TOK_COMMAND_ENDNOTE = 314,
+     TOK_COMMAND_FOOTNOTE = 315,
+     TOK_COMMAND_TITLE = 316,
+     TOK_COMMAND_SUBTITLE = 317,
+     TOK__NEVER__HAPPENS = 318
    };
 #endif
-/* Tokens.  */
-#define TOK_STRING 258
-#define TOK_QSTRING 259
-#define TOK_NUMBER 260
-#define TOK_DASH 261
-#define TOK_EQUAL 262
-#define TOK_COMMA 263
-#define TOK_SEMICOLON 264
-#define TOK_PLUS 265
-#define TOK_PLUS_EQUAL 266
-#define TOK_OCBRACKET 267
-#define TOK_CCBRACKET 268
-#define TOK_OSBRACKET 269
-#define TOK_CSBRACKET 270
-#define TOK_MSC 271
-#define TOK_COLON_STRING 272
-#define TOK_COLON_QUOTED_STRING 273
-#define TOK_STYLE_NAME 274
-#define TOK_BOOLEAN 275
-#define TOK_REL_SOLID_TO 276
-#define TOK_REL_SOLID_FROM 277
-#define TOK_REL_SOLID_BIDIR 278
-#define TOK_REL_DOUBLE_TO 279
-#define TOK_REL_DOUBLE_FROM 280
-#define TOK_REL_DOUBLE_BIDIR 281
-#define TOK_REL_DASHED_TO 282
-#define TOK_REL_DASHED_FROM 283
-#define TOK_REL_DASHED_BIDIR 284
-#define TOK_REL_DOTTED_TO 285
-#define TOK_REL_DOTTED_FROM 286
-#define TOK_REL_DOTTED_BIDIR 287
-#define TOK_SPECIAL_ARC 288
-#define TOK_EMPH 289
-#define TOK_COMMAND_HEADING 290
-#define TOK_COMMAND_NUDGE 291
-#define TOK_COMMAND_NEWPAGE 292
-#define TOK_COMMAND_DEFCOLOR 293
-#define TOK_COMMAND_DEFSTYLE 294
-#define TOK_COMMAND_DEFDESIGN 295
-#define TOK_COMMAND_BIG 296
-#define TOK_COMMAND_PIPE 297
-#define TOK_COMMAND_MARK 298
-#define TOK_COMMAND_PARALLEL 299
-#define TOK_VERTICAL 300
-#define TOK_AT 301
-#define TOK_AT_POS 302
-#define TOK_SHOW 303
-#define TOK_HIDE 304
-#define TOK_ACTIVATE 305
-#define TOK_DEACTIVATE 306
-#define TOK_BYE 307
-#define TOK_COMMAND_VSPACE 308
-#define TOK_COMMAND_HSPACE 309
-#define TOK_COMMAND_SYMBOL 310
-#define TOK_COMMAND_NOTE 311
-#define TOK_COMMAND_COMMENT 312
-#define TOK_COMMAND_ENDNOTE 313
-#define TOK_COMMAND_FOOTNOTE 314
-#define TOK_COMMAND_TITLE 315
-#define TOK_COMMAND_SUBTITLE 316
-#define TOK__NEVER__HAPPENS 317
 
 
-
-
-#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+#ifndef YYSTYPE
 typedef union YYSTYPE
 {
 
-/* Line 2068 of yacc.c  */
-#line 137 "language.yy"
+/* Line 2663 of glr.c  */
+#line 92 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -195,28 +133,30 @@ typedef union YYSTYPE
 
 
 
-/* Line 2068 of yacc.c  */
-#line 200 "colorsyntax.h"
+/* Line 2663 of glr.c  */
+#line 138 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
-# define YYSTYPE_IS_DECLARED 1
 #endif
-
-
 
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
 typedef struct YYLTYPE
 {
+
   int first_line;
   int first_column;
   int last_line;
   int last_column;
+
 } YYLTYPE;
-# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
 # define YYLTYPE_IS_DECLARED 1
 # define YYLTYPE_IS_TRIVIAL 1
 #endif
+
+
+
+
+
 
 
 

@@ -119,14 +119,12 @@ struct ArcSignature {
     ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
 };
 
+
 /** The base class for all arcs and commands.
  * One object of this type roughly correspond to one semicolon (;) delimited
  * line of input text. */
 class ArcBase : public Element
 {
-protected: 
-    friend int yyparse (Msc &, void *);
-    void SetParallel() {parallel = true;}
 private:
     bool had_add_attr_list;    //TODO: debug only, remove
 protected:
@@ -149,6 +147,8 @@ public:
     bool IsValid() const {return valid;}
     /** True if subsequent arcs can be drawn beside this.*/
     bool IsParallel() const {return parallel;}
+    /** Set the parallel member to true. Used only during parsing.*/
+    void SetParallel() {parallel = true;}
     /** True, if compress mechanism is on foe this arc and can be shifted upwards.*/
     bool IsCompressed() const {return compress;}
     /** True if this arc shall be placed at the centerline of a previous one.*/

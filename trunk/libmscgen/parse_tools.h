@@ -18,7 +18,7 @@
 */
 
 /** @file parse_tools.h Utilities for parsing.
- * @ingroup libmscgen_files 
+ * @ingroup libmscgen_files
  * This file is used if we do parsing for language and not for Color Syntax Highlight.
  * Need to include this for the right YYLTYPE */
 
@@ -28,10 +28,10 @@
 #define CHAR_IF_CSH(A) A
 #endif
 
-#include "language.h"
+//#include "language.h"
 
 /** A macro creating a FileLineColRange both starting and ending at `A`*/
-#define MSC_POS(A) MSC_POS2(A,A) 
+#define MSC_POS(A) MSC_POS2(A,A)
 /** A macro creating a FileLineColRange starting at `A` and ending at `B`.*/
 // yacc column numbers start with 1 - we substract one here
 #define MSC_POS2(A, B) FileLineColRange(                                                          \

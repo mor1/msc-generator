@@ -131,14 +131,14 @@
 #include <utility>
 #include <cassert>
 #include <cstddef>
-#include <limits>
+#include <limits> 
+#include <algorithm>
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
 #ifndef _ASSERT
 #define  _ASSERT(A)
 #endif
-
 
 /** The `contour` namespace holds all the contour library
  */

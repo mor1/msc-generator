@@ -17,9 +17,15 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file parse_tools.cpp Utilities for parsing.
- * @ingroup libmscgen_files 
+ * @ingroup libmscgen_files
  */
 
+//We do not compile csh, so define the below macro as a no-op
+#define CHAR_IF_CSH(A) A
+#include "msc.h" //required by language.h to define YYSTYPE
+#include "language.h"
+//parse_tools.h requires YYLTYPE, this is why we must include language.h
+//plus YYSTYPE is also required by language2.h
 #include "parse_tools.h"
 #define YYMSC_RESULT_TYPE Msc
 #define RESULT msc
@@ -41,8 +47,8 @@ void msc_jump_line(YYLTYPE *loc)
     loc->last_column=1; //yacc column numbering starts at 1
 };
 
-/** In-place removal of whitespace. 
- * Remove heading and trailing whitespace, by 
+/** In-place removal of whitespace.
+ * Remove heading and trailing whitespace, by
  * returning a new head of string and adding a '0' to the end of it.*/
 char *msc_remove_head_tail_whitespace(char *s)
 {
@@ -60,13 +66,13 @@ char *msc_remove_head_tail_whitespace(char *s)
  * We do all the following:
  * - Remove heading and trailing whitespace.
  * - Replace any internal CR or CRLF (and surrounding whitespaces) to "\n".
- * - Remove comments between # and lineend, except if # is preceeded by an odd 
+ * - Remove comments between # and lineend, except if # is preceeded by an odd
  *   number of backslashes.
  * - Update `loc` to point to the end of the token
  * - Insert \0x2(file,line,col) escapes where needed we changed the length of the
  *   preceeding string, so that if we generate an error to any escapes thereafter
  *   those will have the right location in the input file.
- * 
+ *
  * The function copies the result to new memory and the caller shall free().*/
 char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
 {
@@ -80,12 +86,12 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
         int end_line   = old_pos;
         int start_line = old_pos;
         //find the end of the line
-        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13) 
+        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13)
             end_line++;
         //store the ending char to later see how to proceed
         char ending = s[end_line];
         //skip over the heading whitespace at the beginning of the line
-        while (s[start_line]==' ' || s[start_line]=='\t') 
+        while (s[start_line]==' ' || s[start_line]=='\t')
             start_line++;
         //find the last non-whitespace in the line
         int term_line = end_line-1;
@@ -121,14 +127,14 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
             }
         }
         //We may have copied spaces before the comment, we skip those
-        while (ret.length()>0 && (ret[ret.length()-1]==' ' || ret[ret.length()-1]=='\t')) 
+        while (ret.length()>0 && (ret[ret.length()-1]==' ' || ret[ret.length()-1]=='\t'))
             ret.erase(ret.length()-1);
         //if ending was a null we are done with processing all lines
         if (!ending) {
             loc->last_column += (end_line - old_pos) -1;
             break;
         }
-        //append ESCAPE_CHAR_SOFT_NEWLINE escape for msc-generator, 
+        //append ESCAPE_CHAR_SOFT_NEWLINE escape for msc-generator,
         //but only if not an empty first line
         //append "\" + ESCAPE_CHAR_SOFT_NEWLINE if line ended with odd number of \s
         if (!emptyLine || loc->first_line != loc->last_line) {
@@ -168,7 +174,7 @@ string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
     return style;
 }
 
-/** The error handling function required by yacc. 
+/** The error handling function required by yacc.
  * The TOK_XXX names are substituted for more
  *  understandable values that make more sense to the user and
  * the error is added to `msc`.
