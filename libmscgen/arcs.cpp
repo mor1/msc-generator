@@ -916,7 +916,8 @@ ArcSelfArrow::ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl
     src = chart->FindAllocEntity(s, sl);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(EArcType, const char * /*m*/, const FileLineColRange &/*ml*/, const FileLineColRange &l)
+ArcArrow * ArcSelfArrow::AddSegment(ArrowSegmentData /*data*/, const char * /*m*/, 
+                                    const FileLineColRange &/*ml*/, const FileLineColRange &l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l.start, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
@@ -1077,19 +1078,30 @@ void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDirArrow::ArcDirArrow(EArcType t, const char *s, const FileLineColRange &sl,
-                         const char *d, const FileLineColRange &dl, Msc *msc, bool fw, const StyleCoW &st) :
-    ArcArrow(t, MscProgress::DIR_ARROW, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw), slant_angle(0)
+ArcDirArrow::ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineColRange &sl,
+                         const char *d, const FileLineColRange &dl, Msc *msc, bool fw, 
+                         const StyleCoW &st) :
+    ArcArrow(data.type, MscProgress::DIR_ARROW, msc, st), 
+    linenum_src(sl.start), linenum_dst(dl.start), 
+    specified_as_forward(fw), slant_angle(0), lost_at(-2)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
-    segment_types.push_back(t);
-    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
+    segment_types.push_back(data.type);
+    if (chart) 
+        slant_angle = chart->Contexts.back().slant_angle.second;
+    if (data.lost==EArrowLost::AT_SRC) {
+        lost_at = -1;
+        lost_is_forward = true;
+    } else if (data.lost==EArrowLost::AT_DST) {
+        lost_at = 0;
+        lost_is_forward = false;
+    }
 };
 
 ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al) :
     ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al), 
-    specified_as_forward(false), slant_angle(0)
+    specified_as_forward(false), slant_angle(0), lost_at(-2)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -1100,10 +1112,12 @@ ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al
         segment_types.push_back(MSC_ARC_BIG);
         segment_lines.push_back(style.read().line);
     }
-    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
+    if (chart) 
+        slant_angle = chart->Contexts.back().slant_angle.second;
 }
 
-ArcArrow * ArcDirArrow::AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &/*l*/)
+ArcArrow * ArcDirArrow::AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                                   const FileLineColRange &/*l*/)
 {
     if (!valid) return this;
     EIterator mid;
@@ -1126,7 +1140,7 @@ ArcArrow * ArcDirArrow::AddSegment(EArcType t, const char *m, const FileLineColR
         linenum_middle.push_back(linenum_dst);
         dst = mid;
         linenum_dst = ml.start;
-        segment_types.push_back(t);
+        segment_types.push_back(data.type);
     } else {
         //check for this situation: <-b<-a (where a is left of b)
         if (middle.size()==0 && *dst == chart->LSide &&
@@ -1136,8 +1150,22 @@ ArcArrow * ArcDirArrow::AddSegment(EArcType t, const char *m, const FileLineColR
         linenum_middle.insert(linenum_middle.begin(), linenum_src);
         src = mid;
         linenum_src = ml.start;
-        segment_types.insert(segment_types.begin(), t);
+        segment_types.insert(segment_types.begin(), data.type);
+        //if we have specified a message lost at an entity, 
+        //we maintain the correct index
+        if (lost_at > -2)
+            lost_at++;
     };
+    //Error if we already have a loss specified
+    if (data.lost!=EArrowLost::NOT && lost_at>-2) {
+        chart->Error.Error(data.lost_pos.CopyTo().start, "This arrow is already specified as lost. Ignoring this asterisk.");
+    } else if (data.lost==EArrowLost::AT_SRC) {
+        lost_at = specified_as_forward ? middle.size()-1 : -1;
+        lost_is_forward = true;
+    } else if (data.lost==EArrowLost::AT_DST) {
+        lost_at = specified_as_forward ? middle.size() : 0;
+        lost_is_forward = false;
+    }
     return this;
 }
 
@@ -2092,7 +2120,9 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
     return this;
 }
 
-ArcArrow *ArcVerticalArrow::AddSegment(EArcType, const char * /*m*/, const FileLineColRange &/*ml*/, const FileLineColRange &l)
+ArcArrow *ArcVerticalArrow::AddSegment(ArrowSegmentData /*data*/, const char * /*m*/, 
+                                       const FileLineColRange &/*ml*/, 
+                                       const FileLineColRange &l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l.start, "Cannot add further segments to vertical arrow. Ignoring it.");

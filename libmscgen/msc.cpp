@@ -531,15 +531,19 @@ double Msc::GetEntityMaxPosExp() const
  * @param [in] d The name of the destination entity.
  * @param [in] fw True if the arrow is defined as 's->d'; false if 'd<-s'
  * @param [in] dl The place where `d` is mentioned in the input file.
- * @returns The created object (with the right default style).*/
-ArcArrow *Msc::CreateArcArrow(EArcType t, const char*s, const FileLineColRange &sl,
+ * @param [in] lost Whether the user indicated a message loss with an asterisk
+ *                  and where.
+ * @returns The created object(with the right default style).*/
+ArcArrow *Msc::CreateArcArrow(ArrowSegmentData data, const char*s, const FileLineColRange &sl,
                               const char*d, bool fw, const FileLineColRange &dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
+        return new ArcDirArrow(data, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
+    if (data.lost != EArrowLost::NOT)
+        Error.Error(data.lost_pos.CopyTo().start, "No support for arrows pointing to the same entity in this version. Ignoring asterisk.");
     StyleCoW style = Contexts.back().styles["arrow"];
     style.write().text.Apply("\\pr");
-    return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
+    return new ArcSelfArrow(data.type, s, sl, this, style, selfArrowYSize);
 }
 
 ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
@@ -1201,11 +1205,11 @@ void Msc::PostParseProcess(Canvas &canvas)
         //Otherwise, generate a new entity command at that location
         ArcList::iterator i = Arcs.begin();
         //Skip over the titles and chart options
-        while ((*i)->type==MSC_ARC_ARCLIST || (*i)->type==MSC_COMMAND_TITLE ||
-               (*i)->type==MSC_COMMAND_SUBTITLE)
+        while (i!=Arcs.end() && ((*i)->type==MSC_ARC_ARCLIST || (*i)->type==MSC_COMMAND_TITLE ||
+               (*i)->type==MSC_COMMAND_SUBTITLE))
             i++;
         //Insert a new CommandEntity if we have none
-        if ((*i)->type != MSC_COMMAND_ENTITY) {
+        if (i==Arcs.end() || (*i)->type != MSC_COMMAND_ENTITY) {
             CommandEntity *ce = new CommandEntity(new EntityAppHelper, this, false);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);

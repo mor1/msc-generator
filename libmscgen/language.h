@@ -130,11 +130,12 @@ typedef union YYSTYPE
     CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
     CHAR_IF_CSH(ESide)            eside;
+	CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
 
 
 
 /* Line 2663 of glr.c  */
-#line 138 "language.h"
+#line 139 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 #endif

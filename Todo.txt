@@ -59,6 +59,10 @@ FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 
 
+In 3.6.2
+CHANGED: Migrated to VS 2013 (use new C++11 features)
+CHANGED: Allows unquoted specification of colors, like 'blue+50', 'green+20', 'red,50+20', '100,20,23' or '20,50,230,50'.
+
 In 3.6.1
 FIXED: automatic adjustments so no element is outside the chart even for fixed hscale 
 FIXED: Not hints for comment.wrap, comment.text;

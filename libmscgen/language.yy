@@ -111,6 +111,7 @@
     CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
     CHAR_IF_CSH(ESide)            eside;
+	CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
 };
 
 %type <msc>        msc
@@ -125,14 +126,16 @@
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
-%type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
-                   relation_to_cont relation_from_cont relation_bidir_cont
+%type <arctype>    relation_to_no_loss relation_from_no_loss relation_bidir_no_loss empharcrel_straight
+                   relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
                    TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
                    TOK_REL_SOLID_FROM TOK_REL_DOUBLE_FROM TOK_REL_DASHED_FROM
                    TOK_REL_DOTTED_FROM
                    TOK_REL_SOLID_BIDIR TOK_REL_DOUBLE_BIDIR TOK_REL_DASHED_BIDIR
                    TOK_REL_DOTTED_BIDIR
                    TOK_SPECIAL_ARC TOK_EMPH
+%type <arcsegdata> relation_to relation_from relation_bidir
+                   relation_to_cont relation_from_cont relation_bidir_cont
 %type <eside>      comment_command
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
@@ -2377,13 +2380,19 @@ vertxpos: TOK_AT entity_string
 };
 
 
-empharcrel_straight: TOK_EMPH | relation_to | relation_bidir;
+empharcrel_straight: TOK_EMPH 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+  #endif
+}
+                   | relation_to_no_loss 
+				   | relation_bidir_no_loss;
 
 vertrel_no_xpos: entity_string empharcrel_straight entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.AddCSH(@3, COLOR_MARKERNAME);
     csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAtAndBefore(@2, @3, HINT_MARKER);
@@ -2396,7 +2405,6 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
        | empharcrel_straight entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.CheckHintAtAndBefore(@1, @2, HINT_MARKER);
   #else
@@ -2408,7 +2416,6 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
@@ -2419,17 +2426,15 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
        | empharcrel_straight
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
     $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, &msc);
   #endif
 }
-       | entity_string relation_from entity_string
+       | entity_string relation_from_no_loss entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.AddCSH(@3, COLOR_MARKERNAME);
     csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAtAndBefore(@2, @3, HINT_MARKER);
@@ -2439,10 +2444,9 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
     free($1);
     free($3);
 }
-       | relation_from entity_string
+       | relation_from_no_loss entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.CheckHintAtAndBefore(@1, @2, HINT_MARKER);
   #else
@@ -2450,11 +2454,10 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($2);
 }
-       | entity_string relation_from
+       | entity_string relation_from_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
@@ -2462,10 +2465,9 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($1);
 }
-       | relation_from
+       | relation_from_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
     $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, &msc);
@@ -2538,7 +2540,6 @@ arcrel_to:    entity_string relation_to entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2550,7 +2551,6 @@ arcrel_to:    entity_string relation_to entity_string
             | relation_to entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
@@ -2563,7 +2563,6 @@ arcrel_to:    entity_string relation_to entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, true, MSC_POS(@2));
@@ -2573,7 +2572,6 @@ arcrel_to:    entity_string relation_to entity_string
             | arcrel_to relation_to_cont entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAt(@3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2584,7 +2582,6 @@ arcrel_to:    entity_string relation_to entity_string
             | arcrel_to relation_to_cont
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
   #else
     $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
@@ -2597,7 +2594,6 @@ arcrel_from:    entity_string relation_from entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2609,7 +2605,6 @@ arcrel_from:    entity_string relation_from entity_string
              | relation_from entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
@@ -2622,7 +2617,6 @@ arcrel_from:    entity_string relation_from entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, MSC_POS(@2), $1, false, MSC_POS(@1));
@@ -2632,7 +2626,6 @@ arcrel_from:    entity_string relation_from entity_string
              | arcrel_from relation_from_cont entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2643,7 +2636,6 @@ arcrel_from:    entity_string relation_from entity_string
              | arcrel_from relation_from_cont
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
@@ -2655,7 +2647,6 @@ arcrel_bidir:    entity_string relation_bidir entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2667,7 +2658,6 @@ arcrel_bidir:    entity_string relation_bidir entity_string
             | relation_bidir entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
@@ -2680,7 +2670,6 @@ arcrel_bidir:    entity_string relation_bidir entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==EOF);
   #else
     $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, true, MSC_POS(@2));
@@ -2690,7 +2679,6 @@ arcrel_bidir:    entity_string relation_bidir entity_string
             | arcrel_bidir relation_bidir_cont entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
@@ -2701,20 +2689,272 @@ arcrel_bidir:    entity_string relation_bidir entity_string
             | arcrel_bidir relation_bidir_cont
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
   #endif
 };
 
-relation_to:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO | TOK_REL_DOTTED_TO;
-relation_from: TOK_REL_SOLID_FROM | TOK_REL_DOUBLE_FROM | TOK_REL_DASHED_FROM | TOK_REL_DOTTED_FROM;
-relation_bidir: TOK_REL_SOLID_BIDIR | TOK_REL_DOUBLE_BIDIR | TOK_REL_DASHED_BIDIR | TOK_REL_DOTTED_BIDIR;
+relation_to_no_loss:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO | TOK_REL_DOTTED_TO;
+relation_from_no_loss: TOK_REL_SOLID_FROM | TOK_REL_DOUBLE_FROM | TOK_REL_DASHED_FROM | TOK_REL_DOTTED_FROM;
+relation_bidir_no_loss: TOK_REL_SOLID_BIDIR | TOK_REL_DOUBLE_BIDIR | TOK_REL_DASHED_BIDIR | TOK_REL_DOTTED_BIDIR;
 
-relation_to_cont : relation_to | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
-relation_from_cont : relation_from | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
-relation_bidir_cont : relation_bidir | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_to_cont_no_loss: relation_to_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_from_cont_no_loss: relation_from_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_bidir_cont_no_loss: relation_bidir_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+
+relation_to: relation_to_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_to_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_to_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_to_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
+relation_from: relation_from_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_from_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_from_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_from_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
+relation_bidir: relation_bidir_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_bidir_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_bidir_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_bidir_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
+relation_to_cont: relation_to_cont_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_to_cont_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_to_cont_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_to_cont_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
+relation_from_cont: relation_from_cont_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_from_cont_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_from_cont_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_from_cont_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
+relation_bidir_cont: relation_bidir_cont_no_loss 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::NOT;
+  #endif
+}
+             | TOK_ASTERISK relation_bidir_cont_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+}
+             | relation_bidir_cont_no_loss TOK_ASTERISK 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@$, COLOR_SYMBOL);
+  #else
+	($$).type = $1;
+	($$).lost = EArrowLost::AT_DST;
+	($$).lost_pos.SetFrom(MSC_POS(@2));
+  #endif
+}
+             | TOK_ASTERISK relation_bidir_cont_no_loss TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1 + @2, COLOR_SYMBOL);
+	csh.AddCSH_Error(@3, "One arrow may be lost only once. Use a single asterisk ('*').");
+  #else
+	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+	($$).type = $2;
+	($$).lost = EArrowLost::AT_SRC;
+	($$).lost_pos.SetFrom(MSC_POS(@1));
+  #endif
+};
+
 
 extvertxpos: extvertxpos_no_string
              | entity_string
