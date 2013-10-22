@@ -88,6 +88,19 @@ struct FileLineColRange {
     bool operator <(const FileLineColRange &o) const {return start==o.start ? end<o.end : start<o.start;}
 };
 
+/** A plain old data type for ranges */
+struct PODFileLineColRange
+{
+    int start_file;
+    unsigned start_line;
+    unsigned start_col;
+    int end_file;
+    unsigned end_line;
+    unsigned end_col;
+    void SetFrom(const FileLineColRange &o) { start_file = o.start.file; start_line = o.start.line; start_col = o.start.col; end_file = o.end.file; end_line = o.end.line; end_col = o.end.col; }
+    FileLineColRange CopyTo() { FileLineColRange p; p.start.file = start_file; p.start.line = start_line; p.start.col = start_col; p.end.file = end_file; p.end.line = end_line; p.end.col = end_col; return p; }
+};
+
 /** Returns which of two ranges are shorter.*/
 struct file_line_range_length_compare
 {

@@ -96,6 +96,21 @@ enum EDirType {
     MSC_DIR_BIDIR          ///<A bidirectional arrow.
 };
 
+/** Indicates if the message was lost and where. */
+enum class EArrowLost {
+    NOT,     ///<The arrow is not lost
+    AT_SRC,  ///<The arrow is lost close to the src entity
+    AT_DST   ///<The arrow is lost close to the dst entity
+};
+
+/** Collects data about an arrow segments (dashed/solid/dotted/double and 
+ * whether it indicates a lost message using an asterisk */
+struct ArrowSegmentData {
+    EArcType   type;
+    EArrowLost lost;
+    PODFileLineColRange lost_pos;
+};
+
 class EntityDistanceMap;
 struct ArcSignature;
 
@@ -333,11 +348,13 @@ public:
     /** Constructor used only when converting an ArcBox to and ArcBigArrow*/
     ArcArrow(EArcType t, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(t, c, al) {}
     /** Add a new arrow segment. Called during processing.
-     * @param t The type of the new arrow segment 
-     * @param m The name of the entity (can be NULL when omitted by user)
-     * @param ml The location of the name in the input file.
-     * @param l The location of the whole added segment (for error messages)*/
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l) = 0;
+     * @param [in] data The type of the new arrow segment, indication of amy 
+     *                  potential loss indication and its location.
+     * @param [in] m The name of the entity (can be NULL when omitted by user)
+     * @param [in] ml The location of the name in the input file.
+     * @param [in] l The location of the whole added segment (for error messages)*/
+    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml, 
+                                 const FileLineColRange &l) = 0;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -365,7 +382,8 @@ protected:
 public:
     ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl,
         Msc *msc, const StyleCoW &, double ys);
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
+    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                                 const FileLineColRange &l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -392,6 +410,8 @@ protected:
     std::vector<LineAttr>    segment_lines;        ///<Line types of segments. Set during AddAttributeList() from `segment_types`.
     const bool               specified_as_forward; ///<True if user specified "a->b", false if "b<-a"
     double                   slant_angle;          ///<The angle of the arrow. Taken from the context, may be modified by style and/or attribute.
+    int                      lost_at;              ///<Index of where the message was lost: -2=none, -1=src, 0..n = at a midpoint, n=dst; where n is the size of 'middle'.
+    bool                     lost_is_forward;      ///<True if the loss was at the fw side of 'lost_at', false if at the backwards size
 
     mutable double sin_slant; ///<Pre-calculated value of `slant_angle`
     mutable double cos_slant; ///<Pre-calculated value of `slant_angle`
@@ -416,11 +436,13 @@ public:
      * @param msc The char we add the arrow to
      * @param fw True if declared as a->b and false if b<-a
      * @param st The style to apply*/
-    ArcDirArrow(EArcType t, const char *s, const FileLineColRange &sl,
-        const char *d, const FileLineColRange &dl, Msc *msc, bool fw, const StyleCoW &st);
-    /** Constructor used to convert a collapsed ArcBox to an ArcBigArrow*/
+    ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineColRange &sl,
+                const char *d, const FileLineColRange &dl, Msc *msc, bool fw, 
+                const StyleCoW &st);
+    /** Constructor used while converting a collapsed ArcBox to an ArcBigArrow*/
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
-    virtual ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
+    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                                 const FileLineColRange &l);
     virtual void AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -551,7 +573,8 @@ protected:
 public:
     /** Regular constructor with two marker names (one can be NULL)*/
     ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
-    ArcArrow *AddSegment(EArcType t, const char *m, const FileLineColRange &ml, const FileLineColRange &l);
+    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                                 const FileLineColRange &l);
     /** Add the parsed horizontal position (starting with the AT keyword) */
     ArcVerticalArrow* AddXpos(VertXPos *p);
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;

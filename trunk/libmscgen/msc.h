@@ -391,7 +391,7 @@ public:
     bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote || e==EndEntity;}
     /** Moves the contents of `a` to the end of the arc list of the chart*/
     void AddArcs(ArcList *a) {if (!a) return; Arcs.splice(Arcs.end(), *a); delete a;}
-    ArcArrow *CreateArcArrow(EArcType t, const char*s, const FileLineColRange &sl,
+    ArcArrow *CreateArcArrow(ArrowSegmentData data, const char*s, const FileLineColRange &sl,
                              const char*d, bool fw, const FileLineColRange &dl);
     /** Create a block arrow from an arrow. Returns null, emits an error if not possible*/
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
