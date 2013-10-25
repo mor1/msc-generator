@@ -1019,7 +1019,7 @@ void CommandHSpace::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
-    StringFormat::AttributeNames(csh);
+    StringFormat::AttributeNames(csh, "text.");
 }
 
 bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
@@ -1109,7 +1109,7 @@ void CommandVSpace::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable", HINT_ATTR_NAME));
-    StringFormat::AttributeNames(csh);
+    StringFormat::AttributeNames(csh, "text.");
 }
 
 bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
@@ -2686,7 +2686,7 @@ void CommandEndNoteSeparator::PostPosProcess(Canvas &/*cover*/)
 {
     //Stop the potential fill of the side comment lanes
     StyleCoW no_fill; //empty style
-    no_fill.write().fill.color.second.valid = false;
+    no_fill.write().fill.color.second.type = ColorType::INVALID;
     chart->LNote->status.ApplyStyle(yPos, no_fill);
     chart->RNote->status.ApplyStyle(yPos, no_fill);
 

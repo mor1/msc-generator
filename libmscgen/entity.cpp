@@ -705,7 +705,8 @@ void EntityApp::Draw(Canvas &canvas)
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
     canvas.Shadow(b, style.read().line, style.read().shadow);
-    if (style.read().fill.color.first && style.read().fill.color.second.valid) {
+    if (style.read().fill.color.first && style.read().fill.color.second.type!=ColorType::INVALID) {
+        _ASSERT(style.read().fill.color.second.type==ColorType::COMPLETE);
         b.Expand(-lw+style.read().line.width.second);
         line2.radius.second += -lw+style.read().line.width.second; //only decreases radius
         canvas.Fill(b, style.read().line, style.read().fill);

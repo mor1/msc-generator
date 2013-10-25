@@ -210,7 +210,7 @@ void CurrentState::Apply(const ColorSyntaxAppearance &appearance)
         color.g = appearance.g;
         color.b = appearance.b;
         color.a = 255;
-        color.valid = true;
+        color.type = ColorType::COMPLETE;
     }
 }
 
@@ -221,7 +221,7 @@ string CurrentState::Print(bool fakeDash) const
     if (!(effects & COLOR_FLAG_BOLD)) ret += fakeDash?"\377b":"\\b";
     if (!(effects & COLOR_FLAG_ITALICS)) ret += fakeDash?"\377i":"\\i";
     if (!(effects & COLOR_FLAG_UNDERLINE)) ret += fakeDash?"\377u":"\\u";
-    if (color.valid) ret += (fakeDash?"\377c":"\\c") + color.Print();
+    if (color.type!=ColorType::INVALID) ret += (fakeDash?"\377c":"\\c") + color.Print();
     return ret;
 }
 
@@ -367,7 +367,7 @@ void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *nam
     }
 }
 
-void Csh::AddCSH_AttrColorValue(const CshPos& pos, const char * /*name*/)
+void Csh::AddCSH_AttrColorValue(const CshPos& pos)
 {
     AddCSH(pos, COLOR_ATTRVALUE);
 }
@@ -460,7 +460,17 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
 "compressable", "xsize", "ysize", "size", "space", "angle",
-"note.pointer", "note.pos", "note.width", ""};
+"note.pointer", "note.pos", "note.width", 
+"lost.line.color", "lost.line.type", "lost.line.width", "lost.line.corner", "lost.line.radius", 
+"x.line.color", "x.line.type", "x.line.width", "x.line.corner", "x.line.radius", "x.size",
+"lost.arrow.size", "lost.arrow.type", "lost.arrow.starttype", "lost.arrow.midtype",
+"lost.arrow.endtype", "lost.arrow.color", "lost.arrow.xmul", "lost.arrow.ymul",
+"lost.text.color", "lost.text.ident", "ident", "lost.text.format",
+"lost.text.font.face", "lost.text.font.type",
+"lost.text.bold", "lost.text.italic", "lost.text.underline",
+"lost.text.gap.up", "lost.text.gap.down", "lost.text.gap.left", "lost.text.gap.right",
+"lost.text.gap.spacing", "lost.text.size.normal", "lost.text.size.small", "lost.text.wrap",
+""};
 
 /** Names of symbols for coloring
  *

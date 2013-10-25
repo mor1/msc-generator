@@ -819,15 +819,8 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", HINT_ATTR_NAME));
 
-    static const char names[][ENUM_STRING_LEN] =
-    {"", "comment.text.color", "comment.text.ident", "comment.text.format", 
-    "comment.text.font.face", "comment.text.font.type", 
-    "comment.text.bold", "comment.text.italic", "comment.text.underline", 
-    "comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
-    "comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-
-    StringFormat::AttributeNames(csh);
+    StringFormat::AttributeNames(csh, "comment.text.");
+    StringFormat::AttributeNames(csh, "text.");
     if (designOnly) return;
     
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", HINT_ATTR_NAME));

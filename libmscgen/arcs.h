@@ -339,6 +339,54 @@ public:
     virtual void PostPosProcess(Canvas &cover);
 };
 
+/** Holds a horizontal position, as specified by the user.
+* (Apologies for the name.)
+* Can encode the following language fragments:
+* 1. AT @<entity> [@<offset>]
+* 2. AT @<entity> - @<entity> [@<offset>]
+* 3. AT @<entity> -|--|+|++ [@<offset>]
+*
+* The first will result in type POS_AT, the second in POS_CENTER, while the third in
+* POS_LEFT_SIDE, POS_LEFT_BY, POS_RIGHT_SIDE or POS_RIGHT_BY, resp. */
+struct VertXPos
+{
+    /** AT is at the entity
+    ** CENTER is between the two entities
+    ** BY is immediately at the line, but not overlapping it
+    ** SIDE is immediately at the line, arrow tips overlap the line */
+    /** Options for horizontal position in relation to one or two entities */
+    enum EPosType
+    {
+        POS_INVALID = 0, ///<Invalid value
+        POS_AT,        ///<At the entity
+        POS_CENTER,    ///<Halfway between two entities
+        POS_LEFT_BY,   ///<Immediately left by the entity line, but not overlapping it.
+        POS_LEFT_SIDE, ///<immediately left by the line, arrow tips overlap the line.
+        POS_RIGHT_BY,  ///<Immediately right by the entity line, but not overlapping it.
+        POS_RIGHT_SIDE ///<immediately right by the line, arrow tips overlap the line.
+    };
+
+    bool valid;               ///<True if the position is valid
+    EPosType pos;             ///<The type of the position
+    EIterator entity1;        ///<The first (or only one) entity
+    EIterator entity2;        ///<The second entity, used only for POS_CENTER
+    FileLineColRange e1line;  ///<Location of the mention of the first entity in the input line (inside this vertpos fragment)
+    FileLineColRange e2line;  ///<Location of the mention of the second entity in the input line (inside this vertpos fragment)
+    double offset;            ///<An arbitrary user specified horizontal offset on top of the poition defined by `pos`
+
+    /** Create a position with 2 entities (always POS_CENTER) */
+    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, const char *e2, const FileLineColRange &e2l, double off = 0);
+    /** Create a position with one entity (must not be POS_CENTER) */
+    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, EPosType p = POS_AT, double off = 0);
+    /** Create (yet) invalid object */
+    explicit VertXPos(Msc&m);
+    /** Calculate the x coordinate of the middle of the element we specify the location for (only after entities are placed)
+    * @param m The chart
+    * @param width The width of the object
+    * @param gap Specifies how much gap between the entity and the object for POS_XXX_BY. Defaults to `m.hscaleAutoXGap`*/
+    double CalculatePos(Msc &m, double width = 0, double gap = -1) const;
+};
+
 /** The base class for all arrows: Self, Dir, Block and Vertical*/
 class ArcArrow : public ArcLabelled
 {
@@ -355,6 +403,7 @@ public:
      * @param [in] l The location of the whole added segment (for error messages)*/
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml, 
                                  const FileLineColRange &l) = 0;
+    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) = 0;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -384,6 +433,7 @@ public:
         Msc *msc, const StyleCoW &, double ys);
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                                  const FileLineColRange &l);
+    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -412,6 +462,9 @@ protected:
     double                   slant_angle;          ///<The angle of the arrow. Taken from the context, may be modified by style and/or attribute.
     int                      lost_at;              ///<Index of where the message was lost: -2=none, -1=src, 0..n = at a midpoint, n=dst; where n is the size of 'middle'.
     bool                     lost_is_forward;      ///<True if the loss was at the fw side of 'lost_at', false if at the backwards size
+    FileLineCol              linenum_asterisk;     ///<The line and column number of the asterisk marking the loss. Invalid if none.
+    VertXPos                 lost_pos;             ///<The position of the loss symbol
+    FileLineCol              linenum_lost_at;      ///<The line and column number of the 'lost at' clause marking the loss. Invalid if none.
 
     mutable double sin_slant; ///<Pre-calculated value of `slant_angle`
     mutable double cos_slant; ///<Pre-calculated value of `slant_angle`
@@ -420,6 +473,7 @@ protected:
     mutable double sx_text;   ///<Calculated value of the left of the label (usually sx adjusted by arrowhead)
     mutable double dx_text;   ///<Calculated value of the right of the label (usually dx adjusted by arrowhead)
     mutable double cx_text;   ///<Calculated value of the middle of the label (usually middle of sx and dx)
+    mutable double cx_lost;   ///<Calculated value of the middle of the loss symbol (if any)
     mutable std::vector<double> xPos;        ///<X coordinates of arrowheads (sorted to increase, [0] is for left end of the arrow). Always the middle of the entity line.
     mutable std::vector<double> act_size;    ///<Activation size of the entities (sorted from left to right). ==0 if not active
     mutable std::vector<DoublePair> margins; ///<How much of the arrow line is covered by the arrowhead (sorted left to right), see ArrowHead::getWidths()
@@ -443,6 +497,7 @@ public:
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                                  const FileLineColRange &l);
+    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     virtual void AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -511,52 +566,6 @@ public:
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
-/** Holds a horizontal position, as specified by the user.
- * (Apologies for the name.)
- * Can encode the following language fragments:
- * 1. AT @<entity> [@<offset>]
- * 2. AT @<entity> - @<entity> [@<offset>]
- * 3. AT @<entity> -|--|+|++ [@<offset>]
- *
- * The first will result in type POS_AT, the second in POS_CENTER, while the third in
- * POS_LEFT_SIDE, POS_LEFT_BY, POS_RIGHT_SIDE or POS_RIGHT_BY, resp. */
-struct VertXPos {
-    /** AT is at the entity
-     ** CENTER is between the two entities
-     ** BY is immediately at the line, but not overlapping it
-     ** SIDE is immediately at the line, arrow tips overlap the line */
-    /** Options for horizontal position in relation to one or two entities */
-    enum EPosType {
-        POS_INVALID=0, ///<Invalid value
-        POS_AT,        ///<At the entity
-        POS_CENTER,    ///<Halfway between two entities
-        POS_LEFT_BY,   ///<Immediately left by the entity line, but not overlapping it.
-        POS_LEFT_SIDE, ///<immediately left by the line, arrow tips overlap the line.
-        POS_RIGHT_BY,  ///<Immediately right by the entity line, but not overlapping it.
-        POS_RIGHT_SIDE ///<immediately right by the line, arrow tips overlap the line.
-    }; 
-
-    bool valid;               ///<True if the position is valid
-    EPosType pos;             ///<The type of the position
-    EIterator entity1;        ///<The first (or only one) entity
-    EIterator entity2;        ///<The second entity, used only for POS_CENTER
-    FileLineColRange e1line;  ///<Location of the mention of the first entity in the input line (inside this vertpos fragment)
-    FileLineColRange e2line;  ///<Location of the mention of the second entity in the input line (inside this vertpos fragment)
-    double offset;            ///<An arbitrary user specified horizontal offset on top of the poition defined by `pos`
-
-    /** Create a position with 2 entities (always POS_CENTER) */
-    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, const char *e2, const FileLineColRange &e2l, double off=0);
-    /** Create a position with one entity (must not be POS_CENTER) */
-    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, EPosType p=POS_AT, double off=0);
-    /** Create (yet) invalid object */
-    explicit VertXPos(Msc&m);
-    /** Calculate the x coordinate of the middle of the element we specify the location for (only after entities are placed) 
-     * @param m The chart
-     * @param width The width of the object
-     * @param gap Specifies how much gap between the entity and the object for POS_XXX_BY. Defaults to `m.hscaleAutoXGap`*/
-    double CalculatePos(Msc &m, double width=0, double gap=-1) const;
-};
-
 /** A vertical */
 class ArcVerticalArrow : public ArcArrow
 {
@@ -575,6 +584,7 @@ public:
     ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                                  const FileLineColRange &l);
+    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     /** Add the parsed horizontal position (starting with the AT keyword) */
     ArcVerticalArrow* AddXpos(VertXPos *p);
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;

@@ -1296,7 +1296,8 @@ void Canvas::Transform_FlipHorizontal(double y)
 
 void Canvas::SetColor(ColorType pen)
 {
-	if (pen.valid) {
+	if (pen.type!=ColorType::INVALID) {
+        _ASSERT(pen.type==ColorType::COMPLETE);
         if (AvoidTransparency())
             pen = pen.FlattenAlpha();
         cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
@@ -1305,7 +1306,7 @@ void Canvas::SetColor(ColorType pen)
 
 void Canvas::SetLineAttr(LineAttr line)
 {
-	if (line.color.first && line.color.second.valid)
+	if (line.color.first && line.color.second.type!=ColorType::INVALID)
         SetColor(line.color.second);
     if (line.width.first)
         cairo_set_line_width(cr, line.width.second + (avoid_linewidth_1 ? 0.01 : 0.0));
@@ -1458,7 +1459,9 @@ void Canvas::Line(const Edge& edge, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    if (line.type.second == LINE_NONE || 
+        line.color.second.type==ColorType::INVALID || 
+        line.color.second.a==0) return;
     SetLineAttr(line);
     const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
@@ -1495,7 +1498,9 @@ void Canvas::Line(const Block &b, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+	if (line.type.second == LINE_NONE || 
+        line.color.second.type==ColorType::INVALID || 
+        line.color.second.a==0) return;
     if (b.IsInvalid()) return;
     SetLineAttr(line);
     const double spacing = line.Spacing();
@@ -1549,7 +1554,9 @@ void Canvas::Line(const Contour &c, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+	if (line.type.second == LINE_NONE || 
+        line.color.second.type==ColorType::INVALID || 
+        line.color.second.a==0) return;
     if (c.IsEmpty()) return;
     SetLineAttr(line);
     const double spacing = line.Spacing();
@@ -1742,7 +1749,8 @@ void Canvas::Fill(const Block &b, const FillAttr &fill)
 {
     _ASSERT(candraw);
     _ASSERT(fill.IsComplete());
-    if (!fill.color.second.valid || fill.color.second.a==0) return;
+    if (fill.color.second.type==ColorType::INVALID || 
+        fill.color.second.a==0) return;
 	const double max_extent = std::max(fabs(b.x.till-b.x.from), fabs(b.y.till-b.y.from));
 	//If gradients are to be drawn, we fake them only if no alpha is present
 	//If we draw somewhat transparent, we will fall back to images anyway,
@@ -1883,7 +1891,8 @@ void Canvas::Shadow(const Block &b, const LineAttr &line, const ShadowAttr &shad
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete() && line.radius.first);
     if (shadow.offset.second==0) return;
-	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
+    if (shadow.color.second.type==ColorType::INVALID || 
+        shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
     Contour c = line.CreateRectangle_OuterEdge(b);
     c.Expand(-line.width.second);

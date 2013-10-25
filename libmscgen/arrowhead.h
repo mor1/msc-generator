@@ -135,7 +135,7 @@ public:
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     /** Add a list of attribute names we accept to `csh`.*/
-    static void AttributeNames(Csh &csh);
+    static void AttributeNames(Csh &csh, const string &prefix);
     /** Add a list of attribute values we accept for attribute `attr` to `csh`.*/
     static bool AttributeValues(const std::string &attr, Csh &csh, EArcArrowType t);
     /** Return the type of arrowhead at the end specified by `which`.*/

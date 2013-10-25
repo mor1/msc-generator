@@ -229,7 +229,8 @@ enum EAttrType {
 /** Describes the context of the use of a style or attribute.*/
 enum EStyleType {
     STYLE_STYLE,   ///<The attribute is to be applied to a style definition or the style is a user defined style
-    STYLE_DEFAULT, ///<The attribute is to be applied to a default style or the style is a default stlye such as "box" or "arrow" or "->"
+    STYLE_DEFAULT, ///<The attribute is to be applied to a default style or the style is a default stlye such as "box" or "arrow" and MUST be complete.
+    STYLE_DEF_ADD, ///<The style is an additional default style, such as "->" and does not have to be complete.
     STYLE_ARC,     ///<The attribute is to be applied to an arc or the style object is part of an arc describing it
     STYLE_OPTION   ///<The attribute is indeed a chart option
 };
@@ -382,7 +383,7 @@ public:
     const double * DashPattern(unsigned &num) const;
 
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
-    static void AttributeNames(Csh &csh);
+    static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 
@@ -521,7 +522,7 @@ public:
     FillAttr &operator +=(const FillAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const FillAttr &a) const;
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
-    static void AttributeNames(Csh &csh);
+    static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };

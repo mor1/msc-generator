@@ -27,10 +27,16 @@ using namespace std;
 //string may or may not have enclosing parenthesis
 ColorType::ColorType(const string&text)
 {
-    valid=false;
+    type = INVALID;
     size_t pos = 0;
     pos = text.find_first_not_of(" \t", pos);
     if (text[pos]=='(') pos++;
+    bool should_be_overlay = false;
+    if (text.length() > pos+1 & text[pos] == '>' && text[pos] == '>') {
+        pos += 2;
+        should_be_overlay = true;
+    }
+
     double fr, fg, fb, fa=0;
     int db = sscanf(text.c_str()+pos,"%lf,%lf,%lf,%lf", &fr, &fg, &fb, &fa);
     if (db<3) return;
@@ -47,7 +53,7 @@ ColorType::ColorType(const string&text)
     b = (unsigned char)fb;
     if (db==4) a = (unsigned char)fa;
     else a = 255;
-    valid = true;
+    type = should_be_overlay ? OVERLAY : COMPLETE;
 }
 
 ColorType::ColorType(unsigned p)
@@ -56,18 +62,41 @@ ColorType::ColorType(unsigned p)
     g = (((unsigned)(p))>>16)&255;
     b = (((unsigned)(p))>>8)&255;
     a = ((unsigned)(p))&255;
-    valid = true;
+    type = COMPLETE;
 }
 
 string ColorType::Print(void) const
 {
-    if (!valid) return "-invalid-";
+    if (type==INVALID) return "(0,0,0,0)";
     std::ostringstream ss;
-    ss<<"("<<(int)r<<","<<(int)g<<","<<(int)b;
+    ss<<"(";
+    if (type==OVERLAY) ss<<">>";
+    ss<<(int)r<<","<<(int)g<<","<<(int)b;
 	if (a!=255) ss<<","<<int(a);
 	ss<<")";
     return ss.str();
 }
+
+ColorType ColorType::operator +(const ColorType &o) const
+{
+    if (o.type==INVALID) return *this;
+    if (o.type==COMPLETE) return o;
+    if (type!=COMPLETE) return o; //if o is overlay we replace what we have
+    //now we are COMPLETE, o is OVERLAY, but all can be transparent
+    //http://en.wikipedia.org/wiki/Alpha_compositing#Alpha_blending
+    //this is DST, o is SRC
+    double ret_a = double(o.a) + double(a)*(255-o.a)/255.;
+    ColorType ret;
+    ret.type = (o.type==COMPLETE || type==COMPLETE) ? COMPLETE : OVERLAY;
+    if (ret_a < 1e-3)
+        return ColorType(0, 0, 0, 0, ret.type); //fully transparent
+    ret.a = (unsigned char)ret_a;
+    ret.r = (unsigned char)((o.r*o.a + r*a*(1-o.a)/255.)/ret_a);
+    ret.g = (unsigned char)((o.g*o.a + g*a*(1-o.a)/255.)/ret_a);
+    ret.b = (unsigned char)((o.b*o.a + b*a*(1-o.a)/255.)/ret_a);
+    return ret;
+}
+
 
 /** Add an element to the collection.
  *
@@ -82,7 +111,7 @@ bool ColorSet::AddColor(const std::string &alias, const std::string &colordef,
                         MscError &error, FileLineColRange linenum)
 {
     ColorType c = GetColor(colordef);
-    if (c.valid) {
+    if (c.type!=ColorType::INVALID) {
         this->operator[](alias) = c;
         return true;
     }
@@ -120,9 +149,14 @@ inline string remove_spaces(const string &s)
 ColorType ColorSet::GetColor(const std::string &s_original) const
 {
     string s = remove_spaces(s_original);
+    ColorType::EColorType type = ColorType::COMPLETE;
+    if (s.length()>2 && s[0]=='>' && s[1]=='>') {
+        type = ColorType::OVERLAY;
+        s.erase(0, 2);
+    }
     const_iterator i = find(s);
     //if #1, return the value for the color name
-    if (this->end()!=i) return i->second;
+    if (this->end()!=i) return ColorType(i->second, type);
 	string::size_type pos = s.find_first_of(",+-");
     //if no comma, + or - and not #1, return invalid color
     if (pos == string::npos) return ColorType();
@@ -131,6 +165,7 @@ ColorType ColorSet::GetColor(const std::string &s_original) const
     //if first element in collection, see if followidered by an alpha value and/or lightness
     if (this->end()!=i) {
         ColorType color = i->second;
+        color.type = type;
         if (s[pos] == ',') {
             double alpha;
             if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return ColorType();
@@ -152,24 +187,12 @@ ColorType ColorSet::GetColor(const std::string &s_original) const
         else return color.Darker(-lighter);
     }
     //if first element not in collection, it is either #5 or #6 (or completely invalid)
-    //ColorType constructor can handle these
-    return  ColorType(s);
+    //ColorType constructor can handle these, but we add OVERLAY type if we have 
+    //seen ++
+    ColorType ret(s);
+    if (ret.type!=ColorType::INVALID)
+        ret.type = type;
+    return ret;
 }
 
-/*ColorType &ColorType::operator +=(const ColorType &c)
-{
-    a = 255;
-    r = (unsigned(255-c.a)*r + unsigned(c.a)*c.r)/255;
-    g = (unsigned(255-c.a)*g + unsigned(c.a)*c.g)/255;
-    b = (unsigned(255-c.a)*b + unsigned(c.a)*c.b)/255;
-    return *this;
-    } */
-
-ColorType ColorType::operator +(const ColorType &c) const
-{
-    return ColorType((unsigned(255-c.a)*r + unsigned(c.a)*c.r)/255,
-                        (unsigned(255-c.a)*g + unsigned(c.a)*c.g)/255,
-                        (unsigned(255-c.a)*b + unsigned(c.a)*c.b)/255,
-                        255);
-}
 

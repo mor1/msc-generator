@@ -146,25 +146,26 @@
           to the ActiveEntities list. We have to ensure that just because of collapsing entities, 
           automatic numbering does not change. (Some numbers are skipped - those that are assigned to
           invisible arcs, such as arc between entities not shown.)
-       d) For boxes we check if the box is collapsed. If so, we replace content to ArcIndicator. 
+       d) For arrows that are specified as lost, we determine where the loss is happening.
+       e) For boxes we check if the box is collapsed. If so, we replace content to ArcIndicator. 
           Here we have to ensure that automatic numbering of arrows do not change as for step 4c above.
           We also have to ensure that for auto-sizing entities (e.g., " .. : label { <content> }") we
           keep the size as would be the case for a non-collapsed box. Also, content that does not show, but
           influence appearance (e.g., entity commands, page breaks, background changes, etc.) are 
           still kept as content and steps below (\#6-9) shall be performed on them. See \#h below.
-       e) Combine CommandEntities and ArcIndicators one after the other
-       f) Set up some extra variables
-       g) Print error messages. 
-       h) Decide on replacement. PostParseProcess have a "hide" parameter telling if this arc will be hidden 
+       f) Combine CommandEntities and ArcIndicators one after the other
+       g) Set up some extra variables
+       h) Print error messages. 
+       i) Decide on replacement. PostParseProcess have a "hide" parameter telling if this arc will be hidden 
           due to a collapsed box (and no other reason). In this case we return NULL, if the arc does not 
           want to receive #6-9 below. Else we return "this".
           An arc can also become hidden due to collapsed entities - this was determined in #4c above. If 
           the arc becomes hidden, it can get replaced to an ArcIndicator if the entity in question has its
           "indicator" in "running_style" set. Else we just retuen NULL.
-       i) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
+       j) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
           called from "Msc::PostParseProcessArcList".
-       j) For notes and comments, we decide who is the real target and attach the note/command here.
-       k) For labels, we replace the remaining escapes to actual values, except for "\r()"
+       k) For notes and comments, we decide who is the real target and attach the note/command here.
+       l) For labels, we replace the remaining escapes to actual values, except for "\r()"
           element references. Those will be done in FinalizeLabels().
        This function can only be called once, as it changes arcs (e.g., you do not want to
        increment numbering twice). Often the arc needs to be changed to a different one, in this case the
@@ -916,14 +917,22 @@ ArcSelfArrow::ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl
     src = chart->FindAllocEntity(s, sl);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(ArrowSegmentData /*data*/, const char * /*m*/, 
+ArcArrow *ArcSelfArrow::AddSegment(ArrowSegmentData /*data*/, const char * /*m*/, 
                                     const FileLineColRange &/*ml*/, const FileLineColRange &l)
 {
     if (!valid) return this; //display error only once
-    chart->Error.Error(l.start, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
+    chart->Error.Error(l.start, "Cannot add further segments to an arrow pointing to the same entity. Ignoring arrow.");
     valid = false;
     return this;
 }
+
+ArcArrow *ArcSelfArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
+{
+    chart->Error.Error(l.start, "Cannot add a loss position to an arrow pointing to the same entity. Ignoring 'at' clause.");
+    delete pos;
+    return this;
+}
+
 
 EDirType ArcSelfArrow::GetToucedEntities(class EntityList &el) const
 {
@@ -1083,7 +1092,7 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineCol
                          const StyleCoW &st) :
     ArcArrow(data.type, MscProgress::DIR_ARROW, msc, st), 
     linenum_src(sl.start), linenum_dst(dl.start), 
-    specified_as_forward(fw), slant_angle(0), lost_at(-2)
+    specified_as_forward(fw), slant_angle(0), lost_at(-2), lost_pos(*msc)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
@@ -1093,15 +1102,17 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineCol
     if (data.lost==EArrowLost::AT_SRC) {
         lost_at = -1;
         lost_is_forward = true;
+        linenum_asterisk = data.lost_pos.CopyTo().start;
     } else if (data.lost==EArrowLost::AT_DST) {
         lost_at = 0;
         lost_is_forward = false;
-    }
+        linenum_asterisk = data.lost_pos.CopyTo().start;
+    } 
 };
 
 ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al) :
-    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al), 
-    specified_as_forward(false), slant_angle(0), lost_at(-2)
+ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al),
+specified_as_forward(false), slant_angle(0), lost_at(-2), lost_pos(*ArcArrow::chart)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -1162,12 +1173,27 @@ ArcArrow * ArcDirArrow::AddSegment(ArrowSegmentData data, const char *m, const F
     } else if (data.lost==EArrowLost::AT_SRC) {
         lost_at = specified_as_forward ? middle.size()-1 : -1;
         lost_is_forward = true;
+        linenum_asterisk = data.lost_pos.CopyTo().start;
     } else if (data.lost==EArrowLost::AT_DST) {
         lost_at = specified_as_forward ? middle.size() : 0;
         lost_is_forward = false;
+        linenum_asterisk = data.lost_pos.CopyTo().start;
     }
     return this;
 }
+
+ArcArrow *ArcDirArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
+{
+    if (!pos || !pos->valid || pos->pos==VertXPos::POS_INVALID)
+        chart->Error.Error(l.start, "The 'at' clause is invalid. Ignoring it.");
+    else {
+        lost_pos = *pos;
+        linenum_lost_at = l.start;
+    }
+    delete pos;
+    return this;
+}
+
 
 void ArcDirArrow::AddAttributeList(AttributeList *l)
 {
@@ -1372,6 +1398,34 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
         act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     act_size.push_back(std::max(0., (*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
+
+    //If the message are lost and the user specified no 'at' clause,
+    //fill in which entities it is lost between.
+    //After this we rely only on 'lost_pos'
+    if (!lost_pos.valid || lost_pos.pos==VertXPos::POS_INVALID) {
+        if (lost_at > -2) {
+            lost_pos.valid = true;
+            lost_pos.pos = VertXPos::POS_CENTER;
+            lost_pos.offset = 0;
+            lost_pos.e1line.MakeInvalid();
+            lost_pos.e2line.MakeInvalid();
+
+            lost_pos.entity1 = lost_at == -1 ? src : unsigned(lost_at) == middle.size() ? dst : middle[lost_at];
+            lost_pos.entity2 = lost_pos.entity1;
+            //find next (or prev) active entity. If at end (or beginning) use dst (or src)
+            //which will in this case be RSide (or LSide)
+            if (lost_is_forward) {
+                lost_pos.entity2++;
+                if (lost_pos.entity2 ==  chart->ActiveEntities.end())
+                    lost_pos.entity2 = dst;
+            } else {
+                lost_pos.entity2--;
+                if (lost_pos.entity2 ==  chart->ActiveEntities.end())
+                    lost_pos.entity2 = src;
+            }
+        } else //when lost_at==-2 
+            lost_pos.valid = false; //make sure this field is false
+    }
     return this;
 }
 
@@ -1451,6 +1505,17 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     area.clear();
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    //Check if the loss happens in-between (untransformed) sx and dx
+    if (lost_pos.valid) {
+        cx_lost = lost_pos.CalculatePos(*chart, 0, 1.5);
+        if (cx_lost < std::min(sx, dx) || std::max(sx, dx) < cx_lost) {
+            chart->Error.Error(linenum_lost_at.IsInvalid() ? this->file_pos.start : linenum_lost_at,
+                               "The position of the loss is " + 
+                               std::string(cx_lost < std::min(sx, dx)?"left":"right") +
+                               " of the arrow. Ignoring it.");
+            lost_pos.valid = false;
+        }
+    }
     //convert dx to transformed space
     if (slant_angle)
         dx = sx + (dx-sx)/cos_slant;
@@ -1809,6 +1874,13 @@ ArcBase* ArcBigArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
                                        Numbering &number, Element **target)
 {
     if (!valid) return NULL;
+    //Check that we have no loss specified
+    if (lost_at > -2)
+        chart->Error.Error(linenum_asterisk, "No support for message loss with block arrows. Ignoring asterisk.");
+    if (lost_pos.valid && lost_pos.pos != VertXPos::POS_INVALID)
+        chart->Error.Error(linenum_lost_at, "No support for message loss with block arrows. Ignoring 'lost at' clause.");
+    lost_pos.valid = false;
+    lost_at = -2;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
     ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, target);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
@@ -2127,6 +2199,14 @@ ArcArrow *ArcVerticalArrow::AddSegment(ArrowSegmentData /*data*/, const char * /
     if (!valid) return this; //display error only once
     chart->Error.Error(l.start, "Cannot add further segments to vertical arrow. Ignoring it.");
     valid = false;
+    return this;
+}
+
+ArcArrow *ArcVerticalArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
+{
+    _ASSERT(0);
+    chart->Error.Error(l.start, "Internal error. Ignoring 'at' clause.");
+    delete pos;
     return this;
 }
 
@@ -4360,10 +4440,12 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     area_important = area;
     const double lw = style.read().line.LineWidth();
     //Add a cover block for the line, if one exists
-    if (!title && style.read().line.type.second != LINE_NONE && style.read().line.color.second.valid && style.read().line.color.second.a>0)
+    if (!title && style.read().line.type.second != LINE_NONE && 
+        style.read().line.color.second.type!=ColorType::INVALID && 
+        style.read().line.color.second.a>0)
         area += Block(chart->GetDrawing().x.from + line_margin, chart->GetDrawing().x.till - line_margin,
                       centerline - style.read().line.LineWidth()*2, centerline + style.read().line.LineWidth()*2);
-    else if (title && (style.read().line.type.second != LINE_NONE || style.read().fill.color.second.valid))
+    else if (title && (style.read().line.type.second != LINE_NONE || style.read().fill.color.second.type!=ColorType::INVALID))
         area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
                       y-lw, y+wh.y+lw);
     else if (area.IsEmpty())

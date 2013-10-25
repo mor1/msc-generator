@@ -33,6 +33,9 @@
 #include <algorithm>
 #include "color.h"
 
+/** This message is given when a user specifies multiple asterisks in an arrow.*/
+#define MULTIPLE_ASTERISK_ERROR_MSG "One arrow may be lost only once. Use a single asterisk ('*')."
+
 /** A range inside an input file. */
 struct CshPos 
 {
@@ -275,6 +278,7 @@ public:
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
     bool                              addMarkersAtEnd;///<Set to true if at the end of the csh parsing we shall add the name of the markers to the hint list.
+    unsigned                          asteriskNo;     ///<Number of asterisks inside an arrow spec so far.
     /** @}*/
     /** @name Input parameters to the hint lookup process
      * @{  */
@@ -301,7 +305,7 @@ public:
     void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
     void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
-    void AddCSH_AttrColorValue(const CshPos& pos, const char *name); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
+    void AddCSH_AttrColorValue(const CshPos& pos); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
     void AddCSH_StyleOrAttrName(const CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
     void AddCSH_EntityName(const CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
     void AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
