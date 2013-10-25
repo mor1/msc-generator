@@ -79,22 +79,29 @@ class MscStyle
 protected:
     friend class Context;
     MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
-             bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n);
+             bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n,
+             bool lo);
 public:
     LineAttr line;     ///<The line attributes
     LineAttr vline;    ///<The vline attributes
     FillAttr fill;     ///<The fill attributes
     FillAttr vfill;    ///<The vfill attributes
     ShadowAttr shadow; ///<The shadow attributes
-    ArrowHead arrow;      ///<The arrow attributes
-    StringFormat text;    ///<The text attributes
+    ArrowHead arrow;   ///<The arrow attributes
+    StringFormat text; ///<The text attributes
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
     std::pair<bool, ESide>         side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
     std::pair<bool, bool>          numbering;///<The value of the 'number' attribute. Not set if `first` is false.
     std::pair<bool, bool>          compress; ///<The value of the 'compress' attribute. Not set if `first` is false.
     std::pair<bool, bool>          indicator;///<The value of the 'indicator' attribute. Not set if `first` is false.
     std::pair<bool, bool>          makeroom; ///<The value of the 'makeroom' attribute (for verticals and notes). Not set if `first` is false.
-    NoteAttr note;     ///<The note attributes
+    NoteAttr note;         ///<The note attributes
+
+    LineAttr lost_line;    ///<The delta compared to "line" for lost part of the arrow
+    ArrowHead lost_arrow;  ///<The delta compared to "arrow" for the lost part of the arrow
+    StringFormat lost_text;///<The delta for the lost part of the text
+    LineAttr  lsym_line;   ///<The line of the loss symbol
+    std::pair<bool, EArrowSize>    lsym_size;        ///<The size of the loss symbol
 
     EStyleType type;       ///<The context in which this instance is used.
 
@@ -112,6 +119,7 @@ public:
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
     bool f_note;       ///<True if the style contains note attributes.
     ArrowHead::EArcArrowType f_arrow; ///<Shows which type of arrow attributes the style contains.
+    bool f_lost;       ///<Governs if the style has loss elements.
 
     MscStyle(EStyleType tt=STYLE_STYLE); //Has all the components, but is empty
     void Empty();

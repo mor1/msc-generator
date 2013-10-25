@@ -156,7 +156,7 @@ bool Attribute::CheckColor(const ColorSet &colors, MscError &error) const
 {
     if (type==MSC_ATTR_STRING) {
         ColorType c = colors.GetColor(value);
-        if (c.valid) return true;
+        if (c.type!=ColorType::INVALID) return true;
     }
     string ss;
     ss << "Unrecognized color name or definition: '" << value << "'. Ignoring attribute.";
@@ -216,11 +216,15 @@ bool Attribute::EnsureNotClear(MscError &error, EStyleType t) const
     if (type != MSC_ATTR_CLEAR) return true;
     string s;
     switch (t) {
-    case STYLE_STYLE: return true;
+    case STYLE_STYLE: 
+    case STYLE_DEF_ADD:
+        return true;
     case STYLE_ARC:
         s << "Can not unset element attribute '" << name << "'.";
         break;
     case STYLE_DEFAULT:
+        //text and loss attributes are delta, so they may be unset
+        if (StartsWith("text") || StartsWith("lost")) return true;
         s << "Can not unset attribute '" << name << "' of a default style.";
         break;
     case STYLE_OPTION:
@@ -261,7 +265,7 @@ LineAttr::LineAttr() :
 void LineAttr::MakeComplete()
 {
     if (!type.first) {type.first = true; type.second = LINE_SOLID;}
-    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
+    if (!color.first) { color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255; color.second.type = ColorType::COMPLETE; }
     if (!width.first) {width.first = true; width.second = 1;}
     if (!corner.first) {corner.first = true; corner.second = CORNER_NONE;}
     if (!radius.first) {radius.first = true; radius.second = 0;}
@@ -289,7 +293,12 @@ const double * LineAttr::DashPattern(unsigned &num) const
 LineAttr &LineAttr::operator +=(const LineAttr&a)
 {
     if (a.type.first) type = a.type;
-    if (a.color.first) color = a.color;
+    if (a.color.first) {
+        if (color.first)
+            color.second += a.color.second;
+        else
+            color.second = a.color.second;
+    }
     if (a.width.first) width = a.width;
     if (a.corner.first) corner = a.corner;
     if (a.radius.first) radius = a.radius;
@@ -339,8 +348,12 @@ bool LineAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
-        color.first = true;
+        if (color.first)
+            color.second += msc->Contexts.back().colors.GetColor(a.value);
+        else {
+            color.first = true;
+            color.second = msc->Contexts.back().colors.GetColor(a.value);
+        }
         return true;
     }
     if (a.EndsWith("type")) {
@@ -410,11 +423,11 @@ bool LineAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 }
 
 /** Add the attribute names we take to `csh`.*/
-void LineAttr::AttributeNames(Csh &csh)
+void LineAttr::AttributeNames(Csh &csh, const string &prefix)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "line.color", "line.type", "line.width", "line.radius", "line.corner", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    {"", "color", "type", "width", "radius", "corner", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before line type names in the hints popup list box.
@@ -735,8 +748,18 @@ void FillAttr::MakeComplete()
 
 FillAttr &FillAttr::operator +=(const FillAttr&a)
 {
-    if (a.color.first) color = a.color;
-    if (a.color2.first) color2 = a.color2;
+    if (a.color.first) {
+        if (color.first)
+            color.second += a.color.second;
+        else
+            color.second = a.color.second;
+    }
+    if (a.color2.first) {
+        if (color2.first)
+            color2.second += a.color2.second;
+        else
+            color2.second = a.color2.second;
+    }
     if (a.gradient.first) gradient = a.gradient;
     return *this;
 };
@@ -785,8 +808,12 @@ bool FillAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        c.second = msc->Contexts.back().colors.GetColor(a.value);
-        c.first = true;
+        if (c.first)
+            c.second = msc->Contexts.back().colors.GetColor(a.value);
+        else {
+            c.first = true;
+            c.second = msc->Contexts.back().colors.GetColor(a.value);
+        }
         return true;
     }
     if (a.EndsWith("gradient")) {
@@ -825,11 +852,11 @@ bool CshHintGraphicCallbackForGradient(Canvas *canvas, CshHintGraphicParam p)
 
 
 /** Add the attribute names we take to `csh`.*/
-void FillAttr::AttributeNames(Csh &csh)
+void FillAttr::AttributeNames(Csh &csh, const string &prefix)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "fill.color", "fill.color2", "fill.gradient", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    {"", "color", "color2", "gradient", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
@@ -878,8 +905,13 @@ void ShadowAttr::MakeComplete()
 
 ShadowAttr &ShadowAttr::operator +=(const ShadowAttr&a)
 {
-    if (a.color.first) color = a.color;
-	if (a.offset.first) offset = a.offset;
+    if (a.color.first) {
+        if (color.first)
+            color.second += a.color.second;
+        else
+            color.second = a.color.second;
+    }
+    if (a.offset.first) offset = a.offset;
 	if (a.blur.first) blur = a.blur;
     return *this;
 };
@@ -923,8 +955,12 @@ bool ShadowAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
-        color.first = true;
+        if (color.first)
+            color.second += msc->Contexts.back().colors.GetColor(a.value);
+        else {
+            color.first = true;
+            color.second = msc->Contexts.back().colors.GetColor(a.value);
+        }
         return true;
     }
     if (a.EndsWith("offset")) {

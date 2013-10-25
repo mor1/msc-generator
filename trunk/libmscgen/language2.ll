@@ -260,6 +260,7 @@ do {                                                \
 (?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
 (?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 (?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
+(?i:lost)      yylval_param->str = strdup(yytext); return TOK_LOST;
 (?i:left)      yylval_param->str = strdup(yytext); return TOK_AT_POS;
 (?i:center)    yylval_param->str = strdup(yytext); return TOK_AT_POS;
 (?i:right)     yylval_param->str = strdup(yytext); return TOK_AT_POS;

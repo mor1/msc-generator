@@ -177,12 +177,12 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
     return false;
 }
 
-void ArrowHead::AttributeNames(Csh &csh)
+void ArrowHead::AttributeNames(Csh &csh, const string &prefix)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"invalid", "arrow.type", "arrow.size", "arrow.color", "arrow.starttype", "arrow.midtype",
-     "arrow.endtype", "line.width", "arrow.xmul", "arrow.ymul", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    {"invalid", "type", "size", "color", "starttype", "midtype",
+     "endtype", "line.width", "xmul", "ymul", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before arrowhead type names for line arrows in the hints popup list box.

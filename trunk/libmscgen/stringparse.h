@@ -182,7 +182,7 @@ class StringFormat {
     /** Set the color of the format */
     void SetColor(ColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
-    static void AttributeNames(Csh &csh);
+    static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
 
     /** Returns the ident value, a MSC_IDENT_CENTER if not set.*/

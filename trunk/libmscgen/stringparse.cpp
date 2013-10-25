@@ -489,7 +489,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             c = ColorType(parameter);  //just consider defs
         else	   //if we are just parsing (probably for csh) keep as is.
             goto ok;
-        if (c.valid) {
+        if (c.type!=ColorType::INVALID) {
             if (apply) {
                 color.first = true;
                 color.second = c;
@@ -943,8 +943,12 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
     if (toadd.fontType.first)
         fontType = toadd.fontType;
 
-    if (toadd.color.first)
-        color = toadd.color;
+    if (toadd.color.first) {
+        if (color.first)
+            color.second += toadd.color.second;
+        else
+            color.second = toadd.color.second;
+    }
 
     if (toadd.face.first)
         face = toadd.face;
@@ -1087,8 +1091,12 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.first = true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
+        if (color.first)
+            color.second += msc->Contexts.back().colors.GetColor(a.value);
+        else {
+            color.first = true;
+            color.second = msc->Contexts.back().colors.GetColor(a.value);
+        }
         return true;
     }
     if (a.EndsWith("ident")) {
@@ -1211,15 +1219,15 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 }
 
 /** Add the attribute names we take to `csh`.*/
-void StringFormat::AttributeNames(Csh &csh)
+void StringFormat::AttributeNames(Csh &csh, const string &prefix)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "text.color", "text.ident", "text.format", 
-    "text.font.face", "text.font.type", 
-    "text.bold", "text.italic", "text.underline", 
-    "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-    "text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    {"", "color", "ident", "format", 
+    "font.face", "font.type", 
+    "bold", "italic", "underline", 
+    "gap.up", "gap.down", "gap.left", "gap.right",
+    "gap.spacing", "size.normal", "size.small", "wrap", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before text ident types in the hints popup list box.

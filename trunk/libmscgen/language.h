@@ -82,22 +82,23 @@
      TOK_COMMAND_PARALLEL = 300,
      TOK_VERTICAL = 301,
      TOK_AT = 302,
-     TOK_AT_POS = 303,
-     TOK_SHOW = 304,
-     TOK_HIDE = 305,
-     TOK_ACTIVATE = 306,
-     TOK_DEACTIVATE = 307,
-     TOK_BYE = 308,
-     TOK_COMMAND_VSPACE = 309,
-     TOK_COMMAND_HSPACE = 310,
-     TOK_COMMAND_SYMBOL = 311,
-     TOK_COMMAND_NOTE = 312,
-     TOK_COMMAND_COMMENT = 313,
-     TOK_COMMAND_ENDNOTE = 314,
-     TOK_COMMAND_FOOTNOTE = 315,
-     TOK_COMMAND_TITLE = 316,
-     TOK_COMMAND_SUBTITLE = 317,
-     TOK__NEVER__HAPPENS = 318
+     TOK_LOST = 303,
+     TOK_AT_POS = 304,
+     TOK_SHOW = 305,
+     TOK_HIDE = 306,
+     TOK_ACTIVATE = 307,
+     TOK_DEACTIVATE = 308,
+     TOK_BYE = 309,
+     TOK_COMMAND_VSPACE = 310,
+     TOK_COMMAND_HSPACE = 311,
+     TOK_COMMAND_SYMBOL = 312,
+     TOK_COMMAND_NOTE = 313,
+     TOK_COMMAND_COMMENT = 314,
+     TOK_COMMAND_ENDNOTE = 315,
+     TOK_COMMAND_FOOTNOTE = 316,
+     TOK_COMMAND_TITLE = 317,
+     TOK_COMMAND_SUBTITLE = 318,
+     TOK__NEVER__HAPPENS = 319
    };
 #endif
 
@@ -107,7 +108,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2663 of glr.c  */
-#line 92 "language.yy"
+#line 93 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -135,7 +136,7 @@ typedef union YYSTYPE
 
 
 /* Line 2663 of glr.c  */
-#line 139 "language.h"
+#line 140 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 #endif
