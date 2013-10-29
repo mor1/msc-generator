@@ -347,7 +347,10 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
         return 0;
     if (ignore_designs &&!force)
         return 1;
-    Contexts.back() += i->second;
+    if (i->second.is_full)
+        Contexts.back() = i->second;
+    else
+        Contexts.back() += i->second;
     ArcList list(true);
     if (!i->second.defBackground.IsEmpty()) {
         ArcBase *arc = new CommandNewBackground(this, i->second.defBackground);

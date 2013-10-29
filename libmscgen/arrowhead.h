@@ -93,7 +93,7 @@ class Canvas;
 /** Describes and draws arrowheads and block arrow contours.*/
 class ArrowHead
 {
-protected:
+public:
     /** Horizontal width & vertical depth of the arrow heads at MSC_ARROW_BIG. */
     static const double baseArrowWidth;   ///<X-size of triangle for 100% size
     static const double baseArrowHeight;  ///<half of the Y-size of triangle for 100% size
@@ -101,7 +101,6 @@ protected:
     static const double baseDotSize;      ///<circle radius for dots for 100% size
     static const double arrowSizePercentage[6]; ///<Percentage values for EArrowSize enum.
 
-public:
     /** Describes the overall type of an arrow */
     enum EArcArrowType {
         NONE,     ///<Invalid

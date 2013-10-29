@@ -17,3 +17,4 @@ numbering.pre="\c(red)\b";
 numbering.post=": \s()";
 a->b: Some action;
 a->b: \c(blue)\uSome action;
+a->b: \|\c(blue)\uSome action;

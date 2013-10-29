@@ -416,12 +416,13 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         else
             style_name = "entity";
 
-        //create a fully specified string format for potential \s() \f() \c() and \mX() in label
-        //also take a proper starting style and add the contents of "style" (from attributes)
+        //Detemine a proper starting style, which is the default style and text
+        //Do not add the contents of "style" (from attributes), those will be applied
+        //at CommandEntity->PostParseProcess() to the running style 
+        //(which is initialized with what we specify here)
         StyleCoW style_to_use = chart->Contexts.back().styles[style_name];
         style_to_use.write().text = chart->Contexts.back().text;                     //default text
         style_to_use.write().text +=chart->Contexts.back().styles[style_name].read().text;  //entity style text
-        style_to_use += style;
 
         //Unset word wrapping as something not available for entity headings
         //(not implemented by EntityApp::Width() and EntityApp::Height() anyway)
@@ -434,11 +435,15 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
             style_to_use.write().indicator.second = chart->Contexts.back().indicator.second;
         }
 
+        //Create a fully specified string format for potential 
+        //\s() \f() \c() and \mX() in label that are resolved here
+        StringFormat label_format = style_to_use.read().text;
+        label_format += style.read().text;
         //Create parsed label
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
         StringFormat::ExpandReferences(proc_label, chart, linenum_label_value,
-                                          &style_to_use.read().text, false, true, StringFormat::LABEL);
+                                       &label_format, false, true, StringFormat::LABEL);
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,

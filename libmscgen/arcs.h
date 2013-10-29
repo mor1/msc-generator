@@ -465,6 +465,7 @@ protected:
     FileLineCol              linenum_asterisk;     ///<The line and column number of the asterisk marking the loss. Invalid if none.
     VertXPos                 lost_pos;             ///<The position of the loss symbol
     FileLineCol              linenum_lost_at;      ///<The line and column number of the 'lost at' clause marking the loss. Invalid if none.
+    static const double      lsym_side_by_offset;  ///<if 'lost at a++' or 'lost at a--' is specified, we add the size of the loss symbol times this much extra offset compared to 'lost at a+/-'
 
     mutable double sin_slant; ///<Pre-calculated value of `slant_angle`
     mutable double cos_slant; ///<Pre-calculated value of `slant_angle`
@@ -473,7 +474,8 @@ protected:
     mutable double sx_text;   ///<Calculated value of the left of the label (usually sx adjusted by arrowhead)
     mutable double dx_text;   ///<Calculated value of the right of the label (usually dx adjusted by arrowhead)
     mutable double cx_text;   ///<Calculated value of the middle of the label (usually middle of sx and dx)
-    mutable double cx_lost;   ///<Calculated value of the middle of the loss symbol (if any)
+    mutable double cx_lsym;   ///<Calculated value of the middle of the loss symbol (if any)
+    mutable XY lsym_size;     ///<Calculates size of the lost symbol (if any loss)
     mutable std::vector<double> xPos;        ///<X coordinates of arrowheads (sorted to increase, [0] is for left end of the arrow). Always the middle of the entity line.
     mutable std::vector<double> act_size;    ///<Activation size of the entities (sorted from left to right). ==0 if not active
     mutable std::vector<DoublePair> margins; ///<How much of the arrow line is covered by the arrowhead (sorted left to right), see ArrowHead::getWidths()
@@ -526,6 +528,9 @@ public:
     /** Check if the entities in `src` - `middle[]` - `dst` are all left-to-right or right-to-left*/
     void CheckSegmentOrder(double y);
     virtual void PostPosProcess(Canvas &cover);
+    void DrawArrow(Canvas &canvas, const Label &loc_parsed_label,
+                   const std::vector<LineAttr>& loc_segment_lines,
+                   const ArrowHead &loc_arrow);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

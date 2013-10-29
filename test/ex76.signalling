@@ -8,6 +8,6 @@ mark m2;
 c->d: Messgae 3
       goes here;
 defstyle symbol [fill.color="yellow,200"];
-symbol rectangle m1-m2 right at a- [xsize=30];
-symbol rectangle   -m2 right at b- [xsize=30, ysize=30];
-symbol rectangle m1-   right at c- [xsize=30, ysize=30];
+symbol rectangle m1-m2 left at a+ [xsize=30];
+symbol rectangle   -m2 left at b+ [xsize=30, ysize=30];
+symbol rectangle m1-   left at c+ [xsize=30, ysize=30];

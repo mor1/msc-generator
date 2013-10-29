@@ -42,10 +42,13 @@ void AddTristate(std::pair<bool, ETriState> &a, const std::pair<bool, ETriState>
         a = b;
         return;
     }
+    //here b.second is invert and a.first is true
     switch (a.second) {
     case no: a.second = yes; return;
     case yes: a.second = no; return;
-    case invert: a.first = false; return;
+    case invert: 
+        a.first = false; 
+        return;
     }
 }
 
@@ -947,7 +950,7 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
         if (color.first)
             color.second += toadd.color.second;
         else
-            color.second = toadd.color.second;
+            color = toadd.color;
     }
 
     if (toadd.face.first)
@@ -1056,7 +1059,7 @@ string StringFormat::Print() const
         ret << "\\ms(" << smallFontSize.second << ")";
 
     if (word_wrap.first)
-        ret << ESCAPE_STRING_WORD_WRAP << (word_wrap.second ? "+" : "-");
+        ret << "\\" ESCAPE_STRING_WORD_WRAP << (word_wrap.second ? "+" : "-");
 
     return ret;
 }
@@ -1612,6 +1615,13 @@ Label::operator std::string() const
             ret += at(i);
     return ret;
 }
+
+void Label::ApplyStyle(const StringFormat &sf)
+{
+    for (auto &line : *this)
+        line.startFormat += sf;
+}
+
 
 #define LETTERS_NUMBERS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
 

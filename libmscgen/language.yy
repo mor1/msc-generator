@@ -1,5 +1,4 @@
 %locations
-%glr-parser
 %pure-parser
 %lex-param {yyscan_t *yyscanner}
 %parse-param{YYMSC_RESULT_TYPE &RESULT}
@@ -73,18 +72,18 @@
        TOK_SEMICOLON TOK_PLUS TOK_PLUS_EQUAL
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
        TOK_ASTERISK
-       TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
+       TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME TOK_COLORDEF
        TOK_BOOLEAN
-       TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM	TOK_REL_SOLID_BIDIR
-       TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM	TOK_REL_DOUBLE_BIDIR
-       TOK_REL_DASHED_TO   TOK_REL_DASHED_FROM	TOK_REL_DASHED_BIDIR
-       TOK_REL_DOTTED_TO   TOK_REL_DOTTED_FROM	TOK_REL_DOTTED_BIDIR
-       TOK_SPECIAL_ARC     TOK_EMPH
+       TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM    TOK_REL_SOLID_BIDIR
+       TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM    TOK_REL_DOUBLE_BIDIR
+       TOK_REL_DASHED_TO   TOK_REL_DASHED_FROM    TOK_REL_DASHED_BIDIR
+       TOK_REL_DOTTED_TO   TOK_REL_DOTTED_FROM    TOK_REL_DOTTED_BIDIR
+       TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
        TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS TOK_SHOW TOK_HIDE
-	   TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
+       TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
        TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
@@ -92,7 +91,6 @@
 %union
 {
     char                          *str;
-    CHAR_IF_CSH(Msc)              *msc;
     CHAR_IF_CSH(ArcBase)          *arcbase;
     CHAR_IF_CSH(ArcList)          *arclist;
     CHAR_IF_CSH(ArcArrow)         *arcarrow;
@@ -112,10 +110,9 @@
     CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
     CHAR_IF_CSH(ESide)            eside;
-	CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
+    CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
 };
 
-%type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
                    symbol_command symbol_command_no_attr note comment
 %type <arcvertarrow> vertrel_no_xpos
@@ -134,7 +131,7 @@
                    TOK_REL_DOTTED_FROM
                    TOK_REL_SOLID_BIDIR TOK_REL_DOUBLE_BIDIR TOK_REL_DASHED_BIDIR
                    TOK_REL_DOTTED_BIDIR
-                   TOK_SPECIAL_ARC TOK_EMPH
+                   TOK_SPECIAL_ARC TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
 %type <arcsegdata> relation_to relation_from relation_bidir
                    relation_to_cont relation_from_cont relation_bidir_cont
 %type <eside>      comment_command
@@ -145,41 +142,25 @@
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes titlecommandtoken
-                   entity_string reserved_word_string string number_or_string string_or_color_variant
-				   symbol_string colon_string symbol_type_string alpha_string color_variant
-                   TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
+                   entity_string reserved_word_string string  
+                   symbol_string colon_string symbol_type_string alpha_string color_string
+                   TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_COLORDEF
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS
-				   TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
+                   TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
-				   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+                   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 %type <stringlist> tok_stringlist
 
-%destructor {if (!C_S_H) delete $$;} vertxpos
-%destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
-%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr note comment
-%destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir arcrel_arrow
-%destructor {if (!C_S_H) delete $$;} boxrel first_box box_list first_pipe pipe_list pipe_list_no_content
-%destructor {if (!C_S_H) delete $$;} parallel
-%destructor {if (!C_S_H) delete $$;} top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
-%destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
-%destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
-%destructor {if (!C_S_H) delete $$;} full_arcattrlist_with_label_or_number
-%destructor {free($$);}  entity_string reserved_word_string string number_or_string string_or_color_variant symbol_string colon_string symbol_type_string alpha_string color_variant
-%destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
-%destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
-%destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
-%destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-%destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS TOK_SHOW TOK_HIDE
-%destructor {free($$);}  TOK_ACTIVATE TOK_DEACTIVATE TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
-%destructor {free($$);}  TOK_COMMAND_NOTE TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
-%destructor {free($$);}  TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+%destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
+%destructor {if (!C_S_H) delete $$;} <arcbox> <arcpipe> <arcboxseries> <arcpipeseries> <arcparallel>
+%destructor {if (!C_S_H) delete $$;} <entity> <entitylist> <attrib> <attriblist> 
+%destructor {if (!C_S_H) delete $$;} <vertxpos> <extvertxpos> <namerel> <stringlist>
+%destructor {free($$);} <str> 
 
 %{
 #include <stdio.h>
@@ -199,10 +180,10 @@
     do                                                      \
         if (YYID (N)) {                                     \
             (Current).first_pos = YYRHSLOC(Rhs,1).first_pos;\
-	        (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos;	\
+            (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos; \
         } else {                                            \
-	        (Current).first_pos = (Current).last_pos =      \
-	            YYRHSLOC (Rhs, 0).last_pos;                 \
+            (Current).first_pos = (Current).last_pos =      \
+                YYRHSLOC (Rhs, 0).last_pos;                 \
         }                                                   \
     while (YYID (0))
 
@@ -377,7 +358,7 @@ msckey:       TOK_MSC TOK_EQUAL
         csh.AddCSH_Error(@3, msg.c_str());
   #else
     ArcBase *dummy = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
-	if (dummy) delete dummy;
+    if (dummy) delete dummy;
   #endif
     free($1);
     free($3);
@@ -544,9 +525,9 @@ arc_with_parallel: arc
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
-	    csh.AddLineBeginToHints(false);
-	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintBetween(@1, @2, HINT_LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, HINT_LINE_START)) {
         csh.AddLineBeginToHints(false);
         csh.hintStatus = HINT_READY;
         csh.hintType = HINT_LINE_START;
@@ -645,8 +626,8 @@ arc:           arcrel
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     if ($2) {
-	  ($2)->AddAttributeList(NULL);
-	  $$ = ($2);
+      ($2)->AddAttributeList(NULL);
+      $$ = ($2);
     } else $$ = NULL;
   #endif
     free($1);
@@ -661,8 +642,8 @@ arc:           arcrel
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     if ($2) {
-	  ($2)->AddAttributeList($3);
-	  $$ = ($2);
+      ($2)->AddAttributeList($3);
+      $$ = ($2);
     } else $$ = NULL;
   #endif
     free($1);
@@ -676,7 +657,7 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc));
-	($$)->AddAttributeList($1);
+    ($$)->AddAttributeList($1);
   #endif
 }
               | first_entity
@@ -684,7 +665,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     $$ = (new CommandEntity($1, &msc, false));
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
 }
               | entity_command_prefixes
@@ -707,7 +688,7 @@ arc:           arcrel
   #else
     CommandEntity *ce = new CommandEntity($2, &msc, false);
     ce->AddAttributeList(NULL);
-	$$ = ce->ApplyPrefix($1);
+    $$ = ce->ApplyPrefix($1);
   #endif
     free($1);
 }
@@ -719,7 +700,7 @@ arc:           arcrel
     csh.AddCSH_ErrorAfter(@2, "Missing an entity.");
   #else
     CommandEntity *ce = new CommandEntity($1, &msc, false);
-	ce->AddAttributeList(NULL);
+    ce->AddAttributeList(NULL);
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity.");
     $$ = ce;
   #endif
@@ -734,7 +715,7 @@ arc:           arcrel
     CommandEntity *ce = new CommandEntity($3, &msc, false);
     delete ($1);
     ce->AddAttributeList(NULL);
-	$$ = ce;
+    $$ = ce;
   #endif
 }
             | entity_command_prefixes first_entity TOK_COMMA
@@ -777,7 +758,7 @@ arc:           arcrel
      * enclose them in an "CommandArcList" element used only for this. */
     if ($1) {
         $$ = (new CommandArcList(&msc, $1));
-		($$)->AddAttributeList(NULL);
+        ($$)->AddAttributeList(NULL);
     } else
         $$ = NULL;
   #endif
@@ -801,7 +782,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     $$ = ($1);
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
 }
               | TOK_COMMAND_DEFCOLOR colordeflist
@@ -837,7 +818,7 @@ arc:           arcrel
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     $$ = (new CommandEntity(NULL, &msc, false));
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -851,21 +832,21 @@ arc:           arcrel
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandEntity(NULL, &msc, false));
-	($$)->AddAttributeList($2);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
-	      | TOK_COMMAND_NUDGE
+          | TOK_COMMAND_NUDGE
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
-	      | TOK_COMMAND_NUDGE full_arcattrlist
+          | TOK_COMMAND_NUDGE full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -875,11 +856,11 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
   #else
     $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
-	($$)->AddAttributeList($2);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
-	      | titlecommandtoken full_arcattrlist_with_label
+          | titlecommandtoken full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -892,7 +873,7 @@ arc:           arcrel
                          CaseInsensitiveEqual("subtitle", $1) ? MSC_COMMAND_SUBTITLE :
                          MSC_ARC_INVALID;
     $$ = (new ArcDivider(t, &msc));
-	($$)->AddAttributeList($2);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -904,7 +885,7 @@ arc:           arcrel
     csh.MarkerNames.insert($2);
   #else
     $$ = (new CommandMark($2, MSC_POS(@$), &msc));
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
     free($1);
     free($2);
@@ -921,7 +902,7 @@ arc:           arcrel
         CommandMark::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandMark($2, MSC_POS(@$), &msc));
-	($$)->AddAttributeList($3);
+    ($$)->AddAttributeList($3);
   #endif
     free($1);
     free($2);
@@ -932,7 +913,7 @@ arc:           arcrel
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     $$ = (new CommandNewpage(&msc, true, NULL));
-	($$)->AddAttributeList(NULL);
+    ($$)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -946,7 +927,7 @@ arc:           arcrel
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandNewpage(&msc, true, NULL));
-	($$)->AddAttributeList($2);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -963,7 +944,7 @@ arc:           arcrel
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandHSpace(&msc, $2));
-	($$)->AddAttributeList($3);
+    ($$)->AddAttributeList($3);
   #endif
     free($1);
 }
@@ -987,9 +968,9 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF)) {
-		csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
-		csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
-	}
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
   #else
     $$ = NULL;
@@ -1006,7 +987,7 @@ arc:           arcrel
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandVSpace(&msc));
-	($$)->AddAttributeList($2);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -1033,9 +1014,9 @@ hspace_location: entityrel
 {
   #ifdef C_S_H_IS_COMPILED
     if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
-		csh.AddCSH(@1, COLOR_KEYWORD);
-	else
-	    csh.AddCSH_Error(@1, "Use either `left` or `right` to specify which comment column to size.");
+        csh.AddCSH(@1, COLOR_KEYWORD);
+    else
+        csh.AddCSH_Error(@1, "Use either `left` or `right` to specify which comment column to size.");
     csh.AddCSH(@2, COLOR_KEYWORD);
     if (csh.CheckEntityHintAt(@1)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD));
@@ -1044,13 +1025,13 @@ hspace_location: entityrel
     }
   #else
     if (CaseInsensitiveEqual($1, "left"))
-		$$ = new NamePair(LNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
-	else if (CaseInsensitiveEqual($1, "right"))
-		$$ = new NamePair(RNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
-	else {
-	    msc.Error.Error(MSC_POS(@1).start, "Use either `left` or `right` to specify which comment column to size. Ignoring command.");
-	    $$ = NULL;
-	}
+        $$ = new NamePair(LNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
+    else if (CaseInsensitiveEqual($1, "right"))
+        $$ = new NamePair(RNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
+    else {
+        msc.Error.Error(MSC_POS(@1).start, "Use either `left` or `right` to specify which comment column to size. Ignoring command.");
+        $$ = NULL;
+    }
   #endif
     free($1);
     free($2);
@@ -1059,32 +1040,32 @@ hspace_location: entityrel
 {
   #ifdef C_S_H_IS_COMPILED
     if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
-		csh.AddCSH(@1, COLOR_KEYWORD);
-	else
-	    csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
+        csh.AddCSH(@1, COLOR_KEYWORD);
+    else
+        csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
     if (csh.CheckEntityHintAt(@1)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
         csh.hintStatus = HINT_READY;
     }
   #else
-	msc.Error.Error(MSC_POS(@1).start, "Use <entity>-<entity>, `left comment`, `right comment` to specify horizontal spacing. Ignoring command.");
-	$$ = NULL;
+    msc.Error.Error(MSC_POS(@1).start, "Use <entity>-<entity>, `left comment`, `right comment` to specify horizontal spacing. Ignoring command.");
+    $$ = NULL;
   #endif
     free($1);
 }
                  | TOK_COMMAND_COMMENT
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckEntityHintAt(@1)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
         csh.hintStatus = HINT_READY;
     }
   #else
-	msc.Error.Error(MSC_POS(@1).start, "Use `left comment` or `right comment` to specify horizontal spacing for comments. Ignoring command.");
-	$$ = NULL;
+    msc.Error.Error(MSC_POS(@1).start, "Use `left comment` or `right comment` to specify horizontal spacing for comments. Ignoring command.");
+    $$ = NULL;
   #endif
     free($1);
 };
@@ -1537,9 +1518,9 @@ first_entity:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
-	    csh.AddLineBeginToHints();
-	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityApp::AttributeValues(csh.hintAttrName, csh);
@@ -1554,10 +1535,10 @@ first_entity:  entity_string full_arcattrlist_with_label
             | entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-  	if (csh.CheckHintAt(@1, HINT_LINE_START)) {
-	    csh.AddLineBeginToHints();
-	    csh.hintStatus = HINT_READY;
-	}
+      if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
     EntityApp *ed = new EntityApp($1, &msc);
@@ -1570,9 +1551,9 @@ first_entity:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
-	    csh.AddLineBeginToHints();
-	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityApp::AttributeValues(csh.hintAttrName, csh);
@@ -1587,10 +1568,10 @@ first_entity:  entity_string full_arcattrlist_with_label
             | entity_string braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-  	if (csh.CheckHintAt(@1, HINT_LINE_START)) {
-	    csh.AddLineBeginToHints();
-	    csh.hintStatus = HINT_READY;
-	}
+      if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
     EntityApp *ed = new EntityApp($1, &msc);
@@ -1614,7 +1595,7 @@ styledef : tok_stringlist full_arcattrlist
     for (auto &str : *($1))
         if (csh.ForbiddenStyles.find(str) != csh.ForbiddenStyles.end())
             csh.Contexts.back().StyleNames.insert(str);
-	if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         MscStyle().AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         MscStyle().AttributeValues(csh.hintAttrName, csh);
@@ -1699,7 +1680,9 @@ colordeflist: colordef
   #endif
 };
 
-colordef : alpha_string TOK_EQUAL string_or_color_variant
+color_string: TOK_COLORDEF | string;
+
+colordef : alpha_string TOK_EQUAL color_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_COLORNAME);
@@ -1713,7 +1696,24 @@ colordef : alpha_string TOK_EQUAL string_or_color_variant
   #endif
     free($1);
     free($3);
+}
+           |alpha_string TOK_EQUAL TOK_EMPH_PLUS_PLUS color_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_COLORNAME);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH(@3, COLOR_COLORDEF);
+    csh.AddCSH(@4, COLOR_COLORDEF);
+    ColorType color = csh.Contexts.back().Colors.GetColor("++"+string($4));
+    if (color.type!=ColorType::INVALID)
+        csh.Contexts.back().Colors[$1] = color;
+  #else
+    msc.Contexts.back().colors.AddColor($1, "++"+string($4), msc.Error, MSC_POS(@$));
+  #endif
+    free($1);
+    free($4);
 };
+
 
 designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBRACKET
 {
@@ -1912,7 +1912,7 @@ parallel:    braced_arclist
         $$ = NULL;
   #endif
 }
-	     | parallel braced_arclist
+         | parallel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     if ($2==NULL)
@@ -2053,7 +2053,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList(NULL);
-	($$)->SetLineEnd(MSC_POS(@$));
+    ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 }
@@ -2098,7 +2098,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList($3);
-	($$)->SetLineEnd(MSC_POS(@$));
+    ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 };
@@ -2155,7 +2155,9 @@ pipe_list: pipe_list_no_content
   #endif
 };
 
-boxrel:   entity_string TOK_EMPH entity_string
+emphrel: TOK_EMPH_PLUS_PLUS | TOK_EMPH;
+
+boxrel:   entity_string emphrel entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
@@ -2169,7 +2171,7 @@ boxrel:   entity_string TOK_EMPH entity_string
     free($1);
     free($3);
 }
-           | TOK_EMPH entity_string
+           | emphrel entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -2180,7 +2182,7 @@ boxrel:   entity_string TOK_EMPH entity_string
   #endif
     free($2);
 }
-           | entity_string TOK_EMPH
+           | entity_string emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
@@ -2192,7 +2194,7 @@ boxrel:   entity_string TOK_EMPH entity_string
   #endif
     free($1);
 }
-           | TOK_EMPH
+           | emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -2285,7 +2287,7 @@ vertxpos: TOK_AT entity_string
     free($2);
     free($4);
 }
-         | TOK_AT entity_string TOK_EMPH
+         | TOK_AT entity_string emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -2381,14 +2383,15 @@ vertxpos: TOK_AT entity_string
 };
 
 
-empharcrel_straight: TOK_EMPH
+empharcrel_straight: emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
   #endif
 }
-                   | relation_to_no_loss
-				   | relation_bidir_no_loss;
+        | relation_from_no_loss
+        | relation_to_no_loss
+        | relation_bidir_no_loss;
 
 vertrel_no_xpos: entity_string empharcrel_straight entity_string
 {
@@ -2432,48 +2435,6 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
     $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, &msc);
   #endif
 }
-       | entity_string relation_from_no_loss entity_string
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.AddCSH(@3, COLOR_MARKERNAME);
-    csh.CheckHintAt(@1, HINT_MARKER);
-    csh.CheckHintAtAndBefore(@2, @3, HINT_MARKER);
-  #else
-    $$ = new ArcVerticalArrow($2, $3, $1, &msc);
-  #endif
-    free($1);
-    free($3);
-}
-       | relation_from_no_loss entity_string
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_MARKERNAME);
-    csh.CheckHintAtAndBefore(@1, @2, HINT_MARKER);
-  #else
-    $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, &msc);
-  #endif
-    free($2);
-}
-       | entity_string relation_from_no_loss
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_MARKERNAME);
-    csh.CheckHintAt(@1, HINT_MARKER);
-    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
-  #else
-    $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, &msc);
-  #endif
-    free($1);
-}
-       | relation_from_no_loss
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_MARKER);
-  #else
-    $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, &msc);
-  #endif
-}
        | entity_string
 {
   #ifdef C_S_H_IS_COMPILED
@@ -2488,9 +2449,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
 }
        /* These are to ensure we do have a valid lookahead above */
        | empharcrel_straight entity_string TOK__NEVER__HAPPENS {free($2); $$=NULL;}
-       | entity_string empharcrel_straight entity_string TOK__NEVER__HAPPENS {free($1); free($3); $$=NULL;}
-       | relation_from entity_string TOK__NEVER__HAPPENS {free($2); $$=NULL;}
-       | entity_string relation_from entity_string TOK__NEVER__HAPPENS {free($1); free($3); $$=NULL;}
+       | entity_string empharcrel_straight entity_string TOK__NEVER__HAPPENS {free($1); free($3); $$=NULL;};
 
 
 vertrel: vertrel_no_xpos vertxpos
@@ -2526,7 +2485,7 @@ arcrel:       TOK_SPECIAL_ARC
             | arcrel_arrow TOK_LOST vertxpos
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
   #else
     $$ = ($1)->AddLostPos($3, MSC_POS2(@2, @3));
   #endif
@@ -2535,8 +2494,8 @@ arcrel:       TOK_SPECIAL_ARC
             | arcrel_arrow TOK_LOST
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_KEYWORD);
-	csh.AddCSH_ErrorAfter(@2, "Missing 'at' clause.");
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH_ErrorAfter(@2, "Missing 'at' clause.");
     if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
@@ -2727,45 +2686,45 @@ relation_to: relation_to_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 0;
+    csh.asteriskNo = 0;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_to_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_to_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_to_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.asteriskNo = 2;
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.asteriskNo = 2;
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -2773,45 +2732,45 @@ relation_from: relation_from_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_from_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_from_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_from_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.asteriskNo = 2;
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.asteriskNo = 2;
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -2819,45 +2778,45 @@ relation_bidir: relation_bidir_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 0;
+    csh.asteriskNo = 0;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_bidir_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_bidir_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
-	csh.asteriskNo = 1;
+    csh.asteriskNo = 1;
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_bidir_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.asteriskNo = 2;
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.asteriskNo = 2;
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring subsequent asterisks ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -2866,52 +2825,52 @@ relation_to_cont: relation_to_cont_no_loss
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_to_cont_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_to_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@1, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@2, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@2, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_to_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -2920,52 +2879,52 @@ relation_from_cont: relation_from_cont_no_loss
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_from_cont_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_from_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@1, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@2, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@2, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_from_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -2974,52 +2933,52 @@ relation_bidir_cont: relation_bidir_cont_no_loss
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::NOT;
+    ($$).type = $1;
+    ($$).lost = EArrowLost::NOT;
   #endif
 }
              | TOK_ASTERISK relation_bidir_cont_no_loss
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
              | relation_bidir_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@1, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@2, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@2, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@2, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	($$).type = $1;
-	($$).lost = EArrowLost::AT_DST;
-	($$).lost_pos.SetFrom(MSC_POS(@2));
+    ($$).type = $1;
+    ($$).lost = EArrowLost::AT_DST;
+    ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
              | TOK_ASTERISK relation_bidir_cont_no_loss TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH(@2, COLOR_SYMBOL);
-	if (++csh.asteriskNo == 1)
-		csh.AddCSH(@1, COLOR_SYMBOL);
-	else
-		csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
-	csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    if (++csh.asteriskNo == 1)
+        csh.AddCSH(@1, COLOR_SYMBOL);
+    else
+        csh.AddCSH_Error(@1, MULTIPLE_ASTERISK_ERROR_MSG);
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
   #else
-	msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
-	($$).type = $2;
-	($$).lost = EArrowLost::AT_SRC;
-	($$).lost_pos.SetFrom(MSC_POS(@1));
+    msc.Error.Error(MSC_POS(@3).start, "One arrow may be lost only once. Ignoring this asterisk ('*').");
+    ($$).type = $2;
+    ($$).lost = EArrowLost::AT_SRC;
+    ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 };
 
@@ -3420,7 +3379,7 @@ comment_command: TOK_COMMAND_COMMENT
   #endif
     free($1);
 }
-			   | TOK_COMMAND_FOOTNOTE
+               | TOK_COMMAND_FOOTNOTE
 {
   #ifndef C_S_H_IS_COMPILED
     $$= ESide::END;
@@ -3628,7 +3587,7 @@ arcattrlist:    arcattr
 }
               | arcattrlist TOK_COMMA TOK__NEVER__HAPPENS;
 
-arcattr:         alpha_string TOK_EQUAL string
+arcattr:         alpha_string TOK_EQUAL color_string
 {
   //string=string
   #ifdef C_S_H_IS_COMPILED
@@ -3643,49 +3602,37 @@ arcattr:         alpha_string TOK_EQUAL string
     free($1);
     free($3);
 }
-	    | alpha_string TOK_EQUAL color_variant
+                | alpha_string TOK_EQUAL TOK_EMPH_PLUS_PLUS color_string
 {
+  //string=string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrColorValue(@3);
+        csh.AddCSH_AttrValue(@3+@4, (string("++")+$4).c_str(), $1);
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3+@4, HINT_ATTR_VALUE, $1);
+  #else
+        $$ = new Attribute($1, string("++")+$4, MSC_POS(@1), MSC_POS2(@3,@4));
+  #endif
+    free($1);
+    free($4);
+}
+                | alpha_string TOK_EQUAL TOK_EMPH_PLUS_PLUS 
+{
+  //string=string
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_AttrValue(@3, "++", $1);
+		csh.AddCSH_ErrorAfter(@3, "Continue with a color name or definition.");
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
-        $$ = new Attribute($1, $3, MSC_POS(@1), MSC_POS(@3));
+        $$ = new Attribute($1, "++", MSC_POS(@1), MSC_POS(@3));
   #endif
     free($1);
-    free($3);
 }
-	    | alpha_string TOK_EQUAL TOK_REL_DASHED_TO string_or_color_variant
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrColorValue(@3 + @4);
-        csh.CheckHintAt(@1, HINT_ATTR_NAME);
-        csh.CheckHintAtAndBefore(@2, @4, HINT_ATTR_VALUE, $1);
-  #else
-        $$ = new Attribute($1, string(">>") + $4, MSC_POS(@1), MSC_POS2(@3,@4));
-  #endif
-    free($1);
-    free($4);
-}
-	    | alpha_string TOK_EQUAL TOK_REL_DASHED_TO TOK_NUMBER
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrColorValue(@3 + @4);
-        csh.CheckHintAt(@1, HINT_ATTR_NAME);
-        csh.CheckHintAtAndBefore(@2, @4, HINT_ATTR_VALUE, $1);
-  #else
-        $$ = new Attribute($1, string(">>") + $4, MSC_POS(@1), MSC_POS2(@3,@4));
-  #endif
-    free($1);
-    free($4);
-}
-	    | alpha_string TOK_EQUAL TOK_NUMBER
+        | alpha_string TOK_EQUAL TOK_NUMBER
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
@@ -3699,7 +3646,7 @@ arcattr:         alpha_string TOK_EQUAL string
     free($1);
     free($3);
 }
-	    | alpha_string TOK_EQUAL TOK_BOOLEAN
+        | alpha_string TOK_EQUAL TOK_BOOLEAN
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
@@ -3713,7 +3660,7 @@ arcattr:         alpha_string TOK_EQUAL string
     free($1);
     free($3);
 }
-	    | alpha_string TOK_EQUAL
+        | alpha_string TOK_EQUAL
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
@@ -3732,7 +3679,7 @@ arcattr:         alpha_string TOK_EQUAL string
     $$ = NULL;
     free($1);
 }
-	    | string
+        | string
 {
   //here we accept non alpha strings for "->" and similar style names
   #ifdef C_S_H_IS_COMPILED
@@ -3744,66 +3691,6 @@ arcattr:         alpha_string TOK_EQUAL string
     free($1);
 };
 
-
-color_variant:         | alpha_string TOK_NUMBER
-{
-  //string+number
-  //string-number
-  #ifdef C_S_H_IS_COMPILED
-  #else
-    //Ensure the NUMBER starts with either + or -
-	$$ = strdup((string($1) + (atof($2)>=0 && ($2)[0]!='+' ? "+" : "") + $2).c_str());
-  #endif
-    free($1);
-    free($2);
-}
-        | alpha_string TOK_COMMA TOK_NUMBER TOK_NUMBER
-{
-  //string,number+number
-  //string,number-number
-  #ifdef C_S_H_IS_COMPILED
-  #else
-    //Ensure the NUMBER starts with either + or -
-    $$ = strdup((string($1) + "," + $3 + (atof($4)>=0 && ($4)[0]!='+' ? "+" : "") +$4).c_str());
-  #endif
-    free($1);
-    free($3);
-	free($4);
-}
-        | number_or_string TOK_COMMA TOK_NUMBER
-{
-  //string,number
-  //number,number
-  #ifdef C_S_H_IS_COMPILED
-  #else
-    $$ = strdup((string($1) + "," + $3).c_str());
-  #endif
-    free($1);
-    free($3);
-}
-        | TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER
-{
-  //number,number,number
-  #ifdef C_S_H_IS_COMPILED
-  #else
-    $$ = strdup((string($1) + "," + $3 + "," + $5).c_str());
-  #endif
-    free($1);
-    free($3);
-	free($5);
-}
-        | TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER TOK_COMMA TOK_NUMBER
-{
-  //number,number,number,number
-  #ifdef C_S_H_IS_COMPILED
-  #else
-     $$ = strdup((string($1) + "," + $3 + "," + $5 + "," + $7).c_str());
-  #endif
-    free($1);
-    free($3);
-    free($5);
-    free($7);
-};
 
 
 //cannot be a reserved word, symbol or style name
@@ -3821,16 +3708,16 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_FOOTNOTE | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
-       | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}
+       | TOK_REL_SOLID_FROM      {$$ = strdup("<-");}
        | TOK_REL_SOLID_BIDIR      {$$ = strdup("<->");}
        | TOK_REL_DOUBLE_TO        {$$ = strdup("=>");}
-       | TOK_REL_DOUBLE_FROM	  {$$ = strdup("<=");}
+       | TOK_REL_DOUBLE_FROM      {$$ = strdup("<=");}
        | TOK_REL_DOUBLE_BIDIR     {$$ = strdup("<=>");}
        | TOK_REL_DASHED_TO        {$$ = strdup(">>");}
-       | TOK_REL_DASHED_FROM	  {$$ = strdup("<<");}
+       | TOK_REL_DASHED_FROM      {$$ = strdup("<<");}
        | TOK_REL_DASHED_BIDIR     {$$ = strdup("<<>>");}
        | TOK_REL_DOTTED_TO        {$$ = strdup(">");}
-       | TOK_REL_DOTTED_FROM	  {$$ = strdup("<");}
+       | TOK_REL_DOTTED_FROM      {$$ = strdup("<");}
        | TOK_REL_DOTTED_BIDIR     {$$ = strdup("<>");}
        | TOK_SPECIAL_ARC
 {
@@ -3854,10 +3741,6 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
 alpha_string: entity_string | reserved_word_string;
 
 string: alpha_string | symbol_string | TOK_STYLE_NAME;
-
-number_or_string: TOK_NUMBER | alpha_string;
-
-string_or_color_variant: alpha_string | color_variant;
 
 scope_open: TOK_OCBRACKET
 {

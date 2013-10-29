@@ -1457,6 +1457,8 @@ void ArcDirArrow::FinalizeLabels(Canvas &canvas)
 }
 
 
+const double ArcDirArrow::lsym_side_by_offset = 0.5;
+
 void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
@@ -1476,15 +1478,52 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, (start.second + *act_size.begin())*cos_slant);
     distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, (end.first    + *act_size.rbegin())*cos_slant);
 
-    if (middle.size()==0) return;
-    EntityDistanceMap d;
-    for (unsigned i=0; i<middle.size(); i++) {
-        DoublePair mid = style.read().arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.read().line);
-        distances.Insert((*middle[i])->index, DISTANCE_LEFT,  (mid.first  + act_size[i+1])*cos_slant);
-        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, (mid.second + act_size[i+1])*cos_slant);
+    if (middle.size()) {
+        EntityDistanceMap d;
+        for (unsigned i = 0; i<middle.size(); i++) {
+            DoublePair mid = style.read().arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.read().line);
+            distances.Insert((*middle[i])->index, DISTANCE_LEFT, (mid.first  + act_size[i+1])*cos_slant);
+            distances.Insert((*middle[i])->index, DISTANCE_RIGHT, (mid.second + act_size[i+1])*cos_slant);
+        }
+        d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
+        distances += d;
     }
-    d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
-    distances += d;
+    //If a lost symbol is generated, do some
+    if (lost_pos.valid) {
+        lsym_size.y = lsym_size.x =
+            ArrowHead::baseArrowWidth * 0.66 * ArrowHead::arrowSizePercentage[style.read().lsym_size.second]/100.;
+        const double aw = lsym_side_by_offset * lsym_size.x;
+        const double gap = chart->hscaleAutoXGap;
+        const unsigned e1 = (*lost_pos.entity1)->index;
+        const unsigned e2 = (*lost_pos.entity2)->index;
+        //If the arrow symbol is specified between two neighbouring entity,
+        //add some space for it
+        switch (lost_pos.pos) {
+        case VertXPos::POS_CENTER:
+            if (abs(int(e1)-int(e2))==1)
+                distances.Insert(e1, e2, distances.Query(e1, e2) + lsym_size.x + 2*gap);
+            break;
+        case VertXPos::POS_AT: 
+            distances.Insert(e1, DISTANCE_LEFT, lsym_size.x/2 + gap);
+            distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x/2 + gap);
+            break;
+        case VertXPos::POS_LEFT_BY:     
+            distances.Insert(e1, DISTANCE_LEFT, lsym_size.x + aw + gap);
+            break;
+        case VertXPos::POS_RIGHT_BY:    
+            distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x + aw + gap);
+            break;
+        case VertXPos::POS_LEFT_SIDE:
+            distances.Insert(e1, DISTANCE_LEFT, lsym_size.x + gap);
+            break;
+        case VertXPos::POS_RIGHT_SIDE:
+            distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x + gap);
+            break;
+        case VertXPos::POS_INVALID:
+        default:
+            _ASSERT(0);
+        }
+    }
 }
 
 EArrowEnd ArcDirArrow::WhichArrow(unsigned i)
@@ -1507,18 +1546,20 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     dx = chart->XCoord(dst);
     //Check if the loss happens in-between (untransformed) sx and dx
     if (lost_pos.valid) {
-        cx_lost = lost_pos.CalculatePos(*chart, 0, 1.5);
-        if (cx_lost < std::min(sx, dx) || std::max(sx, dx) < cx_lost) {
+        cx_lsym = lost_pos.CalculatePos(*chart, lsym_size.x, lsym_size.x*lsym_side_by_offset);
+        if (cx_lsym < std::min(sx, dx) || std::max(sx, dx) < cx_lsym) {
             chart->Error.Error(linenum_lost_at.IsInvalid() ? this->file_pos.start : linenum_lost_at,
-                               "The position of the loss is " + 
-                               std::string(cx_lost < std::min(sx, dx)?"left":"right") +
-                               " of the arrow. Ignoring it.");
+                "The position of the loss is " +
+                std::string(cx_lsym < std::min(sx, dx) ? "left" : "right") +
+                " of the arrow. Ignoring it.");
             lost_pos.valid = false;
         }
     }
-    //convert dx to transformed space
-    if (slant_angle)
+    //convert dx and cx_lsym to transformed space
+    if (slant_angle) {
         dx = sx + (dx-sx)/cos_slant;
+        cx_lsym = sx + (cx_lsym-sx)/cos_slant;
+    }
 
     double lw_max = style.read().line.LineWidth();
     for (auto i : segment_lines)
@@ -1530,7 +1571,7 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     //If not use endType/startType only
     //aH.y is _half_ the height of the arrowhead (the height above/below the centerline)
     //aH.x is the width on one side on the entity line only.
-    double aH = max(xy_e.y, xy_s.y);
+    double aH = std::max(std::max(xy_e.y, xy_s.y), lsym_size.y/2);
     if (middle.size()>0)
         aH = max(aH, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE).y);
 
@@ -1612,6 +1653,8 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
+    if (lost_pos.valid)
+        area += Block(XY(cx_lsym, centerline)-lsym_size/2, XY(cx_lsym, centerline)+lsym_size/2);
     //Add a horizontal line to area to bridge the gap across activated entities
     area_to_note2 = Block(sx, dx, centerline, centerline).Expand(0.5);
     CalculateMainline(std::max(lw_max, chart->nudgeSize+1.0));
@@ -1767,17 +1810,19 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
     }
 }
 
-void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
+/** Draws an actual arrow using the parameters passed, not considering message loss. 
+ * Used twice to draw a lost arrow. */
+void ArcDirArrow::DrawArrow(Canvas &canvas, const Label &loc_parsed_label, 
+                            const std::vector<LineAttr>& loc_segment_lines,
+                            const ArrowHead &loc_arrow)
 {
-    if (!valid) return;
-    if (pass!=draw_pass) return;
     const double y = yPos+centerline;  //should be integer
-    if (parsed_label.getTextWidthHeight().y) {
+    if (loc_parsed_label.getTextWidthHeight().y) {
         if (slant_angle)
-            style.read().arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
-        parsed_label.Draw(canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, slant_angle!=0);
+            loc_arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
+        loc_parsed_label.Draw(canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, slant_angle!=0);
         if (slant_angle)
-            style.read().arrow.UnTransformCanvas(canvas);
+            loc_arrow.UnTransformCanvas(canvas);
     }
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
@@ -1792,20 +1837,55 @@ void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
         }
         const XY sta(sx + (sta_x-sx)*cos_slant, y + (sta_x-sx)*sin_slant);
         const XY end(sx + (end_x-sx)*cos_slant, y + (end_x-sx)*sin_slant);
-        canvas.Line(sta, end, segment_lines[i]);
+        canvas.Line(sta, end, loc_segment_lines[i]);
     }
     if (!canvas.NeedsArrowFix()) canvas.UnClip();
     /* Now the arrow heads */
     if (slant_angle)
-        style.read().arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
+        loc_arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
     for (unsigned i=0; i<xPos.size(); i++)
-        style.read().arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), 
-                         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)],
-                         &canvas);
+        loc_arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), 
+                       loc_segment_lines[i - (i==0 ? 0 : 1)], loc_segment_lines[i - (i==xPos.size()-1 ? 1 : 0)],
+                       &canvas);
     if (slant_angle)
-        style.read().arrow.UnTransformCanvas(canvas);
+        loc_arrow.UnTransformCanvas(canvas);
 }
 
+void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
+{
+    if (!valid) return;
+    if (pass!=draw_pass) return;
+    const double cx_lsym_unt = sx + (cx_lsym-sx)*cos_slant;
+    const Block sb(Range(chart->GetDrawing().x.from, cx_lsym),
+                   chart->GetDrawing().y);
+    const Block db(Range(cx_lsym, chart->GetDrawing().x.till),
+                   chart->GetDrawing().y);
+    if (lost_pos.valid) 
+        canvas.Clip(sx<dx ? sb : db);
+    DrawArrow(canvas, parsed_label, segment_lines, style.read().arrow);
+    if (lost_pos.valid) {
+        canvas.UnClip();
+        canvas.Clip(sx<dx ? db : sb);
+        Label loc_parsed_label = parsed_label;
+        loc_parsed_label.ApplyStyle(style.read().lost_text);
+        std::vector<LineAttr> loc_segment_lines = segment_lines;
+        for (auto &segment : loc_segment_lines)
+            segment += style.read().lost_line;
+        ArrowHead loc_arrow = style.read().arrow;
+        loc_arrow += style.read().lost_arrow;
+        DrawArrow(canvas, loc_parsed_label, loc_segment_lines, loc_arrow);
+        canvas.UnClip();
+        if (slant_angle)
+            style.read().arrow.TransformCanvasForAngle(slant_angle, canvas, sx, yPos+centerline);
+        cairo_set_line_cap(canvas.GetContext(), CAIRO_LINE_CAP_ROUND);
+        Block X(XY(cx_lsym, yPos+centerline)-lsym_size/2, 
+                XY(cx_lsym, yPos+centerline)+lsym_size/2);
+        canvas.Line(X.UpperLeft(), X.LowerRight(), style.read().lsym_line);
+        canvas.Line(X.UpperRight(), X.LowerLeft(), style.read().lsym_line);
+        if (slant_angle)
+            style.read().arrow.UnTransformCanvas(canvas);
+    }
+}
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const StyleCoW &s) : 
@@ -2240,7 +2320,7 @@ const StyleCoW *ArcVerticalArrow::GetRefinementStyle(EArcType t) const
 
 bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 {
-    if (a.Is("ofsset")) {
+    if (a.Is("offset")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
         //By this time `pos` is filled in, so we can add offset there
