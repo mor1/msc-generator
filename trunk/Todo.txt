@@ -62,8 +62,8 @@ ADD: ISMAPs, floating comments, none commets
 In 3.6.2
 CHANGED: Migrated to VS 2013 (use new C++11 features)
 CHANGED: Allows unquoted specification of colors, like 'blue+50', 'green+20', 'red,50+20', '100,20,23' or '20,50,230,50'.
-ADDED: Overlay colors - not parsed well
-ADDED: * and 'lost at' parsing to arrows.
+ADDED: Overlay colors (like '++blue,50')
+ADDED: Ability to loose arrows via * and 'lost at' clause.
 
 In 3.6.1
 FIXED: automatic adjustments so no element is outside the chart even for fixed hscale 

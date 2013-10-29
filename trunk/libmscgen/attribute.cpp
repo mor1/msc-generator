@@ -297,7 +297,7 @@ LineAttr &LineAttr::operator +=(const LineAttr&a)
         if (color.first)
             color.second += a.color.second;
         else
-            color.second = a.color.second;
+            color = a.color;
     }
     if (a.width.first) width = a.width;
     if (a.corner.first) corner = a.corner;
@@ -752,7 +752,7 @@ FillAttr &FillAttr::operator +=(const FillAttr&a)
         if (color.first)
             color.second += a.color.second;
         else
-            color.second = a.color.second;
+            color= a.color;
     }
     if (a.color2.first) {
         if (color2.first)
@@ -909,7 +909,7 @@ ShadowAttr &ShadowAttr::operator +=(const ShadowAttr&a)
         if (color.first)
             color.second += a.color.second;
         else
-            color.second = a.color.second;
+            color = a.color;
     }
     if (a.offset.first) offset = a.offset;
 	if (a.blur.first) blur = a.blur;

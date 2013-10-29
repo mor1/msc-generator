@@ -296,7 +296,7 @@ do {                                                \
 \<       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_FROM;  // <
 \<\>     yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
 --       yylval_param->arctype=MSC_BOX_SOLID;       return TOK_EMPH;             // --
-\+\+     yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH;             // ++
+\+\+     yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;   // ++
 \.\.     yylval_param->arctype=MSC_BOX_DOTTED;      return TOK_EMPH;             // ..
 ==       yylval_param->arctype=MSC_BOX_DOUBLE;      return TOK_EMPH;             // ==
 \+=      return TOK_PLUS_EQUAL;
@@ -345,6 +345,26 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     yylval_param->str = strdup(yytext);
     return TOK_STRING;
 %}
+
+ /* Color definitions */
+ /* string+-number[,number]*/
+[A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])*(\.)?[\+\-][0-9]+(\.[0-9]*)?(\,[0-9]+(\.[0-9]*)?)? %{
+    yylval_param->str = strdup(yytext);
+    return TOK_COLORDEF;
+%}
+
+ /* string,number[+-number]*/
+[A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])*(\.)?\,[0-9]+(\.[0-9]*)?([\+\-][0-9]+(\.[0-9]*)?)? %{
+    yylval_param->str = strdup(yytext);
+    return TOK_COLORDEF;
+%}
+
+ /* number,number,number[,number] */
+[0-9]+(\.[0-9]*)?\,[0-9]+(\.[0-9]*)?\,[0-9]+(\.[0-9]*)?(\,[0-9]+(\.[0-9]*)?)? %{
+    yylval_param->str = strdup(yytext);
+    return TOK_COLORDEF;
+%}
+
 
 [ \t]+    /* ignore whitespace */;
 %%

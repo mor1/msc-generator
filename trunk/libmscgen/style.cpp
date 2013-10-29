@@ -108,6 +108,7 @@ void MscStyle::MakeCompleteButText()
     //no change to lost fields - those may remain incomplete, 
     lsym_line.MakeComplete(); 
     lsym_line.color.second = ColorType(255, 0, 0);
+    lsym_line.width.second = 2;
     lsym_size.first = true;
     lsym_size.second = MSC_ARROW_NORMAL;
 }
@@ -655,7 +656,7 @@ void Context::Plain()
     colors["gray"]  = ColorType(150, 150, 150);
     colors["lgray"] = ColorType(200, 200, 200);
 
-    const std::pair<bool, ColorType> faint(true, ColorType(255, 255, 255, 128, ColorType::OVERLAY));
+    const std::pair<bool, ColorType> faint(true, ColorType(255, 255, 255, 224, ColorType::OVERLAY));
 
     styles["arrow"].write().MakeCompleteButText();
     styles["arrow"].write().compress.first = false;
@@ -800,22 +801,20 @@ void Context::Plain()
     styles["subtitle"].write().text += "\\mn(22)\\ms(14)\\B";
     
     //Ok, now "weak" and "strong"
+    const std::pair<bool, ColorType> weak(true, ColorType(255, 255, 255, 128, ColorType::OVERLAY));
     MscStyle style = MscStyle(STYLE_STYLE); //has everything, but is empty
-    LineAttr line(ColorType(255,255,255, 128, ColorType::OVERLAY));
-    style.line += line;;
-    style.vline += line;
-    style.arrow.line += line;
-    style.text.SetColor(line.color.second);
+    style.line.color = weak;
+    style.vline.color = weak;
+    style.arrow.line.color = weak;
+    style.text.SetColor(weak.second);
 	style.text.Apply("\\i");
     styles["weak"] = style;
     
     style.Empty();
-    line.Empty();
-    line.width.first = true;
-    line.width.second = 2.0;
-    style.line += line;
-    style.vline += line;
-    style.arrow.line += line;
+    std::pair<bool, double> w2(true, 2.0);
+    style.line.width = w2;
+    style.vline.width = w2;
+    style.arrow.line.width = w2;
     style.text.Apply("\\b");
     styles["strong"] = style;
 }

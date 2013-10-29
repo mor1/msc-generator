@@ -43,7 +43,7 @@ struct CshPos
     int last_pos;  ///<The index of the last character of the range.
     CshPos() = default;
     CshPos(int a, int b) : first_pos(a), last_pos(b) {}
-    CshPos operator + (const CshPos &a) const {return CshPos(std::min(first_pos, a.first_pos), std::max(first_pos, a.first_pos));}
+    CshPos operator + (const CshPos &a) const {return CshPos(std::min(first_pos, a.first_pos), std::max(last_pos, a.last_pos));}
     bool IsWithin(int p) const { return first_pos<=p && last_pos>=p; } ///<Returns true if positin p is inside the range.
     bool IsWithin(const CshPos &p) const {return IsWithin(p.first_pos) && IsWithin(p.last_pos);} ///<Returns true if another range is completely within the range.
 };

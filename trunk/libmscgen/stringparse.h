@@ -283,6 +283,8 @@ public:
     void AddSpacingAfterFirstLine(double spacing) {first_line_extra_spacing += spacing;}
     /** Converts the line to an escape-free string*/
     operator std::string() const;
+    /** Applies a text style. Ignores line spacing parts of the style. */
+    void ApplyStyle(const StringFormat &sf);
     /** Reflows the text top fit a box of x width.
      * Honours hard line breaks, but not soft ones.
      * @param c The canvas to calculate on.

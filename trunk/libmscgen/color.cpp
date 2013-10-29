@@ -32,7 +32,7 @@ ColorType::ColorType(const string&text)
     pos = text.find_first_not_of(" \t", pos);
     if (text[pos]=='(') pos++;
     bool should_be_overlay = false;
-    if (text.length() > pos+1 & text[pos] == '>' && text[pos] == '>') {
+    if (text.length() > pos+1 && text[pos] == '+' && text[pos] == '+') {
         pos += 2;
         should_be_overlay = true;
     }
@@ -91,9 +91,9 @@ ColorType ColorType::operator +(const ColorType &o) const
     if (ret_a < 1e-3)
         return ColorType(0, 0, 0, 0, ret.type); //fully transparent
     ret.a = (unsigned char)ret_a;
-    ret.r = (unsigned char)((o.r*o.a + r*a*(1-o.a)/255.)/ret_a);
-    ret.g = (unsigned char)((o.g*o.a + g*a*(1-o.a)/255.)/ret_a);
-    ret.b = (unsigned char)((o.b*o.a + b*a*(1-o.a)/255.)/ret_a);
+    ret.r = (unsigned char)((o.r*o.a + r*a*(255-o.a)/255.)/ret_a);
+    ret.g = (unsigned char)((o.g*o.a + g*a*(255-o.a)/255.)/ret_a);
+    ret.b = (unsigned char)((o.b*o.a + b*a*(255-o.a)/255.)/ret_a);
     return ret;
 }
 
@@ -140,6 +140,7 @@ inline string remove_spaces(const string &s)
  * 4. a color name, followed by a comma and an alpha value,  followed by {+-} and a percentage of lightness
  * 5. three int value separated by commas (rgb)
  * 6. four int values separated by commas (rgba)
+ * Either can be preceeded by '++' to indicate a color to overlay.
  *
  * In the first 4 case we consult the collection in the last case we return
  * a value irrespective of the collection content.
@@ -150,7 +151,7 @@ ColorType ColorSet::GetColor(const std::string &s_original) const
 {
     string s = remove_spaces(s_original);
     ColorType::EColorType type = ColorType::COMPLETE;
-    if (s.length()>2 && s[0]=='>' && s[1]=='>') {
+    if (s.length()>2 && s[0]=='+' && s[1]=='+') {
         type = ColorType::OVERLAY;
         s.erase(0, 2);
     }
@@ -162,37 +163,47 @@ ColorType ColorSet::GetColor(const std::string &s_original) const
     if (pos == string::npos) return ColorType();
     string name = remove_spaces(s.substr(0, pos));
     i = find(name);
-    //if first element in collection, see if followidered by an alpha value and/or lightness
-    if (this->end()!=i) {
-        ColorType color = i->second;
-        color.type = type;
-        if (s[pos] == ',') {
-            double alpha;
-            if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return ColorType();
-            if (alpha<0 || alpha>255) return ColorType();
-            if (alpha <= 1.0) color.a = (unsigned char)(alpha*255);
-            else color.a = (unsigned char)(alpha);
-            //now search for + or -
-            pos = s.find_first_of("+-", pos);
-            //Ok, this is case #2, exit with what we have
-            if (pos == string::npos) return color;
-        }
-        //s[pos] is either + or - here, either case #3 or #4
-        double lighter;
-        //include sign, too
-        if (sscanf(s.c_str()+pos,"%lf",&lighter)!=1) return ColorType();
-        if (lighter<-200 || lighter >200) return ColorType();
-        if (lighter<-1.0 || lighter>1.0) lighter /= 100;
-        if (lighter>=0) return color.Lighter(lighter);
-        else return color.Darker(-lighter);
+    if (this->end()==i) {
+        //if first element not in collection, it is either #5 or #6 (or completely invalid)
+        //ColorType constructor can handle these, but we add OVERLAY type if we have 
+        //seen ++
+        ColorType ret(s);
+        if (ret.type!=ColorType::INVALID)
+            ret.type = type;
+        return ret;
     }
-    //if first element not in collection, it is either #5 or #6 (or completely invalid)
-    //ColorType constructor can handle these, but we add OVERLAY type if we have 
-    //seen ++
-    ColorType ret(s);
-    if (ret.type!=ColorType::INVALID)
-        ret.type = type;
-    return ret;
+    //if first element in collection, see if followidered by an alpha value and/or lightness
+    ColorType color = i->second;
+    color.type = type;
+    double num;
+    bool had_alpha = false;
+    bool had_light = false;
+    while (pos<s.length()) {
+        switch (s[pos]) {
+        case ',': //alpha value
+            if (had_alpha) return ColorType();
+            if (sscanf(s.c_str()+pos+1, "%lf", &num)!=1) return ColorType();
+            if (num<0 || num>255) return ColorType();
+            if (num <= 1.0) color.a = (unsigned char)(num*255);
+            else color.a = (unsigned char)(num);
+            had_alpha = true;
+            break;
+        case '+':
+        case '-':
+            if (had_light) return ColorType();
+            //include sign, too
+            if (sscanf(s.c_str()+pos, "%lf", &num)!=1) return ColorType();
+            if (num<-200 || num >200) return ColorType();
+            if (num<-1.0 || num>1.0) num /= 100;
+            if (num>=0) color = color.Lighter(num);
+            else color = color.Darker(-num);
+            had_light = true;
+            break;
+        default:
+            _ASSERT(0);
+        }
+        //now search for + or -
+        pos = s.find_first_of(",+-", pos+1);
+    }
+    return color;
 }
-
-
