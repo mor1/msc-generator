@@ -135,6 +135,7 @@ public:
      * These functions are called when a control is invoked on the GUI. */
     /** @{ */
 	afx_msg void OnAppAbout();
+    afx_msg void OnHelp();
     afx_msg void OnFilePrintSetup();
     afx_msg void OnUpdatePrintSetup(CCmdUI *pCmdUI);
 	afx_msg void OnEditPreferences();
