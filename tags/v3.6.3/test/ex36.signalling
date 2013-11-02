@@ -1,0 +1,8 @@
+C: Client;
+R1: Router;
+R2: Router;
+S: Server;
+
+->C: Hit;
+C<->S: Query/Response\n\-(normal);
+block C<->S: Query/Response\n\-(block);
