@@ -178,6 +178,7 @@ END_MESSAGE_MAP()
 
 BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
 	ON_COMMAND(ID_APP_ABOUT, &CMscGenApp::OnAppAbout)
+    ON_COMMAND(ID_HELP, &CMscGenApp::OnHelp)
 	// Standard file based document commands
 	ON_COMMAND(ID_FILE_NEW, &CWinAppEx::OnFileNew)
 	ON_COMMAND(ID_FILE_OPEN, &CWinAppEx::OnFileOpen)
@@ -463,6 +464,17 @@ void CMscGenApp::OnAppAbout()
 {
 	CAboutDlg aboutDlg;
 	aboutDlg.DoModal();
+}
+
+/** App command to run the help */
+void CMscGenApp::OnHelp()
+{
+    char buff[2048];
+    GetModuleFileName(NULL, buff, 2048);
+    PathRemoveFileSpec(buff);
+    CString help = buff;
+    help += "\\msc-gen.chm";
+    ShellExecute(NULL, NULL, help, NULL, NULL, SW_SHOWNORMAL);
 }
 
 /** CMscGenApp customization load/save methods*/

@@ -1855,7 +1855,6 @@ void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
-    const double cx_lsym_unt = sx + (cx_lsym-sx)*cos_slant;
     const Block sb(Range(chart->GetDrawing().x.from, cx_lsym),
                    chart->GetDrawing().y);
     const Block db(Range(cx_lsym, chart->GetDrawing().x.till),
