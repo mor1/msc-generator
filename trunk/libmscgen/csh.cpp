@@ -410,7 +410,7 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
  * All keywords shall be repeated here, not only known by the parser.
  * We color only these where keywords should come.*/
 static const char keyword_names[][ENUM_STRING_LEN] =
-{"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+{"", "parallel", "overlap", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
 "bye", "hspace", "vspace", "symbol", "note", "comment", "endnote", /*"footnote",*/
 "title", "subtitle", ""};
@@ -445,7 +445,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
  * We do not distinguish which arc the attribute belongs to.*/
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
-"keep_with_next", "keep_together", "auto_heading",
+"parallel", "overlap", "keep_with_next", "keep_together", "auto_heading",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "text.font.face", "text.font.type", 

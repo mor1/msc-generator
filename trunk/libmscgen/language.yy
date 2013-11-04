@@ -81,7 +81,7 @@
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
-       TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
+       TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP
        TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS TOK_SHOW TOK_HIDE
        TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
@@ -144,11 +144,12 @@
 %type <str>        entity_command_prefixes titlecommandtoken
                    entity_string reserved_word_string string  
                    symbol_string colon_string symbol_type_string alpha_string color_string
+                   overlap_or_parallel
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_COLORDEF
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-                   TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
+                   TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS
                    TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
@@ -467,7 +468,7 @@ arclist:    arc_with_parallel_semicolon
     if ($2) ($1)->Append($2);     /* Add to existing list */
     $$ = ($1);
   #endif
-}
+};
 
 arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
 {
@@ -510,7 +511,9 @@ arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
     $$=$1;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Expecting a keyword, entity name, a valid arrow, box or divider symbol or an opening brace.");
   #endif
-}
+};
+
+overlap_or_parallel: TOK_COMMAND_PARALLEL | TOK_COMMAND_OVERLAP;
 
 arc_with_parallel: arc
 {
@@ -520,7 +523,7 @@ arc_with_parallel: arc
         $$=$1;
   #endif
 }
-              | TOK_COMMAND_PARALLEL arc
+              | overlap_or_parallel arc
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -536,12 +539,33 @@ arc_with_parallel: arc
   #else
     if ($2) {
         ($2)->SetLineEnd(MSC_POS(@$));
-        ($2)->SetParallel();
+        if (CaseInsensitiveEqual($1, "parallel"))
+            ($2)->SetParallel();
+        else 
+            ($2)->SetOverlap();
     }
     $$ = $2;
   #endif
     free($1);
 }
+              | overlap_or_parallel 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintType = HINT_LINE_START;
+        csh.hintsForcedOnly = true;
+    }
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
+};
 
 arc:           arcrel
 {
@@ -1266,7 +1290,7 @@ optlist:     opt
   #else
     $$ = $1;
   #endif
-}
+};
 
 
 opt:         entity_string TOK_EQUAL TOK_BOOLEAN
@@ -3557,7 +3581,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
     $$ = new AttributeList;
     msc.Error.Error(MSC_POS(@2).start, "Missing ']'.");
   #endif
-}
+};
 
 arcattrlist:    arcattr
 {
@@ -3699,7 +3723,7 @@ entity_string: TOK_QSTRING | TOK_STRING;
 reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN |
                        TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
-                       TOK_VERTICAL | TOK_COMMAND_PARALLEL |
+                       TOK_VERTICAL | TOK_COMMAND_PARALLEL | TOK_COMMAND_OVERLAP |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |

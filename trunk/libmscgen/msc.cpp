@@ -1363,6 +1363,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
     //Check if we need to calculate cover
     //(We have to if we got a non-null 'cover' in which we need to return our cover
     //or if there is a parallel or compress arc among our members)
+    //"cover" will be NULL, if we do not need to calculate cover
     AreaList substitute_cover; //use this if we need cover, but cover==NULL
     if (cover) 
         cover->clear();
@@ -1372,12 +1373,18 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
                 cover = &substitute_cover;
                 break;
             }
+    //Keep the cover of those elements that are marked with 
+    //"overlay". These will be prepended afterwards, but will 
+    //not be taken into consideration for laying out subsequent elements.
+    AreaList deferred_cover;
 
     double y = 0;              //vertical position of the current element
     double y_upper_limit = 0;  //we will never shift compress higher than this runnning value
                                //(any element marked with "parallel" will set this to its top)
-    double y_bottom = 0;       //the lowest element bottom (largest num value) we have seen 
+    double y_bottom_all = 0;   //the lowest element bottom (largest num value) we have seen 
                                //(will be returned, not always that of the last element)
+    double y_bottom = 0;       //The bottom of the lowest element except elements marked as
+                               //"overlap". We use this when laying out the next element.
     bool previous_was_parallel = false;
     bool had_parallel_above = false;
     //Zero-height arcs shall be positioned to the same place
@@ -1387,6 +1394,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
     //height arc so we can go back and adjust the zero height ones
     ArcList::iterator first_zero_height = arcs.end();
 
+    //use iterators, we need to store them
     for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) {
         AreaList arc_cover;
         (*i)->Layout(canvas, cover ? &arc_cover : NULL);
@@ -1440,24 +1448,38 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
         //Shift the arc in question to its place
         (*i)->ShiftBy(y);
         arc_cover.Shift(XY(0,y));
-        y_bottom = std::max(y_bottom, y+h);
-        //If we are parallel draw the rest of the block in one go
+        y_bottom_all = std::max(y_bottom_all, y+h);;
+        //If we are parallel, remove our mainline from the cover
         if ((*i)->IsParallel()) {
             //kill the mainline of the last arc (in "i")
             arc_cover.InvalidateMainLine();
-            //indicate that elements be 
+            //indicate that later elements should be laid out from here
             had_parallel_above = true;
+            //Do not allow anyone to be placed above us
             y_upper_limit = y;
         }
+        if ((*i)->IsOverlap()) {
+            if (cover)
+                deferred_cover += arc_cover;
+            //Do not allow anyone to be placed above us
+            y_upper_limit = y;
+            //Keep y as the top of the current arc
+        } else {
+            //normal or parallel
+            if (cover)
+                *cover += arc_cover;
+            //update bottom and move there for the next arc
+            y = y_bottom = std::max(y_bottom, y+h);
+        }
         previous_was_parallel = (*i)->IsParallel();
-        if (cover)
-            *cover += arc_cover;
-        y = y_bottom;
     }
     //position any remaining zero-heright items at the bottom
     while (first_zero_height != arcs.end())
         (*first_zero_height++)->ShiftBy(y);
-    return y_bottom;
+    //Add deferred covers
+    if (cover)
+        *cover += std::move(deferred_cover);
+    return y_bottom_all;
 }
 
 /**Helper struct to manage multiple list of arcs, sorted by y */
@@ -1491,10 +1513,17 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
     std::vector<bool> previous_was_parallel(arcs.size(), false);
     //the lowest element bottom (largest num value) we have seen 
     //(will be returned, not always that of a last element)
-    std::vector<double> y_bottom(arcs.size(), 0);       
+    std::vector<double> y_bottom_all(arcs.size(), 0);       
+    //The bottom of the lowest element except elements marked as
+    //"overlap". We use this when laying out the next element.
+    std::vector<double> y_bottom(arcs.size(), 0);
     //These contain all arc_covers, without the mainlines, 
     //plus the mainlines of the arcs in their own column.
     std::vector<AreaList> covers(arcs.size());
+    //Keep the cover of those elements that are marked with 
+    //"overlay". These will be prepended afterwards, but will 
+    //not be taken into consideration for laying out subsequent elements.
+    AreaList deferred_cover;
     //vertical position of the current element
     std::set<TY> y;
     for (unsigned u = 0; u<arcs.size(); u++)
@@ -1517,6 +1546,8 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
         //only subsequent elements of zero height.
         auto i = y.begin()->arc;
         double local_y = y.begin()->y;
+        //This loop is here just for zero-height elements.
+        //As soon as we hit something non-zero height, we break at the end
         for (; i!=arcs[col].end(); i++)  {
             AreaList arc_cover;
             (*i)->Layout(canvas, &arc_cover);
@@ -1568,26 +1599,37 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
             //Shift the arc in question to its place
             (*i)->ShiftBy(local_y);
             arc_cover.Shift(XY(0,local_y));
-            y_bottom[col] = std::max(y_bottom[col], local_y+h);
+            y_bottom_all[col] = std::max(y_bottom_all[col], local_y+h);
             //If we are parallel draw the rest of the block in one go
             if ((*i)->IsParallel()) {
                 //kill the mainline of the last arc (in "i")
                 arc_cover.InvalidateMainLine();
+                //Do not allow anyone to be placed above us
                 y_upper_limit[col] = local_y;
             } 
-            local_y = y_bottom[col];
-            previous_was_parallel[col] = (*i)->IsParallel();
-            //Here we are done adding `i`
-
-            if (cover)
-                *cover += arc_cover;
-            //Update covers
-            covers[col] += arc_cover; //arc_cover contains the mainline here (unless parallel)
+            if ((*i)->IsOverlap()) {
+                if (cover)
+                    deferred_cover += arc_cover;
+                //Do not allow anyone to be placed above us
+                y_upper_limit[col] = local_y;
+                //Keep y as the top of the current arc
+            } else {
+                if (cover)
+                    *cover += arc_cover;
+                //Update covers
+                covers[col] += arc_cover; //arc_cover contains the mainline here (unless parallel)
+                local_y = y_bottom[col] = std::max(y_bottom[col], local_y+h);
+            }
+            //Add i's cover (without the mainline) to all other column 
+            //even if it is marked as "overlay". Other columns shall not
+            //overlap with "i", just the subsequent elements in this column.
             arc_cover.InvalidateMainLine();
             for (auto c = y.begin(); c!=y.end(); c++)  
                 if (c->col != col)
                     covers[c->col] += arc_cover;
-            i++; //move to next element
+            previous_was_parallel[col] = (*i)->IsParallel();
+            //This was a non-zero height element, we break and pick
+            //the next arc from the column with the topmost current bottom.
             break;
         }
         //Delete us from the set (for later re-add)
@@ -1601,7 +1643,10 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
         } else 
             y.insert(TY(col, local_y, i)); //re-add column for layout of its remaining element
     }
-    return y_bottom;
+    //Add deferred covers
+    if (cover)
+        *cover += std::move(deferred_cover);
+    return y_bottom_all;
 }
 
 /** Places a list of arcs at below an already laid out part of the chart.
