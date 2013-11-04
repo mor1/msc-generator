@@ -79,18 +79,18 @@ do {                                                \
 
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
 
-#define YYLLOC_DEFAULT(Current, Rhs, N)				\
-    do								\
-      if (YYID (N))                                             \
-	{							\
-	  (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
-	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
-	}							\
-      else							\
-	{							\
-        (Current).first_pos = (Current).last_pos   =		\
-	    YYRHSLOC (Rhs, 0).last_pos;				\
-	}							\
+#define YYLLOC_DEFAULT(Current, Rhs, N)                  \
+    do                                                   \
+      if (YYID (N))                                      \
+    {                                                    \
+      (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos; \
+      (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;  \
+    }                                                    \
+      else                                               \
+    {                                                    \
+        (Current).first_pos = (Current).last_pos   =     \
+        YYRHSLOC (Rhs, 0).last_pos;                      \
+    }                                                    \
     while (YYID (0))
 
 #else
@@ -109,7 +109,7 @@ do {                                                \
         res = pp->length - pp->pos;                 \
         res > (int)max_size ? res = max_size : 0;   \
         memcpy(buffer, pp->buf + pp->pos, res);     \
-		pp->msc->Progress.DoneItem(MscProgress::PARSE, res); \
+        pp->msc->Progress.DoneItem(MscProgress::PARSE, res); \
         pp->pos += res;                             \
     }                                               \
 } while (0)
@@ -258,6 +258,7 @@ do {                                                \
 (?i:pipe)      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
 (?i:mark)      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
 (?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
+(?i:overlap)   yylval_param->str = strdup(yytext); return TOK_COMMAND_OVERLAP;
 (?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 (?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
 (?i:lost)      yylval_param->str = strdup(yytext); return TOK_LOST;

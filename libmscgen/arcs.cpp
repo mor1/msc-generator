@@ -290,7 +290,7 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), had_add_attr_list(false), valid(true), 
-    compress(false), parallel(false), 
+    compress(false), parallel(false), overlap(false),
     keep_together(true), keep_with_next(false),
     type(t), myProgressCategory(c)
 {
@@ -343,6 +343,12 @@ bool ArcBase::AddAttribute(const Attribute &a)
         parallel = a.yes;
         return true;
     }
+    if (a.Is("overlap")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        overlap = a.yes;
+        return true;
+    }
     if (a.Is("refname")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         auto i = chart->ReferenceNames.find(a.value);
@@ -374,6 +380,7 @@ void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", HINT_ATTR_NAME));
@@ -384,6 +391,7 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
         CaseInsensitiveEqual(attr,"parallel") ||
+        CaseInsensitiveEqual(attr,"overlay") ||
         CaseInsensitiveEqual(attr,"keep_together") ||
         CaseInsensitiveEqual(attr,"keep_with_next")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
@@ -1855,6 +1863,7 @@ void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
+    const double cx_lsym_unt = sx + (cx_lsym-sx)*cos_slant;
     const Block sb(Range(chart->GetDrawing().x.from, cx_lsym),
                    chart->GetDrawing().y);
     const Block db(Range(cx_lsym, chart->GetDrawing().x.till),

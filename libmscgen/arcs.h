@@ -146,6 +146,7 @@ protected:
     bool   valid;          ///<If false, then construction failed, arc does not exist 
     bool   compress;       ///<True if compress mechanism is on for this arc (compress attribute set)
     bool   parallel;       ///<If true, subsequent arcs can be drawn beside this.
+    bool   overlap;        ///<If true, subsequent arcs can be drawn overlaid on this.
     bool   keep_together;  ///<If true, do not split this by automatic pagination.
     bool   keep_with_next; ///<If true, do not separate this from following element by automatic pagination 
     string refname;        ///<Value of the "refname" attribute, to reference numbers & others. Empty if none.
@@ -164,6 +165,10 @@ public:
     bool IsParallel() const {return parallel;}
     /** Set the parallel member to true. Used only during parsing.*/
     void SetParallel() {parallel = true;}
+    /** True if subsequent arcs can be drawn overlaid on top of this.*/
+    bool IsOverlap() const {return overlap;}
+    /** Set the overlay member to true. Used only during parsing.*/
+    void SetOverlap() {overlap = true;}
     /** True, if compress mechanism is on foe this arc and can be shifted upwards.*/
     bool IsCompressed() const {return compress;}
     /** True if this arc shall be placed at the centerline of a previous one.*/
