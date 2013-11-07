@@ -465,6 +465,7 @@ protected:
     std::vector<LineAttr>    segment_lines;        ///<Line types of segments. Set during AddAttributeList() from `segment_types`.
     const bool               specified_as_forward; ///<True if user specified "a->b", false if "b<-a"
     double                   slant_angle;          ///<The angle of the arrow. Taken from the context, may be modified by style and/or attribute.
+    double                   slant_depth;          ///<The value of the slant depth, an alternative to the slant arrow. Used only if the user specified the "slant_depth" attr.
     int                      lost_at;              ///<Index of where the message was lost: -2=none, -1=src, 0..n = at a midpoint, n=dst; where n is the size of 'middle'.
     bool                     lost_is_forward;      ///<True if the loss was at the fw side of 'lost_at', false if at the backwards size
     FileLineCol              linenum_asterisk;     ///<The line and column number of the asterisk marking the loss. Invalid if none.
@@ -507,8 +508,6 @@ public:
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     virtual void AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string attr, Csh &csh);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,

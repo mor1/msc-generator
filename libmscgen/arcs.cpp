@@ -895,6 +895,7 @@ bool ArcArrow::AddAttribute(const Attribute &a)
 void ArcArrow::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("arrow").read().AttributeNames(csh);
 }
@@ -902,7 +903,11 @@ void ArcArrow::AttributeNames(Csh &csh)
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"angle")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45 [degrees]>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "slant_depth")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..1000 [pixels]>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (defaultDesign.styles.GetStyle("arrow").read().AttributeValues(attr, csh)) return true;
@@ -1100,7 +1105,8 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineCol
                          const StyleCoW &st) :
     ArcArrow(data.type, MscProgress::DIR_ARROW, msc, st), 
     linenum_src(sl.start), linenum_dst(dl.start), 
-    specified_as_forward(fw), slant_angle(0), lost_at(-2), lost_pos(*msc)
+    specified_as_forward(fw), slant_angle(0), slant_depth(0),
+    lost_at(-2), lost_pos(*msc)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
@@ -1119,8 +1125,9 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineCol
 };
 
 ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al) :
-ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al),
-specified_as_forward(false), slant_angle(0), lost_at(-2), lost_pos(*ArcArrow::chart)
+    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al),
+    specified_as_forward(false), slant_angle(0), slant_depth(0), 
+    lost_at(-2), lost_pos(*ArcArrow::chart)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -1234,28 +1241,25 @@ bool ArcDirArrow::AddAttribute(const Attribute &a)
                 "The slant angle must be between 0 and 45 degrees.");
             if (a.number<0) slant_angle = 0;
             else if (a.number>45) slant_angle = 45;
-        } else
+        } else {
             slant_angle = a.number;
+            slant_depth = 0;
+        }
         return true;
+    }
+    if (a.Is("slant_depth")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        if (a.number<0 || a.number>1000) 
+            chart->Error.Error(a, true, "Slant depth must be between 0 and 1000 pixels. Ignoring this attribute.");
+        else {
+            slant_angle = 0;
+            slant_depth = a.number;
+        }
+        return true;
+
     }
     return ArcArrow::AddAttribute(a);
-}
-
-void ArcDirArrow::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
-
-}
-
-bool ArcDirArrow::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    if (CaseInsensitiveEqual(attr,"angle")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    return false;
 }
 
 EDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
@@ -1392,10 +1396,20 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     }
 
     //set angle to zero if a bidirectional arrow and negative if a<-b
-    if (isBidir()) slant_angle = 0;
+    if (isBidir()) 
+        slant_depth = slant_angle = 0;
     else if ((*src)->index > (*dst)->index) 
             slant_angle = -slant_angle;
-
+    
+    //At this point if the user specified a slant_depth of nonzero,
+    //slant_angle will be zero (which is not the final slant). 
+    //Nevertheless, we will proceed to calculate 'act_size' and go on
+    //doing the Width() function call as if there were no slant.
+    //(Luckily in this way we may only ask for *more* space than
+    //with slant, so nothing will overlap nothing else.)
+    //Then in Layout, when we already know the positions of the
+    //entities, we calculate slant_angle, cos_slant and sin_slant
+    //from slant_depth.
     sin_slant = slant_angle ? sin(slant_angle*M_PI/180.) : 0.;
     cos_slant = slant_angle ? cos(slant_angle*M_PI/180.) : 1.;
 
@@ -1552,6 +1566,16 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     area.clear();
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    //If the user specified slant_depth, we shall re-calculate 
+    //slant_angle, cos_slant and sin_slant.
+    if (slant_depth) {
+        _ASSERT(slant_angle==0);
+        //slant_angle shall be negative if dx < sx;
+        const double rad = atan(slant_depth/(dx-sx));
+        sin_slant = sin(rad);
+        cos_slant = cos(rad);
+        slant_angle = rad/M_PI*180.;
+    }
     //Check if the loss happens in-between (untransformed) sx and dx
     if (lost_pos.valid) {
         cx_lsym = lost_pos.CalculatePos(*chart, lsym_size.x, lsym_size.x*lsym_side_by_offset);
