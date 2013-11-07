@@ -1630,6 +1630,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
             previous_was_parallel[col] = (*i)->IsParallel();
             //This was a non-zero height element, we break and pick
             //the next arc from the column with the topmost current bottom.
+            i++; //for loop increment will not be called, so we increment i here.
             break;
         }
         //Delete us from the set (for later re-add)

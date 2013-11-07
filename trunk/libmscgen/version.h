@@ -8,6 +8,6 @@
 /** The minor version of libmscgen.*/
 #define LIBMSCGEN_MINOR 6
 /** The micro version of libmscgen.*/
-#define LIBMSCGEN_SUPERMINOR 3
+#define LIBMSCGEN_SUPERMINOR 4
 
 #endif //VERSION_H

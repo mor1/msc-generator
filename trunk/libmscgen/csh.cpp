@@ -459,7 +459,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "fill.color", "fill.color2", "fill.gradient", 
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
-"compressable", "xsize", "ysize", "size", "space", "angle",
+"compressable", "xsize", "ysize", "size", "space", "angle", "slant_depth",
 "note.pointer", "note.pos", "note.width", 
 "lost.line.color", "lost.line.type", "lost.line.width", "lost.line.corner", "lost.line.radius", 
 "x.line.color", "x.line.type", "x.line.width", "x.line.corner", "x.line.radius", "x.size",
