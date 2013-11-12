@@ -2158,7 +2158,8 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
         float_dist.second = float_dist.second>0 ? RD/2 : -int(RD/2);
     float_dir_x = std::max(-1, std::min(+1, float_dir_x));
     float_dir_y = std::max(-1, std::min(+1, float_dir_y));
-
+    
+    const score_t sc(0,0,0);
     //This struct holds the searching pattern.
     //x_pos is +2 at the right edge of the box searching, +1 in the right third
     //+ in the middle third, -1 in the left third and -2 along the left edge.
@@ -2170,13 +2171,11 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
         score_t score;
         int map;
         bool operator <(const region_block_t &o) const {return score>o.score;} //HIGHER score first
-    } region_blocks[24*region_distances] = {{+1,-2}, {+2,-1}, {0,-2}, {-1,-2},
-                                            {-2,+1}, {+1,+2}, {0,+2}, {+2,+1},
-                                            {-2,-1}, {-1,+2}, {-2,0}, {+2, 0}};
+    } region_blocks[24*region_distances] = {{+1,2,0,sc,0}, {+2,-1,0,sc,0}, {0,-2,0,sc,0}, {-1,-2,0,sc,0},
+                                            {-2,1,0,sc,0}, {+1,+2,0,sc,0}, {0,+2,0,sc,0}, {+2,+1,0,sc,0},
+                                            {-2,1,0,sc,0}, {-1,+2,0,sc,0}, {-2,0,0,sc,0}, {+2, 0,0,sc,0}};
     //add tie-breaking scores
     for (unsigned u=0; u<12; u++) {
-        region_blocks[u].score.a = 0;
-        region_blocks[u].score.b = 0;
         region_blocks[u].score.c = 12-u;
         region_blocks[u].dist = distances_search_order[0];
     }

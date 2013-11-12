@@ -68,23 +68,25 @@ static void usage()
     printf(
 "Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [--pedantic]\n"
 "               [-p[=<page size>] [-m{lrud}=<margin>]] [-a[h]]\n"
-"               [-x=<width>] [-y=<height>] [-s=<scale>]\n"
+"               [-x=<width>] [-y=<height>] [-s=<scale>] [-F <font>]\n"
 "               [--<chart_option>=<value> ...] [--<chart_design>]\n"
 "       msc-gen -l\n"
 "\n"
 "Where:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
 "             'pdf', 'svg' or 'emf' (if supported on your system).\n"
-"             Default is 'png'.\n"
+"             Default is 'png'. The token 'ismap' is accepted, but results in\n"
+"             an empty map file.\n"
 " -o <file>   Write output to the named file.  If omitted, the input filename\n"
 "             will be appended by an extension suitable for the output format.\n"
 "             If neither input nor output file is given, msc-gen_out.* will be\n"
-"             used.\n"
+"             used. Specifying '-' will result in the out be written to\n"
+"             standard output."
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
 " -i <infile> To retain compatibility with mscgen, this is an alternate way to\n"
 "             specify the input file.\n"
-" -p=[<page size]\n"
+" -p[=<page size]\n"
 "             Full-page output. (PDF only now.) In this case the chart is \n"
 "             drawn on fixed-size pages (following pagination) with one pixel\n"
 "             equalling to 1/72 inches. If a chart page is larger than a physcal\n"
@@ -125,6 +127,9 @@ static void usage()
 "             msc-gen to try them in the order specified until one is\n"
 "             found for which no pages need to be cropped. If none is\n"
 "             such, the last one will be used and a warning will be given.\n"
+" -F <font>   Use specified font. This must be a font name available in the\n"
+"             local system, and overrides the MSCGEN_FONT environment variable\n"
+"             if that is also set.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -140,6 +145,9 @@ static void usage()
 "conditions; type `mscgen -l' for details.\n",
 VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 }
+
+
+
 
 /** Print program licence and return.
  */
@@ -209,7 +217,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
     double                  margins[] = {36, 36, 36, 36}; // half inches everywhere
     bool                    oA = false;
     bool                    oAH = false;
+    string                  oFont;
     string ss;
+
+    const char * const font = getenv("MSCGEN_FONT");
+    if (font) oFont = font;
 
     if (args.size()==1) {
         if (*args.begin() == "-l") {
@@ -329,6 +341,16 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 show_usage = true;
             } else
                 oOutputFile = *(++i);
+        } else if (*i == "-F") {
+            if (i==--args.end()) {
+                msc.Error.Error(opt_pos,
+                    "Missing font name after '-F'.",
+                    "Using " + (oFont.length() ? "'"+oFont+"' instead." : "default font."));
+                show_usage = true;
+            } else {
+                i++;
+                oFont == *i;
+            }
         } else if (*i == "-T") {
             if (i==--args.end()) {
                 msc.Error.Error(opt_pos,
@@ -482,6 +504,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 show_usage = true;
             }
     }
+    //Add font
+    if (oFont.length())
+        msc.AddAttribute(Attribute("text.font.face", oFont.c_str(), opt_pos_range,
+        opt_pos_range));
+
 
     /* Determine output filename */
     if (oOutputFile == "") {
@@ -514,6 +541,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
         default:
             assert(0);
         }
+    } else if (oOutputFile=="-") {
+        //this means standard output
+        oOutputFile.clear();
     }
 
     //Determine option compatibility
@@ -585,10 +615,10 @@ int do_main(const std::list<std::string> &args, const char *designs,
 
     if (oOutType == Canvas::ISMAP) {
         //Generate an empty *.map file
-        FILE *out = fopen(oOutputFile.c_str(), "w");
-        if (out) {
+        FILE *out = oOutputFile.length() ? fopen(oOutputFile.c_str(), "w") : stdout;
+        if (out && oOutputFile.length()) {
             fclose(out);
-        } else
+        } else if (oOutputFile.length())
             msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
     } else if (oCshize) {
         //Replace chart text with the cshized version of it
@@ -604,10 +634,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
         } else {
             csh.ParseText(input, (unsigned)strlen(input), -1, 1);
             string tmp = Cshize(input, (unsigned)strlen(input), csh.CshList, 1, csh_textformat.c_str());
-            FILE *out = fopen(oOutputFile.c_str(), "w");
+            FILE *out = oOutputFile.length() ? fopen(oOutputFile.c_str(), "w") : stdout;
             if (out) {
                 fwrite(tmp.c_str(), 1, tmp.length(), out);
-                fclose(out);
+                if (oOutputFile.length())
+                    fclose(out);
             } else
                 msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
         }
@@ -656,12 +687,33 @@ int do_main(const std::list<std::string> &args, const char *designs,
                     scale[u].x = scale[u].y = oScale[u];
         }
 
-        //Now cycle through pages and write them to individual files or a full-page  one
-        msc.DrawToFile(oOutType, scale, oOutputFile, false, PageSizeInfo::GetPhysicalPageSize(oPageSize), 
-                       margins, oHA, oVA, true);
+        const bool to_stdout = oOutputFile.length()==0;
+        if (to_stdout) {
+            //We cannot write to standard output a multi-page file.
+            if (msc.pageBreakData.size()>1) {
+                msc.Error.Error(opt_pos, "Cannot write multi-page graphics to the standard output.");
+                goto fatal;
+            }
+            oOutputFile = tmpnam(NULL);
+        }
+        //Now cycle through pages and write them to individual files or a full-page one
+        msc.DrawToFile(oOutType, scale, oOutputFile, false, PageSizeInfo::GetPhysicalPageSize(oPageSize),
+                        margins, oHA, oVA, true);
         msc.Progress.Done();
         if (load_data)
             *load_data = msc.Progress.WriteLoadData();
+        //copy temporary file to stdout, if so requested
+        if (to_stdout) {
+            FILE *in = fopen(oOutputFile.c_str(), "r");
+            const size_t size = 4096;
+            char buff[size];
+            while (in && !feof(in)) {
+                const size_t r = fread(buff, 1, size, in);
+                fwrite(buff, 1, r, stdout);
+            }
+            fclose(in);
+            remove(oOutputFile.c_str());
+        }
     }
     if (input)
         free(input);

@@ -281,6 +281,9 @@ do {                                                \
 (?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
 (?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
 (?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
+(?i:brace)     yylval_param->vshape = ArcVerticalArrow::BRACE;   return TOK_VERTICAL_SHAPE;
+(?i:bracket)   yylval_param->vshape = ArcVerticalArrow::BRACKET; return TOK_VERTICAL_SHAPE;
+(?i:range)     yylval_param->vshape = ArcVerticalArrow::RANGE;   return TOK_VERTICAL_SHAPE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
@@ -312,6 +315,8 @@ do {                                                \
 \]       return TOK_CSBRACKET;
 \*       return TOK_ASTERISK;
 
+ /* We need to list only those style names, which are not conforming to
+  * TOK_STRING above. */
 pipe--        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 pipe\+\+      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 pipe==        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;

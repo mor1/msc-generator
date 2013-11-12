@@ -82,8 +82,8 @@
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP
-       TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS TOK_SHOW TOK_HIDE
-       TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
+       TOK_VERTICAL TOK_VERTICAL_SHAPE TOK_AT TOK_LOST TOK_AT_POS 
+       TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
        TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
@@ -111,11 +111,12 @@
     std::list<std::string>        *stringlist;
     CHAR_IF_CSH(ESide)            eside;
     CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
+    CHAR_IF_CSH(ArcVerticalArrow::EVerticalShape)   vshape;
 };
 
-%type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
+%type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt scope_close
                    symbol_command symbol_command_no_attr note comment
-%type <arcvertarrow> vertrel_no_xpos
+%type <arcvertarrow> vertrel_no_xpos vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir arcrel_arrow
 %type <arcbox>     boxrel first_box
 %type <arcpipe>    first_pipe
@@ -150,12 +151,14 @@
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP TOK_COMMAND_MARK TOK_BYE
-                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_LOST TOK_AT_POS
+                   TOK_NUMBER TOK_BOOLEAN 
+                   TOK_VERTICAL  TOK_AT TOK_LOST TOK_AT_POS
                    TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 %type <stringlist> tok_stringlist
+%type <vshape>     TOK_VERTICAL_SHAPE
 
 %destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
 %destructor {if (!C_S_H) delete $$;} <arcbox> <arcpipe> <arcboxseries> <arcpipeseries> <arcparallel>
@@ -636,13 +639,31 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_MARKER);
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_MARKER)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "brace", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "bracket", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "range", HINT_KEYWORD));
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing a marker.");
   #else
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a marker.");
   #endif
     free($1);
     $$ = NULL;
+}
+              | TOK_VERTICAL TOK_VERTICAL_SHAPE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER);
+    csh.AddCSH_ErrorAfter(@2, "Missing a marker.");
+  #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing a marker.");
+  #endif
+    free($1);
+    $$ = NULL;
+    $2; //to suppress bison warning of unused parameter
 }
               |TOK_VERTICAL vertrel
 {
@@ -652,6 +673,20 @@ arc:           arcrel
     if ($2) {
       ($2)->AddAttributeList(NULL);
       $$ = ($2);
+    } else $$ = NULL;
+  #endif
+    free($1);
+}
+              |TOK_VERTICAL TOK_VERTICAL_SHAPE vertrel
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+  #else
+    if ($3) {
+      ($3)->SetVerticalShape($2);
+      ($3)->AddAttributeList(NULL);
+      $$ = ($3);
     } else $$ = NULL;
   #endif
     free($1);
@@ -668,6 +703,24 @@ arc:           arcrel
     if ($2) {
       ($2)->AddAttributeList($3);
       $$ = ($2);
+    } else $$ = NULL;
+  #endif
+    free($1);
+}
+              | TOK_VERTICAL TOK_VERTICAL_SHAPE vertrel full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @4))
+        ArcVerticalArrow::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
+        ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
+  #else
+    if ($3) {
+      ($3)->SetVerticalShape($2);
+      ($3)->AddAttributeList($4);
+      $$ = ($3);
     } else $$ = NULL;
   #endif
     free($1);
