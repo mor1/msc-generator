@@ -106,9 +106,9 @@ enum class EArrowLost {
 /** Collects data about an arrow segments (dashed/solid/dotted/double and 
  * whether it indicates a lost message using an asterisk */
 struct ArrowSegmentData {
-    EArcType   type;
-    EArrowLost lost;
-    PODFileLineColRange lost_pos;
+    EArcType   type;              ///<The type of the arrow such as MSC_ARROW_SOLID
+    EArrowLost lost;              ///<Whether there was a loss indication (*) or not.
+    PODFileLineColRange lost_pos; ///<The location of the asterisk if any.
 };
 
 class EntityDistanceMap;
@@ -362,13 +362,15 @@ struct VertXPos
     /** Options for horizontal position in relation to one or two entities */
     enum EPosType
     {
-        POS_INVALID = 0, ///<Invalid value
-        POS_AT,        ///<At the entity
-        POS_CENTER,    ///<Halfway between two entities
-        POS_LEFT_BY,   ///<Immediately left by the entity line, but not overlapping it.
-        POS_LEFT_SIDE, ///<immediately left by the line, arrow tips overlap the line.
-        POS_RIGHT_BY,  ///<Immediately right by the entity line, but not overlapping it.
-        POS_RIGHT_SIDE ///<immediately right by the line, arrow tips overlap the line.
+        POS_INVALID = 0,///<Invalid value
+        POS_AT,         ///<At the entity
+        POS_CENTER,     ///<Halfway between two entities
+        POS_THIRD_LEFT, ///<left third between two entities
+        POS_THIRD_RIGHT,///<left third between two entities
+        POS_LEFT_BY,    ///<Immediately left by the entity line, but not overlapping it.
+        POS_LEFT_SIDE,  ///<immediately left by the line, arrow tips overlap the line.
+        POS_RIGHT_BY,   ///<Immediately right by the entity line, but not overlapping it.
+        POS_RIGHT_SIDE  ///<immediately right by the line, arrow tips overlap the line.
     };
 
     bool valid;               ///<True if the position is valid
@@ -380,7 +382,7 @@ struct VertXPos
     double offset;            ///<An arbitrary user specified horizontal offset on top of the poition defined by `pos`
 
     /** Create a position with 2 entities (always POS_CENTER) */
-    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, const char *e2, const FileLineColRange &e2l, double off = 0);
+    VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, const char *e2, const FileLineColRange &e2l, double off = 0, EPosType p = POS_CENTER);
     /** Create a position with one entity (must not be POS_CENTER) */
     VertXPos(Msc&m, const char *e1, const FileLineColRange &e1l, EPosType p = POS_AT, double off = 0);
     /** Create (yet) invalid object */
@@ -490,7 +492,7 @@ protected:
     mutable Contour clip_area;  ///<Used to mask out the line at arrowheads - not used by ArcBigArrow.
 public:
     /** Regular constructor. 
-     * @param t The type of the arrow, like MSC_ARROW_SOLID.
+     * @param data The type of the arrow and the position of any loss indication (*).
      * @param s The name of the source entity.
      * @param sl The location of the name of the source entity in the input file
      * @param d The name of the destination entity
@@ -578,15 +580,27 @@ public:
 /** A vertical */
 class ArcVerticalArrow : public ArcArrow
 {
+public:
+    /** Lists Vertical shapes */
+    enum EVerticalShape {
+        ARROW_OR_BOX, ///<Either an arrow or a box depending on the 'ArcBase::type' field
+        BRACE,        ///<A curly brace
+        BRACKET,      ///<A square bracket
+        RANGE         ///<A range with sharp 
+    };
 protected:
-    string src;   ///<The top marker (if any)
-    string dst;   ///<The bottom marker (if any)
-    VertXPos pos; ///<The horizontal position, specified by the user
+    string src;              ///<The top marker (if any)
+    string dst;              ///<The bottom marker (if any)
+    EVerticalShape shape;    ///<The shape of the vertical
+    VertXPos pos;            ///<The horizontal position, specified by the user
+    mutable ESide ent_side;  ///<Which side of the entity we are at (for brace, bracket and range)
+    mutable double width;    ///<width of us (just the body for arrows)
+    mutable double ext_width;///<Extra width of the arrowhead
     mutable std::vector<double> ypos; ///<A two element array with the y pos of the start and end. Set in PlaceWithMarkers()
     mutable double sy_text;  ///<Top/Bottom y edge of text (depending on side)
     mutable double dy_text;  ///<Top/Bottom y edge of text (depending on side) 
+    mutable double text_xpos;///<Left/Right x edge of text (baseline, depending on side)
     mutable double xpos;     ///<x coordinate of middle    
-    mutable double width;    ///<width of us
     mutable std::vector<Contour> outer_contours; ///<Calculated contour (only one element)
 public:
     /** Regular constructor with two marker names (one can be NULL)*/
@@ -596,6 +610,8 @@ public:
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     /** Add the parsed horizontal position (starting with the AT keyword) */
     ArcVerticalArrow* AddXpos(VertXPos *p);
+    /** Sets the shape of the vertical. Used only in parsing.*/
+    void SetVerticalShape(EVerticalShape sh);
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);

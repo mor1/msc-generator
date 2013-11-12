@@ -84,24 +84,25 @@
      TOK_COMMAND_PARALLEL = 302,
      TOK_COMMAND_OVERLAP = 303,
      TOK_VERTICAL = 304,
-     TOK_AT = 305,
-     TOK_LOST = 306,
-     TOK_AT_POS = 307,
-     TOK_SHOW = 308,
-     TOK_HIDE = 309,
-     TOK_ACTIVATE = 310,
-     TOK_DEACTIVATE = 311,
-     TOK_BYE = 312,
-     TOK_COMMAND_VSPACE = 313,
-     TOK_COMMAND_HSPACE = 314,
-     TOK_COMMAND_SYMBOL = 315,
-     TOK_COMMAND_NOTE = 316,
-     TOK_COMMAND_COMMENT = 317,
-     TOK_COMMAND_ENDNOTE = 318,
-     TOK_COMMAND_FOOTNOTE = 319,
-     TOK_COMMAND_TITLE = 320,
-     TOK_COMMAND_SUBTITLE = 321,
-     TOK__NEVER__HAPPENS = 322
+     TOK_VERTICAL_SHAPE = 305,
+     TOK_AT = 306,
+     TOK_LOST = 307,
+     TOK_AT_POS = 308,
+     TOK_SHOW = 309,
+     TOK_HIDE = 310,
+     TOK_ACTIVATE = 311,
+     TOK_DEACTIVATE = 312,
+     TOK_BYE = 313,
+     TOK_COMMAND_VSPACE = 314,
+     TOK_COMMAND_HSPACE = 315,
+     TOK_COMMAND_SYMBOL = 316,
+     TOK_COMMAND_NOTE = 317,
+     TOK_COMMAND_COMMENT = 318,
+     TOK_COMMAND_ENDNOTE = 319,
+     TOK_COMMAND_FOOTNOTE = 320,
+     TOK_COMMAND_TITLE = 321,
+     TOK_COMMAND_SUBTITLE = 322,
+     TOK__NEVER__HAPPENS = 323
    };
 #endif
 /* Tokens.  */
@@ -152,24 +153,25 @@
 #define TOK_COMMAND_PARALLEL 302
 #define TOK_COMMAND_OVERLAP 303
 #define TOK_VERTICAL 304
-#define TOK_AT 305
-#define TOK_LOST 306
-#define TOK_AT_POS 307
-#define TOK_SHOW 308
-#define TOK_HIDE 309
-#define TOK_ACTIVATE 310
-#define TOK_DEACTIVATE 311
-#define TOK_BYE 312
-#define TOK_COMMAND_VSPACE 313
-#define TOK_COMMAND_HSPACE 314
-#define TOK_COMMAND_SYMBOL 315
-#define TOK_COMMAND_NOTE 316
-#define TOK_COMMAND_COMMENT 317
-#define TOK_COMMAND_ENDNOTE 318
-#define TOK_COMMAND_FOOTNOTE 319
-#define TOK_COMMAND_TITLE 320
-#define TOK_COMMAND_SUBTITLE 321
-#define TOK__NEVER__HAPPENS 322
+#define TOK_VERTICAL_SHAPE 305
+#define TOK_AT 306
+#define TOK_LOST 307
+#define TOK_AT_POS 308
+#define TOK_SHOW 309
+#define TOK_HIDE 310
+#define TOK_ACTIVATE 311
+#define TOK_DEACTIVATE 312
+#define TOK_BYE 313
+#define TOK_COMMAND_VSPACE 314
+#define TOK_COMMAND_HSPACE 315
+#define TOK_COMMAND_SYMBOL 316
+#define TOK_COMMAND_NOTE 317
+#define TOK_COMMAND_COMMENT 318
+#define TOK_COMMAND_ENDNOTE 319
+#define TOK_COMMAND_FOOTNOTE 320
+#define TOK_COMMAND_TITLE 321
+#define TOK_COMMAND_SUBTITLE 322
+#define TOK__NEVER__HAPPENS 323
 
 
 
@@ -202,11 +204,12 @@ typedef union YYSTYPE
     std::list<std::string>        *stringlist;
     CHAR_IF_CSH(ESide)            eside;
     CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
+    CHAR_IF_CSH(ArcVerticalArrow::EVerticalShape)   vshape;
 
 
 
 /* Line 2068 of yacc.c  */
-#line 210 "language.h"
+#line 213 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

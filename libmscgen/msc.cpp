@@ -528,14 +528,13 @@ double Msc::GetEntityMaxPosExp() const
 }
             
 /** Create either an ArcSelfArrow or an ArcDirArrow.
- * @param [in] t The type of the arrow segment (dotted, double, etc.)
+ * @param [in] data The type of the arrow segment (dotted, double, etc.) 
+ *                  and the position of any loss indication (*).
  * @param [in] s The name of the source entity.
  * @param [in] sl The place where `s` is mentioned in the input file.
  * @param [in] d The name of the destination entity.
  * @param [in] fw True if the arrow is defined as 's->d'; false if 'd<-s'
  * @param [in] dl The place where `d` is mentioned in the input file.
- * @param [in] lost Whether the user indicated a message loss with an asterisk
- *                  and where.
  * @returns The created object(with the right default style).*/
 ArcArrow *Msc::CreateArcArrow(ArrowSegmentData data, const char*s, const FileLineColRange &sl,
                               const char*d, bool fw, const FileLineColRange &dl)
