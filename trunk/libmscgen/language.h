@@ -205,11 +205,12 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ESide)            eside;
     CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
     CHAR_IF_CSH(ArcVerticalArrow::EVerticalShape)   vshape;
+	CHAR_IF_CSH(ArcTypePlusDir)   arctypeplusdir;
 
 
 
 /* Line 2068 of yacc.c  */
-#line 213 "language.h"
+#line 214 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

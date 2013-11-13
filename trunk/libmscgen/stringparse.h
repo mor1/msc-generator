@@ -327,6 +327,32 @@ public:
      * @param [in] isRotated If true then the canvas will fall back to text_path
      *                       for surfaces that do not support rotated text (WMF)*/
     void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
+    /** Return the cover for the 90 degree rotated label.
+    * We lay out the label between `sy` and `dy` according to the ident of each line.
+    * Each fragment is modelled as a rectangle.
+    * @param [in] sy The top margin.
+    * @param [in] dy The bottom margin.
+    * @param [in] x The left edge of the label, irrespective of 'from_left'.
+    * @param [in] from_left True if the label is read from left, false if from right
+    * @param [in] cy If also specified, we center around it for centered lines,
+    *                but taking care not to go ouside the margings.
+    *                If the line is wider than `dy-sy` we will go outside
+    *                as little as possible (thus we center around `(sx+dx)/2`.
+    * @returns The cover of the label.*/
+    Contour Cover90(double sy, double dy, double x, bool from_left, double cy = -CONTOUR_INFINITY) const;
+    /** Draw the label rotated 90 degrees onto a canvas
+    * We lay out the label between `sy` and `dy` according to the ident of each line.
+    * Each fragment is modelled as a rectangle.
+    * @param canvas The canvas to draw onto.
+    * @param [in] sy The top margin.
+    * @param [in] dy The bottom margin.
+    * @param [in] x The left edge of the label, irrespective of 'from_left'.
+    * @param [in] from_left True if the label is read from left, false if from right
+    * @param [in] cy If also specified, we center around it for centered lines,
+    *                but taking care not to go ouside the margings.
+    *                If the line is wider than `dy-sy` we will go outside
+    *                as little as possible (thus we center around `(sx+dx)/2`.*/
+    void Draw90(Canvas &canvas, double sy, double dy, double x, bool from_left, double cy = -CONTOUR_INFINITY) const;
 };
 
 #endif //STRINGPARSE_H

@@ -463,7 +463,7 @@ void SimpleContour::assign_dont_check(const std::vector<XY> &v)
 {
     clear();
     if (v.size()<2) return;
-    for (size_t i=0; i<v.size(); i++)
+    for (size_t i = 0; i<v.size(); i++)
         edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
     Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
@@ -482,6 +482,14 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
     clear();
     if (v.size()<2) return;
     edges = v;
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+void SimpleContour::assign_dont_check(std::vector<Edge> &&v)
+{
+    clear();
+    if (v.size()<2) return;
+    edges.swap(v);
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 

@@ -1589,7 +1589,7 @@ unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
     size_t pos = 0, line_start = 0;
     unsigned length=0;
     while (pos < input.length()) {
-        bool hard_line_break;
+        bool hard_line_break = false; //=false is just there to supress a warning
         //find next new line
         while (pos < input.length()) {
             const auto ret = format.ProcessEscape(input.c_str()+pos, length);
@@ -1810,3 +1810,23 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
     }
 }
 
+Contour Label::Cover90(double sy, double dy, double x, bool from_left, double cy) const
+{
+    Contour ret = Cover(sy, dy, x, cy);
+    ret.Rotate(from_left ? 90 : -90);
+    if (from_left)
+        ret.Shift(XY(2*x+getTextWidthHeight().y, 0));
+    else
+        ret.Shift(XY(0, sy+dy));
+    return ret;
+}
+
+void Label::Draw90(Canvas &canvas, double sy, double dy, double x, bool from_left, double cy) const
+{
+    if (from_left)
+        canvas.Transform_Rotate90(2*x, getTextWidthHeight().y, false);
+    else
+        canvas.Transform_Rotate90(sy, dy, true);
+    Draw(canvas, std::min(sy, dy), std::max(sy, dy), x, cy, true);
+    canvas.UnTransform();
+}

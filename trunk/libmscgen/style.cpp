@@ -694,7 +694,7 @@ void Context::Plain()
     styles["vertical"].write().MakeCompleteButText();
     styles["vertical"].write().compress.first = false;
     styles["vertical"].write().numbering.first = false;
-    styles["vertical"].write().makeroom.second = false;
+    styles["vertical"].write().makeroom.second = true;
     styles["vertical"].write().line.radius.second = -1;
 
     styles["vertical->"].write().line.type.first = true;
@@ -722,12 +722,11 @@ void Context::Plain()
     styles["vertical=="].write().line.type.second = LINE_DOUBLE;
 
     styles["vertical_range"].write().line.radius.first = true;
-    styles["vertical_range"].write().line.radius.second = 10;
+    styles["vertical_range"].write().line.radius.second = 8;
     styles["vertical_bracket"] = styles["vertical_range"];
     styles["vertical_bracket"].write().line.corner.first = true;
     styles["vertical_bracket"].write().line.corner.second = CORNER_NONE;
     styles["vertical_brace"] = styles["vertical_bracket"];
-    styles["vertical_brace"].write().line.radius.second = 20;
     styles["vertical_brace"].write().line.corner.second = CORNER_ROUND;
 
     styles["divider"].write().MakeCompleteButText();

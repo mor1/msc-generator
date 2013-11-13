@@ -96,6 +96,13 @@ enum EDirType {
     MSC_DIR_BIDIR          ///<A bidirectional arrow.
 };
 
+/** A structure used to hold an arc type and a direction. Used with ArcVerticalArrow. */
+struct ArcTypePlusDir
+{
+    EArcType arc;
+    EDirType dir;
+};
+
 /** Indicates if the message was lost and where. */
 enum class EArrowLost {
     NOT,     ///<The arrow is not lost
@@ -593,18 +600,21 @@ protected:
     string dst;              ///<The bottom marker (if any)
     EVerticalShape shape;    ///<The shape of the vertical
     VertXPos pos;            ///<The horizontal position, specified by the user
+    mutable bool forward;    ///<if the arrow is up to down.
     mutable ESide ent_side;  ///<Which side of the entity we are at (for brace, bracket and range)
     mutable double width;    ///<width of us (just the body for arrows)
     mutable double ext_width;///<Extra width of the arrowhead
+    mutable double radius;   ///<Calculated radius (important for brace, where height may limit)
     mutable std::vector<double> ypos; ///<A two element array with the y pos of the start and end. Set in PlaceWithMarkers()
     mutable double sy_text;  ///<Top/Bottom y edge of text (depending on side)
     mutable double dy_text;  ///<Top/Bottom y edge of text (depending on side) 
     mutable double text_xpos;///<Left/Right x edge of text (baseline, depending on side)
-    mutable double xpos;     ///<x coordinate of middle    
+    mutable double xpos;     ///<x coordinate of middle (ARROW_OR_BOX) or the key line (BRACE, BRACKET, RANGE)
+    mutable double other_x_off; ///<Some value for brackets & ranges
     mutable std::vector<Contour> outer_contours; ///<Calculated contour (only one element)
 public:
     /** Regular constructor with two marker names (one can be NULL)*/
-    ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
+    ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc);
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                                  const FileLineColRange &l);
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);

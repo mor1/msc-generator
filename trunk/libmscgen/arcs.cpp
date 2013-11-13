@@ -1696,7 +1696,10 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     for (unsigned i=0; i<xPos.size(); i++)
         area += style.read().arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i),
         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)]);
-    area_important = area; //the text and arrowheads
+    //Add the loss symbol
+    if (lost_pos.valid)
+        area += Block(XY(cx_lsym, centerline)-lsym_size/2, XY(cx_lsym, centerline)+lsym_size/2);
+    area_important = area; //the text and arrowheads and lost symbol
     //Add small blocks if there is no end or start arrowhead
     if (style.read().arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
         area_important += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
@@ -1709,8 +1712,6 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
-    if (lost_pos.valid)
-        area += Block(XY(cx_lsym, centerline)-lsym_size/2, XY(cx_lsym, centerline)+lsym_size/2);
     //Add a horizontal line to area to bridge the gap across activated entities
     area_to_note2 = Block(sx, dx, centerline, centerline).Expand(0.5);
     CalculateMainline(std::max(lw_max, chart->nudgeSize+1.0));
@@ -2331,10 +2332,13 @@ double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
 }
 
 
-ArcVerticalArrow::ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc) :
-    ArcArrow(t, MscProgress::VERTICAL, msc, msc->Contexts.back().styles["vertical"]), 
+ArcVerticalArrow::ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc) :
+    ArcArrow(t.arc, MscProgress::VERTICAL, msc, msc->Contexts.back().styles["vertical"]), 
     src(s ? s : ""), dst(d ? d : ""), shape(ARROW_OR_BOX), pos(*msc), ypos(2)
 {
+    //If we are defined via a backwards arrow, swap source and dst
+    if (t.dir==MSC_DIR_LEFT)
+        src.swap(dst);
     valid = false; //without an x pos we are invalid
 }
 
@@ -2529,12 +2533,11 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
 
     //Copy the line attribute to the arrow, as well
     style.write().arrow.line = style.read().line;
-
-    //Copy brace/bracket to line.corner
-    if (shape==BRACE)
-        style.write().line.corner.second = CORNER_ROUND;
-    else if (shape==BRACKET)
-        style.write().line.corner.second = CORNER_NONE;
+    //If we do a RANGE, remove arrowheads for box symbols
+    if (shape == RANGE) 
+        if (type==MSC_BOX_DASHED || type == MSC_BOX_DOTTED || type==MSC_BOX_DOUBLE || type == MSC_BOX_SOLID) 
+            style.write().arrow.startType.second = 
+                style.write().arrow.endType.second = MSC_ARROW_NONE;
 
     //Re-adjust gradients so that they look what the user wanted 
     //even after rotation
@@ -2562,6 +2565,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     //The offset is ignored during the process of setting space requirements
     const XY twh = parsed_label.getTextWidthHeight();
     const double lw = style.read().line.LineWidth();
+    radius = style.read().line.radius.second;
     width = twh.y;
     switch (shape) {
     default:
@@ -2575,58 +2579,84 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
         //ext width is the tip of the arrowhead, if any
         ext_width = style.read().arrow.bigYExtent(isBidir(), false); 
         break;
-    case BRACE:
+    case RANGE:  {
+        //Here body with is all the width of the range
+        double w = lw/2;
+        //getWidthHeight().y is _half_ the height of the arrowhead 
+        //(the height above/below the centerline)
+        w = std::max(w, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).y);
+        w = std::max(w, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).y);
+        width = std::max(width + chart->hscaleAutoXGap + lw/2, //space between text and range
+                         style.read().line.radius.second);
+        width = std::max(width, w);
+        _ASSERT(style.read().line.IsComplete());
+        //we set other_x_off here so that it becomes easier to calculate it later
+        other_x_off = std::max(w, style.read().line.radius.second);
+        width += other_x_off;
+        //no ext width
+        ext_width = radius;
+        }
+        break;
     case BRACKET:
-        //Here body with is all the width of the brace/bracket
+        //Here body with is all the width of the brace/bracket, plus text
         if (width)
             width += chart->hscaleAutoXGap; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
-        width += 2*style.read().line.radius.second + lw;
-        width += 2*chart->hscaleAutoXGap;
-        //no ext width
-        ext_width = 0;
+        width += radius+ lw;
+        ext_width = radius;
         break;
-    case RANGE:
-        //Here body with is all the width of the range
-        width = std::max(width + chart->hscaleAutoXGap, //space between text and brace
-                         style.read().line.radius.second);
+    case BRACE:
+        //Here body with is all the width of the brace/bracket, plus text
+        if (width)
+            width += chart->hscaleAutoXGap; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
-        width += style.read().line.radius.second + lw;
-        width += 2*chart->hscaleAutoXGap;
-        //no ext width
-        ext_width = 0;
+        width += 2*radius + lw;
+        ext_width = radius;
         break;
     }
+
+    const unsigned index = (*pos.entity1)->index;
+    switch (pos.pos) {
+    case VertXPos::POS_LEFT_BY:
+    case VertXPos::POS_LEFT_SIDE:
+        pos.offset -= distances.Query(index, DISTANCE_LEFT);
+        break;
+    case VertXPos::POS_RIGHT_BY:
+    case VertXPos::POS_RIGHT_SIDE:
+        pos.offset += distances.Query(index, DISTANCE_RIGHT);
+        break;
+    default:
+        break;
+    };
 
     //No extra space requirement -> exit here
     if (!style.read().makeroom.second) return;
 
-    const unsigned index = (*pos.entity1)->index;
     switch (pos.pos) {
     default:
         _ASSERT(0); //fallthrough
     case VertXPos::POS_AT:
-        distances.Insert(index, DISTANCE_LEFT, (width+ext_width)/2);
-        distances.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2);
+        distances.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset);
+        distances.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset);
         break;
     case VertXPos::POS_THIRD_LEFT:
     case VertXPos::POS_THIRD_RIGHT:
         _ASSERT(0); //fallthrough, these should not appear here, used only for loss
     case VertXPos::POS_CENTER:
-        distances.Insert(index, (*pos.entity2)->index, width+ext_width);
+        distances.Insert(index, (*pos.entity2)->index, width+ext_width + pos.offset);
         break;
     case VertXPos::POS_LEFT_BY:
-        distances.Insert(index, DISTANCE_LEFT, width + ext_width);
+        distances.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset);
         break;
     case VertXPos::POS_RIGHT_BY:
-        distances.Insert(index, DISTANCE_LEFT, width + ext_width);
+        distances.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset);
         break;
 
     case VertXPos::POS_LEFT_SIDE:
-        distances.Insert(index, DISTANCE_RIGHT, width);
+        distances.Insert(index, DISTANCE_LEFT, width - pos.offset);
         break;
     case VertXPos::POS_RIGHT_SIDE:
-        distances.Insert(index, DISTANCE_RIGHT, width);
+        distances.Insert(index, DISTANCE_RIGHT, width + pos.offset);
         break;
     };
 }
@@ -2645,7 +2675,25 @@ void ArcVerticalArrow::ShiftBy(double y)
     yPos += y;
 }
 
-void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
+/** Creates a quarter of a circle's belt 
+ * @param [in] x The center
+ * @param [in] y The center
+ * @param [in] r The radius of the midline of the belt
+ * @param [in] lw The width of the belt
+ * @param [in] q Which quarter: 0:lower-right, 1:lower-left, 2: upper-left, 3: upper-right
+ * @returns a contour.*/
+Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
+{
+    _ASSERT(q<=3);
+    if (r<=0 || lw<=0) return Contour();
+    Edge c1(XY(x, y), r+lw/2, 0, 0, 90*q, 90*(q+1));
+    Edge c2(XY(x, y), r-lw/2, 0, 0, 90*q, 90*(q+1));
+    c2.Invert();
+    return std::vector<Edge>({c1, Edge(c1.GetEnd(), c2.GetStart()), 
+                              c2, Edge(c2.GetEnd(), c1.GetStart())});
+}
+
+void ArcVerticalArrow::PlaceWithMarkers(Canvas & /*canvas*/, double autoMarker)
 {
     if (!valid) return;
     //Here we are sure markers are OK
@@ -2683,8 +2731,12 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
         valid = false;
         return;
     }
+    forward = ypos[0] < ypos[1];
+    if (!forward)
+        swap(ypos[0], ypos[1]); //ypos[0] now < ypos[1]
 
     const double lw = style.read().line.LineWidth();
+    const double lw2 = lw/2;
     const XY twh = parsed_label.getTextWidthHeight();
     const Contour text_cover = parsed_label.Cover(0, twh.x, lw);
     double sm, dm; //margins
@@ -2696,15 +2748,13 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
                                              isBidir(), style.read().arrow.endType.second, style.read().line);
         break;
     case RANGE:
-        dm = sm = lw + chart->hscaleAutoXGap;
+        sm = lw/2 + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).x);
+        dm = lw/2 + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).x);
         break;
     default:
         dm = sm = 0;
     }
     //calculate sy_text, dy_text and xpos
-    const bool forward = ypos[0] < ypos[1];
-    if (!forward)
-        swap(ypos[0], ypos[1]); //ypos[0] now < ypos[1]
     if (style.read().side.second == ESide::LEFT) {
         sy_text = ypos[0] + (forward ? sm : dm);
         dy_text = ypos[1] - (forward ? dm : sm);
@@ -2716,8 +2766,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
         chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
         "May look strange.");
     xpos = pos.CalculatePos(*chart, width, ext_width/2);
+    //xpos is now the middle of the construct
 
-    const double radius = style.read().line.radius.second;
     //Calculate area and text_xpos
     switch (shape) {
     default:
@@ -2726,9 +2776,9 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
         //adjust xpos and width
         width -= lw; //not necessarily integer, the distance from midline to midline
         xpos = floor(xpos + 0.5); //xpos is integer now: the centerline of arrow if arrow
-
+        //the left side of the label
         text_xpos = xpos - twh.y/2;
-        const double ss = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.startType.second, MSC_ARROW_START, 
+        const double ss = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.startType.second, MSC_ARROW_START,
                                                            twh.y+2*lw, 0, style.read().line);
         const double ds = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.endType.second, MSC_ARROW_END, 
                                                            twh.y+2*lw, 0, style.read().line);
@@ -2748,31 +2798,92 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &canvas, double autoMarker)
         break; //ARROW_OR_BOX
         }
     case RANGE: {
-        const double x_off = width/2 - chart->hscaleAutoXGap - radius - lw/2;
-        double x;
+        //other_x_off is already set here to the distance from the midline to the edge
+        const double x_off = width/2 - other_x_off;
         if (ent_side == ESide::LEFT) {
             text_xpos = xpos - width/2;
-            x = xpos + x_off;
+            xpos += x_off;
         } else {
-            text_xpos = xpos + width/2;
-            x = xpos - x_off;
+            text_xpos = xpos + width/2 - twh.y;
+            xpos -= x_off;
         }
-        area = parsed_label.Cover(min(sy_text, dy_text), max(sy_text, dy_text), 
-                                  text_xpos).SwapXY();
-        area += Block(x-lw/2, x+lw/2, ypos[0], ypos[1]);
-        area += Block(x-radius, x+radius, ypos[0], ypos[0]+lw);
-        area += Block(x-radius, x+radius, ypos[1], ypos[1]+lw);
-        }
+        area = parsed_label.Cover90(sy_text, dy_text, text_xpos, 
+                                    style.read().side.second == ESide::LEFT);
+        area += Block(xpos-lw2, xpos+lw2, ypos[0], ypos[1]);
+        area += Block(xpos-radius-lw2, xpos+radius+lw2, ypos[0], ypos[0]+lw);
+        area += Block(xpos-radius-lw2, xpos+radius+lw2, ypos[1], ypos[1]-lw);
+        //Now add arrowhead contours
+        const XY cs(xpos, ypos[0]+lw/2);
+        const XY cd(xpos, ypos[1]-lw/2);
+        area += style.read().arrow.Cover(cs, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_START : MSC_ARROW_END, style.read().line, style.read().line
+            ).RotateAround(cs, 90);
+        area += style.read().arrow.Cover(cd, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_END : MSC_ARROW_START, style.read().line, style.read().line
+            ).RotateAround(cd, 90);
+    }
         break;
-    case BRACE:
-    case BRACKET:
-        _ASSERT(0); //for now
+    case BRACKET: {
+        const double x_off = width/2 - radius - lw2;
+        if (ent_side == ESide::LEFT) {
+            text_xpos = xpos - width/2;
+            xpos += x_off;
+            other_x_off = radius+lw2;
+            //area = Block(xpos, xpos+radius+lw2, ypos[0], ypos[0]+lw);
+            //area += Block(xpos, xpos+radius+lw2, ypos[1], ypos[1]-lw);
+        } else {
+            text_xpos = xpos + width/2 - twh.y;
+            xpos -= x_off;
+            other_x_off = -radius-lw2;
+            //area = Block(xpos-radius-lw2, xpos, ypos[0], ypos[0]+lw);
+            //area += Block(xpos-radius-lw2, xpos, ypos[1], ypos[1]-lw);
+        }
+        area += parsed_label.Cover90(sy_text, dy_text, text_xpos,
+            style.read().side.second == ESide::LEFT);
+        //area += Block(xpos-lw2, xpos+lw2, ypos[0], ypos[1]);
+
+        const Block rect(xpos, xpos+2*other_x_off, ypos[0]+lw2, ypos[1]-lw2);
+        const Block clip(xpos-1, xpos+other_x_off, ypos[0]-1, ypos[1]+1);
+
+        area += clip * (style.read().line.CreateRectangle_OuterEdge(rect) - 
+                        style.read().line.CreateRectangle_InnerEdge(rect));
+    }
+        break;
+    case BRACE: {
+        const bool left = ent_side==ESide::LEFT;
+        const double x_off = width/2 - radius - lw2;
+        if (left) {
+            text_xpos = xpos - width/2;
+            xpos += x_off;
+        } else {
+            text_xpos = xpos + width/2 - twh.y;
+            xpos -= x_off;
+        }
+        //Now that we get xpos and text_xpos calculated using the original
+        //radius, we limit radius to what fits the height
+        radius = std::max(0., std::min(radius, (ypos[1]-ypos[0]-2*lw)/4));
+
+        area = parsed_label.Cover90(sy_text, dy_text, text_xpos, 
+                                    style.read().side.second == ESide::LEFT);
+        const double ymid = (ypos[0]+ypos[1])/2;
+        const double xoff = left ? radius : -radius;
+        const double lw2off = left ? lw2 : -lw2;
+        area += Block(xpos+xoff, xpos+xoff+lw2off, ypos[0], ypos[0]+lw);
+        area += BeltQuarter(xpos+xoff, ypos[0]+radius+lw/2, radius, lw, left ? 2 : 3);
+        area += Block(xpos-lw/2, xpos+lw/2, ypos[0]+radius+lw/2, ymid-radius);
+        area += BeltQuarter(xpos-xoff, ymid-radius, radius, lw, left ? 0 : 1);
+        area += BeltQuarter(xpos-xoff, ymid+radius, radius, lw, left ? 3 : 2);
+        area += Block(xpos-lw/2, xpos+lw/2, ymid+radius, ypos[1]-radius-lw/2);
+        area += BeltQuarter(xpos+xoff, ypos[1]-radius-lw/2, radius, lw, left ? 1 : 0);
+        area += Block(xpos+xoff, xpos+xoff+lw2off, ypos[1], ypos[1]-lw);
+        area += Block(xpos-xoff, xpos-xoff-lw2off, ymid-lw2, ymid+lw2);
+    }
     }
     //Roate calculated area and outer_contour
     area.arc = this;
     //fill in other fields
-    area_important = parsed_label.Cover(min(sy_text, dy_text), max(sy_text, dy_text),
-        text_xpos);
+    area_important = parsed_label.Cover90(sy_text, dy_text, text_xpos,
+                                          style.read().side.second == ESide::LEFT);
     area_important.SwapXY();
     area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     chart->NoteBlockers.Append(this);
@@ -2791,25 +2902,105 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
 
-    //Draw shape and calc text x pos;
+    const double lw = style.read().line.LineWidth();
+    //Draw shape 
     switch (shape) {
     case ARROW_OR_BOX:
         style.read().arrow.BigDrawFromContour(outer_contours, NULL, style.read().fill, style.read().shadow, canvas);
         break;
-    case RANGE:
+    case RANGE: {
+        //small tips
+        LineAttr solid = style.read().line;
+        solid.type.second = LINE_SOLID;
+        canvas.Line(XY(xpos-radius-lw/2, ypos[0]+lw/2), XY(xpos+radius+lw/2, ypos[0]+lw/2),
+                    solid);
+        canvas.Line(XY(xpos-radius-lw/2, ypos[1]-lw/2), XY(xpos+radius+lw/2, ypos[1]-lw/2),
+                    solid);
+        
+        //now the line. Clip first.
+        const XY cs(xpos, ypos[0]+lw/2);
+        const XY cd(xpos, ypos[1]-lw/2);
+        Contour clip_area = style.read().arrow.ClipForLine(cs, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_START : MSC_ARROW_END, 
+            Block(xpos, xpos + ypos[1]-ypos[0], ypos[0]-other_x_off, ypos[0]+other_x_off),
+            style.read().line, style.read().line
+            ).RotateAround(cs, 90);
+        Contour ca = style.read().arrow.ClipForLine(cd, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_END : MSC_ARROW_START,
+            Block(xpos-(ypos[1]-ypos[0]), xpos, ypos[1]-other_x_off, ypos[1]+other_x_off),
+            style.read().line, style.read().line
+            ).RotateAround(cd, 90);
+        clip_area *= ca;
+        canvas.Clip(clip_area);
+        canvas.Line(XY(xpos, ypos[0]), XY(xpos, ypos[1]),
+            style.read().line);
+        canvas.UnClip();           
+        //Now arrowheads
+        style.read().arrow.TransformCanvasForAngle(90, canvas, cs.x, cs.y);
+        style.read().arrow.Draw(cs, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_START : MSC_ARROW_END, 
+            style.read().line, style.read().line, &canvas);
+        style.read().arrow.UnTransformCanvas(canvas);
+        style.read().arrow.TransformCanvasForAngle(90, canvas, cd.x, cd.y);
+        style.read().arrow.Draw(cd, 0, forward, isBidir(), 
+            forward ? MSC_ARROW_END : MSC_ARROW_START,
+            style.read().line, style.read().line, &canvas);
+        style.read().arrow.UnTransformCanvas(canvas);
+    }
+        break;
+    case BRACKET: {
+        const Block rect(xpos, xpos+2*other_x_off, ypos[0]+lw/2, ypos[1]-lw/2);
+        const Block clip(xpos-1, xpos+other_x_off, ypos[0]-1, ypos[1]+1);
+
+        canvas.Clip(clip);
+        canvas.Line(rect, style.read().line); //This will have rounde edges, if so set
+        canvas.UnClip();
+    }
+        //canvas.Line(XY(xpos, ypos[0]), XY(xpos, ypos[1]),
+        //            style.read().line);
+        //if (ent_side == ESide::LEFT) {
+        //    canvas.Line(XY(xpos, ypos[0]+lw/2), XY(xpos+radius+lw/2, ypos[0]+lw/2),
+        //                style.read().line);
+        //    canvas.Line(XY(xpos, ypos[1]-lw/2), XY(xpos+radius+lw/2, ypos[1]-lw/2),
+        //                style.read().line);
+        //} else {
+        //    canvas.Line(XY(xpos-radius-lw/2, ypos[0]+lw/2), XY(xpos, ypos[0]+lw/2),
+        //                style.read().line);
+        //    canvas.Line(XY(xpos-radius-lw/2, ypos[1]-lw/2), XY(xpos, ypos[1]-lw/2),
+        //                style.read().line);
+        //}
         break;
     case BRACE:
-    case BRACKET:
-        _ASSERT(0); //for now
+        const bool left = ent_side==ESide::LEFT;
+        const double ymid = (ypos[0]+ypos[1])/2;
+        const double xoff = left ? radius : -radius;
+        const double lw2off = left ? lw/2 : -lw/2;
+        std::vector<Edge> edges({
+            Edge(XY(xpos+xoff+lw2off, ypos[0]+lw/2), XY(xpos+xoff, ypos[0]+lw/2)),
+            Edge(XY(xpos+xoff, ypos[0]+radius+lw/2), radius, 0, 0, left ? 180 : 270, left ? 270 : 360),
+            Edge(XY(xpos, ypos[0]+radius+lw/2), XY(xpos, ymid-radius)),
+            Edge(XY(xpos-xoff, ymid-radius), radius, 0, 0, left ? 0 : 90, left ? 90 : 180),
+            Edge(XY(xpos-xoff, ymid+radius), radius, 0, 0, left ? 270 : 180, left ? 360 : 270),
+            Edge(XY(xpos, ymid+radius), XY(xpos, ypos[1]-radius-lw/2)),
+            Edge(XY(xpos+xoff, ypos[1]-radius-lw/2), radius, 0, 0, left ? 90 : 0, left ? 180 : 90),
+            Edge(XY(xpos+xoff, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[1]-lw/2)),
+            Edge(XY(xpos+xoff+lw2off, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[0]+lw/2))
+        });
+        edges[8].visible = false;
+        if (left) {
+            edges[1].Invert();
+            edges[6].Invert();
+        } else {
+            edges[3].Invert();
+            edges[4].Invert();
+        }
+        Contour brace;
+        brace.assign_dont_check(std::move(edges));
+        canvas.Line(brace, style.read().line);
     };
     //draw text
-    if (style.read().side.second == ESide::LEFT)
-        canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
-    else
-        canvas.Transform_Rotate90(ypos[0], ypos[1], true);
-    parsed_label.Draw(canvas, min(sy_text, dy_text), max(sy_text, dy_text),
-                      text_xpos, -CONTOUR_INFINITY, true);
-    canvas.UnTransform();
+    parsed_label.Draw90(canvas, sy_text, dy_text, text_xpos, 
+                        style.read().side.second == ESide::LEFT);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
