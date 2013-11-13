@@ -375,7 +375,7 @@ public:
     bool operator ==(const Edge& p) const {return start==p.start && end==p.end && (arc==NULL)==(p.arc==NULL) && (!arc || equal_curvy(p));}
     bool operator < (const Edge& p) const {return start!=p.start ? start<p.start : end!=p.end ? end<p.end : (arc==NULL)!=(p.arc==NULL) ? arc==NULL ? true : p.arc==NULL ? false : arc->type < p.arc->type : smaller_curvy(p);}
 
-    void Invert() {std::swap(start, end); if (arc) {arc->clockwise_arc = !arc->clockwise_arc; std::swap(arc->s, arc->e);}} ///<Reverses the direction of the edge.
+    Edge &Invert() {std::swap(start, end); if (arc) {arc->clockwise_arc = !arc->clockwise_arc; std::swap(arc->s, arc->e);} return *this;} ///<Reverses the direction of the edge.
     /** Calculates the angle of the edge at point `p`.
      *
      * @param [in] incoming If true the angle of the incoming segment is calculated (as if it were outgoing), if false the outgoing part.

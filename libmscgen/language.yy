@@ -112,6 +112,7 @@
     CHAR_IF_CSH(ESide)            eside;
     CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
     CHAR_IF_CSH(ArcVerticalArrow::EVerticalShape)   vshape;
+	CHAR_IF_CSH(ArcTypePlusDir)   arctypeplusdir;
 };
 
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt scope_close
@@ -125,7 +126,7 @@
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
-%type <arctype>    relation_to_no_loss relation_from_no_loss relation_bidir_no_loss empharcrel_straight
+%type <arctype>    relation_to_no_loss relation_from_no_loss relation_bidir_no_loss 
                    relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
                    TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
                    TOK_REL_SOLID_FROM TOK_REL_DOUBLE_FROM TOK_REL_DASHED_FROM
@@ -159,6 +160,7 @@
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 %type <stringlist> tok_stringlist
 %type <vshape>     TOK_VERTICAL_SHAPE
+%type<arctypeplusdir> empharcrel_straight
 
 %destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
 %destructor {if (!C_S_H) delete $$;} <arcbox> <arcpipe> <arcboxseries> <arcpipeseries> <arcparallel>
@@ -2464,11 +2466,39 @@ empharcrel_straight: emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
+	$$ = 0; //dummy to supress warning
+  #else
+    ($$).arc = $1;
+	($$).dir = MSC_DIR_INDETERMINATE;
   #endif
 }
         | relation_from_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+	$$ = 0; //dummy to supress warning
+  #else
+    ($$).arc = $1;
+	($$).dir = MSC_DIR_LEFT;
+  #endif
+}
         | relation_to_no_loss
-        | relation_bidir_no_loss;
+{
+  #ifdef C_S_H_IS_COMPILED
+	$$ = 0; //dummy to supress warning
+  #else
+    ($$).arc = $1;
+	($$).dir = MSC_DIR_RIGHT;
+  #endif
+}
+        | relation_bidir_no_loss
+{
+  #ifdef C_S_H_IS_COMPILED
+	$$ = 0; //dummy to supress warning
+  #else
+    ($$).arc = $1;
+	($$).dir = MSC_DIR_BIDIR;
+  #endif
+};
 
 vertrel_no_xpos: entity_string empharcrel_straight entity_string
 {

@@ -2085,6 +2085,15 @@ void Contour::assign(const std::vector<Edge> &v, bool winding)
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
+void Contour::assign(std::vector<Edge> &&v, bool winding)
+{
+    clear();
+    if (v.size()<2) return;
+    Contour tmp;
+    tmp.assign_dont_check(std::move(v));
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+}
+
 void Contour::assign(const Edge v[], size_t size, bool winding)
 {
     clear();

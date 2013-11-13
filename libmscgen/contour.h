@@ -425,7 +425,9 @@ public:
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     template<size_t SIZE> void assign(const XY (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const std::vector<Edge> &v, bool winding=true);
+    void assign(const std::vector<Edge> &v, bool winding = true);
+    /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(std::vector<Edge> &&v, bool winding = true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     void assign(const Edge v[], size_t size, bool winding=true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
@@ -434,13 +436,15 @@ public:
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
     void assign_dont_check(const std::vector<XY> &v) {clear(); first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();}
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const XY v[], size_t size)  {first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox();}
+    void assign_dont_check(const XY v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); }
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
     template<size_t SIZE> void assign_dont_check(const XY (&v)[SIZE]) {assign_dont_check (v, SIZE);}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const std::vector<Edge> &v)  {first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();}
+    void assign_dont_check(const std::vector<Edge> &v) {clear();  first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox(); }
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const Edge v[], size_t size)  {first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox();}
+    void assign_dont_check(std::vector<Edge> &&v) {clear();  first.outline.assign_dont_check(std::move(v)); boundingBox = first.GetBoundingBox(); }
+    /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
+    void assign_dont_check(const Edge v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); }
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
     template<size_t SIZE> void assign_dont_check(const Edge (&v)[SIZE]) {assign_dont_check (v, SIZE);}
 
@@ -452,6 +456,8 @@ public:
     template<size_t SIZE> void append_dont_check(const XY (&v)[SIZE]) {append_dont_check (v, SIZE);}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
     void append_dont_check(const std::vector<Edge> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
+    void append_dont_check(std::vector<Edge> &&v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(std::move(v)); if (!tmp.IsEmpty()) append(std::move(tmp)); }
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
     void append_dont_check(const Edge v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
