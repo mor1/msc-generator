@@ -296,6 +296,11 @@ string Cshize(const char *input, unsigned len, const CshListType &cshList, unsig
             ret.insert(pos, "\\");
         pos = ret.find_first_of("{}[];#\\\"", pos+2);
     }
+    //replace spaces with escaped ESCAPE_CHAR_SPACE
+    for (unsigned i = 0; i<ret.length(); i++)
+        if (ret[i] ==' ')
+            ret.replace(i, 1, "\\" ESCAPE_STRING_SPACE);
+
     //replace octal 277 back to '\'
     for (int ipos = int(ret.length())-1; ipos>=0; ipos--)
         if (ret[ipos]=='\377') ret[ipos] = '\\';
@@ -453,7 +458,8 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
-"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
+"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul", 
+"arrow.line.color", "arrow.line.type", "arrow.line.width",
 "line.color", "line.type", "line.width", "line.corner", "line.radius", 
 "vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner",
 "fill.color", "fill.color2", "fill.gradient", 

@@ -23,7 +23,7 @@
 #include "msc.h"
 
 /** Returns true if value `v` is valid for side type `t` */
-bool IsValidSideValue(ESideType t, ESide v) 
+bool IsValidSideValue(ESideType t, ESide v)
 {
     return ((v==ESide::LEFT || v==ESide::RIGHT) && (t==ESideType::ANY || t==ESideType::LEFT_RIGHT)) ||
                                                      (v==ESide::END && t==ESideType::ANY);
@@ -538,7 +538,7 @@ void Context::Empty()
     styles["block=>"] = styles["block->"];
 
     styles["vertical"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, 
+        MscStyle(STYLE_DEFAULT, ArrowHead::ANY, true, true, true, true, false, 
                  false, true, true, ESideType::LEFT_RIGHT, false, false, true, false, false);  
                  //no vline solid indicator vfill note loss
     styles["vertical->"] = styles["vertical"];
@@ -550,6 +550,9 @@ void Context::Empty()
     styles["vertical++"] = styles["vertical->"];
     styles["vertical.."] = styles["vertical->"];
     styles["vertical=="] = styles["vertical->"];
+    styles["vertical_range"] = styles["vertical->"];
+    styles["vertical_bracket"] = styles["vertical->"];
+    styles["vertical_brace"] = styles["vertical->"];
 
     styles["divider"] = 
         MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, 

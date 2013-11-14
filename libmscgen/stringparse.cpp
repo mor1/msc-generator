@@ -401,6 +401,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (linenum) linenum->col += length;
         return NON_FORMATTING;
 
+    case ESCAPE_CHAR_SPACE: //escaped space
+        length = 2;
+        if (replaceto) replaceto->assign(" ");
+        if (linenum) linenum->col += length;
+        return NON_FORMATTING;
+
     case '|':          // zero-length non-formatting escape
         length = 2;
         if (replaceto) replaceto->clear();

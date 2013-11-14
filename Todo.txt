@@ -59,6 +59,19 @@ FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 
 
+In 3.7.1
+ADDED: BOX keyword.
+ADDED: Bracket, brace and range verticals
+CHANGED: Now verticals using a+ a++ a- a-- positioning will try not to overlap with elements beside the entity line.
+FIXED: verticals take any type of arrow types
+FIXED: entity headings should not push away verticals.
+
+In 3.7.0
+ADDED: Full loss support
+ADDED: “overlap” keyword 
+ADDED: "slant_depth" attribute to arrows.
+CHANGED: The sides of the chart (between LSide and the first entity; and bw RSide and the last entity) is auto-scaling even with fixed hscale, so that nothing gets outside the chart.
+
 In 3.6.2
 CHANGED: Migrated to VS 2013 (use new C++11 features)
 CHANGED: Allows unquoted specification of colors, like 'blue+50', 'green+20', 'red,50+20', '100,20,23' or '20,50,230,50'.

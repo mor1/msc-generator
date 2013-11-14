@@ -531,7 +531,7 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
+void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid || hidden) return;
     //Add distances for entity heading
@@ -579,6 +579,8 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
         //Now convert neighbouring ones to box_side distances, and add the rest as normal side distance
         distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
         distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second.second); //rightmost distance
+        vdist.Insert(dist.begin()->first, DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
+        vdist.Insert(dist.rbegin()->first, DISTANCE_RIGHT, dist.rbegin()->second.second); //rightmost distance
         for (auto d = dist.begin(); d!=--dist.end(); d++) {
             auto d_next = d; d_next++;
             if (d->first == d_next->first-1) //neighbours
@@ -587,6 +589,8 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
                 distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
                 distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
             }
+            vdist.Insert(d->first, DISTANCE_RIGHT, d->second.second);
+            vdist.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
         }
     }
     //Now add some distances for activation (only for non-grouped or collapsed entities)
@@ -765,10 +769,13 @@ void CommandNewpage::FinalizeLabels(Canvas &)
         chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, autoHeading->myProgressCategory);
 }
 
-void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances) 
+void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/) 
 {
     if (autoHeading) {
-        autoHeading->Width(canvas, distances);
+        //Do not add space requirements for verticals here - they will never
+        //conflict with auto headings.
+        DistanceMapVertical vd;
+        autoHeading->Width(canvas, distances, vd);
         chart->Progress.DoneItem(MscProgress::WIDTH, autoHeading->myProgressCategory);
     }
 }
@@ -891,6 +898,19 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
+void CommandMark::Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/,
+                        DistanceMapVertical &vdist)
+{
+    //Add a new element to vdist
+    vdist.InsertMarker(name);
+    //Add activation status right away
+    for (const auto &e : chart->ActiveEntities) 
+        if (e->running_shown.IsActive()) {
+            vdist.Insert(e->index, DISTANCE_LEFT, chart->activeEntitySize);
+            vdist.Insert(e->index, DISTANCE_RIGHT, chart->activeEntitySize);
+        }
+}
+
 void CommandMark::ShiftBy(double y)
 {
     if (!valid) return;
@@ -903,7 +923,7 @@ void CommandMark::ShiftBy(double y)
 #define EMPTY_MARGIN_X 50
 #define EMPTY_MARGIN_Y 5
 
-void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
+void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
 {
     if (!valid) return;
     StringFormat format;
@@ -1057,7 +1077,7 @@ ArcBase* CommandHSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
 }
 
 
-void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
+void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
 {
     if (!valid) return;
     double dist = space.second; //0 if not specified by user
@@ -1371,9 +1391,9 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterato
     return this;
 }
 
-void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances)
+void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
-    ArcCommand::Width(canvas, distances);
+    ArcCommand::Width(canvas, distances, vdist);
 }
 
 
@@ -1661,7 +1681,7 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
 
 //Side comments report zero width if they are word wrapped,
 //but always set the 'had_X_comment' flag of 'distances'
-void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances)
+void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
 {
     if (!valid) return;
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
@@ -1845,12 +1865,12 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
     if (point_toward.length()==0) return ret;
     auto ei = chart->AllEntities.Find_by_Name(point_toward);
     auto mi = chart->Markers.find(point_toward);
-    if (*ei == chart->NoEntity && mi== chart->Markers.end()) {
+    if (*ei == chart->NoEntity && mi == chart->Markers.end()) {
         chart->Error.Error(point_toward_pos.start, "'" + point_toward + "' is neither an entity nor a marker. Ignoring it.");
         return ret;
     }
     DoubleMap<bool> section(false);
-    if (ei != chart->AllEntities.end()) {
+    if (*ei != chart->NoEntity) {
         if (mi != chart->Markers.end()) {
             chart->Error.Warning(point_toward_pos.start, "You have specified both an entity and a marker with the name '" + point_toward + "'. I use the entity here.");
             chart->Error.Warning((*ei)->file_pos, point_toward_pos.start, "Place of the entity definition.");
