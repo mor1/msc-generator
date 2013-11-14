@@ -81,7 +81,7 @@
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
-       TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP
+       TOK_COMMAND_BIG TOK_COMMAND_BOX TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP
        TOK_VERTICAL TOK_VERTICAL_SHAPE TOK_AT TOK_LOST TOK_AT_POS 
        TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
@@ -148,7 +148,7 @@
                    symbol_string colon_string symbol_type_string alpha_string color_string
                    overlap_or_parallel
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_COLORDEF
-                   TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
+                   TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_BOX TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP TOK_COMMAND_MARK TOK_BYE
@@ -2009,6 +2009,26 @@ box_list: first_box
     $$ = new ArcBoxSeries($1);
   #endif
 }
+             | TOK_COMMAND_BOX
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+  #else
+    $$ = NULL;
+    msc.Error.Error(MSC_POS(@1).end.NextChar(), "The keyword '" + string($1) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
+  #endif
+    free($1);
+}
+           | TOK_COMMAND_BOX first_box
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);   
+  #else
+    $$ = new ArcBoxSeries($2);
+  #endif
+  free($1);
+}
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
            | box_list boxrel
 {
@@ -3805,7 +3825,8 @@ entity_string: TOK_QSTRING | TOK_STRING;
 
 reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN |
-                       TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
+                       TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_BOX | 
+                       TOK_COMMAND_PIPE |
                        TOK_VERTICAL | TOK_COMMAND_PARALLEL | TOK_COMMAND_OVERLAP |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |

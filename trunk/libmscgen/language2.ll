@@ -154,6 +154,97 @@ do {                                                \
   #endif
 %}
 
+[ \t]+    /* ignore whitespace */;
+
+ /* These keywords are case insensitive */
+(?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;
+(?i:heading)   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
+(?i:nudge)     yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
+(?i:defcolor)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
+(?i:defstyle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
+(?i:defdesign) yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;
+(?i:newpage)   yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
+(?i:block)     yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
+(?i:box)       yylval_param->str = strdup(yytext); return TOK_COMMAND_BOX;
+(?i:pipe)      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
+(?i:mark)      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
+(?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
+(?i:overlap)   yylval_param->str = strdup(yytext); return TOK_COMMAND_OVERLAP;
+(?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
+(?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
+(?i:lost)      yylval_param->str = strdup(yytext); return TOK_LOST;
+(?i:left)      yylval_param->str = strdup(yytext); return TOK_AT_POS;
+(?i:center)    yylval_param->str = strdup(yytext); return TOK_AT_POS;
+(?i:right)     yylval_param->str = strdup(yytext); return TOK_AT_POS;
+(?i:no)        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
+(?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
+(?i:show)      yylval_param->str = strdup(yytext); return TOK_SHOW;
+(?i:hide)      yylval_param->str = strdup(yytext); return TOK_HIDE;
+(?i:activate)  yylval_param->str = strdup(yytext); return TOK_ACTIVATE;
+(?i:deactivate) yylval_param->str= strdup(yytext); return TOK_DEACTIVATE;
+(?i:bye)       yylval_param->str = strdup(yytext); return TOK_BYE;
+(?i:vspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_VSPACE;
+(?i:hspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_HSPACE;
+(?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
+(?i:note)      yylval_param->str = strdup(yytext); return TOK_COMMAND_NOTE;
+(?i:comment)   yylval_param->str = strdup(yytext); return TOK_COMMAND_COMMENT;
+(?i:endnote)   yylval_param->str = strdup(yytext); return TOK_COMMAND_ENDNOTE;
+(?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
+(?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
+(?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
+(?i:brace)     yylval_param->vshape = ArcVerticalArrow::BRACE;   return TOK_VERTICAL_SHAPE;
+(?i:bracket)   yylval_param->vshape = ArcVerticalArrow::BRACKET; return TOK_VERTICAL_SHAPE;
+(?i:range)     yylval_param->vshape = ArcVerticalArrow::RANGE;   return TOK_VERTICAL_SHAPE;
+
+\.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
+---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
+-\>      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_TO;     // ->
+\<-      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_FROM;   // <-
+\<-\>    yylval_param->arctype=MSC_ARC_SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
+=\>      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_TO;    // =>
+\<=      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_FROM;  // <=
+\<=\>    yylval_param->arctype=MSC_ARC_DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // <=>
+\>\>     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_TO;    // >>
+\<\<     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_FROM;  // <<
+\<\<\>\> yylval_param->arctype=MSC_ARC_DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
+\>       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_TO;    // >
+\<       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_FROM;  // <
+\<\>     yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
+--       yylval_param->arctype=MSC_BOX_SOLID;       return TOK_EMPH;             // --
+\+\+     yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;   // ++
+\.\.     yylval_param->arctype=MSC_BOX_DOTTED;      return TOK_EMPH;             // ..
+==       yylval_param->arctype=MSC_BOX_DOUBLE;      return TOK_EMPH;             // ==
+\+=      return TOK_PLUS_EQUAL;
+-        return TOK_DASH;
+\+       return TOK_PLUS;
+=        return TOK_EQUAL;
+,        return TOK_COMMA;
+\;       return TOK_SEMICOLON;
+\{       return TOK_OCBRACKET;
+\}       return TOK_CCBRACKET;
+\[       return TOK_OSBRACKET;
+\]       return TOK_CSBRACKET;
+\*       return TOK_ASTERISK;
+
+ /* We need to list only those style names, which are not conforming to
+  * TOK_STRING above. */
+pipe--        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe\+\+      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe==        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe\.\.      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block-\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block\>       yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block\>\>     yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block=\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical--    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\+\+  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical==    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\.\.  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical-\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\>\>  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\>    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+
 
  /* This is a colon-quoted string, finished by a quotation mark
  ** : "<string>"
@@ -246,94 +337,6 @@ do {                                                \
     return TOK_QSTRING;
 %}
 
- /* These keywords are case insensitive */
-(?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;
-(?i:heading)   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
-(?i:nudge)     yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
-(?i:defcolor)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
-(?i:defstyle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
-(?i:defdesign) yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;
-(?i:newpage)   yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
-(?i:block)     yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
-(?i:pipe)      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
-(?i:mark)      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
-(?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
-(?i:overlap)   yylval_param->str = strdup(yytext); return TOK_COMMAND_OVERLAP;
-(?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
-(?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
-(?i:lost)      yylval_param->str = strdup(yytext); return TOK_LOST;
-(?i:left)      yylval_param->str = strdup(yytext); return TOK_AT_POS;
-(?i:center)    yylval_param->str = strdup(yytext); return TOK_AT_POS;
-(?i:right)     yylval_param->str = strdup(yytext); return TOK_AT_POS;
-(?i:no)        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
-(?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
-(?i:show)      yylval_param->str = strdup(yytext); return TOK_SHOW;
-(?i:hide)      yylval_param->str = strdup(yytext); return TOK_HIDE;
-(?i:activate)  yylval_param->str = strdup(yytext); return TOK_ACTIVATE;
-(?i:deactivate) yylval_param->str= strdup(yytext); return TOK_DEACTIVATE;
-(?i:bye)       yylval_param->str = strdup(yytext); return TOK_BYE;
-(?i:vspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_VSPACE;
-(?i:hspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_HSPACE;
-(?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
-(?i:note)      yylval_param->str = strdup(yytext); return TOK_COMMAND_NOTE;
-(?i:comment)   yylval_param->str = strdup(yytext); return TOK_COMMAND_COMMENT;
-(?i:endnote)   yylval_param->str = strdup(yytext); return TOK_COMMAND_ENDNOTE;
-(?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
-(?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
-(?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
-(?i:brace)     yylval_param->vshape = ArcVerticalArrow::BRACE;   return TOK_VERTICAL_SHAPE;
-(?i:bracket)   yylval_param->vshape = ArcVerticalArrow::BRACKET; return TOK_VERTICAL_SHAPE;
-(?i:range)     yylval_param->vshape = ArcVerticalArrow::RANGE;   return TOK_VERTICAL_SHAPE;
-
-\.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
----      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
--\>      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_TO;     // ->
-\<-      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_FROM;   // <-
-\<-\>    yylval_param->arctype=MSC_ARC_SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
-=\>      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_TO;    // =>
-\<=      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_FROM;  // <=
-\<=\>    yylval_param->arctype=MSC_ARC_DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // <=>
-\>\>     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_TO;    // >>
-\<\<     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_FROM;  // <<
-\<\<\>\> yylval_param->arctype=MSC_ARC_DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
-\>       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_TO;    // >
-\<       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_FROM;  // <
-\<\>     yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
---       yylval_param->arctype=MSC_BOX_SOLID;       return TOK_EMPH;             // --
-\+\+     yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;   // ++
-\.\.     yylval_param->arctype=MSC_BOX_DOTTED;      return TOK_EMPH;             // ..
-==       yylval_param->arctype=MSC_BOX_DOUBLE;      return TOK_EMPH;             // ==
-\+=      return TOK_PLUS_EQUAL;
--        return TOK_DASH;
-\+       return TOK_PLUS;
-=        return TOK_EQUAL;
-,        return TOK_COMMA;
-\;       return TOK_SEMICOLON;
-\{       return TOK_OCBRACKET;
-\}       return TOK_CCBRACKET;
-\[       return TOK_OSBRACKET;
-\]       return TOK_CSBRACKET;
-\*       return TOK_ASTERISK;
-
- /* We need to list only those style names, which are not conforming to
-  * TOK_STRING above. */
-pipe--        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-pipe\+\+      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-pipe==        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-pipe\.\.      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-block-\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-block\>       yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-block\>\>     yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-block=\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical--    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical\+\+  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical==    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical\.\.  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical-\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical\>\>  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical\>    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
-
  /* Numbers */
 [+\-]?[0-9]+\.?[0-9]*  %{
     yylval_param->str = strdup(yytext);
@@ -371,8 +374,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     return TOK_COLORDEF;
 %}
 
-
-[ \t]+    /* ignore whitespace */;
+ 
 %%
 
 /* END OF FILE */

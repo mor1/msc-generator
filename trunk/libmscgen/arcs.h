@@ -119,6 +119,7 @@ struct ArrowSegmentData {
 };
 
 class EntityDistanceMap;
+class DistanceMapVertical;
 struct ArcSignature;
 
 /** The collapse/expand status of a box */
@@ -226,7 +227,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     /** Collects vertical distances for hscale=auto mechanism.
      * See documentation for libmscgen for more info.*/
-    virtual void Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
+    virtual void Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/, DistanceMapVertical &/*vdist*/) {}
     /** Calculate entity layout at y=0 vertical position. 
      * Calculates the height, and sets up the area at yPos==0, 
      * add its cover to use at placement later to `cover`.
@@ -288,7 +289,7 @@ public:
     double GetXCoord() const;
     virtual EDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -452,7 +453,7 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void PostPosProcess(Canvas &cover);
@@ -525,7 +526,7 @@ public:
      * Called if a centierlined entity command after us has changed active entities.*/
     virtual void UpdateActiveSizes(); 
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     /** Get the Centerline Delta from the top of the arc at horizontal position `x`.
      * A negative return value indicates the object has no centerline. 
@@ -576,7 +577,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
@@ -629,7 +630,7 @@ public:
     virtual Element* AttachNote(CommandNote *);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
@@ -700,7 +701,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
@@ -776,7 +777,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     void CalculateContours(Area *pipe_body_cover=NULL);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -813,7 +814,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
@@ -836,7 +837,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);

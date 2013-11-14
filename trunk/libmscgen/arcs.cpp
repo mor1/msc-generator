@@ -492,7 +492,7 @@ EDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-void ArcIndicator::Width(Canvas &, EntityDistanceMap &distances)
+void ArcIndicator::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
 {
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
@@ -992,11 +992,15 @@ ArcBase* ArcSelfArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
     return this;
 }
 
-void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances)
+void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
-    distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(XSizeUnit)+src_act+style.read().line.LineWidth()/2);
-    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getSpaceRequired() + src_act);
+    const double left = chart->XCoord(XSizeUnit)+src_act+style.read().line.LineWidth()/2;
+    const double right = parsed_label.getSpaceRequired() + src_act;
+    distances.Insert((*src)->index, DISTANCE_RIGHT, left);
+    distances.Insert((*src)->index, DISTANCE_LEFT, right);
+    vdist.Insert((*src)->index, DISTANCE_RIGHT, left);
+    vdist.Insert((*src)->index, DISTANCE_LEFT, right);
 }
 
 void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
@@ -1500,7 +1504,7 @@ void ArcDirArrow::FinalizeLabels(Canvas &canvas)
 
 const double ArcDirArrow::lsym_side_by_offset = 0.5;
 
-void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
     //Here we have a valid canvas, so we adjust act_size
@@ -1516,15 +1520,23 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
                      *act_size.begin() + *act_size.rbegin())*cos_slant);
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
-    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, (start.second + *act_size.begin())*cos_slant);
-    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, (end.first    + *act_size.rbegin())*cos_slant);
+    const double s = (start.second + *act_size.begin())*cos_slant;
+    const double d = (end.first    + *act_size.rbegin())*cos_slant;
+    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, s);
+    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, d);
+    vdist.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, s);
+    vdist.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, d);
 
     if (middle.size()) {
         EntityDistanceMap d;
         for (unsigned i = 0; i<middle.size(); i++) {
             DoublePair mid = style.read().arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.read().line);
-            distances.Insert((*middle[i])->index, DISTANCE_LEFT, (mid.first  + act_size[i+1])*cos_slant);
-            distances.Insert((*middle[i])->index, DISTANCE_RIGHT, (mid.second + act_size[i+1])*cos_slant);
+            const double left = (mid.first  + act_size[i+1])*cos_slant;
+            const double right = (mid.second + act_size[i+1])*cos_slant;
+            distances.Insert((*middle[i])->index, DISTANCE_LEFT, left);
+            distances.Insert((*middle[i])->index, DISTANCE_RIGHT, right);
+            vdist.Insert((*middle[i])->index, DISTANCE_LEFT, left);
+            vdist.Insert((*middle[i])->index, DISTANCE_RIGHT, right);
         }
         d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
         distances += d;
@@ -1552,18 +1564,24 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
         case VertXPos::POS_AT:
             distances.Insert(e1, DISTANCE_LEFT, lsym_size.x/2 + gap);
             distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x/2 + gap);
+            vdist.Insert(e1, DISTANCE_LEFT, lsym_size.x/2 + gap);
+            vdist.Insert(e1, DISTANCE_RIGHT, lsym_size.x/2 + gap);
             break;
         case VertXPos::POS_LEFT_BY:     
             distances.Insert(e1, DISTANCE_LEFT, lsym_size.x + aw + gap);
+            vdist.Insert(e1, DISTANCE_LEFT, lsym_size.x + aw + gap);
             break;
         case VertXPos::POS_RIGHT_BY:    
             distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x + aw + gap);
+            vdist.Insert(e1, DISTANCE_RIGHT, lsym_size.x + aw + gap);
             break;
         case VertXPos::POS_LEFT_SIDE:
             distances.Insert(e1, DISTANCE_LEFT, lsym_size.x + gap);
+            vdist.Insert(e1, DISTANCE_LEFT, lsym_size.x + gap);
             break;
         case VertXPos::POS_RIGHT_SIDE:
             distances.Insert(e1, DISTANCE_RIGHT, lsym_size.x + gap);
+            vdist.Insert(e1, DISTANCE_RIGHT, lsym_size.x + gap);
             break;
         case VertXPos::POS_INVALID:
         default:
@@ -2031,7 +2049,7 @@ void ArcBigArrow::FinalizeLabels(Canvas &canvas)
 }
 
 
-void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
     //fill an "indexes" and "act_size" array
@@ -2094,6 +2112,8 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
 
     distances.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end*cos_slant);
     distances.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end*cos_slant);
+    vdist.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end*cos_slant);
+    vdist.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end*cos_slant);
 
     //Collect iterators and distances into arrays
     margins.reserve(2+middle.size()); margins.clear();
@@ -2531,8 +2551,6 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     if (pos.pos == VertXPos::POS_CENTER && pos.entity1 == pos.entity2)
         pos.pos = VertXPos::POS_AT;
 
-    //Copy the line attribute to the arrow, as well
-    style.write().arrow.line = style.read().line;
     //If we do a RANGE, remove arrowheads for box symbols
     if (shape == RANGE) 
         if (type==MSC_BOX_DASHED || type == MSC_BOX_DOTTED || type==MSC_BOX_DOUBLE || type == MSC_BOX_SOLID) 
@@ -2559,8 +2577,9 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     return this;
 }
 
-void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
+    const double text_distance = 0; //chart->hscaleAutoXGap
     if (!valid) return;
     //The offset is ignored during the process of setting space requirements
     const XY twh = parsed_label.getTextWidthHeight();
@@ -2586,7 +2605,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
         //(the height above/below the centerline)
         w = std::max(w, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).y);
         w = std::max(w, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).y);
-        width = std::max(width + chart->hscaleAutoXGap + lw/2, //space between text and range
+        width = std::max(width + text_distance + lw/2, //space between text and range
                          style.read().line.radius.second);
         width = std::max(width, w);
         _ASSERT(style.read().line.IsComplete());
@@ -2600,7 +2619,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     case BRACKET:
         //Here body with is all the width of the brace/bracket, plus text
         if (width)
-            width += chart->hscaleAutoXGap; //space between text and brace
+            width += text_distance; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
         width += radius+ lw;
         ext_width = radius;
@@ -2608,7 +2627,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     case BRACE:
         //Here body with is all the width of the brace/bracket, plus text
         if (width)
-            width += chart->hscaleAutoXGap; //space between text and brace
+            width += text_distance; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
         width += 2*radius + lw;
         ext_width = radius;
@@ -2619,11 +2638,11 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
     case VertXPos::POS_LEFT_SIDE:
-        pos.offset -= distances.Query(index, DISTANCE_LEFT);
+        pos.offset -= vdist.Get(src, dst).Query(index, DISTANCE_LEFT);
         break;
     case VertXPos::POS_RIGHT_BY:
     case VertXPos::POS_RIGHT_SIDE:
-        pos.offset += distances.Query(index, DISTANCE_RIGHT);
+        pos.offset += vdist.Get(src, dst).Query(index, DISTANCE_RIGHT);
         break;
     default:
         break;
@@ -2638,6 +2657,8 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
     case VertXPos::POS_AT:
         distances.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset);
         distances.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset);
+        vdist.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset);
+        vdist.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset);
         break;
     case VertXPos::POS_THIRD_LEFT:
     case VertXPos::POS_THIRD_RIGHT:
@@ -2647,16 +2668,20 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
         break;
     case VertXPos::POS_LEFT_BY:
         distances.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset);
+        vdist.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset);
         break;
     case VertXPos::POS_RIGHT_BY:
         distances.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset);
+        vdist.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset);
         break;
 
     case VertXPos::POS_LEFT_SIDE:
         distances.Insert(index, DISTANCE_LEFT, width - pos.offset);
+        vdist.Insert(index, DISTANCE_LEFT, width - pos.offset);
         break;
     case VertXPos::POS_RIGHT_SIDE:
         distances.Insert(index, DISTANCE_RIGHT, width + pos.offset);
+        vdist.Insert(index, DISTANCE_RIGHT, width + pos.offset);
         break;
     };
 }
@@ -2693,7 +2718,7 @@ Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
                               c2, Edge(c2.GetEnd(), c1.GetStart())});
 }
 
-void ArcVerticalArrow::PlaceWithMarkers(Canvas & /*canvas*/, double autoMarker)
+void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
 {
     if (!valid) return;
     //Here we are sure markers are OK
@@ -2737,7 +2762,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & /*canvas*/, double autoMarker)
 
     const double lw = style.read().line.LineWidth();
     const double lw2 = lw/2;
-    const XY twh = parsed_label.getTextWidthHeight();
+    XY twh = parsed_label.getTextWidthHeight();
     const Contour text_cover = parsed_label.Cover(0, twh.x, lw);
     double sm, dm; //margins
     switch (shape){
@@ -2762,9 +2787,17 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & /*canvas*/, double autoMarker)
         sy_text = ypos[1] - (forward ? sm : dm);
         dy_text = ypos[0] + (forward ? dm : sm);
     }
-    if (fabs(sy_text-dy_text)  > ypos[1]-ypos[0])
-        chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
-        "May look strange.");
+    if (parsed_label.IsWordWrap() && 0) {
+        //This does not work really - we cannot go back and increase space req... :-(
+        const double overflow = parsed_label.Reflow(canvas, fabs(dy_text - sy_text));
+        if (overflow >= 1) 
+            chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.");
+        twh = parsed_label.getTextWidthHeight(); //refresh
+    } else {
+        if (fabs(sy_text-dy_text)  > ypos[1]-ypos[0])
+            chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.");
+            //"Try word wrapping (text.wrap=yes).");
+    }
     xpos = pos.CalculatePos(*chart, width, ext_width/2);
     //xpos is now the middle of the construct
 
@@ -2884,7 +2917,6 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & /*canvas*/, double autoMarker)
     //fill in other fields
     area_important = parsed_label.Cover90(sy_text, dy_text, text_xpos,
                                           style.read().side.second == ESide::LEFT);
-    area_important.SwapXY();
     area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     chart->NoteBlockers.Append(this);
 }
@@ -3416,7 +3448,8 @@ void ArcBoxSeries::FinalizeLabels(Canvas &canvas)
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances, 
+                         DistanceMapVertical &vdist)
 {
     if (!valid) return;
     const StyleCoW &overall_style = (*series.begin())->style;
@@ -3427,7 +3460,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     double max_width = 0; //the widest label plus margins
     for (auto pBox : series) {
         if (pBox->content.size())
-            chart->WidthArcList(canvas, (pBox->content), d);
+            chart->WidthArcList(canvas, (pBox->content), d, vdist);
         double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
         if (pBox==*series.begin()) {
@@ -3484,6 +3517,8 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
     distances.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
     distances += d;
+    vdist.Insert((*src)->index, DISTANCE_LEFT, left_space);
+    vdist.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
 }
 
 void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
@@ -4259,12 +4294,12 @@ void ArcPipeSeries::FinalizeLabels(Canvas &canvas)
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
     EntityDistanceMap d, d_pipe;
     if (content.size())
-        chart->WidthArcList(canvas, content, d);
+        chart->WidthArcList(canvas, content, d, vdist);
 
     const ESide side = (*series.begin())->style.read().side.second;
     const double radius = (*series.begin())->style.read().line.radius.second;
@@ -4300,9 +4335,12 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
         //Check if we are connecting to a neighbour pipe segment
         if (connect_left)
             pPipe->left_space = 0;
-        else
+        else {
             d_pipe.Insert((*pPipe->src)->index, DISTANCE_LEFT,
-                                pPipe->left_space + ilw + radius);
+                          pPipe->left_space + ilw + radius);
+            vdist.Insert((*pPipe->src)->index, DISTANCE_LEFT,
+                         pPipe->left_space + ilw + radius);
+        }
         //add shadow to the right size only if we are the rightmost entity
         double shadow_to_add = 0;
         if ((side == ESide::RIGHT && pPipe==*series.rbegin()) ||
@@ -4310,9 +4348,12 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
             shadow_to_add = pPipe->style.read().shadow.offset.second;
         if (connect_right)
             pPipe->right_space = 0;
-        else
+        else {
             d_pipe.Insert((*pPipe->dst)->index, DISTANCE_RIGHT,
-                                pPipe->right_space + ilw + radius + shadow_to_add);
+                          pPipe->right_space + ilw + radius + shadow_to_add);
+            vdist.Insert((*pPipe->dst)->index, DISTANCE_RIGHT,
+                          pPipe->right_space + ilw + radius + shadow_to_add);
+        }
         chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::PIPE);
     }
     d_pipe.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
@@ -4852,7 +4893,7 @@ ArcBase* ArcDivider::PostParseProcess(Canvas &canvas, bool hide, EIterator &left
     return this;
 }
 
-void ArcDivider::Width(Canvas &, EntityDistanceMap &distances)
+void ArcDivider::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
 {
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
@@ -5054,12 +5095,12 @@ void ArcParallel::FinalizeLabels(Canvas &canvas)
     ArcBase::FinalizeLabels(canvas);
 }
 
-void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances)
+void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
     EntityDistanceMap d;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->WidthArcList(canvas, *i, d);
+        chart->WidthArcList(canvas, *i, d, vdist);
     d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
     d.CombineUnPairedLeftRightToPair(chart->hscaleAutoXGap);
     d.CombineBoxSideToPair(chart->hscaleAutoXGap);

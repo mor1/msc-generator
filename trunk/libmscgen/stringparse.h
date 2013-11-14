@@ -72,6 +72,11 @@ enum ETriState {no=0, yes, invert};
 #define ESCAPE_CHAR_WORD_WRAP ((char)4)
 /** Same as ESCAPE_CHAR_WORD_WRAP, but in string*/
 #define ESCAPE_STRING_WORD_WRAP "\x04"
+/** Escape character representing a space
+* Preceeded by backslash */
+#define ESCAPE_CHAR_SPACE ((char)5)
+/** Same as ESCAPE_CHAR_WORD_WRAP, but in string*/
+#define ESCAPE_STRING_SPACE "\x05"
 
 bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p);
 

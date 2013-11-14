@@ -184,6 +184,8 @@ public:
      * Returns true, if an increase has been made. */
     bool IncreaseIfNonZero(unsigned e1, int e2, double d, bool hspace=false);
     /** Insert a box side distance pair 
+     * A box side distance is taken into account, when a box shall be drawn around it,
+     * but not to space entities (since the box will add that requirement).
      * @param [in] e The entity we refer to.
      * @param [in] l The distance req on the left side of `e`
      * @param [in] r The distance req on the right side of `e+1`*/
@@ -214,6 +216,36 @@ public:
     string Print();
 };
 
+/** A collection storing side distance requirements after one marker.
+ * We use this as part of class DistanceMapVertical.*/
+class DistanceMapVerticalElement
+{
+    friend class DistanceMapVertical;
+    std::string                marker; ///<The name of the marker after which we store. Empty for top of chart.
+    std::map<unsigned, double> left;   ///<Space requirements on the left side of entities
+    std::map<unsigned, double> right;  ///<Space requirements on the left side of entities
+public:
+    explicit DistanceMapVerticalElement(const std::string &m="") : marker(m) {}
+    void Insert(unsigned e1, int e2, double d);  ///<Insert a distance requirement 
+    double Query(unsigned e1, int e2); ///<Return a distance req
+    DistanceMapVerticalElement &operator +=(const DistanceMapVerticalElement &d);
+};
+
+/** A collection storing side distance requirements between markers 
+ * Used to store distance requirements left and right of the entities
+ * (in addition to storing them in an EntityDistanceMap), in order
+ * to best place verticals. Note that we store the max requested 
+ * distance on the side of each entity between markers.*/
+class DistanceMapVertical
+{
+protected:
+    std::list<DistanceMapVerticalElement> elements;
+public:
+    DistanceMapVertical() { elements.emplace_back(""); }
+    void Insert(unsigned e1, int e2, double d) { elements.back().Insert(e1, e2, d); }
+    void InsertMarker(const std::string &m) { elements.emplace_back(m); }
+    DistanceMapVerticalElement Get(const std::string &m1, const std::string &m2);
+};
 /////////////////////////////////////////////////////////////////////
 
 /** Holds information about one page break */
@@ -419,7 +451,7 @@ public:
     /** Returns the x coordinate of the middle of an entity in pixel space, rounded*/
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
-    void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
+    void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover);
     std::vector<double> LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList *cover);
     double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,

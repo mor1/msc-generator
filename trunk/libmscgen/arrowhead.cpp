@@ -101,6 +101,11 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         if (style.f_arrow) operator +=(style.arrow);
         return true;
     }
+    //do this first since ".type" ending is checked for below.
+    if (a.EndsWith("color") || a.EndsWith("line.width") ||
+        a.EndsWith("line.type")) {
+        return line.AddAttribute(a, msc, t);
+    }
     std::pair<bool, EArrowType> *pType = NULL, *pType2 = NULL;
     if (a.Is("arrow") || a.EndsWith("type") || a.EndsWith("endtype")) {pType = &endType; pType2=&midType;}
     else if (a.EndsWith("starttype")) pType = &startType;
@@ -171,9 +176,6 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         a.InvalidValueError("0.1 .. 10", msc->Error);
         return true;
     }
-    if (a.EndsWith("color") || a.EndsWith("line.width")) {
-        return line.AddAttribute(a, msc, t);
-    }
     return false;
 }
 
@@ -181,7 +183,7 @@ void ArrowHead::AttributeNames(Csh &csh, const string &prefix)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"invalid", "type", "size", "color", "starttype", "midtype",
-     "endtype", "line.width", "xmul", "ymul", ""};
+     "endtype", "line.width", "line.color", "line.type", "xmul", "ymul", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
@@ -289,8 +291,9 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, EArcArrowType
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "color") ||
+        CaseInsensitiveEndsWith(attr, "line.type") ||
         CaseInsensitiveEndsWith(attr, "line.width")) {
-        return LineAttr::AttributeValues(attr, csh);
+                return LineAttr::AttributeValues(attr, csh);
     }
     return false;
 

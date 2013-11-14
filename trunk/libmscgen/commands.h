@@ -74,7 +74,7 @@ public:
     EEntityStatus GetCombinedStatus(const Entity& entity) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -103,7 +103,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
@@ -162,6 +162,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
 
     virtual void ShiftBy(double y);
 };
@@ -173,7 +174,7 @@ class CommandEmpty : public ArcCommand
 public:
     CommandEmpty(Msc *msc) : 
         ArcCommand(MSC_COMMAND_EMPTY, MscProgress::EMPTY, msc) {}
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
@@ -210,7 +211,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
 };
 
 /** Represents the `vspace` command*/
@@ -291,7 +292,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
@@ -340,7 +341,7 @@ public:
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target);
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void ShiftBy(double y);
     /** A special shift function - we do not, in general shift, but comments shift with their target (called from Element::ShiftBy())*/

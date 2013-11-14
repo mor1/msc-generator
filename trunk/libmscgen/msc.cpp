@@ -241,6 +241,75 @@ string EntityDistanceMap::Print()
     return s;
 }
 
+void DistanceMapVerticalElement::Insert(unsigned e1, int e2, double d)
+{
+    if (e2!=DISTANCE_LEFT && e2!=DISTANCE_RIGHT) {
+        _ASSERT(0);
+        return;
+    }
+    std::map<unsigned, double> &store = e2==DISTANCE_LEFT ? left : right;
+    auto i = store.find(e1);
+    if (i==store.end())
+        store[e1] = d;
+    else
+        i->second = std::max(i->second, d);
+}
+
+double DistanceMapVerticalElement::Query(unsigned e1, int e2)
+{
+    if (e2!=DISTANCE_LEFT && e2!=DISTANCE_RIGHT) {
+        _ASSERT(0);
+        return 0;
+    }
+    std::map<unsigned, double> &store = e2==DISTANCE_LEFT ? left : right;
+    auto i = store.find(e1);
+    return i==store.end() ? 0 : i->second;
+}
+
+/** Takes the maximum of distances stored for each entity. Ignores marker name.*/
+DistanceMapVerticalElement &DistanceMapVerticalElement::operator += (const DistanceMapVerticalElement &d)
+{
+    for (auto &m : d.left) {
+        auto i = left.find(m.first);
+        if (i==left.end())
+            left[m.first] = m.second;
+        else
+            i->second = std::max(i->second, m.second);
+    }
+    for (auto &m : d.right) {
+        auto i = right.find(m.first);
+        if (i==right.end())
+            right[m.first] = m.second;
+        else
+            i->second = std::max(i->second, m.second);
+    }
+    return *this;
+}
+
+/** Takes the max of distances between the two markers.
+ * One of the markers can be empty meaning the top of the chart.
+ * One of the markers can be MARKER_HERE_STR meaning the end of the list.
+ * If a marker is not found, it is assumed to be below us and we
+ * treat it as if it were MARKER_HERE_STR.
+ * The two markers are equal (or none found), we return zero distances. */
+DistanceMapVerticalElement DistanceMapVertical::Get(const std::string &m1, const std::string &m2)
+{
+    //We assume none of the marker name we store is equal to MARKER_HERE_STR...
+    DistanceMapVerticalElement ret;
+    if (m1==m2)
+        return ret;
+    bool had_one = false;
+    for (const auto &e : elements) {
+        if (e.marker == m1 || e.marker == m2) {
+            if (had_one)
+                return ret;
+            had_one = true;
+            ret = e;
+        } else if (had_one)
+            ret += e;
+    }
+    return ret;
+}
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -943,7 +1012,7 @@ void Msc::ParseText(const char *input, const char *filename)
  * @param [in] dir The direction of the arrows contained on a previous
  *                 call to this function (with which we combine our directions).
  * @return The direction of the arrows in `al` */
-EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, 
+EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el,
                                         EDirType dir) const
 {
     for (auto i : al) {
@@ -1331,8 +1400,8 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
 }
 
 /** Calls the Width() function for all arcs in the list and collects distance requirements to `distances` */
-void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, 
-                       EntityDistanceMap &distances)
+void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances,
+                       DistanceMapVertical &vdist)
 {
     //Indicate entities active and showing already at the beginning of the list
     //(this will be updated with entities activated later)
@@ -1341,7 +1410,7 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs,
         if (pEntity->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert(pEntity->index);
     for (auto pArc : arcs) {
-        pArc->Width(canvas, distances);
+        pArc->Width(canvas, distances, vdist);
 		Progress.DoneItem(MscProgress::WIDTH, pArc->myProgressCategory);
 	}
 }
@@ -2073,14 +2142,12 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     if (total.y.Spans() > 0) return; //already done?
 
     //start with width calculation, that is used by many elements
-    //First reset running shown of entities, this will be used during Width() pass
-    //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
-    //    (*i)->running_shown = EEntityStatus::SHOW_OFF;
+    Progress.StartSection(MscProgress::WIDTH);
     EntityDistanceMap distances;
+    DistanceMapVertical vdist;
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
-	Progress.StartSection(MscProgress::WIDTH);
-    WidthArcList(canvas, Arcs, distances);
+    WidthArcList(canvas, Arcs, distances, vdist);
     distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
     distances.CombineBoxSideToPair(hscaleAutoXGap);
 
@@ -2539,7 +2606,7 @@ bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale,
 }
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
-/** Draw the chart or one page of it to a metafile 
+/** Draw the chart or one page of it to a metafile
  * @param [in] ot The format of output. Determines what type of metafile we use.
  *                can only be WMF, EMF or EMFWMF.
  * @param [in] page The page to draw, zero for the whole chart.

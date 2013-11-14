@@ -9,7 +9,6 @@ g2: group 2 {
     aa[label=weak, weak],bb[label=normal], cc[label=strong, strong];
 };
 note: This is a\ngroup enttity [note.pos=right_up];
-e[show=no, pos=-0.5];
 mark top;
 {
       --: Arrows {
@@ -29,7 +28,11 @@ mark top;
             c->b: Slanted [arrow.type=empty_sharp];
             deactivate b;
             b->a: Slanted [arrow.type=triple_line];
+            angle=0;
+            a->*b: \plLost;
+            a*->b: \prLost;
       };
+      vertical brace top-- at aa-: Block arrows here;
       ==: Empty boxes {
             parallel a--a: Solid;
             comment: These are the
@@ -43,7 +46,7 @@ mark top;
             b--b [collapsed=yes] {
                 b->b;
             };
-    };
+      };
 } {
       ..: Block Arrows {
             block aa->bb-cc:arrow;
@@ -55,9 +58,11 @@ mark top;
             note: These are example
                     block arrows;
       };
+      vertical brace top-- at aa-: Block arrows here;
 };
-vertical top-> at e+: All the way down...[makeroom=yes];
+vertical top-> at cc++: All the way down...;
 ---: Separator;
+mark pipe_top;
 pipe aa--bb: Solid pipe []
        --cc: Solid, too;
 pipe b==bb: Double pipe {
@@ -67,6 +72,7 @@ pipe b..c: Dotted pipe []
      bb..cc: Dotted, too {
       a->cc: Label;
 };
+vertical range pipe_top<<>> at cc++: pipe_range;
 ...:Time elapses...;
 symbol ... center at b-c;
 note: You can draw
