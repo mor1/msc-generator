@@ -1626,16 +1626,6 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
         valid = false;
         return NULL;
     }
-    //finalize width
-    if (!style.read().note.width.first) {
-        style.write().note.width.first = true;
-        style.write().note.width.second = chart->XCoord(chart->defWNoteWidth);
-        style.write().note.width.str.clear();
-    } else if (style.read().note.width.second < 0) {
-        Label tmp(style.read().note.width.str, canvas, style.read().text);
-        style.write().note.width.second = tmp.getTextWidthHeight().x;
-        style.write().note.width.str.clear();
-    }
 
     //Now try to attach to the target, if not yet attached (as is the case for comments to entities)
     if (target == NULL) {
@@ -1688,8 +1678,13 @@ void CommandNote::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     if (is_float) {
         //reflow label if needed
         if (parsed_label.IsWordWrap()) {
-            const double overflow = parsed_label.Reflow(canvas, style.read().note.width.second);
-            OverflowWarning(overflow, "Use the 'width' attribute to increase note width.");
+            const double w = style.read().note.width.GetWidth(canvas, style.read().text);
+            if (w>0) {
+                const double overflow = parsed_label.Reflow(canvas, w);
+                OverflowWarning(overflow, "Use the 'width' attribute to increase note width.");
+            } else {
+                chart->Error.Warning(file_pos.start, "Word wrapping is on, but no meaningful width is specified.", "Ignoring word wrapping. Try setting 'note.width'.");
+            }
         }
         halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.read().line.LineWidth(), style.read().line.LineWidth());
     } else {

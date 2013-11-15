@@ -226,23 +226,6 @@ bool EntityApp::AddAttribute(const Attribute& a)
         active_is_explicit = true;
         return true;
     }
-    if (a.Is("color")) {
-        bool was = false;
-        // MSC_ATTR_CLEAR is handled by individual attributes below
-        if (style.read().f_line) {
-            style.write().line.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        if (style.read().f_vline) {
-            style.write().vline.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        if (style.read().f_text) {
-            style.write().text.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        return was;
-    }
     if (a.Is("id")) {
         s << "Attribute '"<< a.name <<"' is no longer supported. Ignoring it.";
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");

@@ -548,6 +548,25 @@ public:
 
 bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p);
 
+class StringFormat;
+
+/** Stores the value of the width attribute - a number or a string */
+class WidthAttr 
+{ 
+    bool first; 
+    mutable double second; 
+    std::string str; 
+public:
+    WidthAttr() { Empty(); MakeComplete(); }
+    void Empty() { first = false; }
+    void MakeComplete() { if (!first) { first = true; second = 0; str.clear(); } }
+    WidthAttr &operator +=(const WidthAttr&a) { if (a.first) *this = a; return *this; }///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
+    bool operator == (const WidthAttr &a) const;
+    bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
+    double GetWidth(Canvas &canvas, const StringFormat &format) const;
+};
+
 /** Stores the properties of notes (pointer type and position; width).*/
 struct NoteAttr {
 public:
@@ -557,13 +576,13 @@ public:
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;
     std::pair<bool, int> def_float_y;
-    struct {bool first; double second; std::string str;} width; ///<The width specified by the used. second<0 means the string contains the width
+    WidthAttr width; ///<The width specified by the used. second<0 means the string contains the width
     NoteAttr() {Empty(); MakeComplete();} ///<Create a fully specified note style with default values (Callout type, no specific position preference.)
-    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = width.first = false;} ///<Clear all content from the note style.
+    void Empty() { pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;  width.Empty(); } ///<Clear all content from the note style.
     void MakeComplete();
     bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;} ///<True if all of the note attributes are set. 
     NoteAttr &operator +=(const NoteAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const NoteAttr &a);
+    bool operator == (const NoteAttr &a) const;
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);

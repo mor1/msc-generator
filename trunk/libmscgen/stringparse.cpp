@@ -1816,23 +1816,35 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
     }
 }
 
-Contour Label::Cover90(double sy, double dy, double x, bool from_left, double cy) const
+Contour Label::Cover(double s, double d, double t, ESide side, double c) const
 {
-    Contour ret = Cover(sy, dy, x, cy);
-    ret.Rotate(from_left ? 90 : -90);
-    if (from_left)
-        ret.Shift(XY(2*x+getTextWidthHeight().y, 0));
-    else
-        ret.Shift(XY(0, sy+dy));
+    if (side==ESide::LEFT)
+        t -= getTextWidthHeight().y;
+    Contour ret = Cover(s, d, t, c);
+    switch (side) {
+    case ESide::LEFT:
+        ret.Rotate(90);
+        ret.Shift(XY(2*t+getTextWidthHeight().y, 0));
+        break;
+    case ESide::RIGHT:
+        ret.Rotate(-90);
+        ret.Shift(XY(0, s+d));
+        break;
+    }
     return ret;
 }
 
-void Label::Draw90(Canvas &canvas, double sy, double dy, double x, bool from_left, double cy) const
+void Label::Draw(Canvas &canvas, double s, double d, double t, ESide side, double c) const
 {
-    if (from_left)
-        canvas.Transform_Rotate90(2*x, getTextWidthHeight().y, false);
-    else
-        canvas.Transform_Rotate90(sy, dy, true);
-    Draw(canvas, std::min(sy, dy), std::max(sy, dy), x, cy, true);
-    canvas.UnTransform();
+    switch (side) {
+    case ESide::LEFT:
+        t -= getTextWidthHeight().y;
+        canvas.Transform_Rotate90(2*t, getTextWidthHeight().y, false);
+        break;
+    case ESide::RIGHT:
+        canvas.Transform_Rotate90(s, d, true);
+    }
+    Draw(canvas, std::min(s, d), std::max(s, d), t, c, side != ESide::END);
+    if (side != ESide::END)
+        canvas.UnTransform();
 }

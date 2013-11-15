@@ -192,9 +192,11 @@ do {                                                \
 (?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
 (?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
 (?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
-(?i:brace)     yylval_param->vshape = ArcVerticalArrow::BRACE;   return TOK_VERTICAL_SHAPE;
-(?i:bracket)   yylval_param->vshape = ArcVerticalArrow::BRACKET; return TOK_VERTICAL_SHAPE;
-(?i:range)     yylval_param->vshape = ArcVerticalArrow::RANGE;   return TOK_VERTICAL_SHAPE;
+(?i:brace)     yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
+(?i:bracket)   yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
+(?i:range)     yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
+(?i:pointer)   yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
+(?i:lost_pointer) yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---

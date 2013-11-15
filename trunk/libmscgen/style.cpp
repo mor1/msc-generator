@@ -31,18 +31,19 @@ bool IsValidSideValue(ESideType t, ESide v)
 
 
 /** Create an empty style that contains all possible attributes.*/
-MscStyle::MscStyle(EStyleType tt) : type(tt)
+MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm)
 {
     f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
     f_solid=f_numbering=f_compress=f_indicator=true;
-    f_makeroom=f_note=f_lost=true;
-    f_arrow=ArrowHead::ANY;
+    f_makeroom=f_note=f_lost=f_lsym=true;
+    f_arrow = ArrowHead::ANY;
     f_side = ESideType::ANY;
     Empty();
 }
 
 /** Create an empty style that contains only some of the attributes.
  * @param [in] tt The type of style instance.
+ * @param [in] cm How an unqualified "color" attribute shall be interpreted.
  * @param [in] a What type of arrows we accept.
  * @param [in] t True if the style shall contain text attributes.
  * @param [in] l True if the style shall contain line attributes.
@@ -59,12 +60,14 @@ MscStyle::MscStyle(EStyleType tt) : type(tt)
  * @param [in] n True if the style shall contain note attributes.
  * @param [in] lo True if the style shall contain loss related attributes.
  */
-MscStyle::MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
-                   bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n, bool lo) :
-    arrow(a), lost_arrow(ArrowHead::ARROW), type(tt), 
+MscStyle::MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a, 
+                   bool t, bool l, bool f, bool s, bool vl,
+                   bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n, 
+                   bool lo, bool lsym) :
+    arrow(a), lost_arrow(ArrowHead::ARROW), type(tt), color_meaning(cm),
     f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
     f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
-    f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a), f_lost(lo)
+    f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a), f_lost(lo), f_lsym(lsym)
 {
     Empty();
 }
@@ -158,6 +161,8 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
         lost_line += toadd.lost_line;
         lost_arrow += toadd.lost_arrow;
         lost_text += toadd.lost_text;
+    }
+    if (toadd.f_lsym) {
         lsym_line += toadd.lsym_line;
         if (toadd.lsym_size.first) lsym_size = toadd.lsym_size;
     }
@@ -187,6 +192,39 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         operator +=(msc->Contexts.back().styles[a.name].read());
         return true;
+    }
+    if (a.Is("color")) {
+        unsigned num = 0;
+        switch (color_meaning) {
+        case EColorMeaning::LINE_ARROW_TEXT:
+            if (f_line)
+                num += line.AddAttribute(a, msc, type);
+            if (f_text)
+                num += text.AddAttribute(a, msc, type);
+            if (f_arrow!=ArrowHead::NONE)
+                num += arrow.AddAttribute(a, msc, type);
+            return num;
+        case EColorMeaning::LINE_VLINE_TEXT:
+            if (f_line)
+                num += line.AddAttribute(a, msc, type);
+            if (f_text)
+                num += text.AddAttribute(a, msc, type);
+            if (f_vline)
+                num += vline.AddAttribute(a, msc, type);
+            return num;
+        case EColorMeaning::TEXT:
+            if (f_text)
+                return text.AddAttribute(a, msc, type);
+            return false;
+        case EColorMeaning::FILL:
+            if (f_fill)
+                return fill.AddAttribute(a, msc, type);
+            return false;
+        default:
+            _ASSERT(0); //fallback
+        case EColorMeaning::NOHOW:
+            return false;
+        }
     }
     if (a.Is("line.width")) {
         if (f_arrow!=ArrowHead::NONE) arrow.AddAttribute(a, msc, type);
@@ -285,31 +323,52 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         makeroom.second = a.yes;
         return true;
     }
-    if (!f_lost) return false;
-    if (a.StartsWith("lost.line"))
-        return lost_line.AddAttribute(a, msc, type);
-    if (a.StartsWith("lost.arrow"))
-        return lost_arrow.AddAttribute(a, msc, type);
-    if (a.StartsWith("lost.text"))
-        return lost_text.AddAttribute(a, msc, type);
-    if (a.StartsWith("x.line"))
-        return lsym_line.AddAttribute(a, msc, type);
-    if (a.Is("x.size")) {
-        if (a.type == MSC_ATTR_STRING &&
-            Convert(a.value, lsym_size.second)) {
-            lsym_size.first = true;
+    if (f_lost) {
+        if (a.StartsWith("lost.line"))
+            return lost_line.AddAttribute(a, msc, type);
+        if (a.StartsWith("lost.arrow"))
+            return lost_arrow.AddAttribute(a, msc, type);
+        if (a.StartsWith("lost.text"))
+            return lost_text.AddAttribute(a, msc, type);
+    }
+    if (f_lsym) {
+        if (a.StartsWith("x.line"))
+            return lsym_line.AddAttribute(a, msc, type);
+        if (a.Is("x.size")) {
+            if (a.type == MSC_ATTR_STRING &&
+                Convert(a.value, lsym_size.second)) {
+                lsym_size.first = true;
+                return true;
+            }
+            a.InvalidValueError(CandidatesFor(lsym_size.second), msc->Error);
             return true;
         }
-        a.InvalidValueError(CandidatesFor(lsym_size.second), msc->Error);
-        return true;
     }
     return false;
 }
 
+bool MscStyle::DoIAcceptUnqualifiedColorAttr() const
+{
+    switch (color_meaning) {
+    case EColorMeaning::FILL: return f_fill;
+    case EColorMeaning::TEXT: return f_text;
+    case EColorMeaning::LINE_ARROW_TEXT:
+        return f_text || f_line || f_arrow!=ArrowHead::NONE;
+    case EColorMeaning::LINE_VLINE_TEXT:
+        return f_text || f_line || f_vline;
+    default:
+        _ASSERT(0);
+    case EColorMeaning::NOHOW:
+        return false;
+    }
+}
+
+
 /** Add the attribute names we take to `csh`.*/
 void MscStyle::AttributeNames(Csh &csh) const
 {
-
+    if (DoIAcceptUnqualifiedColorAttr())
+          csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"color", HINT_ATTR_NAME));
     if (f_line) LineAttr::AttributeNames(csh, "line.");
     if (f_fill) FillAttr::AttributeNames(csh, "fill.");
     if (f_arrow!=ArrowHead::NONE) ArrowHead::AttributeNames(csh, "arrow.");
@@ -330,6 +389,8 @@ void MscStyle::AttributeNames(Csh &csh) const
         LineAttr::AttributeNames(csh, "lost.line.");
         ArrowHead::AttributeNames(csh, "lost.arrow.");
         StringFormat::AttributeNames(csh, "lost.text.");
+    }
+    if (f_lsym) {
         LineAttr::AttributeNames(csh, "x.line.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"x.size", HINT_ATTR_NAME));
     }
@@ -368,6 +429,11 @@ bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p)
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 {
+    if (CaseInsensitiveEqual(attr, "color")) {
+        if (!DoIAcceptUnqualifiedColorAttr()) return false;
+        csh.AddColorValuesToHints();
+        return true;
+    }
     if (CaseInsensitiveEqual(attr, "line.width")) {
         if (f_arrow!=ArrowHead::NONE) return arrow.AttributeValues(attr, csh, f_arrow);
         if (f_line) return line.AttributeValues(attr, csh);
@@ -415,18 +481,21 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
     }
     if (f_note && CaseInsensitiveBeginsWith(attr, "note"))
         return note.AttributeValues(attr, csh);
-    if (!f_lost) return false;
-    if (CaseInsensitiveEqual(attr, "lost.line"))
-        return line.AttributeValues(attr, csh);
-    if (CaseInsensitiveEqual(attr, "lost.arrow"))
-        return arrow.AttributeValues(attr, csh, ArrowHead::ARROW);
-    if (CaseInsensitiveEqual(attr, "lost.text"))
-        StringFormat::AttributeValues(attr, csh);
-    if (CaseInsensitiveEqual(attr, "x.line"))
-        return line.AttributeValues(attr, csh);
-    if (CaseInsensitiveEqual(attr, "x.size")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"x.size", HINT_ATTR_NAME));
-        return true;
+    if (f_lost) {
+        if (CaseInsensitiveEqual(attr, "lost.line"))
+            return line.AttributeValues(attr, csh);
+        if (CaseInsensitiveEqual(attr, "lost.arrow"))
+            return arrow.AttributeValues(attr, csh, ArrowHead::ARROW);
+        if (CaseInsensitiveEqual(attr, "lost.text"))
+            StringFormat::AttributeValues(attr, csh);
+    }
+    if (f_lsym) {
+        if (CaseInsensitiveEqual(attr, "x.line"))
+            return line.AttributeValues(attr, csh);
+        if (CaseInsensitiveEqual(attr, "x.size")) {
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"x.size", HINT_ATTR_NAME));
+            return true;
+        }
     }
     return false;
 }
@@ -517,9 +586,11 @@ void Context::Empty()
     //Now add default styles, but all empty
     
     styles["arrow"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, 
-                 false, true, true, ESideType::NO, true, false, false, false, true); 
-                 //no fill, shadow, vline solid side vfill, makeroom, note;
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::ARROW,
+                 true, true, false, false, false, 
+                 false, true, true, ESideType::NO, true, false, false, false, 
+                 true, true); 
+                 //no fill, shadow, vline solid side vfill, makeroom, note
     styles["->"] = styles["arrow"]; 
     styles["->"].write().type = STYLE_DEF_ADD;
     styles[">"]  = styles["->"];
@@ -527,9 +598,11 @@ void Context::Empty()
     styles["=>"] = styles["->"];
 
     styles["blockarrow"] =
-        MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false,
-                 false, true, true, ESideType::NO, false, false, false, false, false);
-                 //no vline solid side indicator vfill makeroom note loss
+        MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::BIGARROW,
+                 true, true, true, true, false,
+                 false, true, true, ESideType::NO, false, false, false, false, 
+                 false, false);
+                 //no vline solid side indicator vfill makeroom note loss lsym
     styles["box_collapsed_arrow"] = styles["blockarrow"];
     styles["block->"] = styles["blockarrow"];
     styles["block->"].write().type = STYLE_DEF_ADD;
@@ -538,8 +611,10 @@ void Context::Empty()
     styles["block=>"] = styles["block->"];
 
     styles["vertical"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::ANY, true, true, true, true, false, 
-                 false, true, true, ESideType::LEFT_RIGHT, false, false, true, false, false);  
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::ANY, 
+                 true, true, true, true, false,
+                 false, true, true, ESideType::ANY, false, false, true, false, 
+                 false, true);  
                  //no vline solid indicator vfill note loss
     styles["vertical->"] = styles["vertical"];
     styles["vertical->"].write().type = STYLE_DEF_ADD;
@@ -553,19 +628,25 @@ void Context::Empty()
     styles["vertical_range"] = styles["vertical->"];
     styles["vertical_bracket"] = styles["vertical->"];
     styles["vertical_brace"] = styles["vertical->"];
+    styles["vertical_pointer"] = styles["vertical->"];
+    styles["vertical_lost_pointer"] = styles["vertical->"];
 
     styles["divider"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, 
-                 false, true, true, ESideType::NO, false, false, false, false, false); 
-                 //no arrow, fill, shadow solid side indicator vfill makeroom note loss
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::NONE, 
+                 true, true, false, false, true,
+                 false, true, true, ESideType::NO, false, false, false, false, 
+                 false, false); 
+                 //no arrow, fill, shadow solid side indicator vfill makeroom note loss lsym
     styles["---"] = styles["divider"];
     styles["---"].write().type = STYLE_DEF_ADD;
     styles["..."] = styles["---"];
 
     styles["box"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, 
-                 false, true, true, ESideType::NO, true, false, false, false, false);
-                 //no arrow, vline solid side vfill makeroom note loss
+        MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::NONE, 
+                 true, true, true, true, false,
+                 false, true, true, ESideType::NO, true, false, false, false, 
+                 false, false);
+                 //no arrow, vline solid side vfill makeroom note loss lsym
     styles["box_collapsed"] = styles["box"];
     styles["emptybox"] = styles["box"];
     styles["--"] = styles["box"];
@@ -575,9 +656,11 @@ void Context::Empty()
     styles["=="] = styles["--"];
 
     styles["pipe"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false,
-                 true, true, true, ESideType::LEFT_RIGHT, false, false, false, false, false); 
-                 //no arrow, vline indicator vfill makeroom note loss
+        MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::NONE, 
+                 true, true, true, true, false,
+                 true, true, true, ESideType::LEFT_RIGHT, false, false, false, false, 
+                 false, false); 
+                 //no arrow, vline indicator vfill makeroom note loss lsym
     styles["pipe--"] = styles["pipe"];
     styles["pipe--"].write().type = STYLE_DEF_ADD;
     styles["pipe++"] = styles["pipe--"];
@@ -585,36 +668,48 @@ void Context::Empty()
     styles["pipe=="] = styles["pipe--"];
 
     styles["entity"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, ESideType::NO, true, true, false, false, false); 
-                 //no arrow, solid numbering compress side makeroom note
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_VLINE_TEXT, ArrowHead::NONE, 
+                 true, true, true, true, true,
+                 false, false, false, ESideType::NO, true, true, false, false, 
+                 false, false); 
+                 //no arrow, solid numbering compress side makeroom note loss lsym
     styles["entitygroup_collapsed"] = styles["entity"];
     styles["entitygroup"] = styles["entity"];
 
     styles["indicator"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, ESideType::NO, false, false, false, false, false); 
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::NONE, 
+                 false, true, true, true, false,
+                 false, false, false, ESideType::NO, false, false, false, false, 
+                 false, false); 
                  //fill line shadow only 
     styles["symbol"] =
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, ESideType::NO, false, false, false, false, false); 
+        MscStyle(STYLE_DEFAULT, EColorMeaning::NOHOW, ArrowHead::NONE, 
+                 false, true, true, true, false,
+                 false, false, false, ESideType::NO, false, false, false, false, 
+                 false, false);
                  //only line fill and shadow
 
     styles["note"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NOTE, true, true, true, true, false, 
-                 false, true, false, ESideType::NO, false, false, false, true, false);  
-                 //no vline side solid indicator compress vfill makreoom loss
+        MscStyle(STYLE_DEFAULT, EColorMeaning::NOHOW, ArrowHead::NOTE,
+                 true, true, true, true, false, 
+                 false, true, false, ESideType::NO, false, false, false, true, 
+                 false, false);
+                 //no vline side solid indicator compress vfill makreoom loss lsym
     
     styles["comment"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, false, false, false, false, 
-                 false, true, false, ESideType::ANY, false, false, false, false, false);  
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::NONE, 
+                 true, false, false, false, false,
+                 false, true, false, ESideType::ANY, false, false, false, false, 
+                 false, false);
                  //only text numbering and side
     styles["endnote"] = styles["comment"];
     //styles["footnote"] = styles["comment"];
 
     styles["title"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, ESideType::NO, false, false, false, false, false);  
+        MscStyle(STYLE_DEFAULT, EColorMeaning::TEXT, ArrowHead::NONE, 
+                 true, true, true, true, true,
+                 false, false, false, ESideType::NO, false, false, false, false, 
+                 false, false);
                  //line, fill, shadow, vline text  
     styles["subtitle"] = styles["title"];
 }
@@ -699,6 +794,10 @@ void Context::Plain()
     styles["vertical"].write().numbering.first = false;
     styles["vertical"].write().makeroom.second = true;
     styles["vertical"].write().line.radius.second = -1;
+    styles["vertical"].write().text.UnsetWordWrap(); 
+    //We need this otherwise setting the global text style to wrap
+    //would cause warnings for all horizontally set verticals which
+    //have no text.width attribute. Better if the user sets this explicitly.
 
     styles["vertical->"].write().line.type.first = true;
     styles["vertical->"].write().line.type.second = LINE_SOLID;
@@ -729,6 +828,7 @@ void Context::Plain()
     styles["vertical_bracket"] = styles["vertical_range"];
     styles["vertical_bracket"].write().line.corner.first = true;
     styles["vertical_bracket"].write().line.corner.second = CORNER_NONE;
+    styles["vertical_pointer"] = styles["vertical_bracket"];
     styles["vertical_brace"] = styles["vertical_bracket"];
     styles["vertical_brace"].write().line.corner.second = CORNER_ROUND;
 

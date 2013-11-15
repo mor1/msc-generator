@@ -1060,6 +1060,72 @@ bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p)
 
 /////////////////////////////////////////////////////////////////////////////
 
+bool WidthAttr::operator == (const WidthAttr &a) const
+{
+    if (a.first != first) return false;
+    if (a.first && (a.second != second || (second<0 && a.str != str))) return false;
+    return true;
+}
+
+/** Take an attribute and apply it to us.
+*
+* We consider attributes ending with 'width', 'pointer' and 'pos';
+* or any style at the current context in `msc`. We also accept the clearing of
+* an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+* At a problem, we generate an error into msc->Error.
+* @param [in] a The attribute to apply.
+* @param msc The chart we build.
+* @param [in] t The situation we set the attribute.
+* @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
+bool WidthAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
+{
+    if (a.EndsWith("width")) {
+        switch (a.type) {
+        default:
+        case MSC_ATTR_STYLE:
+            _ASSERT(0);
+        case MSC_ATTR_CLEAR:
+            if (a.EnsureNotClear(msc->Error, t))
+                first = false;
+            break;
+        case MSC_ATTR_NUMBER:
+            first = true;
+            second = a.number;
+            str.clear();
+            break;
+        case MSC_ATTR_BOOL:
+        case MSC_ATTR_STRING:
+            first = true;
+            second = -1;
+            str = a.value;
+            break;
+        }
+    }
+    return false;
+}
+
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
+bool WidthAttr::AttributeValues(const std::string &attr, Csh &csh)
+{
+    if (CaseInsensitiveEndsWith(attr, "width")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<string>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    return false;
+}
+
+/** Get the width in pixels for the value of the width attribute. 
+ * Returns 0 if not set.*/
+double WidthAttr::GetWidth(Canvas &canvas, const StringFormat &format) const
+{
+    if (!first) return 0;
+    if (second>=0) return second;
+    if (str.length()==0) return 0;
+    return second = Label(str, canvas, format).getTextWidthHeight().x;
+}
+
+
 /**Make the style fully specified using default note style values.
  * If the `first` member of any attribute is false, we set it true and
  * use the default value (Callout type, no specific position preference.) 
@@ -1071,7 +1137,7 @@ void NoteAttr::MakeComplete()
     if (!def_float_dist.first) {def_float_dist.first = true; def_float_dist.second = 0;}
     if (!def_float_x.first) {def_float_x.first = true; def_float_x.second = 0;}
     if (!def_float_y.first) {def_float_y.first = true; def_float_y.second = 0;}
-    if (!width.first) {width.first=true; width.second = 0; width.str.clear();}
+    width.MakeComplete();
 }
 
 NoteAttr &NoteAttr::operator +=(const NoteAttr&a)
@@ -1080,11 +1146,11 @@ NoteAttr &NoteAttr::operator +=(const NoteAttr&a)
     if (a.def_float_dist.first) def_float_dist = a.def_float_dist;
     if (a.def_float_x.first) def_float_x = a.def_float_x;
     if (a.def_float_y.first) def_float_y = a.def_float_y;
-    if (a.width.first) width = a.width;
+    width = a.width;
     return *this;
 };
 
-bool NoteAttr::operator == (const NoteAttr &a)
+bool NoteAttr::operator == (const NoteAttr &a) const
 {
     if (a.pointer.first != pointer.first) return false;
     if (pointer.first && !(a.pointer.second == pointer.second)) return false;
@@ -1094,8 +1160,7 @@ bool NoteAttr::operator == (const NoteAttr &a)
     if (def_float_x.first && !(a.def_float_x.second == def_float_x.second)) return false;
     if (a.def_float_y.first != def_float_y.first) return false;
     if (def_float_y.first && !(a.def_float_y.second == def_float_y.second)) return false;
-    if (a.width.first != width.first) return false;
-    if (a.width.first && (a.width.second != width.second || (width.second<0 && a.width.str != width.str))) return false;
+    if (a.width != width) return false;
     return true;
 }
 
@@ -1160,28 +1225,8 @@ bool NoteAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         a.InvalidValueError(CandidatesFor(tmp), msc->Error);
         return true;
     }
-    if (a.EndsWith("width")) {
-        switch (a.type) {
-        default:
-        case MSC_ATTR_STYLE: 
-            _ASSERT(0);
-        case MSC_ATTR_CLEAR: 
-            if (a.EnsureNotClear(msc->Error, t))
-                width.first = false;
-            break;
-        case MSC_ATTR_NUMBER:
-            width.first = true;
-            width.second = a.number;
-            width.str.clear();
-            break;
-        case MSC_ATTR_BOOL:
-        case MSC_ATTR_STRING:
-            width.first = true;
-            width.second = -1;
-            width.str = a.value;
-            break;
-        }
-    }
+    if (width.AddAttribute(a, msc, t))
+        return true;
     return false;
 }
 
@@ -1214,11 +1259,7 @@ bool NoteAttr::AttributeValues(const std::string &attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForPos);
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "width")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<string>", HINT_ATTR_VALUE, false));
-        return true;
-    }
+    if (WidthAttr::AttributeValues(attr, csh)) return true;
     return false;
 }
 
