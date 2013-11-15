@@ -33,6 +33,15 @@ class Canvas;
 
 using std::string;
 
+/** Describes the values of the 'side' attribute*/
+enum class ESide
+{
+    INVALID = 0,///<The invalid value.
+    LEFT,       ///<The left side
+    RIGHT,      ///<The right side
+    END         ///<At the bottom of the chart (used for comments only)
+};
+
 /** Describes text identation */
 enum EIdentType {
     MSC_IDENT_INVALID = 0, ///<The invalid value
@@ -332,32 +341,42 @@ public:
      * @param [in] isRotated If true then the canvas will fall back to text_path
      *                       for surfaces that do not support rotated text (WMF)*/
     void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
-    /** Return the cover for the 90 degree rotated label.
-    * We lay out the label between `sy` and `dy` according to the ident of each line.
+    /** Return the cover for the a label that can be 90 degree rotated or not.
+    * We lay out the label between `s` and `d` according to the ident of each line.
     * Each fragment is modelled as a rectangle.
-    * @param [in] sy The top margin.
-    * @param [in] dy The bottom margin.
-    * @param [in] x The left edge of the label, irrespective of 'from_left'.
-    * @param [in] from_left True if the label is read from left, false if from right
-    * @param [in] cy If also specified, we center around it for centered lines,
+    * If the label is vertical, s, d and c are Y coordinates and t is X coordinate.
+    * If the label is horizontal, vice versa.
+    * @param [in] s The left edge of the text (as the text reads)
+    *               In the result this is the Left/Top/Bottom edge of text for side==END/LEFT/RIGHT. 
+    * @param [in] d The right edge of the text (as the text reads)
+    *               In the result this is the Right/Bottom/Top edge of text for side==END/LEFT/RIGHT
+    * @param [in] t The top edge of the text (as the text reads)
+    *               In the result this is the Top/Right/Left edge of text for side==END/LEFT/RIGHT.  
+    * @param [in] side from which direction is the text read. For END it will be laid out horizontally.
+    * @param [in] c If also specified, we center around it for centered lines,
     *                but taking care not to go ouside the margings.
-    *                If the line is wider than `dy-sy` we will go outside
-    *                as little as possible (thus we center around `(sx+dx)/2`.
+    *                If the line is wider than `d-s` we will go outside
+    *                as little as possible (thus we center around `(s+d)/2`.
     * @returns The cover of the label.*/
-    Contour Cover90(double sy, double dy, double x, bool from_left, double cy = -CONTOUR_INFINITY) const;
+    Contour Cover(double s, double d, double t, ESide side, double c = -CONTOUR_INFINITY) const;
     /** Draw the label rotated 90 degrees onto a canvas
-    * We lay out the label between `sy` and `dy` according to the ident of each line.
+    * We lay out the label between `s` and `d` according to the ident of each line.
     * Each fragment is modelled as a rectangle.
+    * If the label is vertical, s, d and c are Y coordinates and t is X coordinate.
+    * If the label is horizontal, vice versa.
     * @param canvas The canvas to draw onto.
-    * @param [in] sy The top margin.
-    * @param [in] dy The bottom margin.
-    * @param [in] x The left edge of the label, irrespective of 'from_left'.
-    * @param [in] from_left True if the label is read from left, false if from right
-    * @param [in] cy If also specified, we center around it for centered lines,
+    * @param [in] s The left edge of the text (as the text reads)
+    *               In the result this is the Left/Top/Bottom edge of text for side==END/LEFT/RIGHT.
+    * @param [in] d The right edge of the text (as the text reads)
+    *               In the result this is the Right/Bottom/Top edge of text for side==END/LEFT/RIGHT
+    * @param [in] t The top edge of the text (as the text reads)
+    *               In the result this is the Top/Right/Left edge of text for side==END/LEFT/RIGHT.
+    * @param [in] side from which direction is the text read. For END it will be laid out horizontally.
+    * @param [in] c If also specified, we center around it for centered lines,
     *                but taking care not to go ouside the margings.
-    *                If the line is wider than `dy-sy` we will go outside
-    *                as little as possible (thus we center around `(sx+dx)/2`.*/
-    void Draw90(Canvas &canvas, double sy, double dy, double x, bool from_left, double cy = -CONTOUR_INFINITY) const;
+    *                If the line is wider than `d-s` we will go outside
+    *                as little as possible (thus we center around `(s+d)/2`.*/
+    void Draw(Canvas &canvas, double s, double d, double t, ESide side, double c = -CONTOUR_INFINITY) const;
 };
 
 #endif //STRINGPARSE_H

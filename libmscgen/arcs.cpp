@@ -686,23 +686,6 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         return true;
     }
     string s;
-    if (a.Is("color")) {
-        // MSC_ATTR_CLEAR is handled by individual attributes below
-        bool was = false;
-        if (style.read().f_line) {
-            style.write().line.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        if (style.read().f_text) {
-            style.write().text.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        if (style.read().f_arrow) {
-            style.write().arrow.AddAttribute(a, chart, style.read().type);
-            was = true;
-        }
-        return was;
-    }
     if (a.Is("label")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
@@ -771,7 +754,6 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
 void ArcLabelled::AttributeNames(Csh &csh)
 {
     ArcBase::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
@@ -780,10 +762,6 @@ void ArcLabelled::AttributeNames(Csh &csh)
 
 bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
     if (CaseInsensitiveEqual(attr,"label") || CaseInsensitiveEqual(attr,"refname")) {
         return true;
     }
@@ -922,6 +900,17 @@ void ArcArrow::PostPosProcess(Canvas &canvas)
     entityLineRange = area.GetBoundingBox().y;
     ArcLabelled::PostPosProcess(canvas);
 }
+
+void ArcArrow::DrawLSym(Canvas &canvas, const XY &C, XY size)
+{
+    auto before = cairo_get_line_cap(canvas.GetContext());
+    cairo_set_line_cap(canvas.GetContext(), CAIRO_LINE_CAP_ROUND);
+    canvas.Line(C - size/2, C + size/2, style.read().lsym_line);
+    size.x *= -1;
+    canvas.Line(C - size/2, C + size/2, style.read().lsym_line);
+    cairo_set_line_cap(canvas.GetContext(), before);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcSelfArrow::ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl,
@@ -1503,6 +1492,7 @@ void ArcDirArrow::FinalizeLabels(Canvas &canvas)
 
 
 const double ArcDirArrow::lsym_side_by_offset = 0.5;
+const double LSYM_SIZE_ADJ = 0.66;
 
 void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
@@ -1544,7 +1534,7 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     //If a lost symbol is generated, do some
     if (lost_pos.valid) {
         lsym_size.y = lsym_size.x =
-            ArrowHead::baseArrowWidth * 0.66 * ArrowHead::arrowSizePercentage[style.read().lsym_size.second]/100.;
+            ArrowHead::baseArrowWidth * LSYM_SIZE_ADJ * ArrowHead::arrowSizePercentage[style.read().lsym_size.second]/100.;
         const double aw = lsym_side_by_offset * lsym_size.x;
         const double gap = chart->hscaleAutoXGap;
         const unsigned e1 = (*lost_pos.entity1)->index;
@@ -1951,11 +1941,7 @@ void ArcDirArrow::Draw(Canvas &canvas, EDrawPassType pass)
         canvas.UnClip();
         if (slant_angle)
             style.read().arrow.TransformCanvasForAngle(slant_angle, canvas, sx, yPos+centerline);
-        cairo_set_line_cap(canvas.GetContext(), CAIRO_LINE_CAP_ROUND);
-        Block X(XY(cx_lsym, yPos+centerline)-lsym_size/2, 
-                XY(cx_lsym, yPos+centerline)+lsym_size/2);
-        canvas.Line(X.UpperLeft(), X.LowerRight(), style.read().lsym_line);
-        canvas.Line(X.UpperRight(), X.LowerLeft(), style.read().lsym_line);
+        DrawLSym(canvas, XY(cx_lsym, yPos+centerline), lsym_size);
         if (slant_angle)
             style.read().arrow.UnTransformCanvas(canvas);
     }
@@ -2359,6 +2345,7 @@ ArcVerticalArrow::ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *
     //If we are defined via a backwards arrow, swap source and dst
     if (t.dir==MSC_DIR_LEFT)
         src.swap(dst);
+    width_attr.Empty();
     valid = false; //without an x pos we are invalid
 }
 
@@ -2372,11 +2359,11 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
     case VertXPos::POS_LEFT_SIDE:
     case VertXPos::POS_THIRD_RIGHT:
         style.write().side.second = ESide::RIGHT; 
-        ent_side = ESide::LEFT;
+        left = true;
         break;
     default:
         style.write().side.second = ESide::LEFT; 
-        ent_side = ESide::RIGHT;
+        left = false;
         break;
     }
     return this;
@@ -2407,6 +2394,7 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
     default:
         _ASSERT(0); //fallthrough
     case ARROW_OR_BOX:
+        style.write().color_meaning = EColorMeaning::FILL;
         break;
     case BRACE:
         style += chart->Contexts.back().styles["vertical_brace"];
@@ -2416,6 +2404,12 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
         break;
     case RANGE:
         style += chart->Contexts.back().styles["vertical_range"];
+        break;
+    case POINTER:
+        style += chart->Contexts.back().styles["vertical_pointer"];
+        break;
+    case LOST_POINTER:
+        style += chart->Contexts.back().styles["vertical_lost_pointer"];
         break;
     }
 }
@@ -2457,6 +2451,8 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
         pos.offset += a.number;
         return true;
     }
+    if (a.Is("text.width"))
+        return width_attr.AddAttribute(a, chart, STYLE_ARC);
     return ArcArrow::AddAttribute(a);
 }
 
@@ -2464,7 +2460,7 @@ void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("vertical").read().AttributeNames(csh);
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"text.width", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
 
@@ -2479,6 +2475,7 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
+    if (CaseInsensitiveEqual(attr, "text.width") && WidthAttr::AttributeValues(attr, csh)) return true;
     if (defaultDesign.styles.GetStyle("vertical").read().AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -2581,11 +2578,25 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
 {
     const double text_distance = 0; //chart->hscaleAutoXGap
     if (!valid) return;
+    //reflow if needed
+    if (style.read().side.second==ESide::END && parsed_label.IsWordWrap()) {
+        //This works only for side==END really
+        //for rotated text we cannot go back and increase space req...
+        const double w = width_attr.GetWidth(canvas, style.read().text);
+        if (w>0) {
+            const double overflow = parsed_label.Reflow(canvas, w);
+            OverflowWarning(overflow, "Use the 'text.width' attribute to increase text width.");
+        } else 
+            chart->Error.Warning(file_pos.start, "Word wrapping is on, but no meaningful width is specified.", "Ignoring word wrapping. Try setting 'text.width'.");
+    }
     //The offset is ignored during the process of setting space requirements
     const XY twh = parsed_label.getTextWidthHeight();
     const double lw = style.read().line.LineWidth();
     radius = style.read().line.radius.second;
-    width = twh.y;
+    if (style.read().side.second == ESide::END)
+        width = twh.x;
+    else 
+        width = twh.y;
     switch (shape) {
     default:
         _ASSERT(0);
@@ -2609,19 +2620,36 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
                          style.read().line.radius.second);
         width = std::max(width, w);
         _ASSERT(style.read().line.IsComplete());
-        //we set other_x_off here so that it becomes easier to calculate it later
-        other_x_off = std::max(w, style.read().line.radius.second);
-        width += other_x_off;
+        //we set vline_off here so that it becomes easier to calculate it later
+        vline_off = std::max(w, style.read().line.radius.second);
+        width += vline_off;
         //no ext width
         ext_width = radius;
         }
         break;
     case BRACKET:
+    case POINTER:
         //Here body with is all the width of the brace/bracket, plus text
         if (width)
             width += text_distance; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
-        width += radius+ lw;
+        width += radius + lw;
+        ext_width = radius;
+        //This is the distance from the edge of the object to the midline
+        //of the horizontal arrow.
+        vline_off = radius + lw/2;
+        break;
+    case LOST_POINTER:
+        lsym_size.y = lsym_size.x =
+            ArrowHead::baseArrowWidth * LSYM_SIZE_ADJ * ArrowHead::arrowSizePercentage[style.read().lsym_size.second]/100.;
+        //Here body with is all the width of the brace/bracket, plus text
+        if (width)
+            width += text_distance; //space between text and brace
+        width = std::max(width, std::max(lw/2, lsym_size.x));
+        //This is the distance from the edge of the object to the midline
+        //of the horizontal arrow.
+        vline_off = std::max(std::max(lsym_size.x, radius), lw/2);
+        width += vline_off;
         ext_width = radius;
         break;
     case BRACE:
@@ -2629,24 +2657,59 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
         if (width)
             width += text_distance; //space between text and brace
         _ASSERT(style.read().line.IsComplete());
-        width += 2*radius + lw;
+        vline_off = radius + lw;
+        width += vline_off + radius;
         ext_width = radius;
         break;
     }
 
     const unsigned index = (*pos.entity1)->index;
+    double displace;
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
     case VertXPos::POS_LEFT_SIDE:
-        pos.offset -= vdist.Get(src, dst).Query(index, DISTANCE_LEFT);
+        displace = -vdist.Get(src, dst).Query(index, DISTANCE_LEFT);
         break;
     case VertXPos::POS_RIGHT_BY:
     case VertXPos::POS_RIGHT_SIDE:
-        pos.offset += vdist.Get(src, dst).Query(index, DISTANCE_RIGHT);
+        displace = vdist.Get(src, dst).Query(index, DISTANCE_RIGHT);
         break;
     default:
+        displace = 0;
         break;
     };
+
+    //If we are a pointer, make room for the arrowheads
+    if (shape == POINTER || shape==LOST_POINTER) {
+        double ah_width = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_START,
+            style.read().line).second;
+        if (shape==POINTER)
+            ah_width = std::max(ah_width, style.read().arrow.getWidths(true, isBidir(), 
+                MSC_ARROW_END, style.read().line).first);
+        displace = std::max(fabs(displace), ah_width); //positive
+        //We do not move pos.offset here, instead, we enlarge the vertical's width
+        width += displace;
+        vline_off += displace;
+        //Finally, move so that arrowhead touches the entity line
+        //(VertXPos::CalculatePos() leaves a small gap)
+        switch (pos.pos) {
+        case VertXPos::POS_LEFT_BY:
+        case VertXPos::POS_LEFT_SIDE:
+            pos.offset += chart->hscaleAutoXGap;
+            break;
+        case VertXPos::POS_RIGHT_BY:
+        case VertXPos::POS_RIGHT_SIDE:
+            pos.offset -= chart->hscaleAutoXGap;
+            break;
+        default:
+            break;
+        }
+    } else //for others make room for what is already there
+        pos.offset += displace;
+
+    //Make vline_off signed
+    if (!left)
+        vline_off *= -1;
 
     //No extra space requirement -> exit here
     if (!style.read().makeroom.second) return;
@@ -2718,7 +2781,7 @@ Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
                               c2, Edge(c2.GetEnd(), c1.GetStart())});
 }
 
-void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
+void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
 {
     if (!valid) return;
     //Here we are sure markers are OK
@@ -2764,53 +2827,103 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
     const double lw2 = lw/2;
     XY twh = parsed_label.getTextWidthHeight();
     const Contour text_cover = parsed_label.Cover(0, twh.x, lw);
-    double sm, dm; //margins
-    switch (shape){
-    case ARROW_OR_BOX:
-        sm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second == ESide::LEFT,
-                                             isBidir(), style.read().arrow.startType.second, style.read().line);
-        dm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second != ESide::LEFT,
-                                             isBidir(), style.read().arrow.endType.second, style.read().line);
+    double sm, dm; //up/down margins
+    if (style.read().side.second== ESide::END) {
+        dm = sm = lw;
+    } else switch (shape) {
+        case ARROW_OR_BOX:
+                sm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second == ESide::LEFT,
+                                                     isBidir(), style.read().arrow.startType.second, style.read().line);
+                dm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second != ESide::LEFT,
+                                                     isBidir(), style.read().arrow.endType.second, style.read().line);
+            break;
+        case RANGE:
+            sm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).x);
+            dm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).x);
+            break;
+        case LOST_POINTER:
+            sm = 0;
+            dm = lsym_size.y;
+            break;
+        default:
+            dm = sm = 0;
+    }
+    //calculate y coordinates of text boundaries
+    switch (style.read().side.second) {
+    case ESide::LEFT:
+        s_text = ypos[0] + (forward ? sm : dm);
+        d_text = ypos[1] - (forward ? dm : sm);
         break;
-    case RANGE:
-        sm = lw/2 + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).x);
-        dm = lw/2 + std::max(lw/2, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).x);
+    case ESide::RIGHT:
+        s_text = ypos[1] - (forward ? sm : dm);
+        d_text = ypos[0] + (forward ? dm : sm);
         break;
-    default:
-        dm = sm = 0;
+    case ESide::END:
+        t_text = (ypos[0] + ypos[1] - twh.y)/2;
+        break;
     }
-    //calculate sy_text, dy_text and xpos
-    if (style.read().side.second == ESide::LEFT) {
-        sy_text = ypos[0] + (forward ? sm : dm);
-        dy_text = ypos[1] - (forward ? dm : sm);
-    } else {
-        sy_text = ypos[1] - (forward ? sm : dm);
-        dy_text = ypos[0] + (forward ? dm : sm);
-    }
-    if (parsed_label.IsWordWrap() && 0) {
-        //This does not work really - we cannot go back and increase space req... :-(
-        const double overflow = parsed_label.Reflow(canvas, fabs(dy_text - sy_text));
-        if (overflow >= 1) 
-            chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.");
-        twh = parsed_label.getTextWidthHeight(); //refresh
-    } else {
-        if (fabs(sy_text-dy_text)  > ypos[1]-ypos[0])
-            chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.");
-            //"Try word wrapping (text.wrap=yes).");
-    }
-    xpos = pos.CalculatePos(*chart, width, ext_width/2);
-    //xpos is now the middle of the construct
+    //Warn if label does not fit
+    if ((style.read().side.second==ESide::END && ypos[1]-ypos[0] < twh.y) || 
+        (style.read().side.second!=ESide::END && ypos[1]-ypos[0] < fabs(s_text-d_text)))
+        chart->Error.Warning(file_pos.start, "Too little vertical space for label - may look bad.");
 
-    //Calculate area and text_xpos
+    xpos = pos.CalculatePos(*chart, width, ext_width/2);
+    //xpos is now the middle of the vertical object.
+    //This is good for arrow/box, but not for others, since
+    //for bracket/brace/pointer/range it should be the main vertical line 
+    //We will adjust xpos below.
+    //Plus we calculate the x coordinates of the text
+    switch (shape) {
+    default:
+        _ASSERT(0); //fallthrough
+    case ARROW_OR_BOX: 
+        //adjust xpos and width
+        width -= lw; //not necessarily integer, the distance from midline to midline
+        xpos = floor(xpos + 0.5); //xpos is integer now: the centerline of arrow if arrow
+        switch (style.read().side.second) {
+        case ESide::LEFT:
+            t_text = xpos + twh.y/2; break;
+        case ESide::RIGHT:
+            t_text = xpos - twh.y/2; break;
+        case ESide::END:
+            s_text = xpos - twh.x/2;
+            d_text = xpos + twh.x/2;
+        }
+        break;
+    case LOST_POINTER:
+    case POINTER:
+    case BRACKET:
+    case BRACE:
+    case RANGE:
+        switch (style.read().side.second) {
+        case ESide::LEFT:
+            t_text = xpos + width/2; break;
+        case ESide::RIGHT:
+            t_text = xpos - width/2; break;
+        case ESide::END:
+            if (left) {
+                s_text = xpos - width/2;
+                d_text = s_text + twh.x;
+            } else {
+                d_text = xpos + width/2;
+                s_text = d_text - twh.x;
+            }
+        }
+        xpos += (left ? 1 : -1) * (width/2) - vline_off;
+        break;
+    }
+    //'xpos' is now the middle of the arrow/box;
+    //for bracket/brace/pointer/range it is the main vertical line 
+    //All of 's_text', 'd_text', 't_text' is filled
+    
+    //Copy text cover to 'area_important', re-used below
+    area_important = parsed_label.Cover(s_text, d_text, t_text, style.read().side.second); 
+
+    //Now set 'area'
     switch (shape) {
     default:
         _ASSERT(0); //fallthrough
     case ARROW_OR_BOX: {
-        //adjust xpos and width
-        width -= lw; //not necessarily integer, the distance from midline to midline
-        xpos = floor(xpos + 0.5); //xpos is integer now: the centerline of arrow if arrow
-        //the left side of the label
-        text_xpos = xpos - twh.y/2;
         const double ss = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.startType.second, MSC_ARROW_START,
                                                            twh.y+2*lw, 0, style.read().line);
         const double ds = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.endType.second, MSC_ARROW_END, 
@@ -2818,6 +2931,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
         if (ss+ds+chart->compressGap > ypos[1]-ypos[0]) {
             chart->Error.Warning(file_pos.start, "Size of vertical element is too small to draw arrowheads. Ignoring it.");
             valid = false;
+            return;
         }
 
 	    //Generate area
@@ -2831,17 +2945,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
         break; //ARROW_OR_BOX
         }
     case RANGE: {
-        //other_x_off is already set here to the distance from the midline to the edge
-        const double x_off = width/2 - other_x_off;
-        if (ent_side == ESide::LEFT) {
-            text_xpos = xpos - width/2;
-            xpos += x_off;
-        } else {
-            text_xpos = xpos + width/2 - twh.y;
-            xpos -= x_off;
-        }
-        area = parsed_label.Cover90(sy_text, dy_text, text_xpos, 
-                                    style.read().side.second == ESide::LEFT);
+        area = area_important;
         area += Block(xpos-lw2, xpos+lw2, ypos[0], ypos[1]);
         area += Block(xpos-radius-lw2, xpos+radius+lw2, ypos[0], ypos[0]+lw);
         area += Block(xpos-radius-lw2, xpos+radius+lw2, ypos[1], ypos[1]-lw);
@@ -2856,48 +2960,47 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
             ).RotateAround(cd, 90);
     }
         break;
+    case LOST_POINTER:
+    case POINTER:
     case BRACKET: {
-        const double x_off = width/2 - radius - lw2;
-        if (ent_side == ESide::LEFT) {
-            text_xpos = xpos - width/2;
-            xpos += x_off;
-            other_x_off = radius+lw2;
-            //area = Block(xpos, xpos+radius+lw2, ypos[0], ypos[0]+lw);
-            //area += Block(xpos, xpos+radius+lw2, ypos[1], ypos[1]-lw);
-        } else {
-            text_xpos = xpos + width/2 - twh.y;
-            xpos -= x_off;
-            other_x_off = -radius-lw2;
-            //area = Block(xpos-radius-lw2, xpos, ypos[0], ypos[0]+lw);
-            //area += Block(xpos-radius-lw2, xpos, ypos[1], ypos[1]-lw);
+        area = area_important;
+        const double bottom_line = (shape==LOST_POINTER ? ypos[1]+2*lw+2*radius : ypos[1]-lw2);
+        const Block rect(xpos, xpos+2*vline_off, ypos[0]+lw2, bottom_line);
+        const Block total(xpos-vline_off, xpos+vline_off, ypos[0]-100, ypos[1]+100);
+        clip_line = total;
+        if (shape==POINTER || shape==LOST_POINTER) {
+            const XY cs(xpos+vline_off, ypos[0]);
+            const XY cd(xpos+vline_off, ypos[1]);
+            const Block tot_up(total.x, Range(total.y.from, total.y.MidPoint()));
+            const Block tot_dn(total.x, Range(total.y.MidPoint(), total.y.till));
+            //Adjust clip for arrowheads
+            clip_line *= style.read().arrow.ClipForLine(cs, 0, forward != left,
+                           isBidir(), forward ? MSC_ARROW_START : MSC_ARROW_END, tot_up,
+                           style.read().line, style.read().line)
+                         +tot_dn;
+            clip_line *= style.read().arrow.ClipForLine(cd, 0, forward == left,
+                           isBidir(), forward ? MSC_ARROW_END : MSC_ARROW_START, tot_dn,
+                           style.read().line, style.read().line) 
+                         +tot_up;
+            //Add arrowheads to area
+            area += style.read().arrow.Cover(cs, 0, forward != left, 
+                isBidir(), forward ? MSC_ARROW_START : MSC_ARROW_END,
+                style.read().line, style.read().line);
+            if (shape==POINTER)
+            area += style.read().arrow.Cover(cd, 0, forward == left, 
+                isBidir(), forward ? MSC_ARROW_END : MSC_ARROW_START,
+                style.read().line, style.read().line);
         }
-        area += parsed_label.Cover90(sy_text, dy_text, text_xpos,
-            style.read().side.second == ESide::LEFT);
-        //area += Block(xpos-lw2, xpos+lw2, ypos[0], ypos[1]);
-
-        const Block rect(xpos, xpos+2*other_x_off, ypos[0]+lw2, ypos[1]-lw2);
-        const Block clip(xpos-1, xpos+other_x_off, ypos[0]-1, ypos[1]+1);
-
-        area += clip * (style.read().line.CreateRectangle_OuterEdge(rect) - 
-                        style.read().line.CreateRectangle_InnerEdge(rect));
-    }
+        area += clip_line * (style.read().line.CreateRectangle_OuterEdge(rect) - 
+                             style.read().line.CreateRectangle_InnerEdge(rect));
+        }
         break;
     case BRACE: {
-        const bool left = ent_side==ESide::LEFT;
-        const double x_off = width/2 - radius - lw2;
-        if (left) {
-            text_xpos = xpos - width/2;
-            xpos += x_off;
-        } else {
-            text_xpos = xpos + width/2 - twh.y;
-            xpos -= x_off;
-        }
-        //Now that we get xpos and text_xpos calculated using the original
-        //radius, we limit radius to what fits the height
+        area = area_important;
+        //Limit radius to what fits the height
+        //(We can only do so here, for all other width etc values
+        //were needed to be consistently calculated with the original radius)
         radius = std::max(0., std::min(radius, (ypos[1]-ypos[0]-2*lw)/4));
-
-        area = parsed_label.Cover90(sy_text, dy_text, text_xpos, 
-                                    style.read().side.second == ESide::LEFT);
         const double ymid = (ypos[0]+ypos[1])/2;
         const double xoff = left ? radius : -radius;
         const double lw2off = left ? lw2 : -lw2;
@@ -2912,11 +3015,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas & canvas, double autoMarker)
         area += Block(xpos-xoff, xpos-xoff-lw2off, ymid-lw2, ymid+lw2);
     }
     }
-    //Roate calculated area and outer_contour
+
     area.arc = this;
-    //fill in other fields
-    area_important = parsed_label.Cover90(sy_text, dy_text, text_xpos,
-                                          style.read().side.second == ESide::LEFT);
     area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     chart->NoteBlockers.Append(this);
 }
@@ -2954,12 +3054,12 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
         const XY cd(xpos, ypos[1]-lw/2);
         Contour clip_area = style.read().arrow.ClipForLine(cs, 0, forward, isBidir(), 
             forward ? MSC_ARROW_START : MSC_ARROW_END, 
-            Block(xpos, xpos + ypos[1]-ypos[0], ypos[0]-other_x_off, ypos[0]+other_x_off),
+            Block(xpos, xpos + ypos[1]-ypos[0], ypos[0]-vline_off, ypos[0]+vline_off),
             style.read().line, style.read().line
             ).RotateAround(cs, 90);
         Contour ca = style.read().arrow.ClipForLine(cd, 0, forward, isBidir(), 
             forward ? MSC_ARROW_END : MSC_ARROW_START,
-            Block(xpos-(ypos[1]-ypos[0]), xpos, ypos[1]-other_x_off, ypos[1]+other_x_off),
+            Block(xpos-(ypos[1]-ypos[0]), xpos, ypos[1]-vline_off, ypos[1]+vline_off),
             style.read().line, style.read().line
             ).RotateAround(cd, 90);
         clip_area *= ca;
@@ -2980,30 +3080,33 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
         style.read().arrow.UnTransformCanvas(canvas);
     }
         break;
+    case LOST_POINTER:
+    case POINTER:
     case BRACKET: {
-        const Block rect(xpos, xpos+2*other_x_off, ypos[0]+lw/2, ypos[1]-lw/2);
-        const Block clip(xpos-1, xpos+other_x_off, ypos[0]-1, ypos[1]+1);
+        const double bottom_line = (shape==LOST_POINTER ? ypos[1]+2*lw+2*radius : ypos[1]-lw/2);
+        const Block rect(xpos, xpos+2*vline_off, ypos[0]+lw/2, bottom_line);
 
-        canvas.Clip(clip);
+        canvas.Clip(clip_line);
         canvas.Line(rect, style.read().line); //This will have rounde edges, if so set
         canvas.UnClip();
-    }
-        //canvas.Line(XY(xpos, ypos[0]), XY(xpos, ypos[1]),
-        //            style.read().line);
-        //if (ent_side == ESide::LEFT) {
-        //    canvas.Line(XY(xpos, ypos[0]+lw/2), XY(xpos+radius+lw/2, ypos[0]+lw/2),
-        //                style.read().line);
-        //    canvas.Line(XY(xpos, ypos[1]-lw/2), XY(xpos+radius+lw/2, ypos[1]-lw/2),
-        //                style.read().line);
-        //} else {
-        //    canvas.Line(XY(xpos-radius-lw/2, ypos[0]+lw/2), XY(xpos, ypos[0]+lw/2),
-        //                style.read().line);
-        //    canvas.Line(XY(xpos-radius-lw/2, ypos[1]-lw/2), XY(xpos, ypos[1]-lw/2),
-        //                style.read().line);
-        //}
+        if (shape==POINTER || shape==LOST_POINTER) {
+            const XY cs(xpos+vline_off, ypos[0]);
+            style.read().arrow.Draw(cs, 0, forward != left,
+                isBidir(), forward ? MSC_ARROW_START : MSC_ARROW_END,
+                style.read().line, style.read().line, &canvas);
+        }
+        if (shape==POINTER) {
+            const XY cd(xpos+vline_off, ypos[1]);
+            style.read().arrow.Draw(cd, 0, forward == left,
+                isBidir(), forward ? MSC_ARROW_END : MSC_ARROW_START,
+                style.read().line, style.read().line, &canvas);
+        }
+        if (shape==LOST_POINTER) {
+            DrawLSym(canvas, XY(xpos, ypos[1]), lsym_size);
+        }
+        }
         break;
     case BRACE:
-        const bool left = ent_side==ESide::LEFT;
         const double ymid = (ypos[0]+ypos[1])/2;
         const double xoff = left ? radius : -radius;
         const double lw2off = left ? lw/2 : -lw/2;
@@ -3031,8 +3134,7 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
         canvas.Line(brace, style.read().line);
     };
     //draw text
-    parsed_label.Draw90(canvas, sy_text, dy_text, text_xpos, 
-                        style.read().side.second == ESide::LEFT);
+    parsed_label.Draw(canvas, s_text, d_text, t_text, style.read().side.second);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3143,9 +3245,6 @@ void ArcBox::AddAttributeList(AttributeList *l)
 bool ArcBox::AddAttribute(const Attribute &a)
 {
     if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
-    if (a.Is("color")) {
-        return style.write().fill.AddAttribute(a, chart, style.read().type);
-    }
     if (a.Is("collapsed")) {
         if (content.size()==0) {
             chart->Error.Error(a, false, "The 'collapsed' attribute can only be specified for boxes with content.",
@@ -3192,10 +3291,6 @@ bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p
 
 bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
     if (CaseInsensitiveEqual(attr, "collapsed")) {
         csh.AddToHints(EnumEncapsulator<EBoxCollapseType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
@@ -3951,10 +4046,6 @@ ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
 
 bool ArcPipe::AddAttribute(const Attribute &a)
 {
-    if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
-    if (a.Is("color")) {
-        return style.write().fill.AddAttribute(a, chart, style.read().type);
-    }
     return ArcLabelled::AddAttribute(a);
 }
 
@@ -3966,10 +4057,6 @@ void ArcPipe::AttributeNames(Csh &csh)
 
 bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
     if (defaultDesign.styles.GetStyle("pipe").read().AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -4884,11 +4971,6 @@ ArcBase* ArcDivider::PostParseProcess(Canvas &canvas, bool hide, EIterator &left
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
 
-    //if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER || 
-    //                   type==MSC_COMMAND_TITLE || type==MSC_COMMAND_SUBTITLE)) {
-    //    chart->Error.Warning(file_pos.start, ss + " is specified inside a parallel block.",
-    //        "May display incorrectly.");
-    //}
     if (hide) return NULL;
     return this;
 }

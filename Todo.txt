@@ -60,6 +60,8 @@ ADD: ISMAPs, floating comments, none commets
 
 
 In 3.7.1
+ADD: POINTER vertical text.width
+CHANGED: how style reacts to 'color' attribute
 ADDED: BOX keyword.
 ADDED: Bracket, brace and range verticals
 CHANGED: Now verticals using a+ a++ a- a-- positioning will try not to overlap with elements beside the entity line.

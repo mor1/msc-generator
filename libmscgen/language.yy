@@ -1,5 +1,6 @@
 %locations
 %pure-parser
+%expect 250
 %lex-param {yyscan_t *yyscanner}
 %parse-param{YYMSC_RESULT_TYPE &RESULT}
 %parse-param{void *yyscanner}
@@ -157,9 +158,9 @@
                    TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
-                   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+                   TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_VERTICAL_SHAPE
 %type <stringlist> tok_stringlist
-%type <vshape>     TOK_VERTICAL_SHAPE
+%type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
 
 %destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
@@ -653,7 +654,7 @@ arc:           arcrel
     free($1);
     $$ = NULL;
 }
-              | TOK_VERTICAL TOK_VERTICAL_SHAPE
+              | TOK_VERTICAL vertical_shape
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -679,7 +680,7 @@ arc:           arcrel
   #endif
     free($1);
 }
-              |TOK_VERTICAL TOK_VERTICAL_SHAPE vertrel
+              |TOK_VERTICAL vertical_shape vertrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -709,7 +710,7 @@ arc:           arcrel
   #endif
     free($1);
 }
-              | TOK_VERTICAL TOK_VERTICAL_SHAPE vertrel full_arcattrlist_with_label
+              | TOK_VERTICAL vertical_shape vertrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -3818,6 +3819,21 @@ arcattr:         alpha_string TOK_EQUAL color_string
     free($1);
 };
 
+vertical_shape: TOK_VERTICAL_SHAPE 
+{
+  #ifndef C_S_H_IS_COMPILED
+    if (CaseInsensitiveEqual($1, "brace")) $$ = ArcVerticalArrow::BRACE;
+    else if (CaseInsensitiveEqual($1, "bracket")) $$ = ArcVerticalArrow::BRACKET;
+    else if (CaseInsensitiveEqual($1, "range")) $$ = ArcVerticalArrow::RANGE;
+    else if (CaseInsensitiveEqual($1, "pointer")) $$ = ArcVerticalArrow::POINTER; 
+    else if (CaseInsensitiveEqual($1, "lost_pointer")) $$ = ArcVerticalArrow::LOST_POINTER; 
+    else {
+        $$ = ArcVerticalArrow::ARROW_OR_BOX;
+        _ASSERT(0);
+    }
+  #endif
+  free($1);
+};
 
 
 //cannot be a reserved word, symbol or style name
@@ -3833,7 +3849,8 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
                        TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
                        TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT | TOK_COMMAND_ENDNOTE |
-                       TOK_COMMAND_FOOTNOTE | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
+                       TOK_COMMAND_FOOTNOTE | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE |
+                       TOK_VERTICAL_SHAPE;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM      {$$ = strdup("<-");}

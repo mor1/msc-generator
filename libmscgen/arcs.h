@@ -427,6 +427,7 @@ public:
                                      type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR ||
                                      type == MSC_ARC_BIG_BIDIR;}
     virtual void PostPosProcess(Canvas &cover);
+    void DrawLSym(Canvas &canvas, const XY &C, XY size);
 };
 
 /** An arrow with the same entity as start and end (like "a->a")*/
@@ -593,25 +594,30 @@ public:
     enum EVerticalShape {
         ARROW_OR_BOX, ///<Either an arrow or a box depending on the 'ArcBase::type' field
         BRACE,        ///<A curly brace
-        BRACKET,      ///<A square bracket
-        RANGE         ///<A range with sharp 
+        BRACKET,      ///<A square bracket (potentially with custom corners)
+        RANGE,        ///<A range with potential arrow
+        POINTER,      ///<An arrow that looks like a pointer to self
+        LOST_POINTER  ///<Same as pointer, but lost at the lower end
     };
 protected:
     string src;              ///<The top marker (if any)
     string dst;              ///<The bottom marker (if any)
     EVerticalShape shape;    ///<The shape of the vertical
     VertXPos pos;            ///<The horizontal position, specified by the user
+    WidthAttr width_attr;    ///<The value of the width attribute
     mutable bool forward;    ///<if the arrow is up to down.
-    mutable ESide ent_side;  ///<Which side of the entity we are at (for brace, bracket and range)
+    mutable bool left;       ///<True if we are at the left side of the entity (or we draw such)
     mutable double width;    ///<width of us (just the body for arrows)
     mutable double ext_width;///<Extra width of the arrowhead
     mutable double radius;   ///<Calculated radius (important for brace, where height may limit)
+    mutable XY lsym_size;     ///<Calculates size of the lost symbol (if any loss)
     mutable std::vector<double> ypos; ///<A two element array with the y pos of the start and end. Set in PlaceWithMarkers()
-    mutable double sy_text;  ///<Top/Bottom y edge of text (depending on side)
-    mutable double dy_text;  ///<Top/Bottom y edge of text (depending on side) 
-    mutable double text_xpos;///<Left/Right x edge of text (baseline, depending on side)
+    mutable double s_text;   ///<Left/Top/Bottom edge of text for side==END/LEFT/RIGHT. An y coordinate for LEFT/RIGHT, an x for END
+    mutable double d_text;   ///<Right/Bottom/Top edge of text for side==END/LEFT/RIGHT. An y coordinate for LEFT/RIGHT, an x for END
+    mutable double t_text;   ///<Top/Right/Left edge of text for side==END/LEFT/RIGHT. An x coordinate for LEFT/RIGHT, an y for END
     mutable double xpos;     ///<x coordinate of middle (ARROW_OR_BOX) or the key line (BRACE, BRACKET, RANGE)
-    mutable double other_x_off; ///<Some value for brackets & ranges
+    mutable double vline_off;///<The distance of the edge of the construct facing the entity line from the main vertical line (signed value), only used for brace/pointer/range/bracket
+    mutable Contour clip_line;  ///<The clip of the line for ranges, brackets and pointers
     mutable std::vector<Contour> outer_contours; ///<Calculated contour (only one element)
 public:
     /** Regular constructor with two marker names (one can be NULL)*/

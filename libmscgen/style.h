@@ -29,14 +29,6 @@
 #include "numbering.h"
 #include "csh.h"
 
-/** Describes the values of the 'side' attribute*/
-enum class ESide {
-    INVALID = 0,///<The invalid value.
-    LEFT,       ///<The left side
-    RIGHT,      ///<The right side
-    END         ///<At the bottom of the chart (used for comments only)
-};
-
 /** Describes if the style has the `side` attribute and what values are OK */
 enum class ESideType {
     NO = 0,       ///<The invalid value
@@ -46,6 +38,15 @@ enum class ESideType {
 
 bool IsValidSideValue(ESideType t, ESide v);
 bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p);
+
+/** Describes, how the unqualified "color" attribute shall be interpreted */
+enum class EColorMeaning {
+    LINE_ARROW_TEXT, ///<unqualified "color" attribute sets line, arrow & text color
+    LINE_VLINE_TEXT, ///<unqualified "color" attribute sets line, vline & text color
+    TEXT,            ///<unqualified "color" attribute sets text color
+    FILL,            ///<unqualified "color" attribute set fill color
+    NOHOW            ///<unqualified "color" attribute is rejected
+};
 
 /** A class bringing together all style-related attributes.
  * An instance of MscStyle may not *contain* all possible attributes.
@@ -78,9 +79,10 @@ class MscStyle
 {
 protected:
     friend class Context;
-    MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
+    MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a, 
+             bool t, bool l, bool f, bool s, bool vl,
              bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n,
-             bool lo);
+             bool lo, bool lsym);
 public:
     LineAttr line;     ///<The line attributes
     LineAttr vline;    ///<The vline attributes
@@ -104,6 +106,7 @@ public:
     std::pair<bool, EArrowSize>    lsym_size;        ///<The size of the loss symbol
 
     EStyleType type;       ///<The context in which this instance is used.
+    EColorMeaning color_meaning; ///<How to interpret an unqualified "color" attribute
 
     bool f_line;       ///<True if the style contains line attributes.
     bool f_vline;      ///<True if the style contains vline attributes.
@@ -119,15 +122,17 @@ public:
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
     bool f_note;       ///<True if the style contains note attributes.
     ArrowHead::EArcArrowType f_arrow; ///<Shows which type of arrow attributes the style contains.
-    bool f_lost;       ///<Governs if the style has loss elements.
+    bool f_lost;       ///<Governs if the style has lost parts.
+    bool f_lsym;       ///<Governs if the style has loss symbol
 
-    MscStyle(EStyleType tt=STYLE_STYLE); //Has all the components, but is empty
+    MscStyle(EStyleType tt = STYLE_STYLE, EColorMeaning cm = EColorMeaning::NOHOW); //Has all the components, but is empty
     void Empty();
     void MakeCompleteButText();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const
         {return MscStyle(*this) += toadd;}
     bool AddAttribute(const Attribute &a, Msc *m);
+    bool DoIAcceptUnqualifiedColorAttr() const;
     void AttributeNames(Csh &csh) const;
     bool AttributeValues(const std::string &attr, Csh &csh) const;
     std::string Print(int ident = 0) const;
