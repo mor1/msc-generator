@@ -11,15 +11,15 @@ g2: group 2 {
 note: This is a\ngroup enttity [note.pos=right_up];
 mark top;
 {
-      --: Arrows {
-            a->b-c:solid line with\_subscript [arrow.midtype=dot];
+      box --: Arrows {
             comment: These are the
                      various arrow types [side=left];
+            a->b-c:solid line with\_subscript [arrow.midtype=dot];
             b<=c:double line;
             >b:dotted line;
             <<c:dashed line with\^superscript;
             b->b: \-Points to \n\+self;
-            a->b: Weak [weak];
+            a->b: Weak [weak, compress=no];
             b->c: Strong [strong];
             angle=5;
             a->b: Slanted [arrow.type=double_empty];
@@ -32,23 +32,32 @@ mark top;
             a->*b: \plLost;
             a*->b: \prLost;
       };
-      vertical brace top-- at aa-: Block arrows here;
-      ==: Empty boxes {
-            parallel a--a: Solid;
+      vertical brace top-- at c+: Arrows here;
+      mark above_boxes;
+      mark above_boxes_5 [offset=5];
+      box ==: Empty boxes {
             comment: These are the
                      various box types [side=left];
-            parallel b==b: Double;
-            parallel c..c: Dotted;
+            parallel box a--a: Solid;
+            parallel box b==b: Double;
+            parallel box c..c: Dotted;
+            mark between_boxes;
       }{
-            parallel a--a: Round [line.corner=round];
-            parallel b==b: Note  [line.corner=note];
-            parallel c..c: Bevel [line.corner=bevel];
+            parallel box a--a: Round [line.corner=round];
+            parallel box b==b: Note  [line.corner=note];
+            parallel box c..c: Bevel [line.corner=bevel];
             b--b [collapsed=yes] {
                 b->b;
             };
       };
+      vertical range above_boxes<->between_boxes at c+:
+          First set of boxes
+          [side=end, text.width=80, text.wrap=yes, number=no];
+      vertical range between_boxes<-> at c+:
+          Second set of boxes
+          [side=end, text.width=80, text.wrap=yes, number=no];
 } {
-      ..: Block Arrows {
+      box ..: Block Arrows {
             block aa->bb-cc:arrow;
             block aa=>bb-cc:diamond[arrow.type=diamond];
             block aa>bb-cc:dot [arrow.type=dot];
@@ -58,8 +67,12 @@ mark top;
             note: These are example
                     block arrows;
       };
-      vertical brace top-- at aa-: Block arrows here;
+      vertical brace top-- at cc+: Block arrows here;
 };
+      vertical pointer above_boxes_5->*between_boxes at bb+:
+          lost pointer [side=end, text.wrap=yes, text.width=60];
+      vertical pointer above_boxes-> at bb+:
+          not lost;
 vertical top-> at cc++: All the way down...;
 ---: Separator;
 mark pipe_top;
@@ -72,7 +85,7 @@ pipe b..c: Dotted pipe []
      bb..cc: Dotted, too {
       a->cc: Label;
 };
-vertical range pipe_top<<>> at cc++: pipe_range;
+vertical bracket pipe_top-- at a-: pipe_bracket;
 ...:Time elapses...;
 symbol ... center at b-c;
 note: You can draw

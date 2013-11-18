@@ -96,13 +96,6 @@ enum EDirType {
     MSC_DIR_BIDIR          ///<A bidirectional arrow.
 };
 
-/** A structure used to hold an arc type and a direction. Used with ArcVerticalArrow. */
-struct ArcTypePlusDir
-{
-    EArcType arc;
-    EDirType dir;
-};
-
 /** Indicates if the message was lost and where. */
 enum class EArrowLost {
     NOT,     ///<The arrow is not lost
@@ -116,6 +109,13 @@ struct ArrowSegmentData {
     EArcType   type;              ///<The type of the arrow such as MSC_ARROW_SOLID
     EArrowLost lost;              ///<Whether there was a loss indication (*) or not.
     PODFileLineColRange lost_pos; ///<The location of the asterisk if any.
+};
+
+/** A structure used to hold an arc type & loss and a direction. Used with ArcVerticalArrow. */
+struct ArcTypePlusDir
+{
+    ArrowSegmentData arc;
+    EDirType dir;
 };
 
 class EntityDistanceMap;
@@ -597,11 +597,12 @@ public:
         BRACKET,      ///<A square bracket (potentially with custom corners)
         RANGE,        ///<A range with potential arrow
         POINTER,      ///<An arrow that looks like a pointer to self
-        LOST_POINTER  ///<Same as pointer, but lost at the lower end
     };
 protected:
     string src;              ///<The top marker (if any)
     string dst;              ///<The bottom marker (if any)
+    const bool lost;         ///<Whether we had a loss symbol or not
+    const FileLineCol lost_pos; ///<The position of the loss symbol (if any)
     EVerticalShape shape;    ///<The shape of the vertical
     VertXPos pos;            ///<The horizontal position, specified by the user
     WidthAttr width_attr;    ///<The value of the width attribute
@@ -646,6 +647,7 @@ public:
                                     bool /*addHeading*/, ArcList &/*res*/) {return -2;}
     virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
     virtual void PostPosProcess(Canvas &cover);
+    void DrawBraceLostPointer(Canvas &canvas, const LineAttr &line, const ArrowHead &arrow);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

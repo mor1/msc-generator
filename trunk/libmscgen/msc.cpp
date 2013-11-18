@@ -286,6 +286,24 @@ DistanceMapVerticalElement &DistanceMapVerticalElement::operator += (const Dista
     return *this;
 }
 
+/** Insert a side distance between the two given markers (which may come in any order)
+ * if one of the markers is not yet found (or is empty) we insert the side distance
+ * from the valid marker to the currently last one. If none found, we do nothing. */
+void DistanceMapVertical::Insert(unsigned e1, int e2, double d, const string &since, const string &to)
+{
+    //Find first marker
+    auto i = elements.begin();
+    while (i!=elements.end() && i->marker!=since && i->marker!=to)
+        i++;
+    _ASSERT(i!=elements.end()); //one marker assumed to be there
+    if (i==elements.end()) return;
+    //insert in all subsequent ranges till we find the other one
+    do {
+        (i++)->Insert(e1, e2, d);
+    } while (i!=elements.end() && i->marker!=since && i->marker!=to);
+}
+
+
 /** Takes the max of distances between the two markers.
  * One of the markers can be empty meaning the top of the chart.
  * One of the markers can be MARKER_HERE_STR meaning the end of the list.

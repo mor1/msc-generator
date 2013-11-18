@@ -611,13 +611,37 @@ void Context::Empty()
     styles["block=>"] = styles["block->"];
 
     styles["vertical"] = 
-        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::ANY, 
+        MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::BIGARROW, 
                  true, true, true, true, false,
                  false, true, true, ESideType::ANY, false, false, true, false, 
-                 false, true);  
-                 //no vline solid indicator vfill note loss
-    styles["vertical->"] = styles["vertical"];
-    styles["vertical->"].write().type = STYLE_DEF_ADD;
+                 false, false);  
+                 //no vline solid indicator vfill note loss lsym
+    styles["vertical_range"] = 
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::ARROW, 
+                 true, true, true, true, false,
+                 false, true, true, ESideType::ANY, false, false, true, false, 
+                 false, false);  
+                 //no vline solid indicator vfill note loss lsym
+    styles["vertical_pointer"] =
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::ARROW, 
+                 true, true, true, true, false,
+                 false, true, true, ESideType::ANY, false, false, true, false, 
+                 true, true);  
+                 //no vline solid indicator vfill note  
+    styles["vertical_bracket"] = 
+        MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::NONE, 
+                 true, true, true, true, false,
+                 false, true, true, ESideType::ANY, false, false, true, false, 
+                 false, false);  
+                 //no arrow vline solid indicator vfill note loss lsym
+    styles["vertical_brace"] = styles["vertical_bracket"];
+
+    styles["vertical->"] =
+        MscStyle(STYLE_DEF_ADD, EColorMeaning::NOHOW, ArrowHead::ANY,
+                true, true, true, true, false,
+                false, true, true, ESideType::ANY, false, false, true, false,
+                true, true);
+                //no vline solid indicator vfill note 
     styles["vertical>"] = styles["vertical->"];
     styles["vertical>>"] = styles["vertical->"];
     styles["vertical=>"] = styles["vertical->"];
@@ -625,11 +649,6 @@ void Context::Empty()
     styles["vertical++"] = styles["vertical->"];
     styles["vertical.."] = styles["vertical->"];
     styles["vertical=="] = styles["vertical->"];
-    styles["vertical_range"] = styles["vertical->"];
-    styles["vertical_bracket"] = styles["vertical->"];
-    styles["vertical_brace"] = styles["vertical->"];
-    styles["vertical_pointer"] = styles["vertical->"];
-    styles["vertical_lost_pointer"] = styles["vertical->"];
 
     styles["divider"] = 
         MscStyle(STYLE_DEFAULT, EColorMeaning::LINE_ARROW_TEXT, ArrowHead::NONE, 
@@ -793,11 +812,50 @@ void Context::Plain()
     styles["vertical"].write().compress.first = false;
     styles["vertical"].write().numbering.first = false;
     styles["vertical"].write().makeroom.second = true;
+    styles["vertical"].write().side.first = false;
     styles["vertical"].write().line.radius.second = -1;
-    styles["vertical"].write().text.UnsetWordWrap(); 
+    styles["vertical"].write().text.UnsetWordWrap();
     //We need this otherwise setting the global text style to wrap
     //would cause warnings for all horizontally set verticals which
     //have no text.width attribute. Better if the user sets this explicitly.
+
+    styles["vertical_range"].write().MakeCompleteButText();
+    styles["vertical_range"].write().compress.first = false;
+    styles["vertical_range"].write().numbering.first = false;
+    styles["vertical_range"].write().makeroom.second = true;
+    styles["vertical_range"].write().side.first = false;
+    styles["vertical_range"].write().line.radius.second = 8;
+    styles["vertical_range"].write().text.UnsetWordWrap();
+
+    styles["vertical_bracket"].write().MakeCompleteButText();
+    styles["vertical_bracket"].write().compress.first = false;
+    styles["vertical_bracket"].write().numbering.first = false;
+    styles["vertical_bracket"].write().makeroom.second = true;
+    styles["vertical_bracket"].write().side.first = false;
+    styles["vertical_bracket"].write().line.radius.second = 8;
+    styles["vertical_bracket"].write().line.corner.second = CORNER_NONE;
+    styles["vertical_bracket"].write().text.UnsetWordWrap();
+
+    styles["vertical_pointer"].write().MakeCompleteButText();
+    styles["vertical_pointer"].write().compress.first = false;
+    styles["vertical_pointer"].write().numbering.first = false;
+    styles["vertical_pointer"].write().makeroom.second = true;
+    styles["vertical_pointer"].write().side.first = false;
+    styles["vertical_pointer"].write().line.radius.second = 8;
+    styles["vertical_pointer"].write().line.corner.second = CORNER_NONE;
+    styles["vertical_pointer"].write().text.UnsetWordWrap();
+    styles["vertical_pointer"].write().lost_line.color = faint;
+    styles["vertical_pointer"].write().lost_arrow.line.color = faint;
+    styles["vertical_pointer"].write().lost_text.SetColor(faint.second);
+
+    styles["vertical_brace"].write().MakeCompleteButText();
+    styles["vertical_brace"].write().compress.first = false;
+    styles["vertical_brace"].write().numbering.first = false;
+    styles["vertical_brace"].write().makeroom.second = true;
+    styles["vertical_brace"].write().side.first = false;
+    styles["vertical_brace"].write().line.radius.second = 8;
+    styles["vertical_brace"].write().line.corner.second = CORNER_ROUND;
+    styles["vertical_brace"].write().text.UnsetWordWrap();
 
     styles["vertical->"].write().line.type.first = true;
     styles["vertical->"].write().line.type.second = LINE_SOLID;
@@ -822,15 +880,6 @@ void Context::Plain()
     styles["vertical.."].write().line.type.second = LINE_DOTTED;
     styles["vertical=="] = styles["vertical--"];
     styles["vertical=="].write().line.type.second = LINE_DOUBLE;
-
-    styles["vertical_range"].write().line.radius.first = true;
-    styles["vertical_range"].write().line.radius.second = 8;
-    styles["vertical_bracket"] = styles["vertical_range"];
-    styles["vertical_bracket"].write().line.corner.first = true;
-    styles["vertical_bracket"].write().line.corner.second = CORNER_NONE;
-    styles["vertical_pointer"] = styles["vertical_bracket"];
-    styles["vertical_brace"] = styles["vertical_bracket"];
-    styles["vertical_brace"].write().line.corner.second = CORNER_ROUND;
 
     styles["divider"].write().MakeCompleteButText();
     styles["divider"].write().compress.first = false;
