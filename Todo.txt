@@ -58,9 +58,16 @@ FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 
+In 3.7.3
+ADD: vertical_xy styles to the document
+ADD: lost arrows, verticals to the designlib
+FIXED: lost pointer verticals should be squared at the bottom.
+FIXED: Verticals should insert space only between markers they run
+FIX: if I collapse demo's block arrows, they suck
+FIX: verticals do not take line color from style.
 
-In 3.7.1
-ADD: POINTER vertical text.width
+In 3.7.2
+ADDED: POINTER vertical text.width
 CHANGED: how style reacts to 'color' attribute
 ADDED: BOX keyword.
 ADDED: Bracket, brace and range verticals

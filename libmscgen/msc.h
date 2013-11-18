@@ -242,9 +242,13 @@ protected:
     std::list<DistanceMapVerticalElement> elements;
 public:
     DistanceMapVertical() { elements.emplace_back(""); }
+    /** Insert a side distance, which happened after the last marker*/
     void Insert(unsigned e1, int e2, double d) { elements.back().Insert(e1, e2, d); }
+    void Insert(unsigned e1, int e2, double d, const string &from, const string &to = MARKER_HERE_STR);
     void InsertMarker(const std::string &m) { elements.emplace_back(m); }
     DistanceMapVerticalElement Get(const std::string &m1, const std::string &m2);
+    const string &GetCurrentMarker() const { return elements.back().marker; }
+
 };
 /////////////////////////////////////////////////////////////////////
 

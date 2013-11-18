@@ -674,6 +674,7 @@ arc:           arcrel
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     if ($2) {
+      ($2)->SetVerticalShape(ArcVerticalArrow::ARROW_OR_BOX);
       ($2)->AddAttributeList(NULL);
       $$ = ($2);
     } else $$ = NULL;
@@ -704,6 +705,7 @@ arc:           arcrel
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     if ($2) {
+      ($2)->SetVerticalShape(ArcVerticalArrow::ARROW_OR_BOX);
       ($2)->AddAttributeList($3);
       $$ = ($2);
     } else $$ = NULL;
@@ -2489,11 +2491,50 @@ empharcrel_straight: emphrel
     csh.AddCSH(@1, COLOR_SYMBOL);
 	$$ = 0; //dummy to supress warning
   #else
-    ($$).arc = $1;
+    ($$).arc.type = $1;
+	($$).arc.lost = EArrowLost::NOT;
 	($$).dir = MSC_DIR_INDETERMINATE;
   #endif
 }
-        | relation_from_no_loss
+        | TOK_ASTERISK emphrel
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+	$$ = 0; //dummy to supress warning	
+  #else
+    ($$).arc.type = $2;
+	($$).arc.lost = EArrowLost::AT_SRC;
+    ($$).arc.lost_pos.SetFrom(MSC_POS(@1));
+	($$).dir = MSC_DIR_INDETERMINATE;
+  #endif
+}
+        |  emphrel TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_SYMBOL);
+	$$ = 0; //dummy to supress warning	
+  #else
+    ($$).arc.type = $1;
+	($$).arc.lost = EArrowLost::AT_SRC;
+    ($$).arc.lost_pos.SetFrom(MSC_POS(@2));
+	($$).dir = MSC_DIR_INDETERMINATE;
+  #endif
+}
+             | TOK_ASTERISK emphrel TOK_ASTERISK
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
+	$$ = 0; //dummy to supress warning	
+  #else
+    msc.Error.Error(MSC_POS(@3).start, "Only one loss can be specified. Ignoring second asterisk ('*').");
+    ($$).arc.type = $2;
+    ($$).arc.lost = EArrowLost::AT_SRC;
+    ($$).arc.lost_pos.SetFrom(MSC_POS(@1));
+	($$).dir = MSC_DIR_INDETERMINATE;
+  #endif
+}
+        | relation_from
 {
   #ifdef C_S_H_IS_COMPILED
 	$$ = 0; //dummy to supress warning
@@ -2502,7 +2543,7 @@ empharcrel_straight: emphrel
 	($$).dir = MSC_DIR_LEFT;
   #endif
 }
-        | relation_to_no_loss
+        | relation_to
 {
   #ifdef C_S_H_IS_COMPILED
 	$$ = 0; //dummy to supress warning
@@ -2511,7 +2552,7 @@ empharcrel_straight: emphrel
 	($$).dir = MSC_DIR_RIGHT;
   #endif
 }
-        | relation_bidir_no_loss
+        | relation_bidir
 {
   #ifdef C_S_H_IS_COMPILED
 	$$ = 0; //dummy to supress warning
@@ -3826,7 +3867,6 @@ vertical_shape: TOK_VERTICAL_SHAPE
     else if (CaseInsensitiveEqual($1, "bracket")) $$ = ArcVerticalArrow::BRACKET;
     else if (CaseInsensitiveEqual($1, "range")) $$ = ArcVerticalArrow::RANGE;
     else if (CaseInsensitiveEqual($1, "pointer")) $$ = ArcVerticalArrow::POINTER; 
-    else if (CaseInsensitiveEqual($1, "lost_pointer")) $$ = ArcVerticalArrow::LOST_POINTER; 
     else {
         $$ = ArcVerticalArrow::ARROW_OR_BOX;
         _ASSERT(0);
