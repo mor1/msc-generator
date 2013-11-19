@@ -68,7 +68,7 @@ defdesign omegapple {
     defstyle entity[text.color=white, text.format="\b\mu(10)\md(10)\ml(12)\mr(8)",
                     line.width=2, line.color=rose2, line.radius=10,
                     fill.color=rose, fill.gradient=down];
-    defstyle pipe [fill.color=faint_rose, fill.gradient=down, line.color=black,
+    defstyle pipe [fill.color=red+50, fill.gradient=down, line.color=black,
                    text.format="\b", text.color=rose];
     defstyle entitygroup [box, line.type=dashed, text.format="\pc\b", text.color=rose,
                           line.color=rose];
@@ -241,7 +241,8 @@ defdesign norton_commander {
              lred="255,85,85";
 
     defstyle entity, entitygroup_collapsed, entitygroup, arrow, blockarrow, box_collapsed_arrow,
-             emptybox, box_collapsed, vertical, note, divider, ..., ---
+             emptybox, box_collapsed, vertical, note, divider, 
+             vertical_brace, vertical_bracket, vertical_pointer, vertical_range
         [text.color=white];
     defstyle comment [text.color=black];
     defstyle pipe, title, subtitle [text.color=vivid_green];
@@ -253,9 +254,13 @@ defdesign norton_commander {
         [fill.color = grey, line.type=solid, line.width=3, line.color=grey];
     defstyle blockarrow, box, vertical, pipe, symbol, indicator
         [fill.color = blue, line.color=white];
-    defstyle arrow, divider, ..., ---
+    defstyle arrow, divider, vertical_brace, vertical_bracket, vertical_pointer,
+        vertical_range
         [line.color=white];
-    defstyle arrow, note [arrow.color=white];
+    defstyle arrow, vertical_pointer
+        [lost.line.color=++blue,224, lost.text.color=++blue,224, lost.arrow.color=++blue,224];        
+    defstyle vertical [fill.color = cyan];
+    defstyle arrow, note, vertical_pointer, vertical_range [arrow.color=white];
     defstyle entity, entitygroup_collapsed, entity [vline.color=white, vfill.color=grey];
     background.color = blue;
     comment.line.color = white;
