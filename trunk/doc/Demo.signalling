@@ -56,6 +56,10 @@ mark top;
       vertical range between_boxes<-> at c+:
           Second set of boxes
           [side=end, text.width=80, text.wrap=yes, number=no];
+      vertical pointer above_boxes_5->*between_boxes at bb+:
+          lost pointer [side=end, text.wrap=yes, text.width=60];
+      vertical pointer above_boxes-> at bb+:
+          not lost;
 } {
       box ..: Block Arrows {
             block aa->bb-cc:arrow;
@@ -69,10 +73,6 @@ mark top;
       };
       vertical brace top-- at cc+: Block arrows here;
 };
-      vertical pointer above_boxes_5->*between_boxes at bb+:
-          lost pointer [side=end, text.wrap=yes, text.width=60];
-      vertical pointer above_boxes-> at bb+:
-          not lost;
 vertical top-> at cc++: All the way down...;
 ---: Separator;
 mark pipe_top;
