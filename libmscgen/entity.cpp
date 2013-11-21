@@ -22,6 +22,256 @@
 #include <cmath>
 #include "msc.h"
 
+
+class EntityShapeCollection 
+{
+    enum ACT {
+        LINE_TO=0, MOVE_TO=1, CURVE_TO=2, CLOSE_PATH=3
+    };
+
+    struct ELEMENT {
+        ACT action;
+        static const char act_code[];
+        double x, y;
+        double x1, y1;
+        double x2, y2;
+        ELEMENT(ACT aa, double a, double b, double c, double d, double e, double f)
+            : action(aa), x(a), y(b), x1(c), y1(d), x2(e), y2(f) {}
+        string Write() const { return string() << act_code[action] << ' ' << x << " " << y << " " << x1 << " " << y1 << " " << x2 << " " << y2 << '\n'; }
+    };
+
+    class SHAPE 
+    {
+        Block max;
+        std::vector<ELEMENT> line, fill;
+    public:
+        Block label_pos;
+        std::string name;
+        SHAPE(const std::string &n) : name(n) { max.MakeInvalid(); label_pos.MakeInvalid(); }
+        void Add(const ELEMENT &e, bool use_fill) { (use_fill ? fill : line).push_back(e); max += XY(e.x, e.y); }
+        const Block &GetMax() const { return max; }
+        Block GetLabelPos(const Block &o);
+        string Write() const;
+        void Path(cairo_t *cr, bool use_fill, const Block &o) const;
+        void SHRINK_fill(double lw);
+    };
+
+    std::vector<SHAPE> shapes;
+public:
+    operator bool() const { return shapes.size()>0; }
+    bool Add(const char *shape_text);
+    string Write() const;
+    unsigned ShapeNum() const { return shapes.size(); }
+    int GetShapeNo(const string&sh_name) const;
+    Block GetLabelPos(unsigned sh, const Block &o) { if (sh<shapes.size()) return shapes[sh].GetLabelPos(o); Block a;  a.MakeInvalid(); return a; }
+    XY GetShapeSize(unsigned sh) const;
+    void  AttributeValues(Csh &csh);
+    void Draw(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill) const;
+};
+
+const char EntityShapeCollection::ELEMENT::act_code[] = "LMCE";
+
+inline double Tr(double x, const Range &source, const Range &target)
+{
+    return (x-source.from)*(target.Spans()/source.Spans()) + target.from;
+}
+
+Block EntityShapeCollection::SHAPE::GetLabelPos(const Block &o)
+{
+    if (label_pos.IsInvalid()) return label_pos;
+    return Block(Tr(label_pos.x.from, max.x, o.x), Tr(label_pos.x.till, max.x, o.x),
+        Tr(label_pos.y.from, max.y, o.y), Tr(label_pos.y.till, max.y, o.y));
+}
+
+
+string EntityShapeCollection::SHAPE::Write() const
+{
+    string ret;
+    ret << "N " << name << '\n';
+    if (!label_pos.IsInvalid())
+        ret << "T " << label_pos.x.from << " " << label_pos.y.from << " "
+                    << label_pos.x.till << " " << label_pos.y.till << "\n";
+    for (auto &e : line)
+        ret.append(e.Write());
+    ret.append("F\n");
+    for (auto &e : fill)
+        ret.append(e.Write());
+    return ret;
+}
+
+void EntityShapeCollection::SHAPE::Path(cairo_t *cr, bool use_fill, const Block &o) const
+{
+    GetMax();
+    for (const auto &e : use_fill ? fill : line)
+        switch (e.action) {
+        case MOVE_TO: cairo_move_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
+        case LINE_TO: cairo_line_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
+        case CURVE_TO: cairo_curve_to(cr, Tr(e.x1, max.x, o.x), Tr(e.y1, max.y, o.y),
+            Tr(e.x2, max.x, o.x), Tr(e.y2, max.y, o.y),
+            Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
+        case CLOSE_PATH: cairo_close_path(cr); break;
+    }
+}
+
+void EntityShapeCollection::SHAPE::SHRINK_fill(double lw)
+{
+    const Block &m = GetMax();
+    const XY c = m.Centroid();
+    const XY r(1-lw/m.x.Spans(), 1-lw/m.y.Spans());
+    for (auto &e : fill) {
+        e.x = (e.x-c.x)*r.x + c.x;
+        e.y = (e.y-c.y)*r.y + c.y;
+        e.x1 = (e.x1-c.x)*r.x + c.x;
+        e.y1 = (e.y1-c.y)*r.y + c.y;
+        e.x2 = (e.x2-c.x)*r.x + c.x;
+        e.y2 = (e.y2-c.y)*r.y + c.y;
+    }
+    if (label_pos.IsInvalid()) {
+        label_pos = max;
+        label_pos.y.from = label_pos.y.MidPoint();
+        label_pos.x.Expand(-200);
+    }
+}
+
+bool EntityShapeCollection::Add(const char *shape_text)
+{
+    bool error = false;
+    size_t pos = 0;
+    bool use_fill = false;
+    double a, b, c, d, e, f;
+    while (shape_text[pos]) {
+        size_t end_pos = pos;
+        while (shape_text[end_pos] && shape_text[end_pos]!='\n') end_pos++;
+        switch (shape_text[pos]) {
+        case 'N': 
+            while (shape_text[++pos]==' ') {}
+            shapes.emplace_back(std::string(shape_text+pos, end_pos-pos));
+            //Delete if we already have this one
+            _ASSERT(GetShapeNo(shapes.back().name)>=0);
+            if (GetShapeNo(shapes.back().name) != shapes.size()-1)
+                shapes.erase(shapes.begin()+GetShapeNo(shapes.back().name));
+            use_fill = false;
+            break;
+        case 'L':
+        case 'M':
+            if (sscanf(shape_text+pos+1, "%lf %lf", &a, &b) == 2)
+                shapes.back().Add(ELEMENT(shape_text[pos]=='M' ? MOVE_TO : LINE_TO, a, b, 0, 0, 0, 0), use_fill);
+            else
+                error = true;
+            break;
+        case 'C':
+            if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf %lf %lf", &a, &b, &c, &d, &e, &f) == 6)
+                shapes.back().Add(ELEMENT(CURVE_TO, a, b, c, d, e, f), use_fill);
+            else
+                error = true;
+            break;
+        case 'E':
+            shapes.back().Add(ELEMENT(CLOSE_PATH, 0, 0, 0, 0, 0, 0), use_fill);
+            break;
+        case 'F':
+            use_fill = true;
+            break;
+        case 'T':
+            if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf", &a, &b, &c, &d) == 4)
+                shapes.back().label_pos = Block(a, c, b, d);
+            else
+                error = true;
+            break;
+        }
+        if (shape_text[end_pos] == 0) break;
+        pos = end_pos+1;
+    }
+    //shrink outlines
+    //for (unsigned u = 0; u<shapes.size(); u++) 
+    //    shapes[u].SHRINK_fill((u<20) ? 250 : 400);
+    return error;
+}
+
+string EntityShapeCollection::Write() const
+{
+    string ret;
+    for (auto &sh : shapes)
+        ret.append(sh.Write());
+    return ret;
+}
+
+XY EntityShapeCollection::GetShapeSize(unsigned sh) const
+{
+    if (sh>=shapes.size()) return XY(0, 0);
+    return shapes[sh].GetMax().Spans();
+}
+
+
+/** Callback for drawing a symbol before 'yes' or 'no' in the hints popup list box.
+* @ingroup libmscgen_hintpopup_callbacks*/
+bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p);
+
+
+void EntityShapeCollection::AttributeValues(Csh &csh) 
+{
+    for (unsigned u = 0; u<shapes.size(); u++)
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+shapes[u].name, 
+        HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEShapes, CshHintGraphicParam(u)));
+}
+
+int EntityShapeCollection::GetShapeNo(const string&sh_name) const 
+{
+    for (unsigned u = 0; u < shapes.size(); u++)
+        if (CaseInsensitiveEqual(shapes[u].name, sh_name))
+            return u;
+    return -1;
+}
+void EntityShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill) const
+{
+    if (sh >= shapes.size()) return;
+    cairo_t *cr = canvas.GetContext();
+    shapes[sh].Path(cr, true, o);
+    cairo_save(cr);
+    cairo_clip(cr);
+    canvas.Fill(o, fill);
+    cairo_restore(cr);
+
+    FillAttr line(color, GRADIENT_NONE);
+    shapes[sh].Path(cr, false, o);
+    cairo_save(cr);
+    cairo_clip(cr);
+    canvas.Fill(o, line);
+    cairo_restore(cr);
+}
+
+EntityShapeCollection EntityShapes;
+
+bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p)
+{
+    const unsigned u = unsigned(p);
+    if (EntityShapes.ShapeNum()<= u) return false;
+    const XY wh = EntityShapes.GetShapeSize(u);
+    const double r = std::min(HINT_GRAPHIC_SIZE_X/wh.x, 2*HINT_GRAPHIC_SIZE_Y/wh.y);
+    EntityShapes.Draw(*canvas, u, Block(XY(0,0), wh*r),
+        ColorType(0, 0, 0), FillAttr(ColorType(), GRADIENT_NONE));
+    return true;
+}
+
+ bool Entity::AddToShapes(const char *shape_def)
+{
+     const bool ret = EntityShapes.Add(shape_def);
+     //FILE *f = fopen("c:\\users\\ethzrt\\aaa.txt", "wt");
+     //fputs(EntityShapes.Write().c_str(), f);
+     //fclose(f);
+     return ret;
+}
+
+int Entity::GetShapeNo(const string&sh_name)
+{
+    return EntityShapes.GetShapeNo(sh_name);
+}
+
+void Entity::DrawShape(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill)
+{
+    EntityShapes.Draw(canvas, sh, o, color, fill);
+}
+
+
 template class PtrList<Entity>;
 
 /** Creates a new entity.
@@ -35,9 +285,9 @@ template class PtrList<Entity>;
  * @param [in] coll True if we are group, but show collapsed. */
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
-               bool coll) :
-    name(n), label(l), orig_label(ol), file_pos(fp), pos(p), pos_exp(pe),
-    index(0), status(entity_style),
+               bool coll, int sh) :
+    name(n), label(l), orig_label(ol), file_pos(fp), eri_shape(sh),
+    pos(p), pos_exp(pe), index(0), status(entity_style),
     running_style(entity_style), running_shown(EEntityStatus::SHOW_OFF),
     maxwidth(0), collapsed(coll)
 {
@@ -139,6 +389,7 @@ EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     label(false, "", FileLineCol()),
     pos(false, 0, FileLineCol()),                    //field 'pos.second' is used even if no such attribute
     rel(false, "", FileLineCol()),
+    eri_shape(-1),
     collapsed(false, false, FileLineCol()),
     show(true, true),                              //if no attributes, we are ON if defined
     active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
@@ -169,6 +420,25 @@ bool EntityApp::AddAttribute(const Attribute& a)
             return true;
         }
         style += chart->Contexts.back().styles[a.name];
+        return true;
+    }
+    if (a.Is("shape") && EntityShapes) {
+        if (!defining) {
+            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring attribute.");
+            return true;
+        }
+        if (a.type == MSC_ATTR_CLEAR) {
+            eri_shape = -1;
+            return true;
+        }
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) 
+            return true;
+        int sh = EntityShapes.GetShapeNo(a.value);
+        if (sh==-1)
+            chart->Error.Error(a, true, "Unrecognized shape. Ignoring attribute.");
+        else
+            eri_shape = sh;
+        eri_shape_pos = a.linenum_attr.start;
         return true;
     }
     string s;
@@ -284,6 +554,10 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
     //If we have children, add them to "ret->entities"
     string note_target_name = name;
     if (ch) {
+        if (eri_shape) {
+            chart->Error.Error(eri_shape_pos, "Only non-grouped entities may have the 'shape' attribute. Ignoring shape.");
+            eri_shape = -1;
+        }
         for (auto j = ch->begin(); j!=ch->end(); /*nope*/) {
             CommandEntity * const ce = dynamic_cast<CommandEntity *>(*j);
             CommandNote * const cn = dynamic_cast<CommandNote *>(*j);
@@ -430,7 +704,7 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
-                               style_to_use, file_pos.start, make_collapsed);
+                               style_to_use, file_pos.start, make_collapsed, eri_shape);
         e->AddChildrenList(&ret->entities, chart);  //also fixes positions & updates running_style
         e->running_draw_pass = draw_pass;
         //Add to entity list
@@ -486,6 +760,8 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
+    if (EntityShapes)
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -510,8 +786,12 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"relative")) {
+    if (CaseInsensitiveEqual(attr, "relative")) {
         csh.AddEntitiesToHints();
+        return true;
+    }
+    if (EntityShapes && CaseInsensitiveEqual(attr, "shape")) {
+        EntityShapes.AttributeValues(csh);
         return true;
     }
     if (Element::AttributeValues(attr, csh)) return true;
@@ -548,9 +828,16 @@ void EntityApp::Combine(EntityApp *ed)
     CombineComments(ed);
  }
 
+const double eri_shape_r = 0.005;
+const XY eri_shape_size(6040*eri_shape_r, 8664*eri_shape_r);
+const double eri_shape_size_lw(200*eri_shape_r);
+const double eri_shape_text_y_offset_percentage = 50;
+
 /** Returns how wide the entity is with this formatting, not including its shadow.*/
 double EntityApp::Width() const
 {
+    if ((*itr)->eri_shape>=0) 
+        return eri_shape_size.x;
     //Entity labels cannot be word wrapped
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
@@ -572,9 +859,20 @@ double EntityApp::Width() const
  *          since non-group children entities will be laid out to y==0. */
 Range EntityApp::Height(Area &cover, const EntityAppList &children)
 {
+    const double x = chart->XCoord((*itr)->pos); //integer
+    if ((*itr)->eri_shape>=0) {
+        _ASSERT(children.size()==0);
+        outer_edge.x.from = x - eri_shape_size.x/2;
+        outer_edge.x.till = x + eri_shape_size.x/2;
+        outer_edge.y.from = 0;
+        outer_edge.y.till = eri_shape_size.y;
+        area = outer_edge;
+        area.arc = this;
+        area_important = area;
+        return outer_edge.y;
+    }
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.read().line.LineWidth();
-    const double x = chart->XCoord((*itr)->pos); //integer
     if (children.size()==0) {
         if ((*itr)->children_names.size() && style.read().indicator.second)
             indicator_ypos_offset = wh.y + lw + chart->boxVGapInside;
@@ -683,12 +981,27 @@ void EntityApp::PostPosProcess(Canvas &canvas)
  * and we use the style we finalized in CommandEntity::PostParseProcess()*/
 void EntityApp::Draw(Canvas &canvas)
 {
+    if ((*itr)->eri_shape >= 0) {
+        EntityShapes.Draw(canvas, eri_shape, outer_edge,
+            style.read().line.color.second, style.read().fill);
+        const XY twh = parsed_label.getTextWidthHeight();
+        Block b = EntityShapes.GetLabelPos(eri_shape, outer_edge);
+        const double r = std::min(1., std::min(b.x.Spans()/twh.x, b.y.Spans()/twh.y));
+        cairo_save(canvas.GetContext());
+        cairo_scale(canvas.GetContext(), r, r);
+        const double yoff = (b.y.Spans() - twh.y*r)/2;
+        parsed_label.Draw(canvas, b.x.from/r, b.x.till/r,
+            (b.y.from + yoff)/r);
+        cairo_restore(canvas.GetContext());
+        return;
+    }
+
     const double lw = style.read().line.LineWidth();
 
     Block b(outer_edge);
     LineAttr line2 = style.read().line;   //style.line.radius corresponds to midpoint of line
     line2.radius.second = std::min(std::min(outer_edge.y.Spans()/2 - lw, outer_edge.x.Spans()/2 - lw),
-                                    line2.radius.second);
+        line2.radius.second);
     if (line2.radius.second>0)
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
@@ -707,9 +1020,11 @@ void EntityApp::Draw(Canvas &canvas)
 
     //Draw text
     parsed_label.Draw(canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);
+
     //Draw indicator
     if (indicator_ypos_offset > 0)
         DrawIndicator(XY(outer_edge.Centroid().x, outer_edge.y.from + indicator_ypos_offset),
-                      &canvas);
+        &canvas);
 }
+
 

@@ -675,11 +675,36 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
  * @returns 0 if OK; 1 if no file found; 2 if file found but there were errors in it (you can probably ignore them)*/
 int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 {
-	char buff[1024]; 
-	GetModuleFileName(NULL, buff, 1024);
-	std::string dir(buff);
-	unsigned pos = dir.find_last_of('\\');
-	ASSERT(pos!=std::string::npos);
+    char buff[1024];
+    GetModuleFileName(NULL, buff, 1024);
+    std::string dir(buff);
+    unsigned pos = dir.find_last_of('\\');
+    ASSERT(pos!=std::string::npos);
+
+    CString shapes_filename = dir.substr(0, pos).append("\\").append("default.shape").c_str();
+    ///XXX TODO FIX This
+    CStdioFile infile;
+    CFileException Ex;
+    if (infile.Open(shapes_filename, CFile::modeRead | CFile::typeText, &Ex)) {
+        unsigned length = 0;
+        char *buff = NULL;
+        length = unsigned(infile.GetLength());
+        if (length>0) {
+            buff = (char*)malloc(length+1);
+            TRY{
+                length = infile.Read(buff, length);
+                buff[length] = 0;
+                Entity::AddToShapes(buff);
+                infile.Close();
+            } CATCH(CFileException, pEx)
+            {
+                infile.Close();
+            }
+            END_CATCH
+        }
+        free(buff);
+    }
+
 	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
 
 	//clear existing designs
