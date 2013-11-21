@@ -476,7 +476,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "lost.text.bold", "lost.text.italic", "lost.text.underline",
 "lost.text.gap.up", "lost.text.gap.down", "lost.text.gap.left", "lost.text.gap.right",
 "lost.text.gap.spacing", "lost.text.size.normal", "lost.text.size.small", "lost.text.wrap",
-""};
+"shape", ""}; //we add shape even if it may not be available
 
 /** Names of symbols for coloring
  *

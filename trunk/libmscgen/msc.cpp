@@ -385,17 +385,17 @@ Msc::Msc() :
     //Arrows come between left_side and right_side.
     //Notes on the side come between left_note and left_side; and right_side & right_note
     NoEntity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1002, -1002,
-                          Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                          Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     LNote = new Entity(LNOTE_ENT_STR, LNOTE_ENT_STR, LNOTE_ENT_STR, -1001, -1001,
-                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     LSide = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
-                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     RSide = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
-                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     RNote = new Entity(RNOTE_ENT_STR, RNOTE_ENT_STR, RNOTE_ENT_STR, 10001, 10001,
-                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     EndEntity = new Entity(END_ENT_STR , END_ENT_STR , END_ENT_STR , 10002, 10002,
-                           Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
+                           Contexts.back().styles["entity"], FileLineCol(current_file, 0), false, -1);
     
     AllEntities.Append(NoEntity);
     AllEntities.Append(LNote);
