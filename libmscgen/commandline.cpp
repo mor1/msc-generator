@@ -130,6 +130,9 @@ static void usage()
 " -F <font>   Use specified font. This must be a font name available in the\n"
 "             local system, and overrides the MSCGEN_FONT environment variable\n"
 "             if that is also set.\n"
+" -S <shape_file>\n"
+"             Load an entity shape file. You can have multiple of this option\n"
+"             to load several shape files, after the default ones.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -199,6 +202,7 @@ void sizes()
 }
 
 int do_main(const std::list<std::string> &args, const char *designs,
+            std::list<std::pair<std::string, std::string>> shape_files, 
             string csh_textformat,
             MscProgress::ProgressCallback cb, void *param,
             std::string *load_data)
@@ -236,8 +240,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
     for (auto &arg : args) 
         if (arg == "-Pno") {
             oProgress = false;
-	    break;
-	}
+            break;
+        }
+    
     Msc msc;
     msc.prepare_for_tracking = false;
     msc.Progress.callback = oProgress ? cb : NULL;
@@ -350,6 +355,22 @@ int do_main(const std::list<std::string> &args, const char *designs,
             } else {
                 i++;
                 oFont == *i;
+            }
+        } else if (*i == "-S") {
+            if (i==--args.end()) {
+                msc.Error.Error(opt_pos,
+                    "Missing shape file name after '-F'.");
+                show_usage = true;
+            } else {
+                i++;
+                FILE *in = fopen(i->c_str(), "r");
+                if (in) {
+                    char *buff = ReadFile(in);
+                    shape_files.emplace_back(*i, buff);
+                    free(buff);
+                    fclose(in);
+                } else
+                    msc.Error.FatalError(opt_pos, "Failed to open shape file '" + oInputFile +"'.");
             }
         } else if (*i == "-T") {
             if (i==--args.end()) {
@@ -613,13 +634,19 @@ int do_main(const std::list<std::string> &args, const char *designs,
     }
     if (msc.Error.hasFatal()) goto fatal;
 
+    //Add shapes
+    for (auto &p: shape_files) {
+        msc.Error.AddFile(p.first);
+        Entity::AddToShapes(p.second.c_str(), msc.Error);
+    }
+
     if (oOutType == Canvas::ISMAP) {
         //Generate an empty *.map file
         FILE *out = oOutputFile.length() ? fopen(oOutputFile.c_str(), "w") : stdout;
         if (out && oOutputFile.length()) {
             fclose(out);
         } else if (oOutputFile.length())
-            msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
+            msc.Error.FatalError(opt_pos, "Failed to open output file '" + oOutputFile +"'.");
     } else if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();

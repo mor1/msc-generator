@@ -662,6 +662,66 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
 		for (int i=0; i<COLOR_MAX; i++) 
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
+
+    ReadShapes(reportProblem, "*.shape");
+}
+
+/** Read the shapes from the design library and display a modal dialog
+* if there is a problem.
+* @param [in] reportProblem If false, we silently ignore errors.
+* @param [in] fileName The name of the file to read from.
+*                      Searched in the executable's directory.
+*                      Can contain wildcards, all matching files are loaded.
+* @returns 0 if OK; 1 if no file found; 2 if file found but there were errors in it (you can probably ignore them)*/
+int CMscGenApp::ReadShapes(bool reportProblem, const char *fileName)
+{
+    if (!fileName || !fileName[0]) fileName = "*.shape";
+    char buff[1024];
+    GetModuleFileName(NULL, buff, 1024);
+    std::string dir(buff);
+    int pos = dir.find_last_of('\\');
+    dir = dir.substr(0, pos).append("\\");
+    
+    MscError Error;
+    bool found = false;
+
+    WIN32_FIND_DATA find_data;
+    HANDLE h = FindFirstFile((dir+fileName).c_str(), &find_data);
+    bool bFound = h != INVALID_HANDLE_VALUE;
+    while (bFound) {
+        found = true;
+        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+        char *buffer = ReadFile(in);
+        Error.AddFile(find_data.cFileName);
+        Entity::AddToShapes(buffer, Error);
+        free(buffer);
+        bFound = FindNextFile(h, &find_data);
+    }
+    FindClose(h);
+
+    //Now look for in the roaming folder
+    TCHAR szPath[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, szPath))) {
+        dir = szPath;
+        dir.append("\\Msc-generator\\");
+        h = FindFirstFile((dir+fileName).c_str(), &find_data);
+        bFound = h != INVALID_HANDLE_VALUE;
+        while (bFound) {
+            found = true;
+            FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+            char *buffer = ReadFile(in);
+            Error.AddFile(find_data.cFileName);
+            Entity::AddToShapes(buffer, Error);
+            free(buffer);
+            bFound = FindNextFile(h, &find_data);
+        }
+        FindClose(h);
+    }
+    if (!found)
+        return 1;
+    if (Error.hasErrors() && reportProblem)
+        MessageBox(NULL, "Error in shape file!", "Msc-generator", MB_OK);
+    return Error.hasErrors() ? 2 : 0;
 }
 
 /** Read the designs from the design library and display a modal dialog 
@@ -680,30 +740,6 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
     std::string dir(buff);
     unsigned pos = dir.find_last_of('\\');
     ASSERT(pos!=std::string::npos);
-
-    CString shapes_filename = dir.substr(0, pos).append("\\").append("default.shape").c_str();
-    ///XXX TODO FIX This
-    CStdioFile infile;
-    CFileException Ex;
-    if (infile.Open(shapes_filename, CFile::modeRead | CFile::typeText, &Ex)) {
-        unsigned length = 0;
-        char *buff = NULL;
-        length = unsigned(infile.GetLength());
-        if (length>0) {
-            buff = (char*)malloc(length+1);
-            TRY{
-                length = infile.Read(buff, length);
-                buff[length] = 0;
-                Entity::AddToShapes(buff);
-                infile.Close();
-            } CATCH(CFileException, pEx)
-            {
-                infile.Close();
-            }
-            END_CATCH
-        }
-        free(buff);
-    }
 
 	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
 

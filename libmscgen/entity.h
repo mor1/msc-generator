@@ -100,6 +100,7 @@ public:
     const string      orig_label;///<The text the user specified for label (for error msgs)
     const FileLineCol file_pos;  ///<The location of the definition of this entity in the input file (the first character of its name)
     const int         eri_shape; ///<The shape we shall use when drawing the entity. -1 if none.
+    const EArrowSize  eri_shape_size; ///<It size
     double            pos;       ///<The position of the entity with hscale=1. E.g., 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
     const double      pos_exp;   ///<The position of the entity if all group entities were expanded (for a->b->c sanity checking)
     unsigned          index;     ///<The index of the entity, counting entities left to right
@@ -114,12 +115,13 @@ public:
     const bool        collapsed;      ///<True if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
-           const StyleCoW &entity_style, const FileLineCol &fp, bool coll, int sh);
+           const StyleCoW &entity_style, const FileLineCol &fp, bool coll, 
+           int sh, EArrowSize sh_size);
     void AddChildrenList(const EntityAppList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
 
-    static bool AddToShapes(const char *shape_def); ///<Adds a set of shape description to the shape library
+    static bool AddToShapes(const char *shape_def, MscError &error); ///<Adds a set of shape description to the shape library
     static int GetShapeNo(const string&sh_name);           ///<Returns the number of a shape by this name, -1 if none
     static void DrawShape(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill); ///<Draws a shape
 };
@@ -236,6 +238,7 @@ public:
     triplet<bool,string,FileLineCol> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     int                              eri_shape;           ///<The number of the shape we shall use to draw (from "shape" attr). -1 if none.
     FileLineCol                      eri_shape_pos;       ///<Location of the 'shape' attr.
+    EArrowSize                       eri_shape_size;      ///<The size of the shape.
     triplet<bool,bool,FileLineCol>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     std::pair<bool,bool>             show;                ///<The `show=` attribute if specified by the user.
     triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.

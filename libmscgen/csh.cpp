@@ -476,7 +476,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "lost.text.bold", "lost.text.italic", "lost.text.underline",
 "lost.text.gap.up", "lost.text.gap.down", "lost.text.gap.left", "lost.text.gap.right",
 "lost.text.gap.spacing", "lost.text.size.normal", "lost.text.size.small", "lost.text.wrap",
-"shape", ""}; //we add shape even if it may not be available
+"shape", "shape.size", ""}; //we add shape even if it may not be available
 
 /** Names of symbols for coloring
  *
@@ -1423,7 +1423,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
         string::size_type dot_pos;
         //if compacting is on we combine all hints with the same prefix into a xxx.*-like hint
         //but only if  its type is ATTR_NAME
-        if (compact_same && i->type == HINT_ATTR_NAME) {
+        if (compact_same && (i->type == HINT_ATTR_NAME || i->type == HINT_ATTR_VALUE)) {
             unsigned len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
             dot_pos = i->plain.find('.', len);
             if (start_len) {
