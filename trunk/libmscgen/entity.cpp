@@ -37,7 +37,7 @@ class EntityShapeCollection
         double x2, y2;
         ELEMENT(ACT aa, double a, double b, double c, double d, double e, double f)
             : action(aa), x(a), y(b), x1(c), y1(d), x2(e), y2(f) {}
-        string Write() const { return string() << act_code[action] << ' ' << x << " " << y << " " << x1 << " " << y1 << " " << x2 << " " << y2 << '\n'; }
+        string Write() const;
     };
 
     class SHAPE 
@@ -46,7 +46,7 @@ class EntityShapeCollection
         std::vector<ELEMENT> line, fill;
     public:
         Block label_pos;
-        std::string name;
+        const std::string name;
         SHAPE(const std::string &n) : name(n) { max.MakeInvalid(); label_pos.MakeInvalid(); }
         void Add(const ELEMENT &e, bool use_fill) { (use_fill ? fill : line).push_back(e); max += XY(e.x, e.y); }
         const Block &GetMax() const { return max; }
@@ -59,7 +59,7 @@ class EntityShapeCollection
     std::vector<SHAPE> shapes;
 public:
     operator bool() const { return shapes.size()>0; }
-    bool Add(const char *shape_text);
+    bool Add(const char *shape_text, MscError &error);
     string Write() const;
     unsigned ShapeNum() const { return shapes.size(); }
     int GetShapeNo(const string&sh_name) const;
@@ -70,6 +70,19 @@ public:
 };
 
 const char EntityShapeCollection::ELEMENT::act_code[] = "LMCE";
+
+string EntityShapeCollection::ELEMENT::Write() const 
+{ 
+    string ret(1, act_code[action]);
+    if (action == CLOSE_PATH) goto end;
+    ret << ' ' << x << " " << y;
+    if (action==LINE_TO || action==MOVE_TO) goto end;
+    ret << " " << x1 << " " << y1 << " " << x2 << " " << y2;
+end:
+    ret.append("\n");
+    return ret;
+}
+
 
 inline double Tr(double x, const Range &source, const Range &target)
 {
@@ -133,58 +146,89 @@ void EntityShapeCollection::SHAPE::SHRINK_fill(double lw)
     }
 }
 
-bool EntityShapeCollection::Add(const char *shape_text)
+bool EntityShapeCollection::Add(const char *shape_text, MscError &Error)
 {
-    bool error = false;
+    FileLineCol fpos(Error.Files.size()-1, 1, 1);
     size_t pos = 0;
     bool use_fill = false;
+    bool block = false;
     double a, b, c, d, e, f;
     while (shape_text[pos]) {
+        const unsigned line_begin = pos;
+        while (shape_text[pos]==' ' || shape_text[pos]=='\t') pos++;
+        fpos.col = pos-line_begin+1;
         size_t end_pos = pos;
         while (shape_text[end_pos] && shape_text[end_pos]!='\n') end_pos++;
         switch (shape_text[pos]) {
         case 'N': 
-            while (shape_text[++pos]==' ') {}
-            shapes.emplace_back(std::string(shape_text+pos, end_pos-pos));
-            //Delete if we already have this one
-            _ASSERT(GetShapeNo(shapes.back().name)>=0);
-            if (GetShapeNo(shapes.back().name) != shapes.size()-1)
-                shapes.erase(shapes.begin()+GetShapeNo(shapes.back().name));
+            pos++;
+            while (shape_text[pos]==' ' || shape_text[pos]=='\t') pos++;
+            {
+                string name(shape_text+pos, end_pos-pos);
+                if (name.length())
+                    while (name.back()==' ' || name.back() == '\t') 
+                        name.erase(name.length()-1);
+                if (name.length()==0) {
+                    fpos.col = pos-line_begin+1;
+                    Error.Error(fpos, "No name specified. Skipping this shape.");
+                    block = true;
+                    break;
+                }
+                if (GetShapeNo(name)>=0) {
+                    fpos.col = pos-line_begin+1;
+                    Error.Error(fpos, "Shape with this name is already specified. Skipping this shape.");
+                    block = true;
+                    break;
+                }
+                shapes.emplace_back(name);
+                block = false;
+            }
             use_fill = false;
             break;
         case 'L':
         case 'M':
+            if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf", &a, &b) == 2)
                 shapes.back().Add(ELEMENT(shape_text[pos]=='M' ? MOVE_TO : LINE_TO, a, b, 0, 0, 0, 0), use_fill);
             else
-                error = true;
+                Error.Error(fpos, "Could not read two numbers separated by spaces. Ignoring line.");
             break;
         case 'C':
+            if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf %lf %lf", &a, &b, &c, &d, &e, &f) == 6)
                 shapes.back().Add(ELEMENT(CURVE_TO, a, b, c, d, e, f), use_fill);
             else
-                error = true;
+                Error.Error(fpos, "Could not read six numbers separated by spaces for a 'C'urve_to operation. Ignoring line.");
             break;
         case 'E':
+            if (block) break;
             shapes.back().Add(ELEMENT(CLOSE_PATH, 0, 0, 0, 0, 0, 0), use_fill);
             break;
         case 'F':
-            use_fill = true;
+            if (block) break;
+            if (use_fill)
+                Error.Error(fpos, "Already started the fill part of the shape. Ignoring this line.");
+            else
+                use_fill = true;
             break;
         case 'T':
+            if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf", &a, &b, &c, &d) == 4)
                 shapes.back().label_pos = Block(a, c, b, d);
             else
-                error = true;
+                Error.Error(fpos, "Could not read four numbers separated by spaces for a 'T'ext_box spec. Ignoring line.");
             break;
+        default:
+            if (end_pos == pos) break; //empty line
+            if (shape_text[pos]=='#') break;
+            if (shape_text[pos]=='/' && shape_text[pos]=='/') break;
+            Error.Error(fpos, "Lines must start with one of 'N', 'T', 'M', 'L', 'C', 'E', 'F' or '#' for comments. Ignoring this line.");
         }
         if (shape_text[end_pos] == 0) break;
         pos = end_pos+1;
+        fpos.line++;
     }
-    //shrink outlines
-    //for (unsigned u = 0; u<shapes.size(); u++) 
-    //    shapes[u].SHRINK_fill((u<20) ? 250 : 400);
-    return error;
+    return Error.hasErrors();
 }
 
 string EntityShapeCollection::Write() const
@@ -252,9 +296,9 @@ bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
- bool Entity::AddToShapes(const char *shape_def)
+bool Entity::AddToShapes(const char *shape_def, MscError &error)
 {
-     const bool ret = EntityShapes.Add(shape_def);
+    const bool ret = EntityShapes.Add(shape_def, error);
      //FILE *f = fopen("c:\\users\\ethzrt\\aaa.txt", "wt");
      //fputs(EntityShapes.Write().c_str(), f);
      //fclose(f);
@@ -285,8 +329,8 @@ template class PtrList<Entity>;
  * @param [in] coll True if we are group, but show collapsed. */
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
-               bool coll, int sh) :
-    name(n), label(l), orig_label(ol), file_pos(fp), eri_shape(sh),
+    bool coll, int sh, EArrowSize sh_size) :
+    name(n), label(l), orig_label(ol), file_pos(fp), eri_shape(sh), eri_shape_size(sh_size),
     pos(p), pos_exp(pe), index(0), status(entity_style),
     running_style(entity_style), running_shown(EEntityStatus::SHOW_OFF),
     maxwidth(0), collapsed(coll)
@@ -390,6 +434,7 @@ EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     pos(false, 0, FileLineCol()),                    //field 'pos.second' is used even if no such attribute
     rel(false, "", FileLineCol()),
     eri_shape(-1),
+    eri_shape_size(MSC_ARROW_SMALL),
     collapsed(false, false, FileLineCol()),
     show(true, true),                              //if no attributes, we are ON if defined
     active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
@@ -424,7 +469,7 @@ bool EntityApp::AddAttribute(const Attribute& a)
     }
     if (a.Is("shape") && EntityShapes) {
         if (!defining) {
-            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring attribute.");
+            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
             return true;
         }
         if (a.type == MSC_ATTR_CLEAR) {
@@ -439,6 +484,22 @@ bool EntityApp::AddAttribute(const Attribute& a)
         else
             eri_shape = sh;
         eri_shape_pos = a.linenum_attr.start;
+        return true;
+    }
+    if (a.Is("shape.size") && EntityShapes) {
+        if (!defining) {
+            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
+            return true;
+        }
+        if (a.type == MSC_ATTR_CLEAR) {
+            eri_shape_size = MSC_ARROW_SMALL;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING &&
+            Convert(a.value, eri_shape_size)) {
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(eri_shape_size), chart->Error);
         return true;
     }
     string s;
@@ -704,7 +765,7 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
-                               style_to_use, file_pos.start, make_collapsed, eri_shape);
+                               style_to_use, file_pos.start, make_collapsed, eri_shape, eri_shape_size);
         e->AddChildrenList(&ret->entities, chart);  //also fixes positions & updates running_style
         e->running_draw_pass = draw_pass;
         //Add to entity list
@@ -760,8 +821,10 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    if (EntityShapes)
+    if (EntityShapes) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape.size", HINT_ATTR_NAME));
+    }
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -792,6 +855,10 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
     }
     if (EntityShapes && CaseInsensitiveEqual(attr, "shape")) {
         EntityShapes.AttributeValues(csh);
+        return true;
+    }
+    if (EntityShapes && CaseInsensitiveEqual(attr, "shape.size")) {
+        ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }
     if (Element::AttributeValues(attr, csh)) return true;
@@ -828,16 +895,13 @@ void EntityApp::Combine(EntityApp *ed)
     CombineComments(ed);
  }
 
-const double eri_shape_r = 0.005;
-const XY eri_shape_size(6040*eri_shape_r, 8664*eri_shape_r);
-const double eri_shape_size_lw(200*eri_shape_r);
-const double eri_shape_text_y_offset_percentage = 50;
+const XY def_eri_shape_size(60, 86);
 
 /** Returns how wide the entity is with this formatting, not including its shadow.*/
 double EntityApp::Width() const
 {
     if ((*itr)->eri_shape>=0) 
-        return eri_shape_size.x;
+        return def_eri_shape_size.x * ArrowHead::arrowSizePercentage[eri_shape_size]/100.;
     //Entity labels cannot be word wrapped
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.read().indicator.second && (*itr)->collapsed)
@@ -862,10 +926,11 @@ Range EntityApp::Height(Area &cover, const EntityAppList &children)
     const double x = chart->XCoord((*itr)->pos); //integer
     if ((*itr)->eri_shape>=0) {
         _ASSERT(children.size()==0);
-        outer_edge.x.from = x - eri_shape_size.x/2;
-        outer_edge.x.till = x + eri_shape_size.x/2;
+        XY size = def_eri_shape_size * ArrowHead::arrowSizePercentage[eri_shape_size]/100.;
+        outer_edge.x.from = x - size.x/2;
+        outer_edge.x.till = x + size.x/2;
         outer_edge.y.from = 0;
-        outer_edge.y.till = eri_shape_size.y;
+        outer_edge.y.till = size.y;
         area = outer_edge;
         area.arc = this;
         area_important = area;

@@ -383,6 +383,7 @@
 		<row><td>C__F735EEE7D9734819980EC60D92A7E30C</td><td>{31A99B3F-758B-4ADC-B945-6A42B1D353F8}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F735EEE7D9734819980EC60D92A7E30C</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td>{193AA9F8-E5C7-4196-A2DF-54AFE3FAE89F}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F8AE738D0AA641CAB7D8B65901C55A14</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td>{43B9C35A-4383-4AF6-B29F-1AD1BEF3D701}</td><td>INSTALLDIR</td><td>6</td><td/><td>_FC302F634BBF45E493B93DB97A6CDDB4</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
+		<row><td>ISX_DEFAULTCOMPONENT</td><td>{7324E4F3-F2D9-45D1-8254-59DFD8050C47}</td><td>MSC_GENERATOR1</td><td>2</td><td/><td/><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>cairo.dll</td><td>{3969BC11-488A-46FA-B62D-2294C75513C2}</td><td>INSTALLDIR</td><td>2</td><td/><td>cairo.dll</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 	</table>
 
@@ -1095,6 +1096,7 @@
 		<col key="yes" def="s72">Directory_</col>
 		<col key="yes" def="s72">Component_</col>
 		<row><td>INSTALLDIR</td><td>C__B0C725E42DB54E1995B14EB9D662DD5B</td></row>
+		<row><td>MSC_GENERATOR1</td><td>ISX_DEFAULTCOMPONENT</td></row>
 	</table>
 
 	<table name="CustomAction">
@@ -1195,6 +1197,7 @@
 		<row><td>ISYourDataBaseDir</td><td>INSTALLDIR</td><td>Database</td><td/><td>0</td><td/></row>
 		<row><td>LocalAppDataFolder</td><td>TARGETDIR</td><td>.:LocalA~1|LocalAppData</td><td/><td>0</td><td/></row>
 		<row><td>MSC_GENERATOR</td><td>ProgramFilesFolder</td><td>MSC-GE~1|Msc-generator</td><td/><td>0</td><td/></row>
+		<row><td>MSC_GENERATOR1</td><td>AppDataFolder</td><td>MSC-GE~1|Msc-generator</td><td/><td>0</td><td/></row>
 		<row><td>MY_PRODUCT_NAME</td><td>ERICSSON</td><td>MYPROD~1|My Product Name</td><td/><td>0</td><td/></row>
 		<row><td>MyPicturesFolder</td><td>TARGETDIR</td><td>.:MyPict~1|MyPictures</td><td/><td>0</td><td/></row>
 		<row><td>NetHoodFolder</td><td>TARGETDIR</td><td>.:NetHood</td><td/><td>0</td><td/></row>
@@ -1955,6 +1958,7 @@
 		<row><td>AlwaysInstall</td><td>C__F735EEE7D9734819980EC60D92A7E30C</td></row>
 		<row><td>AlwaysInstall</td><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td></row>
 		<row><td>AlwaysInstall</td><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td></row>
+		<row><td>AlwaysInstall</td><td>ISX_DEFAULTCOMPONENT</td></row>
 		<row><td>AlwaysInstall</td><td>cairo.dll</td></row>
 	</table>
 
@@ -2162,6 +2166,7 @@
 		<row><td>C__F735EEE7D9734819980EC60D92A7E30C</td><td/><td/><td>_B82D87B2_C0F7_486D_9E74_6D39C9E10E7E_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td/><td/><td>_2011E60F_EC57_4CC6_B66C_E102F657D765_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td/><td/><td>_7C2FFFF4_2B54_4CC7_BF65_36B5A77AC7A5_FILTER</td><td/><td/><td/><td/></row>
+		<row><td>ISX_DEFAULTCOMPONENT</td><td/><td/><td>_0C407677_D108_4208_B918_BA27AF88FCE0_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>cairo.dll</td><td/><td/><td>_2878D91F_2ECD_41CF_96D4_ACFA568EB7AB_FILTER</td><td/><td/><td/><td/></row>
 	</table>
 

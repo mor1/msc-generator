@@ -55,6 +55,41 @@ string ReadDesigns(const char *fileName)
 	return ret;
 }
 
+std::list<std::pair<std::string,std::string>> ReadShapes(const char *fileName)
+{
+    std::list<std::pair<std::string, std::string>> ret;
+    if (!fileName || !fileName[0]) fileName = "*.shape";
+    char buff[1024];
+    GetModuleFileName(NULL, buff, 1024);
+    std::string dir(buff);
+    int pos = dir.find_last_of('\\');
+    dir = dir.substr(0, pos).append("\\");
+
+    WIN32_FIND_DATA find_data;
+    HANDLE h = FindFirstFile((dir+fileName).c_str(), &find_data);
+    bool bFound = h != INVALID_HANDLE_VALUE;
+    while (bFound) {
+        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+        char *buffer = ReadFile(in);
+        ret.emplace_back(dir+find_data.cFileName, buffer);
+        free(buffer);
+        bFound = FindNextFile(h, &find_data);
+    }
+    FindClose(h);
+    //Now look for in the roaming folder
+    h = FindFirstFile((string("%appdata%\\Msc-generator\\")+fileName).c_str(), &find_data);
+    bFound = h != INVALID_HANDLE_VALUE;
+    while (bFound) {
+        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+        char *buffer = ReadFile(in);
+        ret.emplace_back(dir+find_data.cFileName, buffer);
+        free(buffer);
+        bFound = FindNextFile(h, &find_data);
+    }
+    FindClose(h);
+    return ret;
+}
+
 
 bool progressbar(double percent, void *p) 
 {
@@ -100,7 +135,8 @@ int _tmain(int argc, _TCHAR* argv[])
             load_data = buffer;
         }
     }
-    int ret = do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)", 
+    int ret = do_main(args, designs.c_str(), ReadShapes("*.shape"),
+                      "\\f(courier new)\\mn(12)", 
                       progressbar, hOut, &load_data);
     RegSetKeyValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
                    REG_KEY_LOAD_DATA, REG_SZ, load_data.c_str(), load_data.length()+1);
