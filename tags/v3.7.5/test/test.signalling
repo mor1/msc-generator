@@ -1,0 +1,1801 @@
+layer64_m;
+layer2_m;
+layer1_m;
+layer32768_m;
+layer16384_m;
+dummy;
+layer16384_s;
+layer32768_s;
+layer1_s;
+layer2_s;
+layer64_s;
+
+hide dummy;
+hide layer16384_m, layer16384_s;
+hide layer32768_m, layer32768_s;
+hide layer1_m, layer1_s;
+hide layer2_m, layer2_s;
+hide layer64_m, layer64_s;
+
+show layer16384_m, layer16384_s;
+
+layer16384_m->layer16384_s: Connection;
+comment: 6.391 402 625;
+
+show layer32768_m, layer32768_s;
+
+layer32768_m..layer32768_s: Features Exchange {
+
+layer32768_m->layer32768_s: Features Request;
+comment: 10.828 963 250;
+
+layer32768_m<-layer32768_s: Features Response;
+comment: 10.833 339 750;
+
+};
+
+layer32768_m..layer32768_s: Version Exchange\n\- (2.1) {
+
+layer32768_m->layer32768_s: Version Request\n\- (2.1);
+comment: 10.835 213 375;
+
+layer32768_m<-layer32768_s: Version Response\n\- (2.1);
+comment: 10.840 839 000;
+
+};
+
+layer32768_m..layer32768_s: Extended Features Exchange {
+
+layer32768_m->layer32768_s: Extended Features Request;
+comment: 10.842 714 625;
+
+layer32768_m<-layer32768_s: Extended Features Response;
+comment: 10.847 089 000;
+
+};
+
+layer32768_m..layer32768_s: Host Connection\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Host Connection Request;
+comment: 10.861 463 750;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Host Connection Request);
+comment: 10.875 840 125;
+
+};
+
+layer32768_m..layer32768_s: Setup Complete {
+
+layer32768_m<-layer32768_s: Setup Complete;
+comment: 10.877 090 125;
+
+layer32768_m->layer32768_s: Setup Complete;
+comment: 11.040 216 250;
+
+};
+
+layer32768_m->layer32768_s: Set AAA;
+comment: 10.890 214 250;
+
+layer32768_m->layer32768_s: Max Len\n\- (5 Lens = 3.125 ms);
+comment: 11.041 466 125;
+
+layer32768_m..layer32768_s: Max Len Request\n\- (Accepted, 5 Lens = 3.125 ms) {
+
+layer32768_m->layer32768_s: Max Len Request\n\- (5 Lens = 3.125 ms);
+comment: 11.042 717 125;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Max Len Request);
+comment: 11.057 092 375;
+
+};
+
+layer32768_m->layer32768_s: Auto Rate;
+comment: 11.043 966 250;
+
+layer32768_m<-layer32768_s: Auto Rate;
+comment: 11.044 591 875;
+
+show layer1_m, layer1_s;
+
+layer1_m..layer1_s: Connection\n\- (Src=0x0040, PSM=> Dst=0x0040) {
+
+layer1_m->layer1_s: Connection Request\n\- (Src=0x0040, PSM=SDP);
+comment: 11.045 216 250;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0040, Dst=0x0040, Connection pending, Authorization pending);
+comment: 11.063 342 500;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0040, Dst=0x0040, Connection successful);
+comment: 11.077 093 000;
+
+};
+
+layer32768_m..layer32768_s: Word Listen Mode\n\- (Accepted) {
+
+layer32768_m<-layer32768_s: Word Listen Mode Request;
+comment: 11.045 842 000;
+
+layer32768_m->layer32768_s: Accepted\n\- (Word Listen Mode Request);
+comment: 11.047 717 375;
+
+};
+
+layer32768_m<-layer32768_s: Max Len\n\- (5 Lens = 3.125 ms);
+comment: 11.047 092 000;
+
+layer32768_m..layer32768_s: Timing Accuracy Transaction {
+
+layer32768_m<-layer32768_s: Timing Accuracy Request;
+comment: 11.048 342 000;
+
+layer32768_m->layer32768_s: Timing Accuracy Response;
+comment: 11.050 216 250;
+
+};
+
+layer32768_m..layer32768_s: Timing Accuracy Transaction {
+
+layer32768_m->layer32768_s: Timing Accuracy Request;
+comment: 11.058 966 500;
+
+layer32768_m<-layer32768_s: Timing Accuracy Response;
+comment: 11.083 343 125;
+
+};
+
+layer32768_m..layer32768_s: Features Exchange {
+
+layer32768_m<-layer32768_s: Features Request;
+comment: 11.075 842 750;
+
+layer32768_m->layer32768_s: Features Response;
+comment: 11.077 716 625;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0040, MTU=1'612, Flush T/o=Infinite amount of retransmissions > Src=0x0040) {
+
+layer1_m->layer1_s: Configure Request\n\- (Dst=0x0040, MTU=1'612, Flush T/o=Infinite amount of retransmissions);
+comment: 11.081 466 750;
+
+layer1_m<-layer1_s: Configure Response\n\- (Src=0x0040, Success);
+comment: 11.094 592 625;
+
+};
+
+layer32768_m..layer32768_s: Clock Offset Transaction\n\- (0x4E03) {
+
+layer32768_m->layer32768_s: Clock Offset Request;
+comment: 11.085 216 750;
+
+layer32768_m<-layer32768_s: Clock Offset Response\n\- (0x4E03);
+comment: 11.098 342 750;
+
+};
+
+layer32768_m->layer32768_s: Supervision Timeout;
+comment: 11.086 466 875;
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0040, MTU=48 > Src=0x0040) {
+
+layer1_m<-layer1_s: Configure Request\n\- (Dst=0x0040, MTU=48);
+comment: 11.099 592 750;
+
+layer1_m->layer1_s: Configure Response\n\- (Src=0x0040, Success);
+comment: 11.102 718 000;
+
+};
+
+show layer2_m, layer2_s;
+
+layer2_m..layer2_s: Search Transaction\n\- (: 0x00010003) {
+
+layer2_m->layer2_s: Search Request\n\- ();
+comment: 11.103 967 000;
+
+layer2_m<-layer2_s: Search Response\n\- (0x00010003);
+comment: 11.142 093 125;
+
+};
+
+layer32768_m..layer32768_s: Increase Power Request {
+
+layer32768_m->layer32768_s: Increase Power Request;
+comment: 11.141 467 625;
+
+};
+
+layer2_m->layer2_s: Attribute Transfer\n\- (0x00010003:  Generic Sound Ch 2 );
+comment: 11.146 467 625;
+
+layer2_m..layer2_s: Search Transaction\n\- (Sound Sink: 0x00010000) {
+
+layer2_m->layer2_s: Search Request\n\- (Sound Sink);
+comment: 11.186 468 125;
+
+layer2_m<-layer2_s: Search Response\n\- (0x00010000);
+comment: 11.224 595 000;
+
+};
+
+layer2_m->layer2_s: Attribute Transfer\n\- (0x00010000: Sound Sink V1.0 Advanced Sound Distribution);
+comment: 11.227 718 750;
+
+layer2_m..layer2_s: Search Transaction\n\- (Remote Control Target) {
+
+layer2_m->layer2_s: Search Request\n\- (Remote Control Target);
+comment: 11.253 969 000;
+
+layer2_m<-layer2_s: Search Response;
+comment: 11.292 096 250;
+
+};
+
+layer2_m..layer2_s: Search Transaction\n\- (Remote Control: 0x00010001) {
+
+layer2_m->layer2_s: Search Request\n\- (Remote Control);
+comment: 11.295 219 750;
+
+layer2_m<-layer2_s: Search Response\n\- (0x00010001);
+comment: 11.310 845 875;
+
+};
+
+layer2_m->layer2_s: Attribute Transfer\n\- (0x00010001: Remote Control V1.0 Remote Control);
+comment: 11.313 969 875;
+
+layer2_m..layer2_s: Search Transaction\n\- (: 0x00010002) {
+
+layer2_m->layer2_s: Search Request\n\- ();
+comment: 11.343 970 500;
+
+layer2_m<-layer2_s: Search Response\n\- (0x00010002);
+comment: 11.383 347 375;
+
+};
+
+layer32768_m..layer32768_s: Increase Power Request {
+
+layer32768_m->layer32768_s: Max Power;
+comment: 11.387 721 000;
+
+};
+
+layer2_m->layer2_s: Attribute Transfer\n\- (0x00010002:  Generic Sound Ch 1 );
+comment: 11.391 470 875;
+
+layer1_m..layer1_s: Disconnection\n\- (Src=0x0040, Dst=0x0040) {
+
+layer1_m->layer1_s: Disconnection Request\n\- (Src=0x0040, Dst=0x0040);
+comment: 11.438 971 625;
+
+layer1_m<-layer1_s: Disconnection Response\n\- (Src=0x0040, Dst=0x0040);
+comment: 11.450 847 625;
+
+};
+
+layer32768_m->layer32768_s: Preferred Rate;
+comment: 11.891 477 875;
+
+layer32768_m<-layer32768_s: Preferred Rate;
+comment: 11.897 103 750;
+
+layer32768_m..layer32768_s: Authentication Transaction {
+
+layer32768_m->layer32768_s: Authentication Random Number;
+comment: 14.734 017 875;
+
+layer32768_m<-layer32768_s: Signed Response;
+comment: 14.772 143 000;
+
+};
+
+layer32768_m..layer32768_s: Encryption Mode\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Encryption Mode Request\n\- (Encryption);
+comment: 14.814 017 875;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Encryption Mode Request);
+comment: 14.819 643 750;
+
+};
+
+layer32768_m..layer32768_s: Encryption Key Size\n\- (Accepted) {
+
+layer32768_m<-layer32768_s: Encryption Key Size Request;
+comment: 14.828 393 875;
+
+layer32768_m->layer32768_s: Accepted\n\- (Encryption Key Size Request);
+comment: 14.830 268 250;
+
+};
+
+layer32768_m->layer32768_s: Start Encryption Request;
+comment: 14.842 768 250;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Start Encryption Request);
+comment: 14.880 894 750;
+
+layer1_m..layer1_s: Connection\n\- (Src=0x0041, PSM= > Dst=0x0041) {
+
+layer1_m->layer1_s: Connection Request\n\- (Src=0x0041, PSM=);
+comment: 14.889 019 000;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0041, Dst=0x0041, Connection pending, Authorization pending);
+comment: 14.894 645 125;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0041, Dst=0x0041, Connection successful);
+comment: 14.959 645 375;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0041, MTU=1'015, Flush T/o=Infinite amount of retransmissions > Src=0x0041) {
+
+layer1_m->layer1_s: Configure Request\n\- (Dst=0x0041, MTU=1'015, Flush T/o=Infinite amount of retransmissions);
+comment: 14.962 770 000;
+
+layer1_m<-layer1_s: Configure Response\n\- (Src=0x0041, Success);
+comment: 15.010 896 000;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0041, MTU=895 > Src=0x0041) {
+
+layer1_m<-layer1_s: Configure Request\n\- (Dst=0x0041, MTU=895);
+comment: 14.969 645 625;
+
+layer1_m->layer1_s: Configure Response\n\- (Src=0x0041, Success);
+comment: 14.972 770 000;
+
+};
+
+show layer64_m, layer64_s;
+
+layer64_m..layer64_s:  Discover Command > Used=No, ACP=1 | Used=No, ACP=2 {
+
+layer64_m->layer64_s:  Discover Command;
+comment: 15.014 020 625;
+
+layer64_m<-layer64_s:  Discover Accept\n\- (Used=No, ACP=1 | Used=No, ACP=2);
+comment: 15.095 899 000;
+
+};
+
+layer64_m..layer64_s:  GetCapabilities\n\- (ACP=1) >  Transport | Sound | BSC | CSS-T {
+
+layer64_m->layer64_s:  GetCapabilities Command\n\- (ACP=1);
+comment: 15.099 021 750;
+
+layer64_m<-layer64_s:  GetCapabilities Accept\n\- ( Transport | Sound | BSC | CSS-T);
+comment: 15.168 398 500;
+
+};
+
+layer64_m..layer64_s:  GetCapabilities\n\- (ACP=2) >  Transport | Sound | MPEG-1,2 Sound | CSS-T {
+
+layer64_m->layer64_s:  GetCapabilities Command\n\- (ACP=2);
+comment: 15.171 522 750;
+
+layer64_m<-layer64_s:  GetCapabilities Accept\n\- ( Transport | Sound | MPEG-1,2 Sound | CSS-T);
+comment: 15.228 399 500;
+
+};
+
+layer64_m..layer64_s:  SetConfiguration\n\- (ACP=1, INT=1,  Transport | Sound | BSC | Stereo | 48kHz | Loudness | 8 Subbands | CSS-T) > Accept {
+
+layer64_m->layer64_s:  SetConfiguration Command\n\- (ACP=1, INT=1,  Transport | Sound | BSC | Stereo | 48kHz | Loudness | 8 Subbands | CSS-T);
+comment: 15.231 523 750;
+
+layer64_m<-layer64_s:  SetConfiguration Accept;
+comment: 15.328 400 875;
+
+};
+
+layer64_m..layer64_s:  Open\n\- (ACP=1) {
+
+layer64_m->layer64_s:  Open Command\n\- (ACP=1);
+comment: 15.331 525 000;
+
+};
+
+layer1_m..layer1_s: Connection\n\- (Src=0x0042, PSM= > Dst=0x0042) {
+
+layer1_m->layer1_s: Connection Request\n\- (Src=0x0042, PSM=);
+comment: 15.386 525 750;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0042, Dst=0x0042, Connection pending, Authorization pending);
+comment: 15.393 402 125;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0042, Dst=0x0042, Connection successful);
+comment: 15.457 153 250;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0042, MTU=672, Flush T/o=Infinite amount of retransmissions > Src=0x0042) {
+
+layer1_m->layer1_s: Configure Request\n\- (Dst=0x0042, MTU=672, Flush T/o=Infinite amount of retransmissions);
+comment: 15.460 276 625;
+
+layer1_m<-layer1_s: Configure Response\n\- (Src=0x0042, Success);
+comment: 15.504 653 875;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0042, MTU=895 > Src=0x0042) {
+
+layer1_m<-layer1_s: Configure Request\n\- (Dst=0x0042, MTU=895);
+comment: 15.463 402 500;
+
+layer1_m->layer1_s: Configure Response\n\- (Src=0x0042, Success);
+comment: 15.466 526 875;
+
+};
+
+layer64_m..layer64_s:  Start\n\- (ACP=1) > Accept {
+
+layer64_m->layer64_s:  Start Command\n\- (ACP=1);
+comment: 15.507 777 500;
+
+layer64_m<-layer64_s:  Start Accept;
+comment: 15.633 405 250;
+
+};
+
+layer32768_m..layer32768_s: Encryption Mode\n\- (Accepted) {
+
+layer32768_m<-layer32768_s: Encryption Mode Request\n\- (No Encryption);
+comment: 15.665 905 250;
+
+layer32768_m->layer32768_s: Accepted\n\- (Encryption Mode Request);
+comment: 15.667 780 750;
+
+};
+
+layer32768_m..layer32768_s: Stop Encryption\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Stop Encryption Request;
+comment: 15.669 029 625;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Stop Encryption Request);
+comment: 15.678 405 750;
+
+};
+
+layer32768_m..layer32768_s: Role Switch\n\- (Accepted) {
+
+layer32768_m<-layer32768_s: Len Offset;
+comment: 15.683 405 875;
+
+layer32768_m<-layer32768_s: Switch Request;
+comment: 15.688 406 000;
+
+layer32768_m->layer32768_s: Accepted\n\- (Switch Request);
+comment: 15.690 279 875;
+
+};
+
+layer16384_m<-layer16384_s: FHS\n\- () packet (ACL);
+comment: 15.837 784 125;
+
+layer16384_m->layer16384_s: ID packet\n\- (ACL);
+comment: 15.838 407 000;
+
+layer32768_m..layer32768_s: Encryption Mode\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Encryption Mode Request\n\- (Encryption);
+comment: 16.168 555 250;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Encryption Mode Request);
+comment: 16.170 432 500;
+
+};
+
+layer32768_m->layer32768_s: Set AAA;
+comment: 16.169 804 375;
+
+layer32768_m->layer32768_s: Max Len\n\- (5 Lens = 3.125 ms);
+comment: 16.171 054 500;
+
+layer32768_m->layer32768_s: Channel Classification Request\n\- (AAA Reporting Enabled);
+comment: 16.179 804 750;
+
+layer32768_m..layer32768_s: Encryption Key Size\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Encryption Key Size Request;
+comment: 16.186 055 000;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Encryption Key Size Request);
+comment: 16.187 932 750;
+
+};
+
+layer32768_m->layer32768_s: Start Encryption Request;
+comment: 16.228 556 500;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Start Encryption Request);
+comment: 16.240 434 500;
+
+layer32768_m->layer32768_s: Supervision Timeout;
+comment: 16.251 057 250;
+
+layer32768_m..layer32768_s: Max Len Request\n\- (Accepted, 5 Lens = 3.125 ms) {
+
+layer32768_m->layer32768_s: Max Len Request\n\- (5 Lens = 3.125 ms);
+comment: 16.257 307 375;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Max Len Request);
+comment: 16.259 184 625;
+
+};
+
+layer1_m..layer1_s: Connection\n\- (Src=0x0043, PSM= > Dst=0x0043) {
+
+layer1_m->layer1_s: Connection Request\n\- (Src=0x0043, PSM=);
+comment: 16.312 309 125;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0043, Dst=0x0043, Connection pending);
+comment: 16.332 937 750;
+
+layer1_m<-layer1_s: Connection Response\n\- (Src=0x0043, Dst=0x0043, Connection successful);
+comment: 16.335 437 750;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0043, MTU=672 > Src=0x0043) {
+
+layer1_m<-layer1_s: Configure Request\n\- (Dst=0x0043, MTU=672);
+comment: 16.336 687 750;
+
+layer1_m->layer1_s: Configure Response\n\- (Src=0x0043, Success);
+comment: 16.372 311 250;
+
+};
+
+layer1_m..layer1_s: Configure\n\- (Dst=0x0043, MTU=895 > Src=0x0043) {
+
+layer1_m->layer1_s: Configure Request\n\- (Dst=0x0043, MTU=895);
+comment: 16.361 060 875;
+
+layer1_m<-layer1_s: Configure Response\n\- (Src=0x0043, Success);
+comment: 16.372 939 125;
+
+};
+
+layer32768_m->layer32768_s: Supervision Timeout;
+comment: 16.428 563 125;
+
+layer32768_m<-layer32768_s: Preferred Rate;
+comment: 16.907 956 500;
+
+layer32768_m..layer32768_s: Sniff\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Sniff Request;
+comment: 21.459 983 875;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Sniff Request);
+comment: 21.463 112 125;
+
+};
+
+layer32768_m<-layer32768_s: Max Len\n\- (1 Len = 625.000 us);
+comment: 21.461 861 000;
+
+layer32768_m..layer32768_s: Max Len Request\n\- (Not accepted, Reserved Len violation, 5 Lens = 3.125 ms) {
+
+layer32768_m->layer32768_s: Max Len Request\n\- (5 Lens = 3.125 ms);
+comment: 21.541 237 750;
+
+layer32768_m<-layer32768_s: Not Accepted\n\- (Max Len Request, Reserved Len violation);
+comment: 21.543 115 125;
+
+};
+
+layer32768_m..layer32768_s: Unsniff\n\- (Accepted) {
+
+layer32768_m<-layer32768_s: Unsniff Request;
+comment: 23.291 923 125;
+
+layer32768_m->layer32768_s: Accepted\n\- (Unsniff Request);
+comment: 23.301 296 375;
+
+};
+
+layer64_m..layer64_s:  Volume Up Pressed > Not Implemented By Device {
+
+layer64_m<-layer64_s:  Control\n\- (Subunit=Panel, Opcode=Pass Through, Operation=Volume Up, Button=Pressed);
+comment: 23.293 173 125;
+
+layer64_m->layer64_s:  Not Implemented By Device\n\- (Subunit=Panel, Opcode=Pass Through, Operation=Volume Up, Button=Pressed);
+comment: 23.335 047 500;
+
+};
+
+layer32768_m<-layer32768_s: Max Len\n\- (5 Lens = 3.125 ms);
+comment: 23.305 674 250;
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=0..33, Duration=963 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=0, Time=0);
+comment: 23.355 676 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=1, Time=29'326);
+comment: 23.366 926 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=2, Time=58'652);
+comment: 23.384 426 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=3, Time=87'978);
+comment: 23.411 927 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=4, Time=117'304);
+comment: 23.449 430 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=5, Time=146'630);
+comment: 23.476 929 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=6, Time=175'956);
+comment: 23.504 431 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=7, Time=205'282);
+comment: 23.541 931 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=8, Time=234'608);
+comment: 23.564 432 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=9, Time=263'934);
+comment: 23.601 934 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=10, Time=293'260);
+comment: 23.625 684 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=11, Time=322'586);
+comment: 23.653 187 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=12, Time=351'912);
+comment: 23.690 687 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=13, Time=381'238);
+comment: 23.713 187 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=14, Time=410'564);
+comment: 23.735 688 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=15, Time=439'890);
+comment: 23.763 189 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=16, Time=469'216);
+comment: 23.800 691 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=17, Time=498'542);
+comment: 23.823 191 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=18, Time=527'868);
+comment: 23.860 692 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=19, Time=557'194);
+comment: 23.883 194 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=20, Time=586'520);
+comment: 23.921 944 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=21, Time=615'846);
+comment: 23.944 446 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=22, Time=645'172);
+comment: 23.981 946 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=23, Time=674'498);
+comment: 24.004 448 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=24, Time=703'824);
+comment: 24.031 948 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=25, Time=733'150);
+comment: 24.069 449 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=26, Time=762'476);
+comment: 24.096 951 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=27, Time=791'802);
+comment: 24.124 451 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=28, Time=821'128);
+comment: 24.161 953 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=29, Time=850'454);
+comment: 24.174 453 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=30, Time=879'780);
+comment: 24.201 954 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=31, Time=909'106);
+comment: 24.239 456 125;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=34..67, Duration=993 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=34, Time=997'084);
+comment: 24.329 458 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=35, Time=1'026'410);
+comment: 24.351 959 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=36, Time=1'055'736);
+comment: 24.389 461 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=37, Time=1'085'062);
+comment: 24.416 961 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=38, Time=1'114'388);
+comment: 24.444 463 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=39, Time=1'143'714);
+comment: 24.481 963 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=40, Time=1'173'040);
+comment: 24.504 464 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=41, Time=1'202'366);
+comment: 24.533 216 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=42, Time=1'231'692);
+comment: 24.570 716 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=43, Time=1'261'018);
+comment: 24.593 217 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=44, Time=1'290'344);
+comment: 24.615 718 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=45, Time=1'319'670);
+comment: 24.644 469 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=46, Time=1'348'996);
+comment: 24.681 971 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=47, Time=1'378'322);
+comment: 24.704 472 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=48, Time=1'407'648);
+comment: 24.741 973 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=49, Time=1'436'974);
+comment: 24.766 973 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=50, Time=1'466'300);
+comment: 24.804 474 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=51, Time=1'495'626);
+comment: 24.826 976 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=52, Time=1'524'952);
+comment: 24.854 476 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=53, Time=1'554'278);
+comment: 24.905 728 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=54, Time=1'583'604);
+comment: 24.933 229 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=55, Time=1'612'930);
+comment: 24.944 479 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=56, Time=1'642'256);
+comment: 24.981 982 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=57, Time=1'671'582);
+comment: 25.004 481 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=58, Time=1'700'908);
+comment: 25.033 233 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=59, Time=1'730'234);
+comment: 25.055 733 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=60, Time=1'759'560);
+comment: 25.093 234 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=61, Time=1'788'886);
+comment: 25.115 735 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=62, Time=1'818'212);
+comment: 25.144 486 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=63, Time=1'847'538);
+comment: 25.181 988 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=64, Time=1'876'864);
+comment: 25.204 488 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=65, Time=1'906'190);
+comment: 25.241 990 000;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=68..102, Duration=1020 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=68, Time=1'994'168);
+comment: 25.331 993 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=69, Time=2'023'494);
+comment: 25.359 493 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=70, Time=2'052'820);
+comment: 25.386 995 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=71, Time=2'082'146);
+comment: 25.415 746 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=72, Time=2'111'472);
+comment: 25.443 246 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=73, Time=2'140'798);
+comment: 25.480 748 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=74, Time=2'170'124);
+comment: 25.495 748 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=75, Time=2'199'450);
+comment: 25.526 999 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=76, Time=2'228'776);
+comment: 25.554 500 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=77, Time=2'258'102);
+comment: 25.592 001 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=78, Time=2'287'428);
+comment: 25.614 502 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=79, Time=2'316'754);
+comment: 25.644 503 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=80, Time=2'346'080);
+comment: 25.682 005 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=81, Time=2'375'406);
+comment: 25.704 505 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=82, Time=2'404'732);
+comment: 25.742 006 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=83, Time=2'434'058);
+comment: 25.767 007 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=84, Time=2'463'384);
+comment: 25.794 508 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=85, Time=2'492'710);
+comment: 25.832 010 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=86, Time=2'522'036);
+comment: 25.854 510 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=87, Time=2'551'362);
+comment: 25.894 511 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=88, Time=2'580'688);
+comment: 25.917 012 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=89, Time=2'610'014);
+comment: 25.934 513 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=90, Time=2'639'340);
+comment: 25.962 013 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=91, Time=2'668'666);
+comment: 25.999 515 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=92, Time=2'697'992);
+comment: 26.025 765 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=93, Time=2'727'318);
+comment: 26.063 267 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=94, Time=2'756'644);
+comment: 26.090 768 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=95, Time=2'785'970);
+comment: 26.113 268 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=96, Time=2'815'296);
+comment: 26.143 270 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=97, Time=2'844'622);
+comment: 26.184 521 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=98, Time=2'873'948);
+comment: 26.212 023 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=99, Time=2'903'274);
+comment: 26.234 523 625;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=103..136, Duration=980 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=103, Time=3'020'578);
+comment: 26.362 027 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=104, Time=3'049'904);
+comment: 26.373 279 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=105, Time=3'079'230);
+comment: 26.402 028 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=106, Time=3'108'556);
+comment: 26.439 530 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=107, Time=3'137'882);
+comment: 26.467 031 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=108, Time=3'167'208);
+comment: 26.494 532 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=109, Time=3'196'534);
+comment: 26.525 783 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=110, Time=3'225'860);
+comment: 26.553 284 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=111, Time=3'255'186);
+comment: 26.590 785 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=112, Time=3'284'512);
+comment: 26.613 285 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=113, Time=3'313'838);
+comment: 26.643 287 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=114, Time=3'343'164);
+comment: 26.680 788 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=115, Time=3'372'490);
+comment: 26.708 289 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=116, Time=3'401'816);
+comment: 26.735 790 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=117, Time=3'431'142);
+comment: 26.765 791 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=118, Time=3'460'468);
+comment: 26.793 292 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=119, Time=3'489'794);
+comment: 26.815 792 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=120, Time=3'519'120);
+comment: 26.853 294 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=121, Time=3'548'446);
+comment: 26.875 796 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=122, Time=3'577'772);
+comment: 26.907 045 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=123, Time=3'607'098);
+comment: 26.934 547 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=124, Time=3'636'424);
+comment: 26.972 048 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=125, Time=3'665'750);
+comment: 26.994 550 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=126, Time=3'695'076);
+comment: 27.025 800 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=127, Time=3'724'402);
+comment: 27.053 300 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=128, Time=3'753'728);
+comment: 27.090 802 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=129, Time=3'783'054);
+comment: 27.113 303 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=130, Time=3'812'380);
+comment: 27.143 304 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=131, Time=3'841'706);
+comment: 27.180 805 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=132, Time=3'871'032);
+comment: 27.203 305 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=133, Time=3'900'358);
+comment: 27.240 807 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=134, Time=3'929'684);
+comment: 27.253 307 625;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=137..170, Duration=990 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=137, Time=4'017'662);
+comment: 27.352 061 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=138, Time=4'046'988);
+comment: 27.374 562 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=139, Time=4'076'314);
+comment: 27.403 312 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=140, Time=4'105'640);
+comment: 27.440 814 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=141, Time=4'134'966);
+comment: 27.478 315 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=142, Time=4'164'292);
+comment: 27.493 316 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=143, Time=4'193'618);
+comment: 27.530 817 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=144, Time=4'222'944);
+comment: 27.558 318 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=145, Time=4'252'270);
+comment: 27.585 819 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=146, Time=4'281'596);
+comment: 27.623 320 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=147, Time=4'310'922);
+comment: 27.645 821 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=148, Time=4'340'248);
+comment: 27.683 322 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=149, Time=4'369'574);
+comment: 27.694 572 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=150, Time=4'398'900);
+comment: 27.732 074 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=151, Time=4'428'226);
+comment: 27.754 574 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=152, Time=4'457'552);
+comment: 27.792 076 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=153, Time=4'486'878);
+comment: 27.814 578 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=154, Time=4'516'204);
+comment: 27.852 078 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=155, Time=4'545'530);
+comment: 27.874 579 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=156, Time=4'574'856);
+comment: 27.902 079 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=157, Time=4'604'182);
+comment: 27.939 581 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=158, Time=4'633'508);
+comment: 27.967 083 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=159, Time=4'662'834);
+comment: 27.994 582 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=160, Time=4'692'160);
+comment: 28.032 084 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=161, Time=4'721'486);
+comment: 28.054 585 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=162, Time=4'750'812);
+comment: 28.082 086 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=163, Time=4'780'138);
+comment: 28.119 588 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=164, Time=4'809'464);
+comment: 28.134 587 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=165, Time=4'838'790);
+comment: 28.172 089 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=166, Time=4'868'116);
+comment: 28.194 589 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=167, Time=4'897'442);
+comment: 28.232 091 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=168, Time=4'926'768);
+comment: 28.254 592 500;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=171..205, Duration=1020 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=171, Time=5'014'746);
+comment: 28.352 094 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=172, Time=5'044'072);
+comment: 28.374 596 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=173, Time=5'073'398);
+comment: 28.412 097 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=174, Time=5'102'724);
+comment: 28.434 599 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=175, Time=5'132'050);
+comment: 28.472 099 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=176, Time=5'161'376);
+comment: 28.494 599 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=177, Time=5'190'702);
+comment: 28.532 101 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=178, Time=5'220'028);
+comment: 28.554 602 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=179, Time=5'249'354);
+comment: 28.572 102 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=180, Time=5'278'680);
+comment: 28.609 604 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=181, Time=5'308'006);
+comment: 28.637 104 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=182, Time=5'337'332);
+comment: 28.664 606 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=183, Time=5'366'658);
+comment: 28.702 107 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=184, Time=5'395'984);
+comment: 28.724 608 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=185, Time=5'425'310);
+comment: 28.759 609 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=186, Time=5'454'636);
+comment: 28.787 109 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=187, Time=5'483'962);
+comment: 28.814 611 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=188, Time=5'513'288);
+comment: 28.852 112 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=189, Time=5'542'614);
+comment: 28.874 613 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=190, Time=5'571'940);
+comment: 28.902 114 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=191, Time=5'601'266);
+comment: 28.939 615 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=192, Time=5'630'592);
+comment: 28.967 116 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=193, Time=5'659'918);
+comment: 28.994 617 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=194, Time=5'689'244);
+comment: 29.017 118 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=195, Time=5'718'570);
+comment: 29.044 619 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=196, Time=5'747'896);
+comment: 29.072 119 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=197, Time=5'777'222);
+comment: 29.109 621 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=198, Time=5'806'548);
+comment: 29.137 121 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=199, Time=5'835'874);
+comment: 29.164 623 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=200, Time=5'865'200);
+comment: 29.202 124 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=201, Time=5'894'526);
+comment: 29.224 624 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=202, Time=5'923'852);
+comment: 29.262 126 500;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=206..240, Duration=1018 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=206, Time=6'041'156);
+comment: 29.372 130 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=207, Time=6'070'482);
+comment: 29.409 631 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=208, Time=6'099'808);
+comment: 29.437 131 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=209, Time=6'129'134);
+comment: 29.452 133 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=210, Time=6'158'460);
+comment: 29.489 633 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=211, Time=6'187'786);
+comment: 29.517 134 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=212, Time=6'217'112);
+comment: 29.544 636 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=213, Time=6'246'438);
+comment: 29.582 136 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=214, Time=6'275'764);
+comment: 29.604 638 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=215, Time=6'305'090);
+comment: 29.642 139 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=216, Time=6'334'416);
+comment: 29.664 639 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=217, Time=6'363'742);
+comment: 29.702 142 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=218, Time=6'393'068);
+comment: 29.724 641 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=219, Time=6'422'394);
+comment: 29.762 143 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=220, Time=6'451'720);
+comment: 29.784 643 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=221, Time=6'481'046);
+comment: 29.822 145 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=222, Time=6'510'372);
+comment: 29.844 646 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=223, Time=6'539'698);
+comment: 29.872 146 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=224, Time=6'569'024);
+comment: 29.909 648 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=225, Time=6'598'350);
+comment: 29.924 648 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=226, Time=6'627'676);
+comment: 29.962 151 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=227, Time=6'657'002);
+comment: 29.984 650 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=228, Time=6'686'328);
+comment: 30.035 902 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=229, Time=6'715'654);
+comment: 30.047 153 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=230, Time=6'744'980);
+comment: 30.074 653 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=231, Time=6'774'306);
+comment: 30.112 155 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=232, Time=6'803'632);
+comment: 30.134 656 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=233, Time=6'832'958);
+comment: 30.172 156 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=234, Time=6'862'284);
+comment: 30.194 659 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=235, Time=6'891'610);
+comment: 30.232 158 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=236, Time=6'920'936);
+comment: 30.254 660 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=237, Time=6'950'262);
+comment: 30.282 160 500;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=241..275, Duration=1022 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=241, Time=7'067'566);
+comment: 30.399 665 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=242, Time=7'096'892);
+comment: 30.427 165 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=243, Time=7'126'218);
+comment: 30.454 667 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=244, Time=7'155'544);
+comment: 30.492 168 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=245, Time=7'184'870);
+comment: 30.514 668 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=246, Time=7'214'196);
+comment: 30.542 170 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=247, Time=7'243'522);
+comment: 30.579 670 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=248, Time=7'272'848);
+comment: 30.602 171 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=249, Time=7'302'174);
+comment: 30.639 673 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=250, Time=7'331'500);
+comment: 30.667 173 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=251, Time=7'360'826);
+comment: 30.694 675 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=252, Time=7'390'152);
+comment: 30.732 175 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=253, Time=7'419'478);
+comment: 30.754 676 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=254, Time=7'448'804);
+comment: 30.773 427 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=255, Time=7'478'130);
+comment: 30.810 928 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=256, Time=7'507'456);
+comment: 30.833 430 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=257, Time=7'536'782);
+comment: 30.870 930 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=258, Time=7'566'108);
+comment: 30.894 682 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=259, Time=7'595'434);
+comment: 30.932 183 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=260, Time=7'624'760);
+comment: 30.954 683 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=261, Time=7'654'086);
+comment: 30.992 185 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=262, Time=7'683'412);
+comment: 31.017 185 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=263, Time=7'712'738);
+comment: 31.044 686 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=264, Time=7'742'064);
+comment: 31.082 188 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=265, Time=7'771'390);
+comment: 31.104 689 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=266, Time=7'800'716);
+comment: 31.142 190 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=267, Time=7'830'042);
+comment: 31.179 691 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=268, Time=7'859'368);
+comment: 31.192 192 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=269, Time=7'888'694);
+comment: 31.214 692 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=270, Time=7'918'020);
+comment: 31.252 194 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=271, Time=7'947'346);
+comment: 31.275 944 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=272, Time=7'976'672);
+comment: 31.307 195 750;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=276..309, Duration=992 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=276, Time=8'093'976);
+comment: 31.430 950 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=277, Time=8'123'302);
+comment: 31.453 450 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=278, Time=8'152'628);
+comment: 31.490 952 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=279, Time=8'181'954);
+comment: 31.515 952 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=280, Time=8'211'280);
+comment: 31.543 453 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=281, Time=8'240'606);
+comment: 31.580 955 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=282, Time=8'269'932);
+comment: 31.603 455 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=283, Time=8'299'258);
+comment: 31.643 457 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=284, Time=8'328'584);
+comment: 31.654 707 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=285, Time=8'357'910);
+comment: 31.692 209 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=286, Time=8'387'236);
+comment: 31.714 710 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=287, Time=8'416'562);
+comment: 31.752 210 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=288, Time=8'445'888);
+comment: 31.775 961 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=289, Time=8'475'214);
+comment: 31.803 462 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=290, Time=8'504'540);
+comment: 31.840 964 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=291, Time=8'533'866);
+comment: 31.863 464 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=292, Time=8'563'192);
+comment: 31.908 465 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=293, Time=8'592'518);
+comment: 31.927 217 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=294, Time=8'621'844);
+comment: 31.954 717 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=295, Time=8'651'170);
+comment: 31.992 219 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=296, Time=8'680'496);
+comment: 32.017 219 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=297, Time=8'709'822);
+comment: 32.043 470 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=298, Time=8'739'148);
+comment: 32.073 472 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=299, Time=8'768'474);
+comment: 32.095 972 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=300, Time=8'797'800);
+comment: 32.123 474 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=301, Time=8'827'126);
+comment: 32.157 224 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=302, Time=8'856'452);
+comment: 32.184 725 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=303, Time=8'885'778);
+comment: 32.212 226 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=304, Time=8'915'104);
+comment: 32.249 727 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=305, Time=8'944'430);
+comment: 32.273 479 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=306, Time=8'973'756);
+comment: 32.310 979 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=307, Time=9'003'082);
+comment: 32.333 480 875;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=310..344, Duration=1011 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=310, Time=9'091'060);
+comment: 32.432 234 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=311, Time=9'120'386);
+comment: 32.459 734 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=312, Time=9'149'712);
+comment: 32.487 236 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=313, Time=9'179'038);
+comment: 32.517 236 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=314, Time=9'208'364);
+comment: 32.532 237 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=315, Time=9'237'690);
+comment: 32.584 739 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=316, Time=9'267'016);
+comment: 32.595 989 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=317, Time=9'296'342);
+comment: 32.623 490 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=318, Time=9'325'668);
+comment: 32.657 241 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=319, Time=9'354'994);
+comment: 32.684 742 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=320, Time=9'384'320);
+comment: 32.722 244 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=321, Time=9'413'646);
+comment: 32.744 744 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=322, Time=9'442'972);
+comment: 32.775 996 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=323, Time=9'472'298);
+comment: 32.803 496 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=324, Time=9'501'624);
+comment: 32.840 997 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=325, Time=9'530'950);
+comment: 32.863 498 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=326, Time=9'560'276);
+comment: 32.893 499 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=327, Time=9'589'602);
+comment: 32.931 001 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=328, Time=9'618'928);
+comment: 32.953 501 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=329, Time=9'648'254);
+comment: 32.976 002 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=330, Time=9'677'580);
+comment: 33.003 503 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=331, Time=9'706'906);
+comment: 33.032 254 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=332, Time=9'736'232);
+comment: 33.069 756 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=333, Time=9'765'558);
+comment: 33.092 256 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=334, Time=9'794'884);
+comment: 33.129 757 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=335, Time=9'824'210);
+comment: 33.158 508 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=336, Time=9'853'536);
+comment: 33.186 009 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=337, Time=9'882'862);
+comment: 33.213 511 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=338, Time=9'912'188);
+comment: 33.251 012 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=339, Time=9'941'514);
+comment: 33.274 762 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=340, Time=9'970'840);
+comment: 33.312 264 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=341, Time=10'000'166);
+comment: 33.334 764 750;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=345..379, Duration=1031 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=345, Time=10'117'470);
+comment: 33.443 518 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=346, Time=10'146'796);
+comment: 33.481 020 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=347, Time=10'176'122);
+comment: 33.508 520 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=348, Time=10'205'448);
+comment: 33.537 271 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=349, Time=10'234'774);
+comment: 33.564 773 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=350, Time=10'264'100);
+comment: 33.602 273 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=351, Time=10'293'426);
+comment: 33.624 774 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=352, Time=10'322'752);
+comment: 33.656 025 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=353, Time=10'352'078);
+comment: 33.683 527 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=354, Time=10'381'404);
+comment: 33.731 028 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=355, Time=10'410'730);
+comment: 33.746 028 375;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=356, Time=10'440'056);
+comment: 33.777 279 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=357, Time=10'469'382);
+comment: 33.804 780 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=358, Time=10'498'708);
+comment: 33.852 281 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=359, Time=10'528'034);
+comment: 33.874 783 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=360, Time=10'557'360);
+comment: 33.886 033 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=361, Time=10'586'686);
+comment: 33.914 784 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=362, Time=10'616'012);
+comment: 33.952 285 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=363, Time=10'645'338);
+comment: 33.974 786 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=364, Time=10'674'664);
+comment: 34.014 788 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=365, Time=10'703'990);
+comment: 34.037 288 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=366, Time=10'733'316);
+comment: 34.064 789 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=367, Time=10'762'642);
+comment: 34.092 290 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=368, Time=10'791'968);
+comment: 34.129 791 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=369, Time=10'821'294);
+comment: 34.158 542 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=370, Time=10'850'620);
+comment: 34.186 043 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=371, Time=10'879'946);
+comment: 34.213 544 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=372, Time=10'909'272);
+comment: 34.251 045 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=373, Time=10'938'598);
+comment: 34.274 796 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=374, Time=10'967'924);
+comment: 34.292 297 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=375, Time=10'997'250);
+comment: 34.329 798 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=376, Time=11'026'576);
+comment: 34.357 300 875;
+
+dummy--dummy: etc...;
+};
+
+layer64_m..layer64_s:   Stream\n\- (Codec=BSC, Protection=CSS-T, SeqNum=380..399, Duration=578 ms) {
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=380, Time=11'143'880);
+comment: 34.483 553 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=381, Time=11'173'206);
+comment: 34.506 055 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=382, Time=11'202'532);
+comment: 34.534 805 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=383, Time=11'231'858);
+comment: 34.572 306 875;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=384, Time=11'261'184);
+comment: 34.594 807 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=385, Time=11'290'510);
+comment: 34.622 308 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=386, Time=11'319'836);
+comment: 34.656 060 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=387, Time=11'349'162);
+comment: 34.683 560 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=388, Time=11'378'488);
+comment: 34.721 062 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=389, Time=11'407'814);
+comment: 34.736 062 125;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=390, Time=11'437'140);
+comment: 34.766 063 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=391, Time=11'466'466);
+comment: 34.793 564 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=392, Time=11'495'792);
+comment: 34.831 065 500;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=393, Time=11'525'118);
+comment: 34.853 566 750;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=394, Time=11'554'444);
+comment: 34.891 067 250;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=395, Time=11'583'770);
+comment: 34.918 568 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=396, Time=11'613'096);
+comment: 34.946 069 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=397, Time=11'642'422);
+comment: 34.973 571 625;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=398, Time=11'671'748);
+comment: 35.011 072 000;
+
+layer64_m<-layer64_s:   Packet\n\- (Codec=BSC, Protection=CSS-T, SeqNum=399, Time=11'701'074);
+comment: 35.034 823 250;
+
+};
+
+layer64_m..layer64_s:  Forward Pressed > Accepted {
+
+layer64_m->layer64_s:  Control\n\- (Subunit=Panel, Opcode=Pass Through, Operation=Forward, Button=Pressed);
+comment: 34.875 439 250;
+
+layer64_m<-layer64_s:  Accepted\n\- (Subunit=Panel, Opcode=Pass Through, Operation=Forward, Button=Pressed);
+comment: 34.889 817 250;
+
+};
+

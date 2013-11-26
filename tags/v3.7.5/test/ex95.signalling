@@ -1,0 +1,17 @@
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+mark top;
+C==C: Generate\nrequest;
+C=>S: Request;
+note: This must\nbe very fast;
+mark q_top;
+S..B: Server gets info
+{
+    S>>B: Query;
+    S<<B: Response;
+};
+vertical brace q_top-- at S- :Query;
+C<=S: Reply;
+vertical range top<-> at C-: Whole process;
