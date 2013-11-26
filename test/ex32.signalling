@@ -3,10 +3,10 @@ C [label="Client"],
 S [label="Server"],
 B [label="Backend"];
 ->C: Hit [strong];
-C==C: Generate\nrequest;
+box C==C: Generate\nrequest;
 C=>S: Request;
-S--S: Check cache;
-S--B: Alt\#1: cache miss
+box S--S: Check cache;
+box S--B: Alt\#1: cache miss
 {
     S->B: Query;
     S<-B: Response;

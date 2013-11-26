@@ -2,10 +2,10 @@ C: Client;
 S: Server;
 B: Backend;
 ->C: Hit;
-C==C: Generate\nrequest;
+box C==C: Generate\nrequest;
 C=>S: Request;
-S--S: Check cache;
-S--B: Alt\#1: cache miss
+box S--S: Check cache;
+box S--B: Alt\#1: cache miss
     [color=lgray]
 {
     S->B: Query;

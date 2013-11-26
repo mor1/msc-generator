@@ -21,7 +21,6 @@ ADD: variant #1 double and triple-line joints for emphasis
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
 ADD: symbol cross/text [marker] at vertxpos [rotate];
-ADD: message lost (and lost arrowhead)
 ADD: mark centerline
 FIX: Regression Bugs in Contour Expand still remain...
 FIX: Too much compress after adding MITER_LIMIT
@@ -37,34 +36,43 @@ CHANGE: move CSH calculation to a parallel thread
 ADD: Rectangle in SimpleContour
 FIX: Contour test mistakes (esp 740_006)
 FIX: EntityDef leaks
-
-Later
-Rethink entity positioning and allow freer group definitions....
+CHANGE: Rethink entity positioning and allow freer group definitions....
 ADD: Button to disable tracking rectangles & controls (if much faster)
-ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
-     Add also to comments (including the ability to hide). Allow 'hspace comments'.
 ADD: Ability to change page setup during print preview
 ADD: Print preview even without a printer...?
 ADD: Ability to do multipage PDF export
-ADD: box around grouped entities all along the chart
-ADD: group entities without a label
-ADD: Allow arrow to a group entity...
-ADD: hints for built-in styles after defstyle
-ADD: 'box' as syntactic sugar
 ADD: diagonal gradients
 ADD: more colors
 FIX: test.signalling from Michael on end of January, draws thicker text sometimes
 FIX: Full screen not covering entire screen
 FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
+ADD: box around grouped entities all along the chart
+
+In 3.8.1
+ADD: group entities without a label
+ADD: Allow arrow to a group entity...
+ADD: hints for built-in styles after defstyle
+
+
+In 3.7.5 (feature freeze for 3.8)
+FIXED: Reworked shape support properly
+DOCED: shapes
+CHANGED: Installer now creates a copy of msc-gen.exe as mscgen.exe
+
+In 3.7.4
+FIXED: vertical box/arrow
+ADDED: Shape support 'shape', 'shape.size', shape file format
+ADDED: -S option to command line
 
 In 3.7.3
-ADD: vertical_xy styles to the document
-ADD: lost arrows, verticals to the designlib
+ADDED: vertical_xy styles to the document
+ADDED: lost arrows, verticals to the designlib
 FIXED: lost pointer verticals should be squared at the bottom.
 FIXED: Verticals should insert space only between markers they run
-FIX: if I collapse demo's block arrows, they suck
-FIX: verticals do not take line color from style.
+FIXED: if I collapse demo's block arrows, they suck
+FIXED: verticals do not take line color from style.
+ADDED: 'box' as syntactic sugar
 
 In 3.7.2
 ADDED: POINTER vertical text.width
@@ -120,7 +128,9 @@ In 3.5.22
 FIXED: OLE bug (no drawing when system DLLs open Msc-generator with an embedded object)
 FIXED: A 64-bit integer bug
 FIXED: Gcc 4.8 STL destroyed an array on resize: The inability of ArcList to copy was apparent. 
-ADDED: wrap attribute and text wrapping
+ADDEd: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+       Add also to comments (including the ability to hide). Allow 'hspace comments'.
+	   wrap attribute and text wrapping
 ADDED: warning on overfill when wrapping
 ADDED: width attribute for notes
 ADDED: comment.text, comment.side chart options, they are equal to "defstlye comment"

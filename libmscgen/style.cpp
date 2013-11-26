@@ -58,7 +58,8 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm
  * @param [in] vf True if the style shall contain vfill attributes.
  * @param [in] mr True if the style shall contain the `makeroom` attribute.
  * @param [in] n True if the style shall contain note attributes.
- * @param [in] lo True if the style shall contain loss related attributes.
+ * @param [in] lo True if the style shall contain lost.* attributes.
+ * @param [in] lsym True if the style shall contain loss symbol attributes (x.*)
  */
 MscStyle::MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a, 
                    bool t, bool l, bool f, bool s, bool vl,

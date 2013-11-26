@@ -80,8 +80,9 @@ public:
 	bool m_bPageBreaks;                  ///<True if page breaks are to be displayed
 	unsigned m_uFallbackResolution;      ///<The resolution of fallback images (OLE objects)
     std::map<string, Context> m_Designs; ///<The list of designs in the design library.
+    MscError m_ShapeErrors;              ///<Errors collected during the compilation of the shape files.
     MscError m_DesignErrors;             ///<Errors collected during the compilation of the design lib.
-	Csh m_designlib_csh;                 ///<The color & other info collected during design library. Used to seed the Csh of the internal editor.
+    Csh m_designlib_csh;                 ///<The color & other info collected during design library. Used to seed the Csh of the internal editor.
 	CString m_CopyrightText;             ///<The copyright text to display at the bottom of the charts.
     bool m_bDoCshProcessing;             ///<True if we do CSH processing of the internal editor text. (Needed not just for coloring, but also for smart ident.)
 	bool m_bShowCsh;                     ///<True if we show CSH markings in internal editor.
@@ -124,9 +125,10 @@ public:
 
     void UpdatePrinterData();
     bool NormalizeUserMargins();
+    void DisplayErrors(const MscError &error, bool warnings, const char *type);
 	void ReadRegistryValues(bool reportProblem);
-    int ReadShapes(bool reportProblem, const char *fileName);
-    int ReadDesigns(bool reportProblem, const char *fileName);
+    int ReadDesigns(unsigned folder, const char *fileName);
+    int ReadShapes(unsigned folder, const char *fileName);
     /** True if the internal editor is running */
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}

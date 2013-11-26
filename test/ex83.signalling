@@ -1,18 +1,20 @@
+defstyle note, comment [text.color=red];
+defstyle note [line.color=red];
 C: Client;
 S: Server;
 B: Backend;
 ->C: Hit;
-..: Server query
+box ..: Server query
 {
-    C==C: Generate\nrequest;
+    box C==C: Generate\nrequest;
     C=>S: Request;
     note: This must\nbe very fast;
-    S..B: Server gets info
+    box S..B: Server gets info
     {
        S>>B: Query;
        S<<B: Response;
     };
-    comment: 
+    comment:
        An important part of this
        process is that it runs
        entirely inside the Backend

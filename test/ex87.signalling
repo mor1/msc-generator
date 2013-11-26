@@ -5,7 +5,7 @@ note at b: arrow [note.pointer=arrow];
 note at c: callout;
 note at d: no pointer [note.pointer=none];
 vspace 80;
-b--c: A nice\nlittle box;
+box b--c: A nice\nlittle box;
 note: right [note.pos = right];
 note: left_up [note.pos = left_up];
 note: far [note.pos = far];

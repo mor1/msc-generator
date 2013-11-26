@@ -367,6 +367,7 @@ Msc::Msc() :
     defWNoteWidth = 0.8;
     trackFrameWidth = 4;
     trackExpandBy = 2;
+    entityShapeHeight = 60;
 
     pedantic=false;
     ignore_designs = false;

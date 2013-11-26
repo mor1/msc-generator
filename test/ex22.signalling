@@ -2,9 +2,9 @@ C: Client;
 S: Server;
 B: Backend;
 ->C: Hit;
-C==C: Generate\nrequest;
+box C==C: Generate\nrequest;
 C=>S: Request;
-S..B: Server gets info
+box S..B: Server gets info
 {
     S>>B: Query;
     S<<B: Response;

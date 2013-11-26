@@ -5,8 +5,8 @@ a->b: First line
 b->c: First line
       \-Smaller text
       And here, too!;
-a--c: \prAll lines
-      right aligned...{
-    a..c: ... or only \prthe
-          second one;
+box a--c: \prAll lines
+         right aligned... {
+    box a..c: ... or only \prthe
+              second one;
 };

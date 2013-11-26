@@ -2,11 +2,11 @@ C: Client;
 S: Server;
 B: Backend;
 ->C: Hit;
-..: Server query
+box ..: Server query
 {
-  C==C: Generate\nrequest [strong];
+  box C==C: Generate\nrequest [strong];
   C=>S: Request;
-  S..B: Server gets info
+  box S..B: Server gets info
       [color=lgray]
   {
     S>>B: Query;

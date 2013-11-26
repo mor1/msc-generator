@@ -12,7 +12,7 @@ a->b: Arabic numbers;
   a->b: Set last number [number=5];
 };
 a->b: Back to one level;
-a--b: Alternative \#1 {
+box a--b: Alternative \#1 {
   numbering.append = "abc";
   a->b: Step \N;
   b->a: Step \N;

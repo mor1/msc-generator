@@ -1,10 +1,15 @@
 a, b;
---: Overall [fill.color = "blue+50",
+--: Overall [fill.color = blue+50,
              fill.gradient=up] {
-    a--b [fill.color="red"]:     solid;
-    a--b [fill.color="red,128"]: transparent;
-    a--b [fill.color="red-50"]:  dark red;
-    a--b [fill.color="red+50"]:  light red;
-    a--b [fill.color=none]:      none;
+    a--b [fill.color=red]:     solid;
+    a--b [fill.color=red,128]: transparent;
+    a--b [fill.color=red-50]:  dark red;
+    a--b [fill.color=red+50]:  light red;
+    a--b [fill.color=none]:    none;
+    defstyle arrow [line.color=red, 
+                    arrow.color=green, 
+                    text.color=blue];
+    a->b: Unmodified;
+    a->b: Yellow overcast [color=++yellow,150];
 };
 

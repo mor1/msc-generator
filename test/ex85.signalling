@@ -2,11 +2,12 @@ msc += hcn;
 C: Client;
 S: Server;
 ->C: Hit;
-..: Server query
+box..: Server query
 {
-    C==C: Generate\nrequest;
+    box C==C: Generate\nrequest;
     note: This is\na NOTE;
     C=>S: Request;
+    endnote: This is an ENDNOTE;
     C<=S: Reply;
     comment: This is a COMMENT;
 };
