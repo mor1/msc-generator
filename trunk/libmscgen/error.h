@@ -207,6 +207,7 @@ public:
     ErrorElement FormulateElement(FileLineCol linenum, FileLineCol linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
     /** Clearing all collected errors and warnings, but keeps the files.*/
     void Clear() {Errors.clear(); ErrorsAndWarnings.clear(); hadFatal=false;}
+    MscError &operator+=(const MscError &);
 };
 
 #endif

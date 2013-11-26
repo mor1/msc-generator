@@ -380,6 +380,7 @@ public:
     double defWNoteWidth;    ///<The default width for word wrapping notes in pos "space"
     double trackFrameWidth;  ///<Width of the frames used for tracking boxes and pipes on screen 
     double trackExpandBy;    ///<How much do we expand tracking covers 
+    double entityShapeHeight;///<The default height of an entity shape with size=normal.
     /** @} */
 
     /** @name Parse Options 
@@ -392,6 +393,7 @@ public:
     EntityCollapseCatalog force_entity_collapse;      ///<These entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;         ///<These boxes must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse_instead; ///<After parsing, this holds an updated version of the box collapse/expanded instructions (removing nonexistent boxes, etc)
+    std::set<unsigned> used_shapes;                   ///<The id number of the shapes we used (for saving them in OLE objects)
     /** @} */
 
     Msc();

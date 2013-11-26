@@ -95,7 +95,7 @@ bool StringFormat::IsComplete() const
         word_wrap.first;
 }
 
-/** Sets the fully specified default font. 
+/** Sets the fully specified default font.
  * Font sizes are 16 and 10 point, all margins at 2,
  * no line spacing, centered, black, not bold, not italic,
  * not underlined, face name is "Arial". */
@@ -727,7 +727,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 }
 
 /** Tells if the string has any escape character or not*/
-bool StringFormat::HasEscapes(const char *text) 
+bool StringFormat::HasEscapes(const char *text)
 {
     if (text==NULL || text[0]==0) return false;
     StringFormat sf;
@@ -742,7 +742,7 @@ bool StringFormat::HasEscapes(const char *text)
 }
 
 
-/** Adds CSH entries to csh for each formatting escape. 
+/** Adds CSH entries to csh for each formatting escape.
  * Malformed "\c" and "\s" arguments are assumed OK
  * @param [in] startpos The location of the first byte of `text` in the input file.
  * @param [in] text The text to process.
@@ -787,7 +787,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
  * @param text The text to process.
  * @param msc The chart to add errors to and a source for style, color and reference names.
  * @param [in] linenum The location of the first byte of `text` in the input file.
- * @param [in] basic The formatting to use for empty "\s()" "\c()" "\mX()" and "\f()" escapes. 
+ * @param [in] basic The formatting to use for empty "\s()" "\c()" "\mX()" and "\f()" escapes.
  *                   Can be NULL if not available, in this case the above escapes are left as is.
  *                   If not null, it must point to a fully specified StringFormat object.
  * @param [in] references True if the msc->References are complete. If false, "\r" escapes left intact.
@@ -1312,8 +1312,8 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 }
 
 
-/** Adds numbering to a label. 
- * By default to the beginning of it, unless "\N" escape directs it elsewhere. 
+/** Adds numbering to a label.
+ * By default to the beginning of it, unless "\N" escape directs it elsewhere.
  * If we find a "\N" escape in the label we replace that to `num` (for multiple "\N"s, if needed).
  * If we find no such escape, we add `pre_num_post` to the beginning, 
  * but after the initial formatting strings.
@@ -1729,7 +1729,7 @@ double Label::Reflow(Canvas &c, double x)
     return overflow;
 }
 
-double Label::getSpaceRequired(double def, int line) const 
+double Label::getSpaceRequired(double def, int line) const
 {
     if (size()==0) return 0;
     if (at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second)
@@ -1830,6 +1830,8 @@ Contour Label::Cover(double s, double d, double t, ESide side, double c) const
         ret.Rotate(-90);
         ret.Shift(XY(0, s+d));
         break;
+    default:
+        break;
     }
     return ret;
 }
@@ -1843,6 +1845,9 @@ void Label::Draw(Canvas &canvas, double s, double d, double t, ESide side, doubl
         break;
     case ESide::RIGHT:
         canvas.Transform_Rotate90(s, d, true);
+        break;
+    default:
+        break;
     }
     Draw(canvas, std::min(s, d), std::max(s, d), t, c, side != ESide::END);
     if (side != ESide::END)

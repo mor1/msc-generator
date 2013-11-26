@@ -2383,6 +2383,7 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
     default:
         _ASSERT(0); //fallthrough
     case ARROW_OR_BOX:
+        SetStyleWithText("vertical");
         break;
     case BRACE:
         SetStyleWithText("vertical_brace");
@@ -2873,6 +2874,9 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
     case ESide::END:
         t_text = (ypos[0] + ypos[1] - twh.y)/2;
         break;
+    default:
+        _ASSERT(0);
+        break;
     }
     //Warn if label does not fit
     if ((style.read().side.second==ESide::END && ypos[1]-ypos[0] < twh.y) || 
@@ -2900,6 +2904,10 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
         case ESide::END:
             s_text = xpos - twh.x/2;
             d_text = xpos + twh.x/2;
+            break;
+        default:
+            _ASSERT(0);
+            break;
         }
         break;
     case POINTER:
@@ -2923,6 +2931,10 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
                 d_text = xpos + width/2;
                 s_text = d_text - twh.x;
             }
+            break;
+        default:
+            _ASSERT(0);
+            break;
         }
         xpos += (left ? 1 : -1) * (width/2) - vline_off;
         break;

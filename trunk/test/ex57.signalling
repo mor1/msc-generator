@@ -3,11 +3,11 @@ parallel {
     a->b: first msg;
     a<-b: second msg;
 };
-c--d: This will
-      be besides;
+box c--d: This will
+          be besides;
 
 parallel {
     c->d: third msg;
     c<-d: fourth msg;
 };
-a--c: This cannot be besides;
+box a--c: This cannot be besides;

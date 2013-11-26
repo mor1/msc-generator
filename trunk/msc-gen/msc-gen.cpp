@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
-*/
+*/          
 
 // msc-gen.cpp : Defines the entry point for the console application.
 //
@@ -31,65 +31,101 @@
 
 using namespace std;
 
-string ReadDesigns(const char *fileName) 
+/** Get the path to a folder.
+* 1==the folder of the executable
+* 2==appdata/mscgenerator fodler */
+std::string GetFolder(unsigned folder)
 {
-	if (!fileName || !fileName[0]) fileName = "designlib.signalling";
-	char buff[1024]; 
-	GetModuleFileName(NULL, buff, 1024);
-	std::string dir(buff);
-	int pos = dir.find_last_of('\\');
-	dir = dir.substr(0,pos).append("\\");
-	string ret; 
+    char buff[MAX_PATH];
+    std::string dir;
+    if (folder == 1) {
+        GetModuleFileName(NULL, buff, MAX_PATH);
+        dir = buff;
+        unsigned pos = dir.find_last_of('\\');
+        _ASSERT(pos!=std::string::npos);
+        dir.erase(pos+1);
+    } else if (folder==2) {
+        if (!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, buff)))
+            return dir;
+        dir = buff;
+        dir.append("\\Msc-generator\\");
+    }
+    return dir;
+}
+
+std::list<std::pair<std::string, std::string>> ReadDesigns()
+{
+    string dir = GetFolder(1);
+    std::list<std::pair<std::string, std::string>> ret;
 
 	WIN32_FIND_DATA find_data;
-	HANDLE h= FindFirstFile((dir+fileName).c_str(), &find_data);
+	HANDLE h= FindFirstFile((dir+"designlib.signalling").c_str(), &find_data);
+    if (h == INVALID_HANDLE_VALUE) {
+        FindClose(h);
+        h = FindFirstFile((dir+"original_designlib.signalling").c_str(), &find_data);
+    }
 	bool bFound = h != INVALID_HANDLE_VALUE;
 	while (bFound) {
-		FILE *in = fopen((dir+find_data.cFileName).c_str(), "rb");
+		FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
 		char *buffer = ReadFile(in);
-		ret += buffer;
-		free(buffer);
+        if (buffer) {
+            ret.emplace_back(dir+find_data.cFileName, buffer);
+            free(buffer);
+        }
 		bFound = FindNextFile(h, &find_data);
 	}
 	FindClose(h);
-	return ret;
-}
 
-std::list<std::pair<std::string,std::string>> ReadShapes(const char *fileName)
-{
-    std::list<std::pair<std::string, std::string>> ret;
-    if (!fileName || !fileName[0]) fileName = "*.shape";
-    char buff[1024];
-    GetModuleFileName(NULL, buff, 1024);
-    std::string dir(buff);
-    int pos = dir.find_last_of('\\');
-    dir = dir.substr(0, pos).append("\\");
-
-    WIN32_FIND_DATA find_data;
-    HANDLE h = FindFirstFile((dir+fileName).c_str(), &find_data);
-    bool bFound = h != INVALID_HANDLE_VALUE;
-    while (bFound) {
-        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
-        char *buffer = ReadFile(in);
-        ret.emplace_back(dir+find_data.cFileName, buffer);
-        free(buffer);
-        bFound = FindNextFile(h, &find_data);
-    }
-    FindClose(h);
-    //Now look for in the roaming folder
-    h = FindFirstFile((string("%appdata%\\Msc-generator\\")+fileName).c_str(), &find_data);
+    dir = GetFolder(2);
+    h = FindFirstFile((dir+"*.signalling").c_str(), &find_data);
     bFound = h != INVALID_HANDLE_VALUE;
     while (bFound) {
         FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
         char *buffer = ReadFile(in);
-        ret.emplace_back(dir+find_data.cFileName, buffer);
-        free(buffer);
+        if (buffer) {
+            ret.emplace_back(dir+find_data.cFileName, buffer);
+            free(buffer);
+        }
         bFound = FindNextFile(h, &find_data);
     }
     FindClose(h);
     return ret;
 }
 
+std::list<std::pair<std::string, std::string>> ReadShapes()
+{
+    string dir = GetFolder(1);
+    std::list<std::pair<std::string, std::string>> ret;
+
+    WIN32_FIND_DATA find_data;
+    HANDLE h = FindFirstFile((dir+"default.shape").c_str(), &find_data);
+    bool bFound = h != INVALID_HANDLE_VALUE;
+    while (bFound) {
+        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+        char *buffer = ReadFile(in);
+        if (buffer) {
+            ret.emplace_back(dir+find_data.cFileName, buffer);
+            free(buffer);
+        }
+        bFound = FindNextFile(h, &find_data);
+    }
+    FindClose(h);
+
+    dir = GetFolder(2);
+    h = FindFirstFile((dir+"*.shape").c_str(), &find_data);
+    bFound = h != INVALID_HANDLE_VALUE;
+    while (bFound) {
+        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
+        char *buffer = ReadFile(in);
+        if (buffer) {
+            ret.emplace_back(dir+find_data.cFileName, buffer);
+            free(buffer);
+        }
+        bFound = FindNextFile(h, &find_data);
+    }
+    FindClose(h);
+    return ret;
+}
 
 bool progressbar(double percent, void *p) 
 {
@@ -111,13 +147,22 @@ bool progressbar(double percent, void *p)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+    std::list<std::pair<std::string, std::string>> designs, shapes;
+    bool oLoadShapes = true;
+    bool oLoadDesigns = true;
     std::list<std::string> args;
-    for(int i=1; i<argc; i++)
+    for (int i = 1; i<argc; i++) {
         args.push_back(std::string(argv[i]));
+        if (args.back()=="--nodesigns")
+            oLoadDesigns = false;
+        else if (args.back()=="--noshapes")
+            oLoadShapes = false;
+    }
 
-	string designs = ReadDesigns("designlib.signalling");
-    if (designs.length()==0) 
-        designs = ReadDesigns("original_designlib.signalling");
+    if (oLoadShapes)
+        shapes = ReadShapes();
+    if (oLoadDesigns)
+        designs = ReadDesigns();
 
     HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
 
@@ -135,8 +180,8 @@ int _tmain(int argc, _TCHAR* argv[])
             load_data = buffer;
         }
     }
-    int ret = do_main(args, designs.c_str(), ReadShapes("*.shape"),
-                      "\\f(courier new)\\mn(12)", 
+
+    int ret = do_main(args, designs, shapes, "\\f(courier new)\\mn(12)", 
                       progressbar, hOut, &load_data);
     RegSetKeyValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
                    REG_KEY_LOAD_DATA, REG_SZ, load_data.c_str(), load_data.length()+1);

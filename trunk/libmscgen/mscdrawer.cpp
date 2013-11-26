@@ -1304,7 +1304,7 @@ void Canvas::SetColor(ColorType pen)
     }
 }
 
-void Canvas::SetLineAttr(LineAttr line)
+void Canvas::SetLineAttr(const LineAttr &line)
 {
 	if (line.color.first && line.color.second.type!=ColorType::INVALID)
         SetColor(line.color.second);
@@ -1314,7 +1314,7 @@ void Canvas::SetLineAttr(LineAttr line)
         SetDash(line);
 }
 
-void Canvas::SetDash(LineAttr line)
+void Canvas::SetDash(const LineAttr &line)
 {
     unsigned num;
     const double * const pattern = line.DashPattern(num);

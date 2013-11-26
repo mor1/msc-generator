@@ -10,7 +10,7 @@ b->c: Message 4;
 symbol ... center at b-c;
 b->c: Message \in;
 mark circletop [offset=-5];
-c--c: OK: enough;
+box c--c: OK: enough;
 mark circlebottom [offset=+5];
 symbol arc circletop-circlebottom center at c
 [fill.color=none, line.width=3, line.color=red, xsize=120];

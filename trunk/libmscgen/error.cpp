@@ -133,3 +133,22 @@ string MscError::Print(bool oWarnings) const
     return a;
 }
 
+
+MscError &MscError::operator += (const MscError &o)
+{
+    hadFatal |= o.hadFatal;
+    const unsigned old_e = Errors.size();
+    const unsigned old_w = ErrorsAndWarnings.size();
+    Errors.insert(Errors.end(), o.Errors.begin(), o.Errors.end());
+    ErrorsAndWarnings.insert(ErrorsAndWarnings.end(), o.ErrorsAndWarnings.begin(), o.ErrorsAndWarnings.end());
+    for (unsigned u = old_e; u<Errors.size(); u++) {
+        Errors[u].relevant_line.file += Files.size();
+        Errors[u].ordering_line.file += Files.size();
+    }
+    for (unsigned u = old_w; u<ErrorsAndWarnings.size(); u++) {
+        ErrorsAndWarnings[u].relevant_line.file += Files.size();
+        ErrorsAndWarnings[u].ordering_line.file += Files.size();
+    }
+    Files.insert(Files.end(), o.Files.begin(), o.Files.end());
+    return *this;
+}

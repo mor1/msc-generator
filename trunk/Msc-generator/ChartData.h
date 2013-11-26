@@ -162,6 +162,7 @@ public:
 	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
 	CString GetErrorText(unsigned num, bool oWarnings) const;
 	CString GetDesignNames() const;
+    const std::set<unsigned> &GetUsedShapes() const { return GetMsc()->used_shapes; }
 //Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(unsigned forced_page=0) const;

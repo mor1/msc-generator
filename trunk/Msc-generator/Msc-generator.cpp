@@ -572,6 +572,19 @@ bool CMscGenApp::NormalizeUserMargins()
     return ps.x<0 || ps.y<0;
 }
 
+void CMscGenApp::DisplayErrors(const MscError &error, bool warnings, const char *type)
+{
+    if (error.GetErrorNum(warnings)==0)
+        return;
+    string msg = "There were errors in the ";
+    msg.append(type);
+    msg.append(" file.\n");
+    for (unsigned u = 0; u<std::min(10U, error.GetErrorNum(warnings)); u++)
+        msg.append(error.GetErrorText(u, warnings)).append("\n");
+    MessageBox(0, msg.c_str(), "Msc-generator errors", MB_OK);
+}
+
+
 /** Read our stored settings from the registry and reads the design library.
  * @param [in] reportProblem If true, we report any problems.*/
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
@@ -650,10 +663,16 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		"a->b:new message;\r\n");
 
     //fills m_ChartSourcePreamble and m_SetOfDesigns
-	if (1==ReadDesigns(reportProblem, "designlib.signalling")) //designlib.signalling not found in install dir
-	    ReadDesigns(reportProblem, "original_designlib.signalling"); //use original_designlib.signalling 
-	//FillDesignDesignCombo("", true);
-	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
+	if (1==ReadDesigns(1, "designlib.signalling")) //designlib.signalling not found in install dir
+	    ReadDesigns(1, "original_designlib.signalling"); //use original_designlib.signalling 
+    ReadDesigns(2, "*.signalling"); //load designs from appdata
+    DisplayErrors(m_DesignErrors, true, "design library");
+
+    ReadShapes(1, "default.shape");
+    ReadShapes(2, "*.shape");
+    DisplayErrors(m_ShapeErrors, true, "shape library");
+
+    m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net ";
 	m_CopyrightText.Append(VersionText());
 
@@ -663,88 +682,77 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		for (int i=0; i<COLOR_MAX; i++) 
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
 
-    ReadShapes(reportProblem, "*.shape");
 }
 
-/** Read the shapes from the design library and display a modal dialog
-* if there is a problem.
-* @param [in] reportProblem If false, we silently ignore errors.
+/** Get the path to a folder.
+ * 1==the folder of the executable
+ * 2==appdata/mscgenerator fodler 
+ * other values return the empty string*/
+std::string GetFolder(unsigned folder)
+{
+    char buff[MAX_PATH];
+    std::string dir;
+    if (folder == 1) {
+        GetModuleFileName(NULL, buff, MAX_PATH);
+        dir = buff;
+        unsigned pos = dir.find_last_of('\\');
+        ASSERT(pos!=std::string::npos);
+        dir.erase(pos+1);
+    } else if (folder==2) {
+        if (!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, buff)))
+            return dir;
+        dir = buff;
+        dir.append("\\Msc-generator\\");
+    }
+    return dir;
+}
+
+/** Read the shapes from the design library.
+* Errors are collected into m_ShapeErrors
+* @param [in] folder Which folder to look in (0: current, 1:executable's, 
+*                    2:appdata/roaming/Msc-generator
 * @param [in] fileName The name of the file to read from.
-*                      Searched in the executable's directory.
+*                      Searched in the folder specified.
 *                      Can contain wildcards, all matching files are loaded.
 * @returns 0 if OK; 1 if no file found; 2 if file found but there were errors in it (you can probably ignore them)*/
-int CMscGenApp::ReadShapes(bool reportProblem, const char *fileName)
+int CMscGenApp::ReadShapes(unsigned folder, const char *fileName)
 {
-    if (!fileName || !fileName[0]) fileName = "*.shape";
-    char buff[1024];
-    GetModuleFileName(NULL, buff, 1024);
-    std::string dir(buff);
-    int pos = dir.find_last_of('\\');
-    dir = dir.substr(0, pos).append("\\");
-    
-    MscError Error;
-    bool found = false;
+    CString shape_filename = GetFolder(folder).append(fileName).c_str();
 
-    WIN32_FIND_DATA find_data;
-    HANDLE h = FindFirstFile((dir+fileName).c_str(), &find_data);
-    bool bFound = h != INVALID_HANDLE_VALUE;
-    while (bFound) {
-        found = true;
-        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
-        char *buffer = ReadFile(in);
-        Error.AddFile(find_data.cFileName);
-        Entity::AddToShapes(buffer, Error);
-        free(buffer);
-        bFound = FindNextFile(h, &find_data);
-    }
-    FindClose(h);
-
-    //Now look for in the roaming folder
-    TCHAR szPath[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, szPath))) {
-        dir = szPath;
-        dir.append("\\Msc-generator\\");
-        h = FindFirstFile((dir+fileName).c_str(), &find_data);
-        bFound = h != INVALID_HANDLE_VALUE;
-        while (bFound) {
-            found = true;
-            FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
-            char *buffer = ReadFile(in);
-            Error.AddFile(find_data.cFileName);
-            Entity::AddToShapes(buffer, Error);
-            free(buffer);
-            bFound = FindNextFile(h, &find_data);
-        }
-        FindClose(h);
-    }
-    if (!found)
+    unsigned old_err = m_ShapeErrors.GetErrorNum(false);
+    CFileFind finder;
+    bool bFound = finder.FindFile(shape_filename);
+    if (!bFound)
         return 1;
-    if (Error.hasErrors() && reportProblem)
-        MessageBox(NULL, "Error in shape file!", "Msc-generator", MB_OK);
-    return Error.hasErrors() ? 2 : 0;
+    while (bFound) {
+        bFound = finder.FindNextFile();
+        FILE *in = fopen(finder.GetFilePath(), "r");
+        if (in) {
+            char *buffer = ReadFile(in);
+            if (buffer) {
+                m_ShapeErrors.AddFile(string(finder.GetFileName()));
+                Entity::AddToShapes(buffer, m_ShapeErrors);
+                free(buffer);
+            }
+            fclose(in);
+        }
+    }
+    return old_err == m_ShapeErrors.GetErrorNum(false) ?  0 : 2;
 }
 
-/** Read the designs from the design library and display a modal dialog 
- * if there is a problem.
- * Always updates m_ChartSourcePreamble and m_SetOfDesigns (at problem they 
+/** Read the designs from the design library.
+* Errors are collected into m_DesignErrors
+* Always updates m_ChartSourcePreamble and m_SetOfDesigns (at problem they
  * may be empty or partial).
- * @param [in] reportProblem If false, we silently ignore errors.
+ * @param [in] folder Which folder to look for. 0=none - filename contains folder,
+ *                    1=the folder of the executable, 2=the appdata folder of the user
  * @param [in] fileName The name of the file to read from. 
  *                      Searched in the executable's directory.
  *                      Can contain wildcards, all matching files are loaded.
  * @returns 0 if OK; 1 if no file found; 2 if file found but there were errors in it (you can probably ignore them)*/
-int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
+int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
 {
-    char buff[1024];
-    GetModuleFileName(NULL, buff, 1024);
-    std::string dir(buff);
-    unsigned pos = dir.find_last_of('\\');
-    ASSERT(pos!=std::string::npos);
-
-	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
-
-	//clear existing designs
-    m_Designs.clear();
+	CString designlib_filename = GetFolder(folder).append(fileName).c_str();
 
 	CString msg;
 	CFileFind finder;
@@ -770,12 +778,10 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 		}
 	}
     //copy the designs & errors from data to m_Designs/m_DesignErrors
-    m_Designs = std::move(msc.Designs);
-    m_DesignErrors = std::move(msc.Error);
+    m_Designs.insert(msc.Designs.begin(), msc.Designs.end());
+    m_DesignErrors += msc.Error;
     //create pre-parsed data for csh
     m_designlib_csh.ParseText(text, text.GetLength(), -1, 1);
-    if (m_DesignErrors.GetErrorNum(false) && reportProblem) 
-		MessageBox(NULL, "Error in design file!", "Msc-generator", MB_OK);
 	return errors?2:0;
 }
 

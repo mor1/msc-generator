@@ -10,4 +10,4 @@ Left_MN, Left_AR, Server, Right_AR, Right_MN;
     Right_AR<-Right_MN: Response;
     Server<-Right_AR: Response;
 };
-Server--Server: Now I have both;
+box Server--Server: Now I have both;

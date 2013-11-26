@@ -1,5 +1,5 @@
-B: Backend [strong],
-S: Server\n\-(Frontend);
+B: Backend [shape=def.oval];
+S: Server\n\-(Frontend) [strong];
 C: Client [weak];
 
 C<-: Hit;

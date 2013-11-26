@@ -199,10 +199,8 @@ friend class StringFormat; //for all sorts of text manipulation
 friend class ArcBox;  //for exotic line joints
 friend class ArcPipe;  //for exotic line joints
      /** @name Cairo context attribute handing */
-    /** Set color, line with and dash */
-    void SetLineAttr(LineAttr);
     /** Set dash */
-    void SetDash(LineAttr);
+    void SetDash(const LineAttr &);
     /** Set the font face and bold/italics */
     void SetFontFace(const char*face, bool italics, bool bold);
     /** Set the size of the font */
@@ -297,6 +295,8 @@ public:
     cairo_t *GetContext() const {return cr;}
     /** Our current total size*/
     const Block &GetSize() const {return total;}
+    /** Set color, line with and dash */
+    void SetLineAttr(const LineAttr&);
 
     /** True if the target does not support complex clipping */
     bool NeedsArrowFix() const {return needs_arrow_fix;}

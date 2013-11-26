@@ -32,6 +32,7 @@
 #include <string>
 #include <list>
 #include <set>
+#include <map>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -322,6 +323,13 @@ void CMscGenDoc::Serialize(CArchive& ar)
 }
 
 
+struct stringpair
+{
+    string url, info;
+    stringpair(const string &a, const string &b) : url(a), info(b) {}
+    bool operator < (const stringpair &o) const { return url==o.url ? info < o.info : url < o.url; }
+};
+
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
 
 void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
@@ -330,7 +338,7 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
 	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING); //if format starts with this string, we have file version afterwards
-		ar << unsigned(5); //file format version
+		ar << unsigned(6); //file format version
         ar << m_ChartShown.GetDesign();
 		ar << page;
 		ar << m_ChartShown.GetText();
@@ -355,6 +363,23 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
             ar << CString(i->first.c_str()) << unsigned(i->second);
         ar << pApp->m_uFallbackResolution;
         ar << pApp->m_bPageBreaks;
+        //List shapes used
+        if (m_ChartShown.GetUsedShapes().size()) {
+            std::multimap<stringpair, string> shapes;
+            for (unsigned u : m_ChartShown.GetUsedShapes())
+                shapes.emplace(stringpair(Entity::GetShapeURL(u), Entity::GetShapeInfo(u)), 
+                               Entity::GetShapeName(u));
+            for (auto i = shapes.begin(); i!=shapes.end(); /*nope*/) {
+                unsigned count = shapes.count(i->first);
+                _ASSERT(count);
+                ar << count;
+                ar << CString(i->first.url.c_str());
+                ar << CString(i->first.info.c_str());
+                for (unsigned u = 0; u<count; u++, i++)
+                    ar << CString(i->second.c_str());
+            }
+        }
+        ar << 0; //terminating shapes
     } else {
         CChartData chart;
 		CString text;
@@ -441,6 +466,50 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
             m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
             ar >> pApp->m_bPageBreaks;
             m_bSavedPageBreaks = pApp->m_bPageBreaks;
+        }
+        if (file_version >= 6) { // since 3.7.5
+            unsigned count;
+            ar >> count;
+            CString message;
+            bool unknown = false;
+            unsigned enumerator = 1;
+            while (count) {
+                CString url, info;
+                ar >> url;
+                ar >> info;
+                bool added = false;
+                while (count--) {
+                    CString name;
+                    ar >> name;
+                    if (!added && Entity::GetShapeNo(string(name))<0) {
+                        if (url.GetLength()+info.GetLength()>0) {
+                            message.AppendFormat("%d. ", enumerator++);
+                            if (info.GetLength()) {
+                                message.Append(info);
+                                if (url.GetLength()) {
+                                    message.Append(" (");
+                                    message.Append(url);
+                                    message.Append(")");
+                                }
+                            } else //only url
+                                message.Append(url);
+                            message.Append("\n");
+                        } else
+                            unknown = true;
+                        added = true;
+                    }
+                }
+                ar >> count;
+            }
+            if (message.GetLength()) {
+                message.Insert(0, "The embedded chart contains shapes from the following shape files not present on this machine.\n");
+                if (unknown)
+                    message.Append("Plus unknown shape files.\n");
+                message.Append("These shapes will be missing.");
+            } else if (unknown)
+                message = "The embedded chart contains shapes not present on this machine.\nThese shapes will be missing.";
+            if (message.GetLength())
+                MessageBox(NULL, message, "Msc-generator error", MB_OK);
         }
         CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
         if (pMainWnd) {

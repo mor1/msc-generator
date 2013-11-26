@@ -264,6 +264,8 @@
 		<row><td>NewBinary18</td><td/><td>&lt;ISProductFolder&gt;\Redist\Language Independent\OS Independent\InstallStateMenu.ico</td></row>
 		<row><td>NewBinary19</td><td/><td>&lt;ISRedistPlatformDependentFolder&gt;\SerialNumCAHelper.dll</td></row>
 		<row><td>NewBinary2</td><td/><td>&lt;ISProductFolder&gt;\Redist\Language Independent\OS Independent\New.ibd</td></row>
+		<row><td>NewBinary20</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\NewSetup\copymscgenexe.vbs</td></row>
+		<row><td>NewBinary21</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\NewSetup\copymscgenexe1.vbs</td></row>
 		<row><td>NewBinary3</td><td/><td>&lt;ISProductFolder&gt;\Redist\Language Independent\OS Independent\Up.ibd</td></row>
 		<row><td>NewBinary4</td><td/><td>&lt;ISProductFolder&gt;\Redist\Language Independent\OS Independent\WarningIcon.ibd</td></row>
 		<row><td>NewBinary5</td><td/><td>&lt;ISProductFolder&gt;\Support\Themes\InstallShield Blue Theme\welcome.jpg</td></row>
@@ -384,6 +386,7 @@
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td>{193AA9F8-E5C7-4196-A2DF-54AFE3FAE89F}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F8AE738D0AA641CAB7D8B65901C55A14</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td>{43B9C35A-4383-4AF6-B29F-1AD1BEF3D701}</td><td>INSTALLDIR</td><td>6</td><td/><td>_FC302F634BBF45E493B93DB97A6CDDB4</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>ISX_DEFAULTCOMPONENT</td><td>{7324E4F3-F2D9-45D1-8254-59DFD8050C47}</td><td>MSC_GENERATOR1</td><td>2</td><td/><td/><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
+		<row><td>ISX_DEFAULTCOMPONENT1</td><td>{A98204CC-2F60-47F4-95B4-503327CCD0D8}</td><td>INSTALLDIR</td><td>2</td><td/><td/><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>cairo.dll</td><td>{3969BC11-488A-46FA-B62D-2294C75513C2}</td><td>INSTALLDIR</td><td>2</td><td/><td>cairo.dll</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 	</table>
 
@@ -1106,6 +1109,7 @@
 		<col def="S0">Target</col>
 		<col def="I4">ExtendedType</col>
 		<col def="S255">ISComments</col>
+		<row><td>CopyMscGenExe</td><td>3142</td><td>NewBinary20</td><td/><td/><td/></row>
 		<row><td>ISPreventDowngrade</td><td>19</td><td/><td>[IS_PREVENT_DOWNGRADE_EXIT]</td><td/><td>Exits install when a newer version of this product is found</td></row>
 		<row><td>ISPrint</td><td>1</td><td>SetAllUsers.dll</td><td>PrintScrollableText</td><td/><td>Prints the contents of a ScrollableText control on a dialog.</td></row>
 		<row><td>ISRunSetupTypeAddLocalEvent</td><td>1</td><td>ISExpHlp.dll</td><td>RunSetupTypeAddLocalEvent</td><td/><td>Run the AddLocal events associated with the Next button on the Setup Type dialog.</td></row>
@@ -1115,6 +1119,7 @@
 		<row><td>ISSetAllUsers</td><td>257</td><td>SetAllUsers.dll</td><td>SetAllUsers</td><td/><td/></row>
 		<row><td>ISUnSelfRegisterFiles</td><td>3073</td><td>ISSELFREG.DLL</td><td>ISUnSelfRegisterFiles</td><td/><td/></row>
 		<row><td>LaunchProgramFileFromSetupCompleteSuccess</td><td>1</td><td>NewBinary19</td><td>LaunchProgram</td><td/><td/></row>
+		<row><td>PrepareCopyMscGenExe</td><td>6</td><td>NewBinary21</td><td/><td/><td/></row>
 		<row><td>SetARPINSTALLLOCATION</td><td>51</td><td>ARPINSTALLLOCATION</td><td>[INSTALLDIR]</td><td/><td/></row>
 		<row><td>SetARPReadme</td><td>51</td><td>ARPREADME</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\Release notes.rtf</td><td/><td/></row>
 		<row><td>SetAllUsersProfileNT</td><td>51</td><td>ALLUSERSPROFILE</td><td>[%SystemRoot]\Profiles\All Users</td><td/><td/></row>
@@ -1959,6 +1964,7 @@
 		<row><td>AlwaysInstall</td><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td></row>
 		<row><td>AlwaysInstall</td><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td></row>
 		<row><td>AlwaysInstall</td><td>ISX_DEFAULTCOMPONENT</td></row>
+		<row><td>AlwaysInstall</td><td>ISX_DEFAULTCOMPONENT1</td></row>
 		<row><td>AlwaysInstall</td><td>cairo.dll</td></row>
 	</table>
 
@@ -1982,6 +1988,7 @@
 		<row><td>_9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>C__9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>ORIGIN~1.SIG|original_designlib.signalling</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\original_designlib.signalling</td><td>5</td><td/></row>
 		<row><td>_AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>msc-gen.pdf</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\msc-gen.pdf</td><td>5</td><td/></row>
 		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.14-vs100\cairo.dll</td><td>1</td><td/></row>
+		<row><td>default.shape</td><td>ISX_DEFAULTCOMPONENT1</td><td>DEFAUL~1.SHA|default.shape</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\default.shape</td><td>1</td><td/></row>
 	</table>
 
 	<table name="FileSFPCatalog">
@@ -2167,6 +2174,7 @@
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td/><td/><td>_2011E60F_EC57_4CC6_B66C_E102F657D765_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td/><td/><td>_7C2FFFF4_2B54_4CC7_BF65_36B5A77AC7A5_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>ISX_DEFAULTCOMPONENT</td><td/><td/><td>_0C407677_D108_4208_B918_BA27AF88FCE0_FILTER</td><td/><td/><td/><td/></row>
+		<row><td>ISX_DEFAULTCOMPONENT1</td><td/><td/><td>_239097B1_48A4_40EF_BC7F_71B2970811A2_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>cairo.dll</td><td/><td/><td>_2878D91F_2ECD_41CF_96D4_ACFA568EB7AB_FILTER</td><td/><td/><td/><td/></row>
 	</table>
 
@@ -4042,6 +4050,7 @@
 		<row><td>AppSearch</td><td/><td>400</td><td>AppSearch</td><td/></row>
 		<row><td>BindImage</td><td/><td>4300</td><td>BindImage</td><td/></row>
 		<row><td>CCPSearch</td><td>CCP_TEST</td><td>500</td><td>CCPSearch</td><td/></row>
+		<row><td>CopyMscGenExe</td><td>Not Installed</td><td>6405</td><td/><td/></row>
 		<row><td>CostFinalize</td><td/><td>1000</td><td>CostFinalize</td><td/></row>
 		<row><td>CostInitialize</td><td/><td>800</td><td>CostInitialize</td><td/></row>
 		<row><td>CreateFolders</td><td/><td>3700</td><td>CreateFolders</td><td/></row>
@@ -4181,6 +4190,7 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>MaintenanceWelcome</td><td>Installed And Not RESUME And Not Preselected And Not PATCH</td><td>1230</td><td>MaintenanceWelcome</td><td/></row>
 		<row><td>MigrateFeatureStates</td><td/><td>1200</td><td>MigrateFeatureStates</td><td/></row>
 		<row><td>PatchWelcome</td><td>Installed And PATCH And Not IS_MAJOR_UPGRADE</td><td>1205</td><td>Patch Panel</td><td/></row>
+		<row><td>PrepareCopyMscGenExe</td><td>Not Installed</td><td>1207</td><td/><td/></row>
 		<row><td>RMCCPSearch</td><td>Not CCP_SUCCESS And CCP_TEST</td><td>600</td><td>RMCCPSearch</td><td/></row>
 		<row><td>ResolveSource</td><td>Not Installed</td><td>990</td><td>ResolveSource</td><td/></row>
 		<row><td>SetARPReadme</td><td/><td>1001</td><td/><td/></row>
@@ -4529,9 +4539,9 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>PROGMSG_IIS_ROLLBACKVROOTS</td><td>##IDS_PROGMSG_IIS_ROLLBACKVROOTS##</td><td/></row>
 		<row><td>PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS</td><td>##IDS_PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS##</td><td/></row>
 		<row><td>PROGRAMFILETOLAUNCHATEND</td><td>[INSTALLDIR]Msc-generator.Primary Output</td><td/></row>
-		<row><td>ProductCode</td><td>{B929167B-6C18-4CD0-AD6B-76A26B791125}</td><td/></row>
+		<row><td>ProductCode</td><td>{CE77CCE7-3BE9-4E84-9326-3F19C8032701}</td><td/></row>
 		<row><td>ProductName</td><td>Msc-generator</td><td/></row>
-		<row><td>ProductVersion</td><td>3.7.3</td><td/></row>
+		<row><td>ProductVersion</td><td>3.7.5</td><td/></row>
 		<row><td>ProgressType0</td><td>install</td><td/></row>
 		<row><td>ProgressType1</td><td>Installing</td><td/></row>
 		<row><td>ProgressType2</td><td>installed</td><td/></row>
