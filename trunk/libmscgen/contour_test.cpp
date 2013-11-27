@@ -21,6 +21,7 @@
  */
 #include <string>
 #include "contour.h"
+#include "contour_bezier.h"
 
 namespace contour {
 
@@ -928,6 +929,84 @@ void contour_test_tangent(unsigned num)
 }
 
 
+using namespace contour2;
+
+void DrawBezier(CairoContext &c, contour2::Edge &A)
+{
+    cairo_move_to(c.cr, A.start.x, A.start.y);
+    if (A.straight)
+        cairo_line_to(c.cr, A.end.x, A.end.y);
+    else
+        cairo_curve_to(c.cr, A.c1.x, A.c1.y, A.c2.x, A.c2.y, A.end.x, A.end.y);
+    cairo_set_line_width(c.cr, 1);
+    cairo_set_source_rgb(c.cr, 0, 0, 0);
+    cairo_stroke(c.cr);
+}
+
+void DrawDot(CairoContext &c, XY p)
+{
+    cairo_arc(c.cr, p.x, p.y, 5, 0, 2*M_PI);
+    cairo_fill(c.cr);
+}
+
+void DrawIntersection(CairoContext &c, contour2::Edge &A, std::vector<contour2::Edge> &OK, 
+    double off=0)
+{
+    DrawBezier(c, A);
+    for (unsigned uu = 0; uu<OK.size(); uu++) {
+        DrawBezier(c, OK[uu].CreateShifted(XY(0, off*(uu+1))));
+        double m[10], o[10];
+        XY r[10];
+        unsigned num = A.Crossing(OK[uu], r, m, o);
+        for (unsigned u = 0; u<num; u++)
+            DrawDot(c, r[u]+XY(0, off*(uu+1)));
+    }
+}
+
+void contour_test_bezier(unsigned num)
+{
+    contour2::Edge A(XY(10, 100), XY(110, 100));
+    std::vector<contour2::Edge> OK = {
+        contour2::Edge(XY(20, 100), XY(120, 100)),
+        contour2::Edge(XY(0, 100), XY(120, 100)),
+        contour2::Edge(XY(20, 100), XY(90, 100)),
+        contour2::Edge(XY(0, 100), XY(10, 100)),
+        contour2::Edge(XY(0, 100), XY(5, 100)),
+        contour2::Edge(XY(110, 100), XY(120, 100)),
+        contour2::Edge(XY(115, 100), XY(120, 100)),
+        contour2::Edge(XY(50, 50), XY(75, 150))
+    };
+    DrawIntersection(CairoContext(num, Block(-10, 200, -10, 200), "bezier 1"), A, OK, 10);
+
+    {
+        CairoContext c(num+1, Block(-10, 200, -10, 200), "bezier 2");
+        contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
+        DrawBezier(c, B);
+        B.Split(C, D);
+        C.Split(E, F);
+        DrawBezier(c, C);
+        DrawBezier(c, D);
+        DrawBezier(c, E);
+        DrawBezier(c, F);
+    }
+
+
+    contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50));
+    std::vector<contour2::Edge> OK2 = {
+        contour2::Edge(XY(50, 50), XY(75, 150)),
+        contour2::Edge(XY(10, 50), XY(75, 150)),
+        contour2::Edge(XY(80, 50), XY(45, 150), XY(100, 90), XY(70, 150)),
+        contour2::Edge(XY(100, 50), XY(45, 50), XY(120, 140), XY(20, 150))
+    };
+    DrawIntersection(CairoContext(num+2, Block(-10, 200, -10, 200), "bezier 3"), B, OK2);
+
+    auto b = B.Angle(false, 0);
+    auto c = B.Angle(true, 0.5);
+    auto d = B.Angle(false, 0.5);
+    auto e = B.Angle(true, 1);
+
+}
+
 /** A set of drawing operations drawing interesting test cases.
  * @ingroup contour_internal
  * Not very sophisticated, I admit.
@@ -936,13 +1015,14 @@ void contour_test(void)
 {
     //contour_test_basic();
     //contour_test_assign(111);
-    contour_test_lohere();
-    contour_test_area(400);
-    contour_test_relations(7000);
-    contour_test_distance(7100);
-    contour_test_cut(7300);
-    contour_test_expand2D(7400);
-    contour_test_tangent(7500);
+    //contour_test_lohere();
+    //contour_test_area(400);
+    //contour_test_relations(7000);
+    //contour_test_distance(7100);
+    //contour_test_cut(7300);
+    //contour_test_expand2D(7400);
+    //contour_test_tangent(7500);
+    contour_test_bezier(8000);
 }
 
 } //namespace
