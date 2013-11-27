@@ -1097,6 +1097,8 @@ Range EntityApp::Height(Area &cover, const EntityAppList &children)
         }
         area.arc = this;
         area_important = area;
+        cover = area;
+        cover.mainline = Block(chart->GetDrawing().x, area.GetBoundingBox().y);
         return area.GetBoundingBox().y;
     }
     const XY wh = parsed_label.getTextWidthHeight();

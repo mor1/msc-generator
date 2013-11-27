@@ -255,6 +255,7 @@
     <ClCompile Include="area.cpp" />
     <ClCompile Include="commands.cpp" />
     <ClCompile Include="contour.cpp" />
+    <ClCompile Include="contour_bezier.cpp" />
     <ClCompile Include="contour_edge.cpp" />
     <ClCompile Include="contour_ellipse.cpp" />
     <ClCompile Include="contour_simple.cpp" />
@@ -297,6 +298,7 @@
     <ClInclude Include="element.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="error.h" />
+    <ClInclude Include="contour_bezier.h" />
     <ClInclude Include="language.h" />
     <ClInclude Include="language2.h" />
     <ClInclude Include="language_misc.h" />
