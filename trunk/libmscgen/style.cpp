@@ -400,7 +400,7 @@ void MscStyle::AttributeNames(Csh &csh) const
 
 /** Callback for drawing a symbol before side values in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     const ESide t = (ESide)(int)p;

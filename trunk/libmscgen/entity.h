@@ -25,6 +25,88 @@
 #include "element.h"
 #include "style.h"
 
+/**Desribes a Shape component. 
+ * This is either one vertex of the shape, or a section delimiter, or a 
+ * hint or text box. */
+struct ShapeElement
+{
+    enum Type
+    {
+        LINE_TO = 0,
+        MOVE_TO = 1,
+        CURVE_TO = 2,
+        CLOSE_PATH = 3,
+        HINT_AREA = 4,
+        TEXT_AREA = 5,
+        URL = 6,
+        INFO = 7,
+        SECTION_BG = 8,
+        SECTION_FG_LINE = 9,
+        SECTION_FG_FILL = 10
+    };
+
+    Type action;
+    static const char act_code[];
+    double x, y;
+    double x1, y1;
+    double x2, y2;
+    string str;
+    ShapeElement(Type aa, double a = 0, double b = 0, double c = 0, double d = 0, double e = 0, double f = 0)
+        : action(aa), x(a), y(b), x1(c), y1(d), x2(e), y2(f) { if (aa>=SECTION_BG && a==int(a) && a>=0 && a<=2) aa = Type(SECTION_BG + unsigned(a));}
+    ShapeElement(Type aa, const char *s)
+        : action(aa), str(s? s: "") {}
+    static int GetNumArgs(Type t) { return t==LINE_TO||t==MOVE_TO ? 2 : t==CURVE_TO ? 6 : t==HINT_AREA || t==TEXT_AREA ? 4 : t==CLOSE_PATH ? 0 : t==INFO||t==URL ? -1 : 1; }
+    static const char * ErrorMsg(Type t, int numargs);
+    string Write() const;
+};
+
+/**Describes a Shape*/
+class Shape
+{
+    Block max;
+    Block label_pos;
+    Block hint_pos;
+    std::string url;
+    std::string info;
+    std::vector<ShapeElement> bg, fg_fill, fg_line;
+    std::vector<ShapeElement> &GetSection() { return current_section==0 ? bg : current_section==1 ? fg_fill : fg_line; }
+    unsigned current_section;
+public:
+    const std::vector<ShapeElement> &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
+    const std::string name;
+    const FileLineCol definition_pos;
+    Shape() : url(), info(), current_section(1), name(), definition_pos() {}
+    Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i);
+    Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i, Shape &&s);
+    bool IsEmpty() const { return bg.size()+fg_fill.size()+fg_line.size() == 0; }
+    void Add(ShapeElement &&e);
+    Block GetLabelPos(const Block &o) const;
+    Block GetHintPos() const { return hint_pos; }
+    Block GetMax() const { return max; }
+    const string &GetURL() const { return url; }
+    const string &GetInfo() const { return info; }
+    string Write() const;
+    void Path(cairo_t *cr, unsigned section, const Block &o) const;
+};
+
+/** Describes a collection of shapes */
+class ShapeCollection
+{
+    std::vector<Shape> shapes;
+public:
+    operator bool() const { return shapes.size()>0; }
+    const Shape &operator [](unsigned sh) const { return shapes[sh]; }
+    bool Add(const char *shape_text, MscError &error);
+    string Write() const;
+    unsigned ShapeNum() const { return shapes.size(); }
+    int GetShapeNo(const string&sh_name) const;
+    void  AttributeValues(Csh &csh) const;
+    std::vector<const string*> ShapeNames() const;
+    void Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const;
+    const Shape * GetShape(unsigned shape) { if (shape>=shapes.size()) return NULL; return &shapes[shape]; }
+};
+
+
 /** Describes the status of an entity, like shown, hidden or active.
  * This essentially encapsulates an enum and add helpers.*/
 class EEntityStatus {
@@ -120,13 +202,6 @@ public:
     void AddChildrenList(const EntityAppList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
-
-    static bool AddToShapes(const char *shape_def, MscError &error); ///<Adds a set of shape description to the shape library
-    static int GetShapeNo(const string&sh_name);           ///<Returns the number of a shape by this name, -1 if none
-    static const string &GetShapeName(unsigned shape);
-    static const string &GetShapeURL(unsigned shape);
-    static const string &GetShapeInfo(unsigned shape);
-    static void DrawShape(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill); ///<Draws a shape
 };
 
 /** A list of Entity object pointers.
@@ -263,7 +338,7 @@ public:
     mutable Block  outer_edge;           ///<The outer edge of a heading we have to draw, set in Height().
     mutable double indicator_ypos_offset;///<The y position of the indicator of a collapsed group entity within the entity heading. -1 if no indicator to be shown.
 
-    explicit EntityApp(const char *s, Msc* chart);
+    EntityApp(const char *s, Msc* chart);
 
     virtual bool AddAttribute(const Attribute&);
     EntityAppHelper* AddAttributeList(AttributeList *, ArcList *children, FileLineCol l);

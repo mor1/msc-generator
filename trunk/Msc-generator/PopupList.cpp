@@ -27,6 +27,7 @@
 
 CHintListBox::CHintListBox()
 {
+    m_shapes = NULL;
     m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
@@ -71,6 +72,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
     if (m_current_hints == csh.Hints)
         return false; //no change
     m_current_hints = csh.Hints;
+    m_shapes = &csh.GetShapeCollection();
     return true;
 }
 
@@ -238,7 +240,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     if (item->callback) {
         const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
         cairo_translate(canvas.GetContext(), 0, y2);
-        item->callback(&canvas, item->param);
+        item->callback(&canvas, item->param, );
         //We do not restore the context, we drop it anyway
     }
 

@@ -432,7 +432,7 @@ void LineAttr::AttributeNames(Csh &csh, const string &prefix)
 
 /** Callback for drawing a symbol before line type names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForLineType(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForLineType(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     LineAttr line(ELineType(int(p)), ColorType(0,0,0), 1, CORNER_NONE, 0);
@@ -443,7 +443,7 @@ bool CshHintGraphicCallbackForLineType(Canvas *canvas, CshHintGraphicParam p)
 
 /** Callback for drawing a symbol before corner type names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForCornerType(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForCornerType(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
@@ -834,7 +834,7 @@ bool FillAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 
 /** Callback for drawing a symbol before gradient names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForGradient(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForGradient(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-2;
@@ -1031,7 +1031,7 @@ string ShadowAttr::Print(int) const
 
 /** Callback for drawing a symbol before 'yes' or 'no' in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
@@ -1265,7 +1265,7 @@ bool NoteAttr::AttributeValues(const std::string &attr, Csh &csh)
 
 /** Callback for drawing a symbol before note pointer type names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool NoteAttr::CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p)
+bool NoteAttr::CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
 {
     if (!canvas) return false;
     const NoteAttr::EPointerType v = NoteAttr::EPointerType(p);
@@ -1309,7 +1309,7 @@ bool NoteAttr::CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicPa
         break;
     case NoteAttr::BLOCKARROW: 
         canvas->Clip(Block(HINT_GRAPHIC_SIZE_X*0.2-1, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y));
-        CshHintGraphicCallbackForBigArrows(canvas, (int)MSC_ARROW_SOLID);
+        CshHintGraphicCallbackForBigArrows(canvas, (int)MSC_ARROW_SOLID, csh);
         canvas->UnClip();
     default:
         break;
@@ -1320,7 +1320,7 @@ bool NoteAttr::CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicPa
 
 /** Callback for drawing a symbol before names of values for the note positions in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool NoteAttr::CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p)
+bool NoteAttr::CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     double dist = 1;

@@ -1005,6 +1005,17 @@ void contour_test_bezier(unsigned num)
     auto d = B.Angle(false, 0.5);
     auto e = B.Angle(true, 1);
 
+
+    {
+        CairoContext c(num+3, Block(-10, 200, -10, 200), "bezier 4");
+        contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
+        DrawBezier(c, B);
+        B.Split(C, D);
+        C.Split(E, F);
+        Block BB = B.CreateBoundingBox();
+        cairo_rectangle(c.cr, BB.x.from, BB.y.from, BB.x.Spans(), BB.y.Spans());
+        cairo_stroke(c.cr);
+    }
 }
 
 /** A set of drawing operations drawing interesting test cases.

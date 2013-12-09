@@ -193,7 +193,7 @@ public:
 };
 
 bool CshHintGraphicCallbackForArrows(Canvas *canvas, EArrowType type, EArrowSize size, bool left);
-bool CshHintGraphicCallbackForBigArrows(Canvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForBigArrows(Canvas *canvas, CshHintGraphicParam p, Csh&);
 
 
 #endif //ARROWHEAD_H

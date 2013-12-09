@@ -24,12 +24,18 @@ along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 #if !defined(CONTOUR_BEZIER_H)
 #define CONTOUR_BEZIER_H
 
-#include "contour_basics.h"
 #include "cairo.h"
+#include "contour_distance.h"
 
 namespace contour2 {
 
-using namespace contour;
+    using contour::XY;
+    using contour::Block;
+    using contour::Range;
+    using contour::DistanceType;
+    using contour::test_zero;
+    using contour::test_equal;
+    using contour::test_smaller;
 
 /** A helper class describing how an edge arrives/leaves a crosspoint.
 *
@@ -102,7 +108,7 @@ public:
     const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
 
 //protected:
-    XY Split(double t) const { XY a, b; return Split(t, a, b); }
+    XY Split(double t) const;
     XY Split(double t, XY &r1, XY &r2) const;
     XY Split() const { XY a, b; return Split(a, b); }
     XY Split(XY &r1, XY &r2) const;
@@ -136,13 +142,15 @@ public:
     unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
     RayAngle Angle(bool incoming, double pos) const;
-
-
-
-
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
+
+
+
+
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-//    DistanceType Distance(const Edge &) const;    //always nonnegative
+
+
+    DistanceType Distance(const Edge &) const;    //always nonnegative
 
     double GetAreaAboveAdjusted() const;
     double GetLength() const; ///<Returns the length of the arc.
