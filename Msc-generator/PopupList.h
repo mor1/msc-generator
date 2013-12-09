@@ -28,6 +28,7 @@ public:
     CSize             m_current_size;
     StringFormat      m_format;
     int               m_cur_sel;
+    const ShapeCollection *m_shapes;
     CHintListBox();
     bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey);
     CSize SetHintsToCurrent();

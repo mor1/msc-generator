@@ -686,7 +686,7 @@ int do_main(const std::list<std::string> &args,
     if (oLoadShapes)
         for (auto &p: shape_files) {
             msc.Error.AddFile(p.first);
-            Entity::AddToShapes(p.second.c_str(), msc.Error);
+            msc.Shapes.Add(p.second.c_str(), msc.Error);
         }
 
     if (oOutType == Canvas::ISMAP) {
@@ -699,7 +699,7 @@ int do_main(const std::list<std::string> &args,
     } else if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
-        Csh csh(ArcBase::defaultDesign);
+        Csh csh(ArcBase::defaultDesign, &msc.Shapes);
         if (strlen(input)>std::numeric_limits<string::size_type>::max()-10) {
             string err = "The input '";
             err << oInputFile << "' is too long (" << strlen(input) << " bytes).";

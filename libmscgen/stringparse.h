@@ -87,7 +87,7 @@ enum ETriState {no=0, yes, invert};
 /** Same as ESCAPE_CHAR_WORD_WRAP, but in string*/
 #define ESCAPE_STRING_SPACE "\x05"
 
-bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, Csh &);
 
 /**This class stores string formatting (bold, color, fontsize, etc.)
  * Contrary to other attribute types (LineAttr, FillAttr, ShadowAttr,

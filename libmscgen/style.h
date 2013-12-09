@@ -37,7 +37,7 @@ enum class ESideType {
 };
 
 bool IsValidSideValue(ESideType t, ESide v);
-bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p, Csh &);
 
 /** Describes, how the unqualified "color" attribute shall be interpreted */
 enum class EColorMeaning {

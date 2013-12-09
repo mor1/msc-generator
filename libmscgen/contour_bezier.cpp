@@ -22,8 +22,18 @@ along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "contour_bezier.h"
+#include <vector>
 
 namespace contour2 {
+
+XY Edge::Split(double t) const
+{
+    return pow(1-t, 3) * start
+            + 3 * pow(1-t, 2) * t * c1
+            + 3 * (1-t) * pow(t, 2) * c2
+            + pow(t, 3) * end;
+}
+
 
 inline XY Mid(const XY &A, const XY &B, double t)
 {
@@ -410,7 +420,7 @@ ETriangleDirType triangle_dir(XY a, XY b, XY c)
 * @param B the other end.
 * @returns The fake angle from 'A' to 'B'. -1 on error (degenerate cases)
 */
-double angle(XY base, XY A, XY B)
+double compute_angle(XY base, XY A, XY B)
 {
     bool clockwise;
     switch (triangle_dir(base, A, B)) {
@@ -447,8 +457,8 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     _ASSERT(!incoming || pos>0); //shoud not ask for an incoming angle at pos==0
     _ASSERT(incoming  || pos<1); //shoud not ask for an outgoing angle at pos==0
     if (straight)
-        return RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : 
-                                   angle(start, XY(start.x+100, start.y), end));
+        return RayAngle(incoming ? compute_angle(end, XY(end.x+100, end.y), start) : 
+                                   compute_angle(start, XY(start.x+100, start.y), end));
 
     //bezier curve radius calc, see http://blog.avangardo.com/2010/10/c-implementation-of-bezier-curvature-calculation/
 
@@ -475,15 +485,61 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     const double invRadius = r2 / r1; //the inverse of the (signed) radius
 
     if (pos==0) //must be outgoing
-        return RayAngle(angle(start, XY(start.x+100, start.y), c1), invRadius); 
+        return RayAngle(compute_angle(start, XY(start.x+100, start.y), c1), invRadius);
     if (pos==1) //must be incoming
-        return RayAngle(angle(end, XY(end.x+100, start.y), c2), -invRadius);
+        return RayAngle(compute_angle(end, XY(end.x+100, start.y), c2), -invRadius);
     XY A, B;
     const XY C = Split(pos, A, B);
-    return incoming ? RayAngle(angle(C, XY(C.x+100, C.y), A), -invRadius) :
-                      RayAngle(angle(C, XY(C.x+100, C.y), B), invRadius);
+    return incoming ? RayAngle(compute_angle(C, XY(C.x+100, C.y), A), -invRadius) :
+                      RayAngle(compute_angle(C, XY(C.x+100, C.y), B), invRadius);
 }
 
+inline double COORD(const XY &p, unsigned i) { return i ? p.y : p.x; }
+
+Block Edge::CreateBoundingBox() const
+{
+    //from: http://stackoverflow.com/questions/2587751/an-algorithm-to-find-bounding-box-of-closed-bezier-curves
+    std::vector<XY> bounds; 
+    bounds.reserve(6);
+    bounds.push_back(start);
+    bounds.push_back(end);
+
+    for (unsigned i = 0; i < 2; ++i) {
+        double b = 6 * COORD(start, i) - 12 * COORD(c1, i) + 6 * COORD(c2, i);
+        double a = -3 * COORD(start, i) + 9 * COORD(c1, i) - 9 * COORD(c2, i) + 3 * COORD(end, i);
+        double c = 3 * COORD(c1, i) - 3 * COORD(start, i);
+        if (a == 0) {
+            if (b == 0) {
+                continue;
+            }
+            double t = -c / b;
+            if (0 < t && t < 1) 
+                bounds.push_back(Split(t));
+            continue;
+        }
+        double b2ac = pow(b, 2) - 4 * c * a;
+        if (b2ac < 0) {
+            continue;
+        }
+        double  t1 = (-b + sqrt(b2ac))/(2 * a);
+        if (0 < t1 && t1 < 1) 
+            bounds.push_back(Split(t1));
+        double  t2 = (-b - sqrt(b2ac))/(2 * a);
+        if (0 < t2 && t2 < 1) 
+            bounds.push_back(Split(t2));
+    }
+    const auto X = std::minmax_element(bounds.begin(), bounds.end(), 
+                     [](const XY &a, const XY &b) {return a.x<b.x; });
+    const auto Y = std::minmax_element(bounds.begin(), bounds.end(), 
+                     [](const XY &a, const XY &b) {return a.y<b.y; });
+    return Block(X.first->x, X.second->x, Y.first->y, Y.second->y);
+}
+
+double Edge::Distance(const XY &A, XY &point, double &pos) const //always nonnegative
+{
+    //http://blog.gludion.com/2009/08/distance-to-quadratic-bezier-curve.html
+    return 0;
+}
 
 
 }; //namespace

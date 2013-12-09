@@ -193,7 +193,7 @@ bool CshHintGraphicCallbackForArrows(Canvas *canvas, EArrowType type, EArrowSize
 
 /** Callback for drawing a symbol before arrowhead type names for block arrows in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForBigArrows(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForBigArrows(Canvas *canvas, CshHintGraphicParam p, Csh&)
 {
     if (!canvas) return false;
     if (!MSC_ARROW_OK_FOR_BIG_ARROWS((EArrowType)(int)p)) {
@@ -247,11 +247,11 @@ bool CshHintGraphicCallbackForArrows(Canvas *canvas, EArrowType type, EArrowSize
 
 /** Callback for drawing a symbol before arrowhead type names (in general) in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForArrowTypes(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForArrowTypes(Canvas *canvas, CshHintGraphicParam p, Csh&csh)
 {
     if (!MSC_ARROW_OK_FOR_ARROWS((EArrowType)(int)p)) {
         if (MSC_ARROW_OK_FOR_BIG_ARROWS((EArrowType)(int)p))
-            return CshHintGraphicCallbackForBigArrows(canvas, p);
+            return CshHintGraphicCallbackForBigArrows(canvas, p, csh);
         else return false;
     }
     return CshHintGraphicCallbackForArrows(canvas, (EArrowType)(int)p, MSC_ARROW_SMALL, false);
@@ -259,7 +259,7 @@ bool CshHintGraphicCallbackForArrowTypes(Canvas *canvas, CshHintGraphicParam p)
 
 /** Callback for drawing a symbol before arrowhead size names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForArrowSizes(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForArrowSizes(Canvas *canvas, CshHintGraphicParam p, Csh&)
 {
     return CshHintGraphicCallbackForArrows(canvas, MSC_ARROW_SOLID, (EArrowSize)(int)p, true);
 }

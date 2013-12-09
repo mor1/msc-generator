@@ -321,6 +321,7 @@ public:
     EntityAppList                 AutoGenEntities; ///<A list of entity appearance objects, one for each implicitly defined entity. After parsing, they are appended to the first EntityCommand.
     ArcList                       Arcs;            ///<The list of all arcs in the chart (in order of definition). Notes are moved away from here in PostParseProcess().
     std::list<Context>            Contexts;        ///<A stack of Context objects used during parsing
+    ShapeCollection               Shapes;          ///<A set of named shapes. Each one was created via 'defshape' command.
     std::map<string, Context>     Designs;         ///<A set of named designs. Each one was created via a `defdesign` command, except `plain`.
     std::map<string, MarkerData>  Markers;         ///<A set of named markers. Each one was defined via a 'mark' command.
     std::map<string, RefNameData> ReferenceNames;  ///<A set of named arcs. Each one was named via the 'refname' attribute.

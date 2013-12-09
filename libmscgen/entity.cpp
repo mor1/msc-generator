@@ -22,75 +22,40 @@
 #include <cmath>
 #include "msc.h"
 
+const char ShapeElement::act_code[] = "LMCEHTUISSS";
 
-class EntityShapeCollection
+const char * ShapeElement::ErrorMsg(Type t, int numargs)
 {
-    enum ACT {
-        LINE_TO=0, MOVE_TO=1, CURVE_TO=2, CLOSE_PATH=3
-    };
+    if (GetNumArgs(t)==numargs) return NULL;
+    switch (t) {
+    default: _ASSERT(0); return "Internal error.";
+    case LINE_TO: return "L (Line_to) commands require two numbers, an X and an Y coordinate.";
+    case MOVE_TO: return "M (Move_to) commands require two numbers, an X and an Y coordinate.";
+    case CURVE_TO: return "C (Curve_to) commands require six numbers, three 2D points: endpoint and two control points.";
+    case CLOSE_PATH: return "E (close path) commands require no parameters.";
+    case HINT_AREA: return "H (Hint area) commands require four numbers, two 2D points to represent a rectangle.";
+    case TEXT_AREA: return "T (Text area) commands require four numbers, two 2D points to represent a rectangle.";
+    case URL: return "U (URL) commands require some text.";
+    case INFO: return "I (INFO) commands require some text.";
+    case SECTION_BG: 
+    case SECTION_FG_LINE:
+    case SECTION_FG_FILL: return "S (section) commands require one number: the section number [0-2]";
+    }
+}
 
-    struct ELEMENT {
-        ACT action;
-        static const char act_code[];
-        double x, y;
-        double x1, y1;
-        double x2, y2;
-        ELEMENT(ACT aa, double a, double b, double c, double d, double e, double f)
-            : action(aa), x(a), y(b), x1(c), y1(d), x2(e), y2(f) {}
-        string Write() const;
-    };
 
-    class SHAPE
-    {
-        friend class EntityShapeCollection;
-        Block max;
-        Block label_pos;
-        Block hint_pos;
-        std::vector<ELEMENT> bg, fg_fill, fg_line;
-        std::vector<ELEMENT> &GetSection(unsigned section) { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
-    public:
-        const std::vector<ELEMENT> &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
-        const std::string name;
-        const FileLineCol definition_pos;
-        const std::string url;
-        const std::string info;
-        SHAPE() : name(), definition_pos(), url(), info() {}
-        SHAPE(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i);
-        bool IsEmpty() const { return bg.size()+fg_fill.size()+fg_line.size() == 0; }
-        void Add(const ELEMENT &e, unsigned section);
-        Block GetLabelPos(const Block &o) const;
-        Block GetHintPos() const { return hint_pos; }
-        string Write() const;
-        void Path(cairo_t *cr, unsigned section, const Block &o) const;
-    };
-
-    std::vector<SHAPE> shapes;
-public:
-    operator bool() const { return shapes.size()>0; }
-    bool Add(const char *shape_text, MscError &error);
-    string Write() const;
-    unsigned ShapeNum() const { return shapes.size(); }
-    int GetShapeNo(const string&sh_name) const;
-    Block GetLabelPos(unsigned sh, const Block &o) { if (sh<shapes.size()) return shapes[sh].GetLabelPos(o); Block a;  a.MakeInvalid(); return a; }
-    Block GetHintPos(unsigned sh) { if (sh<shapes.size()) return shapes[sh].GetHintPos(); Block a;  a.MakeInvalid(); return a; }
-    Block GetMax(unsigned sh) { if (sh<shapes.size()) return shapes[sh].max; Block a;  a.MakeInvalid(); return a; }
-    XY GetShapeSize(unsigned sh) const;
-    void  AttributeValues(Csh &csh);
-    std::vector<const string*> ShapeNames() const;
-    void Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const;
-    const SHAPE * GetShape(unsigned shape) { if (shape>=shapes.size()) return NULL; return &shapes[shape]; }
-};
-
-const char EntityShapeCollection::ELEMENT::act_code[] = "LMCE";
-
-string EntityShapeCollection::ELEMENT::Write() const
+string ShapeElement::Write() const
 {
     string ret(1, act_code[action]);
-    if (action == CLOSE_PATH) goto end;
-    ret << ' ' << x << " " << y;
-    if (action==LINE_TO || action==MOVE_TO) goto end;
-    ret << " " << x1 << " " << y1 << " " << x2 << " " << y2;
-end:
+    if (action == URL || action == INFO) 
+        ret << " " << str;
+    else if (unsigned(action) >= SECTION_BG) 
+        ret << " " << unsigned(action) - unsigned(SECTION_BG);
+    else if (action != CLOSE_PATH) {
+        ret << ' ' << x << " " << y;
+        if (action==CURVE_TO)
+            ret << " " << x1 << " " << y1 << " " << x2 << " " << y2;
+    }
     ret.append("\n");
     return ret;
 }
@@ -101,35 +66,80 @@ inline double Tr(double x, const Range &source, const Range &target)
     return (x-source.from)*(target.Spans()/source.Spans()) + target.from;
 }
 
-EntityShapeCollection::SHAPE::SHAPE(const std::string &n, const FileLineCol &l,
-                                    const std::string &u, const std::string &i) :
-    name(n),
-    definition_pos(l),
+Shape::Shape(const std::string &n, const FileLineCol &l,
+             const std::string &u, const std::string &i) :
     url(u),
-    info(i)
+    info(i),
+    current_section(1),
+    name(n),
+    definition_pos(l)
 {
     max.MakeInvalid();
     label_pos.MakeInvalid();
     hint_pos.MakeInvalid();
 }
 
-void EntityShapeCollection::SHAPE::Add(const ELEMENT &e, unsigned section)
+Shape::Shape(const std::string &n, const FileLineCol &l, const std::string &u, 
+             const std::string &i, Shape &&s) :
+    max(s.max),
+    label_pos(s.label_pos),
+    hint_pos(s.hint_pos),
+    url(u),
+    info(i),
+    bg(std::move(s.bg)),
+    fg_fill(std::move(s.fg_fill)),
+    fg_line(std::move(s.fg_line)),
+    current_section(s.current_section),
+    name(n),
+    definition_pos(l)
 {
-    //all cases fall through
+}
+
+
+void Shape::Add(ShapeElement &&e)
+{
     switch (e.action) {
-    case CURVE_TO:
+    case ShapeElement::CURVE_TO:
         max += XY(e.x1, e.y1);
         max += XY(e.x2, e.y2);
-    case LINE_TO:
-    case MOVE_TO:
+        //fallthrough
+    case ShapeElement::LINE_TO:
+    case ShapeElement::MOVE_TO:
         max += XY(e.x, e.y);
-    case CLOSE_PATH:
-        GetSection(section).push_back(e);
+        //fallthrough
+    case ShapeElement::CLOSE_PATH:
+        GetSection().push_back(e);
+        break;
+    case ShapeElement::SECTION_BG:
+        current_section = 0;
+        break;
+    case ShapeElement::SECTION_FG_FILL:
+        current_section = 1;
+        break;
+    case ShapeElement::SECTION_FG_LINE:
+        current_section = 2;
+        break;
+    case ShapeElement::HINT_AREA:
+        hint_pos = Block(e.x, e.y, e.x1, e.y1);
+        break;
+    case ShapeElement::TEXT_AREA:
+        label_pos = Block(e.x, e.y, e.x1, e.y1);
+        max += label_pos;
+        break;
+    case ShapeElement::URL:
+        url = std::move(e.str);
+        break;
+    case ShapeElement::INFO:
+        info = std::move(e.str);
+        break;
+    default:
+        _ASSERT(0);
+        break;
     }
 }
 
 
-Block EntityShapeCollection::SHAPE::GetLabelPos(const Block &o) const
+Block Shape::GetLabelPos(const Block &o) const
 {
     if (label_pos.IsInvalid()) return label_pos;
     return Block(Tr(label_pos.x.from, max.x, o.x), Tr(label_pos.x.till, max.x, o.x),
@@ -137,7 +147,7 @@ Block EntityShapeCollection::SHAPE::GetLabelPos(const Block &o) const
 }
 
 
-string EntityShapeCollection::SHAPE::Write() const
+string Shape::Write() const
 {
     string ret;
     ret << "N " << name << '\n';
@@ -165,47 +175,46 @@ string EntityShapeCollection::SHAPE::Write() const
     return ret;
 }
 
-void EntityShapeCollection::SHAPE::Path(cairo_t *cr, unsigned section, const Block &o) const
+void Shape::Path(cairo_t *cr, unsigned section, const Block &o) const
 {
     _ASSERT(section<=2);
     if (section>2)
         return;
     for (const auto &e : GetSection(section))
         switch (e.action) {
-        case MOVE_TO: cairo_move_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case LINE_TO: cairo_line_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case CURVE_TO: cairo_curve_to(cr, Tr(e.x1, max.x, o.x), Tr(e.y1, max.y, o.y),
+        case ShapeElement::MOVE_TO: cairo_move_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
+        case ShapeElement::LINE_TO: cairo_line_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
+        case ShapeElement::CURVE_TO: cairo_curve_to(cr, Tr(e.x1, max.x, o.x), Tr(e.y1, max.y, o.y),
             Tr(e.x2, max.x, o.x), Tr(e.y2, max.y, o.y),
             Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case CLOSE_PATH: cairo_close_path(cr); break;
+        case ShapeElement::CLOSE_PATH: cairo_close_path(cr); break;
     }
 }
 
 /** Syntax:
-N name: starts a new shape
-S section: starts a section. 0=background of the shape (shall be closed),
-             1=foreground of the shape (will be filled, shall be closed),
-             2=foreground of the shape (will be stroked, can be open)
+N name: starts a new Shape
+S section: starts a section. 0=background of the Shape (shall be closed),
+             1=foreground of the Shape (will be filled, shall be closed),
+             2=foreground of the Shape (will be stroked, can be open)
 M x y: MoveTo operation within a section
 L x y: Lineto operation within a section
 C x y x y x y: CurveTo, with the first coordinate being the endpoint
                the other two being the two control points.
 E: Closes a path
 T x y x y: Specifies a box where a label can be inserted. If omitted label
-           will be placed below the shape.
+           will be placed below the Shape.
 H x y x y: Specifies the portion, which shall be shown for hints. If omitted
-           all of the shape will be shown.
+           all of the Shape will be shown.
 
 */
 
-bool EntityShapeCollection::Add(const char *shape_text, MscError &Error)
+bool ShapeCollection::Add(const char *shape_text, MscError &Error)
 {
     const size_t old_size = shapes.size();
     string url, info;
     FileLineCol url_pos;
     FileLineCol fpos(Error.Files.size()-1, 1, 1);
     size_t pos = 0;
-    unsigned section = 1;
     bool block = false;
     double a, b, c, d, e, f;
     while (shape_text[pos]) {
@@ -242,65 +251,66 @@ bool EntityShapeCollection::Add(const char *shape_text, MscError &Error)
                         name.erase(name.length()-1);
                 if (name.length()==0) {
                     fpos.col = pos-line_begin+1;
-                    Error.Error(fpos, "No name specified. Skipping this shape.");
+                    Error.Error(fpos, "No name specified. Skipping this Shape.");
                     block = true;
                     break;
                 }
                 if (GetShapeNo(name)>=0) {
                     fpos.col = pos-line_begin+1;
-                    Error.Error(fpos, "Shape with name '" + name + "'is already specified. Skipping this shape.");
+                    Error.Error(fpos, "Shape with name '" + name + "'is already specified. Skipping this Shape.");
                     Error.Error(shapes[GetShapeNo(name)].definition_pos, fpos, "Location of the previous definition.");
                     block = true;
                     break;
                 }
                 if (shapes.size()>0 && shapes.back().IsEmpty()) {
                     Error.Error(shapes.back().definition_pos,
-                        "Shape '" + shapes.back().name + "' contains no actual shape. Ignoring it.");
+                        "Shape '" + shapes.back().name + "' contains no actual Shape. Ignoring it.");
                     shapes.resize(shapes.size()-1);
                 }
                 shapes.emplace_back(name, fpos, url, info);
                 block = false;
             }
-            section = 1;
             break;
         case 'L':
         case 'M':
             if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf", &a, &b) == 2)
-                shapes.back().Add(ELEMENT(shape_text[pos]=='M' ? MOVE_TO : LINE_TO, a, b, 0, 0, 0, 0), section);
+                shapes.back().Add(ShapeElement(shape_text[pos]=='M' ? ShapeElement::MOVE_TO : ShapeElement::LINE_TO, a, b, 0, 0, 0, 0));
             else
                 Error.Error(fpos, "Could not read two numbers separated by spaces. Ignoring line.");
             break;
         case 'C':
             if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf %lf %lf", &a, &b, &c, &d, &e, &f) == 6)
-                shapes.back().Add(ELEMENT(CURVE_TO, a, b, c, d, e, f), section);
+                shapes.back().Add(ShapeElement(ShapeElement::CURVE_TO, a, b, c, d, e, f));
             else
                 Error.Error(fpos, "Could not read six numbers separated by spaces for a 'C'urve_to operation. Ignoring line.");
             break;
         case 'E':
             if (block) break;
-            shapes.back().Add(ELEMENT(CLOSE_PATH, 0, 0, 0, 0, 0, 0), section);
+            shapes.back().Add(ShapeElement(ShapeElement::CLOSE_PATH, 0, 0, 0, 0, 0, 0));
             break;
         case 'S':
             if (block) break;
             if (shape_text[pos+1]==' ' && unsigned(shape_text[pos+2]-'0') <=2)
-                section = unsigned(shape_text[pos+2]-'0');
-            else
+                switch (shape_text[pos+2]) {
+                case '0': shapes.back().Add(ShapeElement(ShapeElement::SECTION_BG, 0, 0, 0, 0, 0, 0)); break;
+                case '1': shapes.back().Add(ShapeElement(ShapeElement::SECTION_FG_FILL, 0, 0, 0, 0, 0, 0)); break;
+                case '2': shapes.back().Add(ShapeElement(ShapeElement::SECTION_FG_LINE, 0, 0, 0, 0, 0, 0)); break;
+            } else
                 Error.Error(fpos, "'S' should be followed by a space and an intener between 0 and 2. Ignoring this line.");
             break;
         case 'T':
             if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf", &a, &b, &c, &d) == 4) {
-                shapes.back().label_pos = Block(a, c, b, d);
-                shapes.back().max += shapes.back().label_pos;
+                shapes.back().Add(ShapeElement(ShapeElement::TEXT_AREA, a, b, c, d, 0, 0));
             } else
                 Error.Error(fpos, "Could not read four numbers separated by spaces for a 'T'ext_box spec. Ignoring line.");
             break;
         case 'H':
             if (block) break;
             if (sscanf(shape_text+pos+1, "%lf %lf %lf %lf", &a, &b, &c, &d) == 4)
-                shapes.back().hint_pos = Block(a, c, b, d);
+                shapes.back().Add(ShapeElement(ShapeElement::HINT_AREA, a, b, c, d, 0, 0)); 
             else
                 Error.Error(fpos, "Could not read four numbers separated by spaces for a 'H'int_box spec. Ignoring line.");
             break;
@@ -322,7 +332,7 @@ bool EntityShapeCollection::Add(const char *shape_text, MscError &Error)
     return Error.hasErrors();
 }
 
-string EntityShapeCollection::Write() const
+string ShapeCollection::Write() const
 {
     string ret;
     for (auto &sh : shapes)
@@ -330,26 +340,19 @@ string EntityShapeCollection::Write() const
     return ret;
 }
 
-XY EntityShapeCollection::GetShapeSize(unsigned sh) const
-{
-    if (sh>=shapes.size()) return XY(0, 0);
-    return shapes[sh].max.Spans();
-}
-
-
 /** Callback for drawing a symbol before 'yes' or 'no' in the hints popup list box.
 * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh&);
 
 
-void EntityShapeCollection::AttributeValues(Csh &csh) 
+void ShapeCollection::AttributeValues(Csh &csh) const
 {
     for (unsigned u = 0; u<shapes.size(); u++)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+shapes[u].name, 
         HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEShapes, CshHintGraphicParam(u)));
 }
 
-std::vector<const string*> EntityShapeCollection::ShapeNames() const
+std::vector<const string*> ShapeCollection::ShapeNames() const
 {
     std::vector<const string*> ret(shapes.size());
     for (unsigned u = 0; u<shapes.size(); u++)
@@ -357,14 +360,14 @@ std::vector<const string*> EntityShapeCollection::ShapeNames() const
     return ret;
 }
 
-int EntityShapeCollection::GetShapeNo(const string&sh_name) const
+int ShapeCollection::GetShapeNo(const string&sh_name) const
 {
     for (unsigned u = 0; u < shapes.size(); u++)
         if (CaseInsensitiveEqual(shapes[u].name, sh_name))
             return u;
     return -1;
 }
-void EntityShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const
+void ShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const
 {
     if (sh >= shapes.size()) return;
     cairo_t *cr = canvas.GetContext();
@@ -390,71 +393,23 @@ void EntityShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, co
     }
 }
 
-EntityShapeCollection EntityShapes;
-
-bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
 {
     const unsigned u = unsigned(p);
-    if (EntityShapes.ShapeNum()<= u) return false;
-    Block hint = EntityShapes.GetHintPos(u);
+    if (csh.GetShapeCollection().ShapeNum()<= u) return false;
+    Block hint = csh.GetShapeCollection()[u].GetHintPos();
     if (hint.IsInvalid())
-        hint = EntityShapes.GetMax(u);
+        hint = csh.GetShapeCollection()[u].GetMax();
     const double r = std::min(HINT_GRAPHIC_SIZE_X/hint.x.Spans(), HINT_GRAPHIC_SIZE_Y/hint.y.Spans());
-    //The origin of the part visible in the hint window in the space of the shape
+    //The origin of the part visible in the hint window in the space of the Shape
     const XY orig(hint.x.from + (hint.x.Spans() - HINT_GRAPHIC_SIZE_X/r)/2,
                   hint.y.from + (hint.y.Spans() - HINT_GRAPHIC_SIZE_Y/r)/2);
-    EntityShapes.Draw(*canvas, u, EntityShapes.GetMax(u).Shift(-orig).Scale(r),
+    Block max = csh.GetShapeCollection()[u].GetMax();
+    csh.GetShapeCollection().Draw(*canvas, u, max.Shift(-orig).Scale(r),
         ColorType(0, 0, 0), FillAttr(ColorType(), GRADIENT_NONE));
     return true;
 }
 
-bool Entity::AddToShapes(const char *shape_def, MscError &error)
-{
-    const bool ret = EntityShapes.Add(shape_def, error);
-     //FILE *f = fopen("c:\\users\\ethzrt\\aaa.txt", "wt");
-     //fputs(EntityShapes.Write().c_str(), f);
-     //fclose(f);
-     return ret;
-}
-
-int Entity::GetShapeNo(const string&sh_name)
-{
-    return EntityShapes.GetShapeNo(sh_name);
-}
-
-const string _dummy_string;
-
-const string &Entity::GetShapeName(unsigned shape)
-{
-    auto r = EntityShapes.GetShape(shape);
-    _ASSERT(r);
-    if (r)
-        return r->name;
-    return _dummy_string;
-}
-
-const string &Entity::GetShapeURL(unsigned shape)
-{
-    auto r = EntityShapes.GetShape(shape);
-    _ASSERT(r);
-    if (r)
-        return r->url;
-    return _dummy_string;
-}
-
-const string &Entity::GetShapeInfo(unsigned shape)
-{
-    auto r = EntityShapes.GetShape(shape);
-    _ASSERT(r);
-    if (r)
-        return r->info;
-    return _dummy_string;
-}
-
-void Entity::DrawShape(Canvas &canvas, unsigned sh, const Block &o, ColorType color, FillAttr fill)
-{
-    EntityShapes.Draw(canvas, sh, o, color, fill);
-}
 
 
 template class PtrList<Entity>;
@@ -468,8 +423,8 @@ template class PtrList<Entity>;
  * @param [in] entity_style The style of the entity at definition.
  * @param [in] fp The location of the entity definition in the input file.
  * @param [in] coll True if we are group, but show collapsed. 
- * @param [in] sh The number of the shape to apply, -1 if none.
- * @param [in] sh_size The size of the shape, ignored if no shape.*/
+ * @param [in] sh The number of the Shape to apply, -1 if none.
+ * @param [in] sh_size The size of the Shape, ignored if no Shape.*/
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
     bool coll, int sh, EArrowSize sh_size) :
@@ -610,8 +565,8 @@ bool EntityApp::AddAttribute(const Attribute& a)
         style += chart->Contexts.back().styles[a.name];
         return true;
     }
-    if (a.Is("shape")) {
-        if (!EntityShapes) {
+    if (a.Is("Shape")) {
+        if (!chart->Shapes) {
             chart->Error.Error(a, false, "No shapes have been loaded. Ignoring attribute.");
             return true;
         }
@@ -626,20 +581,20 @@ bool EntityApp::AddAttribute(const Attribute& a)
         }
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error))
             return true;
-        int sh = EntityShapes.GetShapeNo(a.value);
+        int sh = chart->Shapes.GetShapeNo(a.value);
         if (sh==-1) {
             string msg("Use one of '");
-            const auto v = EntityShapes.ShapeNames();
+            const auto v = chart->Shapes.ShapeNames();
             for (auto p : v)
                 msg.append(*p).append("', '");
             msg.erase(msg.size()-3);
-            chart->Error.Error(a, true, "Unrecognized shape. Ignoring attribute.", msg + "'.");
+            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + "'.");
         } else
             attr_shape = sh;
         attr_shape_pos = a.linenum_attr.start;
         return true;
     }
-    if (a.Is("shape.size") && EntityShapes) {
+    if (a.Is("Shape.size") && chart->Shapes) {
         if (!defining) {
             chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
             return true;
@@ -769,7 +724,7 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
     string note_target_name = name;
     if (ch) {
         if (attr_shape>=0) {
-            chart->Error.Error(attr_shape_pos, "Only non-grouped entities may have the 'shape' attribute. Ignoring shape.");
+            chart->Error.Error(attr_shape_pos, "Only non-grouped entities may have the 'Shape' attribute. Ignoring Shape.");
             attr_shape = -1;
         }
         for (auto j = ch->begin(); j!=ch->end(); /*nope*/) {
@@ -921,7 +876,7 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         chart->AllEntities.Append(e);
         if (!chart->IsVirtualEntity(e))
             ret->target = name;  //if we were a group entity, use us as target for a subsequent note
-        //If we used a shape register it (so that we can save it in OLE objects)
+        //If we used a Shape register it (so that we can save it in OLE objects)
         if (attr_shape>=0)
             chart->used_shapes.insert(attr_shape);
 
@@ -974,9 +929,9 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    if (EntityShapes) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", HINT_ATTR_NAME));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape.size", HINT_ATTR_NAME));
+    if (csh.GetShapeCollection()) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape.size", HINT_ATTR_NAME));
     }
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
@@ -1006,11 +961,11 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    if (EntityShapes && CaseInsensitiveEqual(attr, "shape")) {
-        EntityShapes.AttributeValues(csh);
+    if (CaseInsensitiveEqual(attr, "Shape")) {
+        csh.GetShapeCollection().AttributeValues(csh);
         return true;
     }
-    if (EntityShapes && CaseInsensitiveEqual(attr, "shape.size")) {
+    if (CaseInsensitiveEqual(attr, "Shape.size")) {
         ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }
@@ -1055,11 +1010,11 @@ double EntityApp::Width() const
         //Calculate outer_edge to be around x=0 and positioned at y=0
         outer_edge.y.from = 0;
         outer_edge.y.till = chart->entityShapeHeight * ArrowHead::arrowSizePercentage[(*itr)->shape_size]/100.;
-        const XY wh = EntityShapes.GetShapeSize((*itr)->shape);
+        const XY wh = chart->Shapes[(*itr)->shape].GetMax().Spans();
         const double w = wh.x/wh.y*outer_edge.y.till;
         outer_edge.x.from = -w/2;
         outer_edge.x.till = w/2;
-        if (EntityShapes.GetLabelPos((*itr)->shape, outer_edge).IsInvalid())
+        if (chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge).IsInvalid())
             return std::max(w, parsed_label.getTextWidthHeight().x);
         else
             return w;
@@ -1091,7 +1046,7 @@ Range EntityApp::Height(Area &cover, const EntityAppList &children)
         //Here outer_edge is calculated to be around x=0 and positioned at y=0
         outer_edge.x.Shift(x);
         area = outer_edge;
-        if (EntityShapes.GetLabelPos((*itr)->shape, outer_edge).IsInvalid()) {
+        if (chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge).IsInvalid()) {
             const double w = parsed_label.getTextWidthHeight().x;
             area += parsed_label.Cover(x-w/2, x+w/2, outer_edge.y.till);
         }
@@ -1196,10 +1151,10 @@ void EntityApp::PostPosProcess(Canvas &/*canvas*/)
         (*itr)->status.SetStatus(yUse, new_status);
     (*itr)->status.ApplyStyle(yUse, style);
 
-    //Hide entity lines of a label that is placed below a shape
+    //Hide entity lines of a label that is placed below a Shape
     if ((*itr)->shape >= 0 && draw_heading) {
         const XY twh = parsed_label.getTextWidthHeight();
-        const Block b = EntityShapes.GetLabelPos((*itr)->shape, outer_edge);
+        const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
         if (b.IsInvalid()) {
             const double x = outer_edge.x.MidPoint();
             chart->HideEntityLines(parsed_label.Cover(x-twh.x/2, x+twh.x/2, outer_edge.y.till));
@@ -1213,10 +1168,10 @@ void EntityApp::PostPosProcess(Canvas &/*canvas*/)
 void EntityApp::Draw(Canvas &canvas)
 {
     if ((*itr)->shape >= 0) {
-        EntityShapes.Draw(canvas, (*itr)->shape, outer_edge,
+        chart->Shapes.Draw(canvas, (*itr)->shape, outer_edge,
             style.read().line.color.second, style.read().fill);
         const XY twh = parsed_label.getTextWidthHeight();
-        const Block b = EntityShapes.GetLabelPos((*itr)->shape, outer_edge);
+        const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
         if (b.IsInvalid()) {
             const double x = outer_edge.x.MidPoint();
             parsed_label.Draw(canvas, x-twh.x/2, x+twh.x/2, outer_edge.y.till);

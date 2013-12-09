@@ -1,6 +1,5 @@
 %locations
 %pure-parser
-%expect 250
 %lex-param {yyscan_t *yyscanner}
 %parse-param{YYMSC_RESULT_TYPE &RESULT}
 %parse-param{void *yyscanner}
@@ -47,6 +46,7 @@
 #define RESULT csh
 
 #include "csh.h"
+#include "entity.h"//For Shapes
 
 //If we scan for color syntax highlight use this location
 //yyerror is defined by bison, the other is defined for flex
@@ -81,13 +81,14 @@
        TOK_REL_DOTTED_TO   TOK_REL_DOTTED_FROM    TOK_REL_DOTTED_BIDIR
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
-       TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
+       TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_BOX TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP
        TOK_VERTICAL TOK_VERTICAL_SHAPE TOK_AT TOK_LOST TOK_AT_POS 
        TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
        TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
+	   TOK_SHAPE_COMMAND TOK_SHAPE_COMMAND_TEXT
        TOK__NEVER__HAPPENS
 %union
 {
@@ -114,6 +115,9 @@
     CHAR_IF_CSH(ArrowSegmentData) arcsegdata;
     CHAR_IF_CSH(ArcVerticalArrow::EVerticalShape)   vshape;
 	CHAR_IF_CSH(ArcTypePlusDir)   arctypeplusdir;
+	ShapeElement::Type            shapecommand;
+	CHAR_IF_CSH(Shape)            *shape;
+	CHAR_IF_CSH(ShapeElement)     *shapeelement;
 };
 
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt scope_close
@@ -150,7 +154,7 @@
                    overlap_or_parallel
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_COLORDEF
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_BOX TOK_COMMAND_PIPE
-                   TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
+                   TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN 
@@ -159,9 +163,13 @@
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_VERTICAL_SHAPE
+				   TOK_SHAPE_COMMAND_TEXT
 %type <stringlist> tok_stringlist
 %type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
+%type <shapecommand> TOK_SHAPE_COMMAND
+%type <shapeelement> shapeline
+%type <shape> shapedeflist
 
 %destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
 %destructor {if (!C_S_H) delete $$;} <arcbox> <arcpipe> <arcboxseries> <arcpipeseries> <arcparallel>
@@ -866,6 +874,15 @@ arc:           arcrel
     $$ = ($1);
     ($$)->AddAttributeList(NULL);
   #endif
+}
+              | TOK_COMMAND_DEFSHAPE shapedef
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
 }
               | TOK_COMMAND_DEFCOLOR colordeflist
 {
@@ -1752,6 +1769,233 @@ tok_stringlist : string
         $$ = $1;
   #endif
     free($3);
+};
+
+shapedef: entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH_ErrorAfter(@$, ("Here should come a shape definition beginning with '{'. Ignoring this malformed shape definition for '"+string($1 ? $1 : "") +"'.").c_str());
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Here should come a shape definition beginning with '{'. Ignoring this malformed shape definition for '"+string($1 ? $1 : "") +"'.");
+  #endif	
+  free($1);
+}
+		| entity_string TOK_OCBRACKET
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH_ErrorAfter(@$, ("Here should come a shape definition beginning with 'T', 'H', 'M', 'L', 'C', 'S' or 'E'. Ignoring this malformed shape definition for '"+string($1 ? $1: "") +"'.").c_str());
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Here should come a shape definition beginning with 'T', 'H', 'M', 'L', 'C', 'S' or 'E'. Ignoring this malformed shape definition for '"+string($1 ? $1: "") +"'.");
+  #endif	
+  free($1);
+}
+		| entity_string TOK_OCBRACKET shapedeflist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH_ErrorAfter(@3, "Missing a closing brace ('}').");
+  #else
+    msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing '}'.");
+    msc.Error.Error(MSC_POS(@2).start, MSC_POS(@2).end.NextChar(), "Here is the corresponding '{'.");
+  #endif	
+  free($1);
+}
+		| entity_string TOK_OCBRACKET shapedeflist TOK_CCBRACKET
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+  #else
+  #endif	
+  free($1);
+}
+
+shapedeflist: shapeline
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$ = new Shape;
+	if ($1) {
+		($$)->Add(std::move(*($1)));
+		free($1);
+	}
+  #endif	
+}
+             | shapedeflist shapeline
+{
+  #ifndef C_S_H_IS_COMPILED
+	if ($2) {
+		($1)->Add(std::move(*($2)));
+		free($2);
+	}
+  #endif	
+};
+
+shapeline: TOK_SHAPE_COMMAND
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new ShapeElement($1);
+  #endif	
+}
+         | TOK_SHAPE_COMMAND_TEXT
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    const ShapeElement::Type t = ($1)[0]=='U' ? ShapeElement::URL : ShapeElement::INFO;
+    $$ = new ShapeElement(t, ($1)+2);
+  #endif	
+  free($1);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 1);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@2, msg);
+	else if ($1>=ShapeElement::SECTION_BG && (($2)[0]<'0' || ($2)[0]>2 || ($2)[1]!=0))
+		csh.AddCSH_Error(@2, "S (section) commands require an integer between 0 and 2.");
+  #else
+	const char * const msg = ShapeElement::ErrorMsg($1, 1);
+	$$ = NULL;
+	const double a = atof($2);
+	if (msg)
+		msc.Error.Error(MSC_POS(@2).end, msg + string(" Ignoring line."));
+	else if ($1>=ShapeElement::SECTION_BG && (a!=0 && a!=1 && a!=2))
+		msc.Error.Error(MSC_POS(@2).start, "S (section) commands require an integer between 0 and 2. Ignoring line.");
+	else 
+		$$ = new ShapeElement($1, a);
+  #endif	
+  free($2);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 2);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@$, msg);
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 2);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+		$$ = new ShapeElement($1, atof($2), atof($3));
+  #endif	
+  free($2);
+  free($3);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 3);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@$, msg);
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 3);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+		$$ = new ShapeElement($1, atof($2), atof($3), atof($4));
+  #endif	
+  free($2);
+  free($3);
+  free($4);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 4);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@$, msg);
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 4);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5));
+  #endif	
+  free($2);
+  free($3);
+  free($4);
+  free($5);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 5);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@$, msg);
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 5);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6));
+  #endif	
+  free($2);
+  free($3);
+  free($4);
+  free($5);
+  free($6);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 6);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@$, msg);
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 6);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6), atof($7));
+  #endif	
+  free($2);
+  free($3);
+  free($4);
+  free($5);
+  free($6);
+  free($7);
+}
+         | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER error
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	const char * const msg = ShapeElement::ErrorMsg($1, 7);
+	if (msg)
+		csh.AddCSH_ErrorAfter(@7, msg);
+	else
+		csh.AddCSH_Error(@8, "Six numbers are enough.");
+  #else
+	$$ = NULL;
+	const char * const msg = ShapeElement::ErrorMsg($1, 7);
+	if (msg)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else {
+	    msc.Error.Error(MSC_POS(@8).start, "Six numbers are enough. Ignoring the rest.");
+		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6), atof($7));
+	}
+  #endif	
+  free($2);
+  free($3);
+  free($4);
+  free($5);
+  free($6);
+  free($7);
 };
 
 colordeflist: colordef

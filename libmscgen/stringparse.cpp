@@ -1241,7 +1241,7 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
 
 /** Callback for drawing a symbol before text ident types in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, Csh&)
 {
     if (!canvas) return false;
     const EIdentType t = (EIdentType)(int)p;

@@ -34,6 +34,8 @@
 
 using namespace std;
 
+const ShapeCollection *Csh::def_shapes = new ShapeCollection;
+
 bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) const
 {
     if ((effects & mask) != (p.effects & p.mask)) return false;
@@ -672,7 +674,7 @@ void Csh::AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name)
 
 /** Callback for drawing a symbol before marker names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForMarkers(Canvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForMarkers(Canvas *canvas, CshHintGraphicParam /*p*/, Csh &)
 {
     if (!canvas) return false;
     LineAttr line(LINE_SOLID, ColorType(64,0,255), 1, CORNER_NONE, 0);
@@ -751,7 +753,12 @@ void CshContext::SetToDesign(const Context &design)
         StyleNames.insert(i->first);
 }
 
-Csh::Csh(const Context &defaultDesign) : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1), 
+Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes) : 
+    was_partial(false), 
+    hintStatus(HINT_NONE), 
+    addMarkersAtEnd(false), 
+    pShapes(shapes),
+    cursor_pos(-1),
     use_scheme(NULL)
 {
     for (auto i=defaultDesign.styles.begin(); i!=defaultDesign.styles.end(); i++)
@@ -1127,7 +1134,7 @@ std::string Csh::HintPrefix(EColorSyntaxType t) const
 
 /** Callback for drawing a symbol before attribute names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForAttributeNames(Canvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForAttributeNames(Canvas *canvas, CshHintGraphicParam /*p*/, Csh &)
 {
     if (!canvas) return false;
     const double w = 0.4*HINT_GRAPHIC_SIZE_X;
@@ -1184,7 +1191,7 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
 
 /** Callback for drawing a symbol before color names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p, Csh &)
 {
     if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-3;
@@ -1225,7 +1232,7 @@ void Csh::AddColorValuesToHints()
 
 /** Callback for drawing a symbol before design names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForDesigns(Canvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForDesigns(Canvas *canvas, CshHintGraphicParam /*p*/, Csh &)
 {
     if (!canvas) return false;
     const XY ul(0.2*HINT_GRAPHIC_SIZE_X, 0.2*HINT_GRAPHIC_SIZE_Y);
@@ -1269,7 +1276,7 @@ void Csh::AddDesignsToHints(bool full)
 
 /** Callback for drawing a symbol before style names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForStyles(Canvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForStyles(Canvas *canvas, CshHintGraphicParam, Csh &)
 {
     if (!canvas) return false;
     LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_ROUND, 1);
@@ -1299,7 +1306,7 @@ bool CshHintGraphicCallbackForStyles(Canvas *canvas, CshHintGraphicParam)
 
 /** Callback for drawing a symbol before style names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForStyles2(Canvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForStyles2(Canvas *canvas, CshHintGraphicParam, Csh &)
 {
     if (!canvas) return false;
     std::vector<double> xPos(2); 
@@ -1341,7 +1348,7 @@ void Csh::AddDesignOptionsToHints()
 
 /** Callback for drawing a symbol before keywords in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh &)
 {
     if (!canvas) return false;
     ColorType color(128, 64, 64);
@@ -1360,7 +1367,7 @@ void Csh::AddKeywordsToHints(bool includeParallel)
 
 /** Callback for drawing a symbol before entities in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForEntities(Canvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForEntities(Canvas *canvas, CshHintGraphicParam /*p*/, Csh &)
 {
     if (!canvas) return false;
     LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);

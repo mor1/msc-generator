@@ -150,8 +150,9 @@ class StringFormat;
 /** The Y size of small symbols in the hint popup.*/
 #define HINT_GRAPHIC_SIZE_Y 18
 typedef unsigned CshHintGraphicParam;
+class Csh;
 /** A callback to draw the small symbols in hint popups.*/
-typedef bool (*CshHintGraphicCallback)(Canvas*, CshHintGraphicParam);
+typedef bool (*CshHintGraphicCallback)(Canvas*, CshHintGraphicParam, Csh &);
 
 class Context;
 
@@ -239,6 +240,8 @@ struct CshHint {
 /** The max length of the keywords, attribute and option names.*/
 #define ENUM_STRING_LEN 30
 
+class ShapeCollection;
+
 /** A class collecting syntax coloring infor and hints during a csh parse.
  *
  * A few words on how hints are collected.
@@ -256,6 +259,7 @@ struct CshHint {
  * level rule to select which attribute we are hinting the values of.*/
 class Csh
 {
+    static const ShapeCollection *def_shapes;   ///<An empty shape collection - if there is no other one.
 public:
     /** @name The collected CSH info and hints 
      * @{ */
@@ -283,6 +287,7 @@ public:
     /** @name Input parameters to the hint lookup process
      * @{  */
     std::set<std::string> ForbiddenStyles; ///<Styles we never offer as hints (e.g., ->)
+    const ShapeCollection *pShapes;        ///<What shapes do we have available.
     unsigned              cshScheme;       ///<What color shceme is used by the app now (to format hints)
     std::string           ForcedDesign;    ///<What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
@@ -294,7 +299,9 @@ public:
      *   forbidden and default style names; color names and definitons to learn 
      *   from. If not in the initialization of a global variable, best to use 
      *   ArcBase::defaultDesign.*/
-    explicit Csh(const Context &defaultDesign);
+    Csh(const Context &defaultDesign, const ShapeCollection *shapes);
+
+    const ShapeCollection &GetShapeCollection() const { return pShapes ? *pShapes : *def_shapes; }
 
     /** @name Functions to add a CSH entry 
      * @{  */

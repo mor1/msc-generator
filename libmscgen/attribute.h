@@ -546,7 +546,7 @@ public:
     string Print(int ident = 0) const;
 };
 
-bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p, Csh &);
 
 class StringFormat;
 
@@ -587,9 +587,9 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
-    static bool CshHintGraphicCallbackForLayout(Canvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForLayout(Canvas *canvas, CshHintGraphicParam p, Csh &);
+    static bool CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p, Csh &);
+    static bool CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p, Csh &);
 };
 
 

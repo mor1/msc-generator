@@ -43,9 +43,9 @@
 #define YYLTYPE CshPos
 #define CHAR_IF_CSH(A) char
 
+#include "commands.h" //MSC_* defs and CommandNote and Shapes in entity.h
 #include "colorsyntax.h"
 #include "language_misc.h"
-#include "commands.h" //MSC_* defs and CommandNote
 #else
 #include "msc.h"
 #define YYMSC_RESULT_TYPE Msc
@@ -156,10 +156,23 @@ do {                                                \
 
 [ \t]+    /* ignore whitespace */;
 
+ /* These shape definition keywords are case sensitive */
+
+M	yylval_param->shapecommand = ShapeElement::MOVE_TO; return TOK_SHAPE_COMMAND;
+L	yylval_param->shapecommand = ShapeElement::LINE_TO; return TOK_SHAPE_COMMAND;
+C	yylval_param->shapecommand = ShapeElement::CURVE_TO; return TOK_SHAPE_COMMAND;
+E	yylval_param->shapecommand = ShapeElement::CLOSE_PATH; return TOK_SHAPE_COMMAND;
+S	yylval_param->shapecommand = ShapeElement::SECTION_BG; return TOK_SHAPE_COMMAND;
+T	yylval_param->shapecommand = ShapeElement::TEXT_AREA; return TOK_SHAPE_COMMAND;
+H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND;
+[UI][ \t]+[^\0xd\0xa]+	yylval_param->str = strdup(yytext); return TOK_SHAPE_COMMAND_TEXT;
+
+
  /* These keywords are case insensitive */
 (?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;
 (?i:heading)   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
 (?i:nudge)     yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
+(?i:defshape)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSHAPE;
 (?i:defcolor)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
 (?i:defstyle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
 (?i:defdesign) yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;

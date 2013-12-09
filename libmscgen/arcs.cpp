@@ -3322,17 +3322,17 @@ void ArcBox::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
 }
 
-bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
 {
     if (!canvas) return false;
     EBoxCollapseType t = (EBoxCollapseType)(int)p;
     switch (t) {
     case BOX_COLLAPSE_COLLAPSE:
-        return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(1));
+        return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(1), csh);
     case BOX_COLLAPSE_EXPAND:
-        return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(0));
+        return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(0), csh);
     case BOX_COLLAPSE_BLOCKARROW:
-        return CshHintGraphicCallbackForSide(canvas, CshHintGraphicParam(int(ESide::LEFT)));
+        return CshHintGraphicCallbackForSide(canvas, CshHintGraphicParam(int(ESide::LEFT)), csh);
     default:
         _ASSERT(0);
     } 
