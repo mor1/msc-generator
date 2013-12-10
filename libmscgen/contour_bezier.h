@@ -80,7 +80,7 @@ class Edge
 {
 public:
 
-    typedef struct CrossResult {
+    struct CrossResult {
         XY r;
         double pos_my;
         double pos_other;
@@ -120,8 +120,8 @@ public:
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[], 
                             double pos_my_mul, double pos_other_mul, 
                             double pos_my_offset, double pos_other_offset) const;
-    unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
-                            double pos_mul, double pos_offset) const;
+    unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
+                                    double pos_mul, double pos_offset) const;
 
 
 public:

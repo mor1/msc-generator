@@ -848,7 +848,20 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         simple_arc_parallel_layout = a.yes;
         return NULL;
     }
-    
+    if (a.Is("file.url")) {
+        if (!a.EnsureNotClear(Error, STYLE_OPTION)) return NULL;
+        file_url = a.value;
+        return NULL;
+    }
+    if (a.Is("file.info")) {
+        if (!a.EnsureNotClear(Error, STYLE_OPTION)) return NULL;
+        if (file_info.length())
+            file_info.append("\n").append(a.value);
+        else
+            file_info = a.value;
+        return NULL;
+    }
+
     string ss;
     Error.Error(a, false, "Option '" + a.name + "' not recognized. Ignoring it.");
     return NULL;
@@ -914,6 +927,8 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "meta.url", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "meta.info", HINT_ATTR_NAME));
 
     StringFormat::AttributeNames(csh, "comment.text.");
     StringFormat::AttributeNames(csh, "text.");
@@ -981,6 +996,14 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"numbering.format")||
         CaseInsensitiveEqual(attr,"numbering.append")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "file.url")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted URL of file\">", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "file.info")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted description of file\">", HINT_ATTR_VALUE, false));
         return true;
     }
     return false;

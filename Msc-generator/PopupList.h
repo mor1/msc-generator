@@ -24,11 +24,10 @@
 class CHintListBox : public CListBox 
 {
 public:
-    std::set<CshHint> m_current_hints;
     CSize             m_current_size;
     StringFormat      m_format;
     int               m_cur_sel;
-    const ShapeCollection *m_shapes;
+    Csh               m_csh;
     CHintListBox();
     bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey);
     CSize SetHintsToCurrent();

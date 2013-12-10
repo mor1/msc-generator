@@ -38,11 +38,9 @@ struct ShapeElement
         CLOSE_PATH = 3,
         HINT_AREA = 4,
         TEXT_AREA = 5,
-        URL = 6,
-        INFO = 7,
-        SECTION_BG = 8,
-        SECTION_FG_LINE = 9,
-        SECTION_FG_FILL = 10
+        SECTION_BG = 6,
+        SECTION_FG_FILL = 7,
+        SECTION_FG_LINE = 8
     };
 
     Type action;
@@ -55,7 +53,7 @@ struct ShapeElement
         : action(aa), x(a), y(b), x1(c), y1(d), x2(e), y2(f) { if (aa>=SECTION_BG && a==int(a) && a>=0 && a<=2) aa = Type(SECTION_BG + unsigned(a));}
     ShapeElement(Type aa, const char *s)
         : action(aa), str(s? s: "") {}
-    static int GetNumArgs(Type t) { return t==LINE_TO||t==MOVE_TO ? 2 : t==CURVE_TO ? 6 : t==HINT_AREA || t==TEXT_AREA ? 4 : t==CLOSE_PATH ? 0 : t==INFO||t==URL ? -1 : 1; }
+    static int GetNumArgs(Type t) { return t==LINE_TO||t==MOVE_TO ? 2 : t==CURVE_TO ? 6 : t==HINT_AREA || t==TEXT_AREA ? 4 : t==CLOSE_PATH ? 0 : 1; }
     static const char * ErrorMsg(Type t, int numargs);
     string Write() const;
 };
@@ -66,8 +64,6 @@ class Shape
     Block max;
     Block label_pos;
     Block hint_pos;
-    std::string url;
-    std::string info;
     std::vector<ShapeElement> bg, fg_fill, fg_line;
     std::vector<ShapeElement> &GetSection() { return current_section==0 ? bg : current_section==1 ? fg_fill : fg_line; }
     unsigned current_section;
@@ -75,7 +71,9 @@ public:
     const std::vector<ShapeElement> &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
     const std::string name;
     const FileLineCol definition_pos;
-    Shape() : url(), info(), current_section(1), name(), definition_pos() {}
+    const std::string url;
+    const std::string info;
+    Shape() : current_section(1), name(), definition_pos(), url(), info() { max.MakeInvalid(); label_pos.MakeInvalid(); hint_pos.MakeInvalid(); }
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i);
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i, Shape &&s);
     bool IsEmpty() const { return bg.size()+fg_fill.size()+fg_line.size() == 0; }
@@ -94,9 +92,18 @@ class ShapeCollection
 {
     std::vector<Shape> shapes;
 public:
+    ShapeCollection() = default;
+    ShapeCollection(const ShapeCollection &) = default;
+    ShapeCollection(ShapeCollection &&s) : shapes(std::move(s.shapes)) {}
     operator bool() const { return shapes.size()>0; }
     const Shape &operator [](unsigned sh) const { return shapes[sh]; }
+    ShapeCollection & operator = (const ShapeCollection &);
+    ShapeCollection & operator = (ShapeCollection &&o) { swap(o); return *this; }
+    void swap(ShapeCollection &s) { shapes.swap(s.shapes); }
     bool Add(const char *shape_text, MscError &error);
+    bool Add(const string &name, const FileLineCol &pos, 
+             const std::string &u, const std::string &i, 
+             Shape *s, MscError &error);
     string Write() const;
     unsigned ShapeNum() const { return shapes.size(); }
     int GetShapeNo(const string&sh_name) const;

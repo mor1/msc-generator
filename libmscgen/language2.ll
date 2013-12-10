@@ -157,7 +157,6 @@ do {                                                \
 [ \t]+    /* ignore whitespace */;
 
  /* These shape definition keywords are case sensitive */
-
 M	yylval_param->shapecommand = ShapeElement::MOVE_TO; return TOK_SHAPE_COMMAND;
 L	yylval_param->shapecommand = ShapeElement::LINE_TO; return TOK_SHAPE_COMMAND;
 C	yylval_param->shapecommand = ShapeElement::CURVE_TO; return TOK_SHAPE_COMMAND;
@@ -165,8 +164,6 @@ E	yylval_param->shapecommand = ShapeElement::CLOSE_PATH; return TOK_SHAPE_COMMAN
 S	yylval_param->shapecommand = ShapeElement::SECTION_BG; return TOK_SHAPE_COMMAND;
 T	yylval_param->shapecommand = ShapeElement::TEXT_AREA; return TOK_SHAPE_COMMAND;
 H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND;
-[UI][ \t]+[^\0xd\0xa]+	yylval_param->str = strdup(yytext); return TOK_SHAPE_COMMAND_TEXT;
-
 
  /* These keywords are case insensitive */
 (?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;

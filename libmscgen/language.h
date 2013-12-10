@@ -105,8 +105,7 @@
      TOK_COMMAND_TITLE = 323,
      TOK_COMMAND_SUBTITLE = 324,
      TOK_SHAPE_COMMAND = 325,
-     TOK_SHAPE_COMMAND_TEXT = 326,
-     TOK__NEVER__HAPPENS = 327
+     TOK__NEVER__HAPPENS = 326
    };
 #endif
 /* Tokens.  */
@@ -178,8 +177,7 @@
 #define TOK_COMMAND_TITLE 323
 #define TOK_COMMAND_SUBTITLE 324
 #define TOK_SHAPE_COMMAND 325
-#define TOK_SHAPE_COMMAND_TEXT 326
-#define TOK__NEVER__HAPPENS 327
+#define TOK__NEVER__HAPPENS 326
 
 
 
@@ -221,7 +219,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 225 "language.h"
+#line 223 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

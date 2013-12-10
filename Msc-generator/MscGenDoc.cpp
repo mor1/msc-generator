@@ -367,8 +367,8 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
         if (m_ChartShown.GetUsedShapes().size()) {
             std::multimap<stringpair, string> shapes;
             for (unsigned u : m_ChartShown.GetUsedShapes())
-                shapes.emplace(stringpair(Entity::GetShapeURL(u), Entity::GetShapeInfo(u)), 
-                               Entity::GetShapeName(u));
+                shapes.emplace(stringpair(pApp->m_Shapes[u].GetURL(), pApp->m_Shapes[u].GetURL()),
+                               pApp->m_Shapes[u].name);
             for (auto i = shapes.begin(); i!=shapes.end(); /*nope*/) {
                 unsigned count = shapes.count(i->first);
                 _ASSERT(count);
@@ -481,7 +481,7 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
                 while (count--) {
                     CString name;
                     ar >> name;
-                    if (!added && Entity::GetShapeNo(string(name))<0) {
+                    if (!added && pApp->m_Shapes.GetShapeNo(string(name))<0) {
                         if (url.GetLength()+info.GetLength()>0) {
                             message.AppendFormat("%d. ", enumerator++);
                             if (info.GetLength()) {
@@ -1594,7 +1594,8 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
     }
     m_ChartCompiling.SetProgressCallback(block ? ProgressCallbackBlocking : ProgressCallbackNonBlocking, this);
     m_ChartCompiling.SetPedantic(pApp->m_Pedantic);
-    m_ChartCompiling.SetDesigns(&pApp->m_Designs, &pApp->m_DesignErrors);
+    m_ChartCompiling.SetDesignsShapes(&pApp->m_Designs, &pApp->m_Shapes, 
+                                      &pApp->m_DesignErrors);
     m_ChartCompiling.SetCopyRightText(pApp->m_CopyrightText);
     if (!pApp->m_bAutoPaginate)
         m_ChartCompiling.SetPageSize(XY(0,0));

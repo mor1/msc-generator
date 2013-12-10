@@ -55,6 +55,10 @@ ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
 
+in 3.7.6
+ADDED defshape command
+ADDED file.info file.url options
+
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
 DOCED: shapes

@@ -1099,6 +1099,7 @@
 		<col key="yes" def="s72">Directory_</col>
 		<col key="yes" def="s72">Component_</col>
 		<row><td>INSTALLDIR</td><td>C__B0C725E42DB54E1995B14EB9D662DD5B</td></row>
+		<row><td>INSTALLDIR</td><td>ISX_DEFAULTCOMPONENT1</td></row>
 		<row><td>MSC_GENERATOR1</td><td>ISX_DEFAULTCOMPONENT</td></row>
 	</table>
 
@@ -1988,7 +1989,6 @@
 		<row><td>_9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>C__9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>ORIGIN~1.SIG|original_designlib.signalling</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\original_designlib.signalling</td><td>5</td><td/></row>
 		<row><td>_AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>msc-gen.pdf</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\msc-gen.pdf</td><td>5</td><td/></row>
 		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.14-vs100\cairo.dll</td><td>1</td><td/></row>
-		<row><td>default.shape</td><td>ISX_DEFAULTCOMPONENT1</td><td>DEFAUL~1.SHA|default.shape</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\default.shape</td><td>1</td><td/></row>
 	</table>
 
 	<table name="FileSFPCatalog">
@@ -4539,9 +4539,9 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>PROGMSG_IIS_ROLLBACKVROOTS</td><td>##IDS_PROGMSG_IIS_ROLLBACKVROOTS##</td><td/></row>
 		<row><td>PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS</td><td>##IDS_PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS##</td><td/></row>
 		<row><td>PROGRAMFILETOLAUNCHATEND</td><td>[INSTALLDIR]Msc-generator.Primary Output</td><td/></row>
-		<row><td>ProductCode</td><td>{CE77CCE7-3BE9-4E84-9326-3F19C8032701}</td><td/></row>
+		<row><td>ProductCode</td><td>{7E7EBC17-F231-4DA5-91BC-D9F211980C95}</td><td/></row>
 		<row><td>ProductName</td><td>Msc-generator</td><td/></row>
-		<row><td>ProductVersion</td><td>3.7.5</td><td/></row>
+		<row><td>ProductVersion</td><td>3.7.6</td><td/></row>
 		<row><td>ProgressType0</td><td>install</td><td/></row>
 		<row><td>ProgressType1</td><td>Installing</td><td/></row>
 		<row><td>ProgressType2</td><td>installed</td><td/></row>

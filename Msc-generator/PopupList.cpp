@@ -25,9 +25,9 @@
 #include "afxdialogex.h"
 #include "MiniEditor.h"
 
-CHintListBox::CHintListBox()
+CHintListBox::CHintListBox() : 
+    m_csh(ArcBase::defaultDesign, NULL)
 {
-    m_shapes = NULL;
     m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
@@ -43,7 +43,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         //Now delete those not requested by the user preferences,
         //but only if we do hints not in response to a Ctrl+Space
         //Keep first line ones only if after the user pressed newline
-        if (csh.hintType == HINT_LINE_START && !userRequest) 
+        if (csh.hintType == HINT_LINE_START && !userRequest)
             if (!pApp->m_bHintLineStart || (!afterReturnKey && uc.length()==0))
                 csh.Hints.clear();
         if (!userRequest)
@@ -57,23 +57,17 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         CDC* pDC = GetDC();
         {
             Canvas canvas(Canvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
-            csh.ProcessHints(canvas, &m_format, uc, pApp->m_bHintFilter, 
+            csh.ProcessHints(canvas, &m_format, uc, pApp->m_bHintFilter,
                              pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }
         ReleaseDC(pDC);
     }
-
-    if (csh.Hints.size()==0) {
-        if (m_current_hints.size()==0) return false;
-        m_current_hints.clear();
-        return true;
-    }
-    if (m_current_hints == csh.Hints)
-        return false; //no change
-    m_current_hints = csh.Hints;
-    m_shapes = &csh.GetShapeCollection();
-    return true;
+    const bool changed = csh.Hints.size() != m_csh.Hints.size();
+    //save so much of "csh" as is needed to draw the hints & symbols
+    m_csh.Hints = csh.Hints; 
+    m_csh.pShapes = csh.pShapes;
+    return changed;
 }
 
 
@@ -81,7 +75,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
 CSize CHintListBox::SetHintsToCurrent()
 {
     m_current_size.SetSize(0,0);
-    if (m_current_hints.size()==0) {
+    if (m_csh.Hints.size()==0) {
         m_cur_sel = -1;
         ResetContent();
         return m_current_size;
@@ -90,12 +84,12 @@ CSize CHintListBox::SetHintsToCurrent()
     //Copy hints to the listbox and resize
     ResetContent();
     int added = 0;
-    for (auto i=m_current_hints.begin(); i!=m_current_hints.end(); i++) {
-        AddString((LPCSTR)&*i);
-        if (i->x_size > m_current_size.cx)
-            m_current_size.cx = i->x_size;
+    for (const auto &h : m_csh.Hints) {
+        AddString((LPCSTR)&h);
+        if (h.x_size > m_current_size.cx)
+            m_current_size.cx = h.x_size;
         if (added<MAX_HINT_LISTBOX_LEN)
-            m_current_size.cy += std::max(i->y_size, HINT_GRAPHIC_SIZE_Y);
+            m_current_size.cy += std::max(h.y_size, HINT_GRAPHIC_SIZE_Y);
         added++;
     }
     //Adjust magic numbers
@@ -240,7 +234,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     if (item->callback) {
         const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
         cairo_translate(canvas.GetContext(), 0, y2);
-        item->callback(&canvas, item->param, );
+        item->callback(&canvas, item->param, m_csh);
         //We do not restore the context, we drop it anyway
     }
 
@@ -321,7 +315,7 @@ END_MESSAGE_MAP()
 void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
 {
     if (changed) {
-        if (m_listBox.m_current_hints.size()==0) {
+        if (m_listBox.m_csh.Hints.size()==0) {
             Hide();
             return;
         }
@@ -329,7 +323,7 @@ void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
         SetWindowPos(&CWnd::wndTop, x, y, size.cx+3, size.cy+3, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
     } else {
         //not changed
-        if (m_listBox.m_current_hints.size()==0) {
+        if (m_listBox.m_csh.Hints.size()==0) {
             _ASSERT(!m_shown);
             return;
         }
@@ -345,7 +339,7 @@ void CPopupList::Hide()
     if (m_shown) {
         ShowWindow(SW_HIDE); 
         m_listBox.ResetContent();
-        m_listBox.m_current_hints.clear();
+        m_listBox.m_csh.Hints.clear();
         m_shown=false; 
     }
     m_pEditCtrl->SetFocus();

@@ -37,7 +37,6 @@ class CEditorBar;
 class CCshRichEditCtrl : public CRichEditCtrl
 {
     bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
-	Csh  m_csh;
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
@@ -46,7 +45,8 @@ class CCshRichEditCtrl : public CRichEditCtrl
     int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
     CEditorBar * const m_parent;
 public:
-	int m_tabsize;
+    Csh  m_csh;
+    int m_tabsize;
 	CCshRichEditCtrl(CEditorBar *parent);
     virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
 

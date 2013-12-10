@@ -420,7 +420,7 @@ static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "overlap", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
 "bye", "hspace", "vspace", "symbol", "note", "comment", "endnote", /*"footnote",*/
-"title", "subtitle", ""};
+"title", "subtitle", "defshape", ""};
 
 /** Names of chart options for coloring.
  *
@@ -443,7 +443,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "comment.text.bold", "comment.text.italic", "comment.text.underline", 
 "comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
 "comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap",
-"angle", "classic_parallel_layout", ""};
+"angle", "classic_parallel_layout", "file.url", "file.info", ""};
 
 /** Names of attributes for coloring.
  *
