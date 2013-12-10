@@ -207,7 +207,7 @@ CDrawingChartData::CDrawingChartData(const CChartData&o) :
     m_msc(NULL), compiled(false), m_cacheType(CACHE_RECORDING), m_cache_EMF(NULL), 
     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
     m_fallback_resolution(300), m_page(0), m_pageBreaks(false),
-    m_pedantic(false), m_designs(NULL), m_design_errors(NULL),
+    m_pedantic(false), m_designs(NULL), m_shapes(NULL), m_design_errors(NULL),
     m_callback(NULL), m_callback_data(NULL)
 {
     operator=(o);
@@ -219,7 +219,8 @@ CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) :
     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
     m_fallback_resolution(o.m_fallback_resolution), m_page(o.m_page), 
     m_pageBreaks(o.m_pageBreaks), m_pedantic(o.m_pedantic),
-    m_designs(o.m_designs), m_design_errors(o.m_design_errors), m_copyright(o.m_copyright),
+    m_designs(o.m_designs), m_shapes(o.m_shapes), 
+    m_design_errors(o.m_design_errors), m_copyright(o.m_copyright),
     m_callback(o.m_callback), m_callback_data(o.m_callback_data), m_load_data(o.m_load_data)
 {
 }
@@ -251,6 +252,7 @@ void CDrawingChartData::swap(CDrawingChartData &o)
     std::swap(m_pageBreaks, o.m_pageBreaks);
     std::swap(m_pedantic, o.m_pedantic);
     std::swap(m_designs, o.m_designs);
+    std::swap(m_shapes, o.m_shapes);
     std::swap(m_design_errors, o.m_design_errors);
     std::swap(m_copyright, o.m_copyright);
     std::swap(m_callback, o.m_callback);
@@ -314,11 +316,14 @@ void CDrawingChartData::SetPedantic(bool b)
     m_pedantic = b;
 }
 
-void CDrawingChartData::SetDesigns(const std::map<std::string, Context> *p, const MscError *e)
+void CDrawingChartData::SetDesignsShapes(const std::map<std::string, Context> *p, 
+                                         const ShapeCollection *s,
+                                         const MscError *e)
 {
-    if (m_designs == p && m_design_errors == e) return;
+    if (m_designs == p && m_design_errors == e && m_shapes == s) return;
 	Invalidate();
     m_designs = p;
+    m_shapes = s;
     m_design_errors = e;
 }
 
@@ -438,10 +443,15 @@ bool CDrawingChartData::CompileIfNeeded() const
             msg << ", which is newer than the current version. Please update Msc-generator, see Help|About...";
             m_msc->Error.Warning(FileLineCol(0, 0, 0), msg);
         }
+        //add shapes
+        if (m_shapes)
+            m_msc->Shapes = *m_shapes;
+        //add errors
+        if (m_design_errors)
+            m_msc->Error = *m_design_errors;
         //add designs
         if (m_designs) {
             m_msc->Designs = *m_designs;
-            m_msc->Error = *m_design_errors; 
 		    if (!m_ForcedDesign.IsEmpty()) {
                 ArcBase *ret=NULL;
 			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true, &ret)) 
@@ -450,6 +460,7 @@ bool CDrawingChartData::CompileIfNeeded() const
                     m_msc->Arcs.Append(ret);
             }
         }
+
         //copy forced collapse/expand entities/boxes
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
         m_msc->force_box_collapse = m_ForcedArcCollapse;

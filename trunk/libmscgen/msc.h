@@ -309,7 +309,8 @@ public:
     MscProgress                   Progress;        ///<Tracks the progress of parsing, compilation and drawing
     MscError                      Error;           ///<Collects error and warning messages
     unsigned                      current_file;    ///<The number of the file under parsing. Used when generating errors.*/
-
+    std::string                   file_url;        ///<Set by the file.url chart option
+    std::string                   file_info;        ///<Set by the file.info chart option
     EntityList                    AllEntities;     ///<A list of all entities defined (in no particular order)
     EntityList                    ActiveEntities;  ///<A list of the entities that are not hidden as part of a collapsed group entity
     Entity                       *NoEntity;        ///<A virtual entity representing no entity. (Used as a kind of NULL pointer or end() iterator.)

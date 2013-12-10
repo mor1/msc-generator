@@ -731,9 +731,10 @@ bool StringFormat::HasEscapes(const char *text)
 {
     if (text==NULL || text[0]==0) return false;
     StringFormat sf;
-    unsigned pos=0;
-    while (pos<strlen(text)) {
-        unsigned length;
+    const size_t len = strlen(text);
+    size_t pos=0;
+    while (pos<len) {
+        size_t length;
         const EEscapeType t = sf.ProcessEscape(text, length);
         if (t!=NON_ESCAPE && t!=SOLO_ESCAPE) return true;
         pos+=length;
@@ -752,7 +753,8 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     if (text==NULL) return;
     unsigned pos=0;
     StringFormat sf;
-    while (pos<strlen(text)) {
+    const size_t len = strlen(text);
+    while (pos<len) {
         EColorSyntaxType color = COLOR_NORMAL;
         unsigned length;
         switch (sf.ProcessEscape(text+pos, length)) {
@@ -816,7 +818,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
     string replaceto;
     StringFormat sf;
     string ignoreText = ignore?" Ignoring it.":"";
-    while(text.length()>pos) {
+    while(text.length()>pos && text[pos]) {
         unsigned length;
         FileLineCol beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
@@ -870,7 +872,7 @@ int StringFormat::FindNumberingFormatEscape(const char *text)
 {
     StringFormat sf;
     string::size_type pos = 0;
-	string::size_type text_length = strlen(text);
+	const string::size_type text_length = strlen(text);
     while (pos < text_length) {
         unsigned length;
 		if (NUMBERING_FORMAT == sf.ProcessEscape(text+pos, length))
@@ -885,7 +887,7 @@ void StringFormat::RemovePosEscapes(string &text)
 {
     StringFormat sf;
     unsigned pos = 0;
-    while (pos < text.length()) {
+    while (pos < text.length() && text[pos]) {
         unsigned length;
         if (FORMATTING_OK == sf.ProcessEscape(text.c_str()+pos, length))
             if (text[pos]=='\\' && text[pos+1]=='\x01') {
@@ -901,7 +903,7 @@ void StringFormat::ConvertToPlainText(string &text)
 {
     StringFormat sf;
     unsigned pos = 0;
-    while (pos < text.length()) {
+    while (pos < text.length() && text[pos]) {
         unsigned length;
         switch (sf.ProcessEscape(text.c_str()+pos, length)) {
         case NON_FORMATTING:
@@ -923,10 +925,11 @@ void StringFormat::ConvertToPlainText(string &text)
 
 unsigned StringFormat::Apply(const char *text)
 {
-    unsigned pos = 0;
-    unsigned length;
+    size_t pos = 0;
+    size_t length;
+    const size_t len = strlen(text);
 	StringFormat basic(*this);
-    while (pos < strlen(text)) {
+    while (pos < len) {
         if (FORMATTING_OK != ProcessEscape(text+pos, length, true, true, NULL, &basic)) break;
         pos += length;
     }
@@ -1325,15 +1328,15 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
 {
     if (label.length()==0) return;
 	StringFormat sf;
-	unsigned pos= 0;
-	unsigned length;
-	while (pos < label.length()) {
+	size_t pos= 0;
+	size_t length;
+	while (pos < label.length() && label[pos]) {
         if (FORMATTING_OK != sf.ProcessEscape(label.c_str()+pos, length)) break;
         pos += length;
     }
     bool number_added = false;
     unsigned beginning_pos = pos;
-    while (pos < label.length()) {
+    while (pos < label.length() && label[pos]) {
         if (NUMBERING == sf.ProcessEscape(label.c_str()+pos, length)) {
             label.replace(pos, length, num);
             length = (unsigned)num.length();
@@ -1515,7 +1518,7 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
     while (line.length()>pos) {
         fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
-        while (line.length()>pos) {
+        while (line.length()>pos && line[pos]) {
             //we avoid changing format!
             if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
             fragment.append(replaceto);
@@ -1545,7 +1548,7 @@ ParsedLine::operator std::string() const
     string replaceto;
     string ret;
 
-    while (line.length()>pos) {
+    while (line.length()>pos && line[pos]) {
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
@@ -1569,7 +1572,7 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
 
     xy.y += heightAboveBaseLine;
 
-    while (line.length()>pos) {
+    while (line.length()>pos && line[pos]) {
         fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
@@ -1594,10 +1597,10 @@ unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
     clear();
     size_t pos = 0, line_start = 0;
     unsigned length=0;
-    while (pos < input.length()) {
+    while (pos < input.length() && input[pos]) {
         bool hard_line_break = false; //=false is just there to supress a warning
         //find next new line
-        while (pos < input.length()) {
+        while (pos < input.length() && input[pos]) {
             const auto ret = format.ProcessEscape(input.c_str()+pos, length);
             hard_line_break = ret == StringFormat::LINE_BREAK;
             if (ret == StringFormat::LINE_BREAK ||
@@ -1645,7 +1648,7 @@ double Label::Reflow(Canvas &c, double x)
     double available = x - start_format.textHGapPre.second 
                          - start_format.textHGapPost.second;
     do {
-        while (pos < at(lnum).line.length()) {
+        while (pos < at(lnum).line.length() && at(lnum).line[pos]) {
             string replaceto;
             unsigned length;
             switch (running_format.ProcessEscape(at(lnum).line.c_str()+pos, length, 

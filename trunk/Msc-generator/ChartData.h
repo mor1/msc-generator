@@ -104,6 +104,7 @@ protected:
     bool                     m_pageBreaks;
     bool                     m_pedantic;       
     const std::map<std::string, Context> *m_designs;
+    const ShapeCollection   *m_shapes;
     const MscError          *m_design_errors;
     CString                  m_copyright;
 
@@ -120,7 +121,7 @@ public:
     CDrawingChartData() : m_msc(NULL), compiled(false), m_cacheType(CACHE_RECORDING), m_cache_EMF(NULL), 
                     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
                     m_fallback_resolution(300), m_page(0), m_pageBreaks(false), m_pedantic(false),
-                    m_designs(NULL), m_design_errors(NULL),
+                    m_designs(NULL), m_shapes(NULL), m_design_errors(NULL),
                     m_callback(NULL), m_callback_data(NULL) {}
 	CDrawingChartData(const CChartData&o);
 	CDrawingChartData(const CDrawingChartData&o);
@@ -147,7 +148,7 @@ public:
     void SetFallbackResolution(double d);
     double GetFallbackResolution() const {return m_fallback_resolution;}
     void SetPageSize(const XY &s);
-    void SetDesigns(const std::map<std::string, Context> *, const MscError *);
+    void SetDesignsShapes(const std::map<std::string, Context> *, const ShapeCollection *, const MscError *);
     void SetCopyRightText(const char *);
     const std::map<std::string, Context> &GetDesigns() const {return GetMsc()->Designs;}
 //Compilation

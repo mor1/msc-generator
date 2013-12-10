@@ -954,7 +954,8 @@ void DrawIntersection(CairoContext &c, contour2::Edge &A, std::vector<contour2::
 {
     DrawBezier(c, A);
     for (unsigned uu = 0; uu<OK.size(); uu++) {
-        DrawBezier(c, OK[uu].CreateShifted(XY(0, off*(uu+1))));
+        contour2::Edge edge(OK[uu].CreateShifted(XY(0, off*(uu+1))));
+        DrawBezier(c, edge);
         double m[10], o[10];
         XY r[10];
         unsigned num = A.Crossing(OK[uu], r, m, o);
@@ -976,7 +977,10 @@ void contour_test_bezier(unsigned num)
         contour2::Edge(XY(115, 100), XY(120, 100)),
         contour2::Edge(XY(50, 50), XY(75, 150))
     };
-    DrawIntersection(CairoContext(num, Block(-10, 200, -10, 200), "bezier 1"), A, OK, 10);
+    {
+        CairoContext ctx(num, Block(-10, 200, -10, 200), "bezier 1");
+        DrawIntersection(ctx, A, OK, 10);
+    }
 
     {
         CairoContext c(num+1, Block(-10, 200, -10, 200), "bezier 2");
@@ -998,7 +1002,10 @@ void contour_test_bezier(unsigned num)
         contour2::Edge(XY(80, 50), XY(45, 150), XY(100, 90), XY(70, 150)),
         contour2::Edge(XY(100, 50), XY(45, 50), XY(120, 140), XY(20, 150))
     };
-    DrawIntersection(CairoContext(num+2, Block(-10, 200, -10, 200), "bezier 3"), B, OK2);
+    {
+        CairoContext ctx(num+2, Block(-10, 200, -10, 200), "bezier 3");
+        DrawIntersection(ctx, B, OK2);
+    }
 
     auto b = B.Angle(false, 0);
     auto c = B.Angle(true, 0.5);

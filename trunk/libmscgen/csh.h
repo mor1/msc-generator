@@ -287,7 +287,8 @@ public:
     /** @name Input parameters to the hint lookup process
      * @{  */
     std::set<std::string> ForbiddenStyles; ///<Styles we never offer as hints (e.g., ->)
-    const ShapeCollection *pShapes;        ///<What shapes do we have available.
+    const ShapeCollection *pShapes;        ///<What shapes do we have available prior csh parsing (pre-defined shapes).
+    std::list<std::string>shape_names;     ///<list of shape names we have parsed definition for
     unsigned              cshScheme;       ///<What color shceme is used by the app now (to format hints)
     std::string           ForcedDesign;    ///<What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
@@ -301,7 +302,8 @@ public:
      *   ArcBase::defaultDesign.*/
     Csh(const Context &defaultDesign, const ShapeCollection *shapes);
 
-    const ShapeCollection &GetShapeCollection() const { return pShapes ? *pShapes : *def_shapes; }
+    /**Add a name of a shape (whithout the actual shape)*/
+    void AddShapeName(const char *n) { shape_names.emplace_back(n); }
 
     /** @name Functions to add a CSH entry 
      * @{  */

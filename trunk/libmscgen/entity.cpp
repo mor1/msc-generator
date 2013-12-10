@@ -22,7 +22,7 @@
 #include <cmath>
 #include "msc.h"
 
-const char ShapeElement::act_code[] = "LMCEHTUISSS";
+const char ShapeElement::act_code[] = "LMCEHTSSS";
 
 const char * ShapeElement::ErrorMsg(Type t, int numargs)
 {
@@ -35,8 +35,6 @@ const char * ShapeElement::ErrorMsg(Type t, int numargs)
     case CLOSE_PATH: return "E (close path) commands require no parameters.";
     case HINT_AREA: return "H (Hint area) commands require four numbers, two 2D points to represent a rectangle.";
     case TEXT_AREA: return "T (Text area) commands require four numbers, two 2D points to represent a rectangle.";
-    case URL: return "U (URL) commands require some text.";
-    case INFO: return "I (INFO) commands require some text.";
     case SECTION_BG: 
     case SECTION_FG_LINE:
     case SECTION_FG_FILL: return "S (section) commands require one number: the section number [0-2]";
@@ -47,9 +45,7 @@ const char * ShapeElement::ErrorMsg(Type t, int numargs)
 string ShapeElement::Write() const
 {
     string ret(1, act_code[action]);
-    if (action == URL || action == INFO) 
-        ret << " " << str;
-    else if (unsigned(action) >= SECTION_BG) 
+    if (unsigned(action) >= SECTION_BG) 
         ret << " " << unsigned(action) - unsigned(SECTION_BG);
     else if (action != CLOSE_PATH) {
         ret << ' ' << x << " " << y;
@@ -66,32 +62,33 @@ inline double Tr(double x, const Range &source, const Range &target)
     return (x-source.from)*(target.Spans()/source.Spans()) + target.from;
 }
 
-Shape::Shape(const std::string &n, const FileLineCol &l,
+Shape::Shape(const std::string &n, const FileLineCol &l, 
              const std::string &u, const std::string &i) :
-    url(u),
-    info(i),
     current_section(1),
     name(n),
-    definition_pos(l)
+    definition_pos(l),
+    url(u),
+    info(i)
 {
     max.MakeInvalid();
     label_pos.MakeInvalid();
     hint_pos.MakeInvalid();
 }
 
-Shape::Shape(const std::string &n, const FileLineCol &l, const std::string &u, 
-             const std::string &i, Shape &&s) :
+Shape::Shape(const std::string &n, const FileLineCol &l, 
+             const std::string &u, const std::string &i,
+             Shape &&s) :
     max(s.max),
     label_pos(s.label_pos),
     hint_pos(s.hint_pos),
-    url(u),
-    info(i),
     bg(std::move(s.bg)),
     fg_fill(std::move(s.fg_fill)),
     fg_line(std::move(s.fg_line)),
     current_section(s.current_section),
     name(n),
-    definition_pos(l)
+    definition_pos(l),
+    url(u),
+    info(i)
 {
 }
 
@@ -120,17 +117,11 @@ void Shape::Add(ShapeElement &&e)
         current_section = 2;
         break;
     case ShapeElement::HINT_AREA:
-        hint_pos = Block(e.x, e.y, e.x1, e.y1);
+        hint_pos = Block(e.x, e.x1, e.y, e.y1);
         break;
     case ShapeElement::TEXT_AREA:
-        label_pos = Block(e.x, e.y, e.x1, e.y1);
+        label_pos = Block(e.x, e.x1, e.y, e.y1);
         max += label_pos;
-        break;
-    case ShapeElement::URL:
-        url = std::move(e.str);
-        break;
-    case ShapeElement::INFO:
-        info = std::move(e.str);
         break;
     default:
         _ASSERT(0);
@@ -188,8 +179,19 @@ void Shape::Path(cairo_t *cr, unsigned section, const Block &o) const
             Tr(e.x2, max.x, o.x), Tr(e.y2, max.y, o.y),
             Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
         case ShapeElement::CLOSE_PATH: cairo_close_path(cr); break;
+        default: _ASSERT(0); break;
     }
 }
+
+ShapeCollection & ShapeCollection::operator = (const ShapeCollection &o)
+{
+    shapes.clear();
+    shapes.reserve(o.shapes.size());
+    for (auto s : o.shapes)
+        shapes.emplace_back(s);
+    return *this;
+}
+
 
 /** Syntax:
 N name: starts a new Shape
@@ -332,6 +334,21 @@ bool ShapeCollection::Add(const char *shape_text, MscError &Error)
     return Error.hasErrors();
 }
 
+bool ShapeCollection::Add(const string &name, const FileLineCol &fpos, 
+                          const std::string &u, const std::string &i, 
+                          Shape *s, MscError &error)
+{
+    if (GetShapeNo(name)>0) {
+        error.Error(fpos, "Shape with name '" + name + "'is already specified. Skipping this Shape.");
+        error.Error(shapes[GetShapeNo(name)].definition_pos, fpos, "Location of the previous definition.");
+        return true;
+    } else {
+        shapes.emplace_back(name, fpos, u, i, std::move(*s));
+        return false;
+    }
+}
+
+
 string ShapeCollection::Write() const
 {
     string ret;
@@ -349,7 +366,9 @@ void ShapeCollection::AttributeValues(Csh &csh) const
 {
     for (unsigned u = 0; u<shapes.size(); u++)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+shapes[u].name, 
-        HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEShapes, CshHintGraphicParam(u)));
+                               HINT_ATTR_VALUE, true, 
+                               CshHintGraphicCallbackForEShapes, 
+                               CshHintGraphicParam(u)));
 }
 
 std::vector<const string*> ShapeCollection::ShapeNames() const
@@ -395,17 +414,18 @@ void ShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const Li
 
 bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
 {
+    if (!csh.pShapes) return false;
     const unsigned u = unsigned(p);
-    if (csh.GetShapeCollection().ShapeNum()<= u) return false;
-    Block hint = csh.GetShapeCollection()[u].GetHintPos();
+    if (csh.pShapes->ShapeNum()<= u) return false;
+    Block hint = (*csh.pShapes)[u].GetHintPos();
     if (hint.IsInvalid())
-        hint = csh.GetShapeCollection()[u].GetMax();
+        hint = (*csh.pShapes)[u].GetMax();
     const double r = std::min(HINT_GRAPHIC_SIZE_X/hint.x.Spans(), HINT_GRAPHIC_SIZE_Y/hint.y.Spans());
     //The origin of the part visible in the hint window in the space of the Shape
     const XY orig(hint.x.from + (hint.x.Spans() - HINT_GRAPHIC_SIZE_X/r)/2,
                   hint.y.from + (hint.y.Spans() - HINT_GRAPHIC_SIZE_Y/r)/2);
-    Block max = csh.GetShapeCollection()[u].GetMax();
-    csh.GetShapeCollection().Draw(*canvas, u, max.Shift(-orig).Scale(r),
+    Block max = (*csh.pShapes)[u].GetMax();
+    csh.pShapes->Draw(*canvas, u, max.Shift(-orig).Scale(r),
         ColorType(0, 0, 0), FillAttr(ColorType(), GRADIENT_NONE));
     return true;
 }
@@ -929,7 +949,7 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    if (csh.GetShapeCollection()) {
+    if (csh.pShapes && *csh.pShapes) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape", HINT_ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape.size", HINT_ATTR_NAME));
     }
@@ -961,11 +981,14 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    if (CaseInsensitiveEqual(attr, "Shape")) {
-        csh.GetShapeCollection().AttributeValues(csh);
+    if (csh.pShapes && *csh.pShapes && CaseInsensitiveEqual(attr, "shape")) {
+        csh.pShapes->AttributeValues(csh);
+        for (const auto &s : csh.shape_names)
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+s, 
+                                   HINT_ATTR_VALUE, true));
         return true;
     }
-    if (CaseInsensitiveEqual(attr, "Shape.size")) {
+    if (CaseInsensitiveEqual(attr, "shape.size")) {
         ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }

@@ -537,7 +537,6 @@ Block Edge::CreateBoundingBox() const
 
 double Edge::Distance(const XY &A, XY &point, double &pos) const //always nonnegative
 {
-    //http://blog.gludion.com/2009/08/distance-to-quadratic-bezier-curve.html
     return 0;
 }
 

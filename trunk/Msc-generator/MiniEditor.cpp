@@ -34,7 +34,7 @@ END_MESSAGE_MAP()
 
 
 CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
-    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this),
+    m_csh(ArcBase::defaultDesign, NULL), m_hintsPopup(parent, this),
     m_parent(parent)
 {
     m_tabsize = 4;

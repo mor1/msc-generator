@@ -264,7 +264,7 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
 /** Default constructor.
  * As per MFC custioms, this is not doing real initialization, just
  * sets the main fields to meaningful defaults.*/
-CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
+CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true), &m_Shapes)
 {
 	// replace application ID string below with unique ID string; recommended
 	// format for string is CompanyName.ProductName.SubProduct.VersionInformation
@@ -668,9 +668,9 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     ReadDesigns(2, "*.signalling"); //load designs from appdata
     DisplayErrors(m_DesignErrors, true, "design library");
 
-    ReadShapes(1, "default.shape");
-    ReadShapes(2, "*.shape");
-    DisplayErrors(m_ShapeErrors, true, "shape library");
+    //ReadShapes(1, "default.shape");
+    //ReadShapes(2, "*.shape");
+    //DisplayErrors(m_ShapeErrors, true, "shape library");
 
     m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net ";
@@ -731,7 +731,7 @@ int CMscGenApp::ReadShapes(unsigned folder, const char *fileName)
             char *buffer = ReadFile(in);
             if (buffer) {
                 m_ShapeErrors.AddFile(string(finder.GetFileName()));
-                Entity::AddToShapes(buffer, m_ShapeErrors);
+                m_Shapes.Add(buffer, m_ShapeErrors);
                 free(buffer);
             }
             fclose(in);
@@ -769,6 +769,7 @@ int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
     CString text;
     Msc msc;
     msc.Progress.StartSection(MscProgress::PARSE);
+    msc.Shapes.swap(m_Shapes);
 	while (bFound) {
 		bFound = finder.FindNextFile();
 		CDrawingChartData data;
@@ -777,8 +778,15 @@ int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
             text.Append(data.GetText());
 		}
 	}
-    //copy the designs & errors from data to m_Designs/m_DesignErrors
-    m_Designs.insert(msc.Designs.begin(), msc.Designs.end());
+    //move the designs, shapes & errors from data to m_Designs/m_DesignErrors
+    for (auto d : msc.Designs) {
+        const auto i = m_Designs.find(d.first);
+        if (i==m_Designs.end())
+            m_Designs.emplace(d.first, std::move(d.second));
+        else
+            i->second += d.second;
+    }
+    msc.Shapes.swap(m_Shapes);
     m_DesignErrors += msc.Error;
     //create pre-parsed data for csh
     m_designlib_csh.ParseText(text, text.GetLength(), -1, 1);

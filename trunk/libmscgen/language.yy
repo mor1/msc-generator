@@ -88,7 +88,7 @@
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
        TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
-	   TOK_SHAPE_COMMAND TOK_SHAPE_COMMAND_TEXT
+	   TOK_SHAPE_COMMAND
        TOK__NEVER__HAPPENS
 %union
 {
@@ -163,7 +163,6 @@
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_VERTICAL_SHAPE
-				   TOK_SHAPE_COMMAND_TEXT
 %type <stringlist> tok_stringlist
 %type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
@@ -1796,9 +1795,14 @@ shapedef: entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
     csh.AddCSH_ErrorAfter(@3, "Missing a closing brace ('}').");
+	csh.AddShapeName($1);
   #else
     msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing '}'.");
     msc.Error.Error(MSC_POS(@2).start, MSC_POS(@2).end.NextChar(), "Here is the corresponding '{'.");
+	if ($3) {
+		msc.Shapes.Add(std::string($1), MSC_POS(@1).start, msc.file_url, msc.file_info, $3, msc.Error);
+		delete $3;
+	}
   #endif	
   free($1);
 }
@@ -1806,7 +1810,12 @@ shapedef: entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
+	csh.AddShapeName($1);
   #else
+	if ($3) {
+		msc.Shapes.Add(std::string($1), MSC_POS(@1).start, msc.file_url, msc.file_info, $3, msc.Error);
+		delete $3;
+	}
   #endif	
   free($1);
 }
@@ -1833,39 +1842,41 @@ shapedeflist: shapeline
 
 shapeline: TOK_SHAPE_COMMAND
 {
+    const int num_args = 0;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+	if (msg && fail)
+		csh.AddCSH_ErrorAfter(@$, msg);
   #else
-    $$ = new ShapeElement($1);
+	$$ = NULL;
+	if (msg && fail)
+		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
+	else 
+	    $$ = new ShapeElement($1);
   #endif	
-}
-         | TOK_SHAPE_COMMAND_TEXT
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-    const ShapeElement::Type t = ($1)[0]=='U' ? ShapeElement::URL : ShapeElement::INFO;
-    $$ = new ShapeElement(t, ($1)+2);
-  #endif	
-  free($1);
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER
 {
+    const int num_args = 1;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 1);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@2, msg);
-	else if ($1>=ShapeElement::SECTION_BG && (($2)[0]<'0' || ($2)[0]>2 || ($2)[1]!=0))
+	else if ($1>=ShapeElement::SECTION_BG && (($2)[0]<'0' || ($2)[0]>'2' || ($2)[1]!=0))
 		csh.AddCSH_Error(@2, "S (section) commands require an integer between 0 and 2.");
   #else
-	const char * const msg = ShapeElement::ErrorMsg($1, 1);
 	$$ = NULL;
 	const double a = atof($2);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@2).end, msg + string(" Ignoring line."));
 	else if ($1>=ShapeElement::SECTION_BG && (a!=0 && a!=1 && a!=2))
 		msc.Error.Error(MSC_POS(@2).start, "S (section) commands require an integer between 0 and 2. Ignoring line.");
+	else if ($1>=ShapeElement::SECTION_BG)
+	    $$ = new ShapeElement(ShapeElement::Type($1 + unsigned(a)));
 	else 
 		$$ = new ShapeElement($1, a);
   #endif	
@@ -1873,15 +1884,16 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER
 {
+    const int num_args = 2;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 2);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@$, msg);
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 2);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else 
 		$$ = new ShapeElement($1, atof($2), atof($3));
@@ -1891,15 +1903,16 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER
 {
+    const int num_args = 3;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 3);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@$, msg);
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 3);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else 
 		$$ = new ShapeElement($1, atof($2), atof($3), atof($4));
@@ -1910,15 +1923,16 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
 {
+    const int num_args = 4;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 4);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@$, msg);
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 4);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else 
 		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5));
@@ -1930,15 +1944,16 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
 {
+    const int num_args = 5;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 5);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@$, msg);
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 5);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else 
 		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6));
@@ -1951,15 +1966,16 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER
 {
+    const int num_args = 6;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 6);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@$, msg);
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 6);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else 
 		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6), atof($7));
@@ -1973,20 +1989,21 @@ shapeline: TOK_SHAPE_COMMAND
 }
          | TOK_SHAPE_COMMAND TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER TOK_NUMBER error
 {
+    const int num_args = 7;
+	const char * const msg = ShapeElement::ErrorMsg($1, num_args);
+	const bool fail = ShapeElement::GetNumArgs($1) > num_args;
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	const char * const msg = ShapeElement::ErrorMsg($1, 7);
 	if (msg)
 		csh.AddCSH_ErrorAfter(@7, msg);
 	else
 		csh.AddCSH_Error(@8, "Six numbers are enough.");
   #else
 	$$ = NULL;
-	const char * const msg = ShapeElement::ErrorMsg($1, 7);
-	if (msg)
+	if (msg && fail)
 		msc.Error.Error(MSC_POS(@$).end, msg + string(" Ignoring line."));
 	else {
-	    msc.Error.Error(MSC_POS(@8).start, "Six numbers are enough. Ignoring the rest.");
+	    //msc.Error.Error(MSC_POS(@8).start, "Six numbers are enough. Ignoring the rest.");
 		$$ = new ShapeElement($1, atof($2), atof($3), atof($4), atof($5), atof($6), atof($7));
 	}
   #endif	
@@ -4121,7 +4138,13 @@ vertical_shape: TOK_VERTICAL_SHAPE
 
 
 //cannot be a reserved word, symbol or style name
-entity_string: TOK_QSTRING | TOK_STRING;
+entity_string: TOK_QSTRING | TOK_STRING 
+               | TOK_SHAPE_COMMAND
+{
+	$$ = (char*)malloc(2);
+	($$)[0] = ShapeElement::act_code[$1];
+	($$)[1] = 0;
+};
 
 reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN |
