@@ -106,7 +106,9 @@ struct CshError : public CshEntry
 class CshErrorList : public std::vector<CshError> 
 {
 public:
-    void Add(const CshPos &pos, const char *t); ///<Add an error to the collection
+    void Add(const CshPos &pos, const char *t);   ///<Add an error to the collection
+    void Add(const CshPos &pos, const std::string &t); ///<Add an error to the collection
+    void Add(const CshPos &pos, std::string &&t);      ///<Add an error to the collection
 };
 
 /** Flags to describe appearance of colored text*/
@@ -277,6 +279,7 @@ public:
     std::map<std::string, CshContext> FullDesigns;    ///<The names and content of full designs defined so far
     std::map<std::string, CshContext> PartialDesigns; ///<The names and content of partial designs defined so far
     std::list<CshContext>             Contexts;       ///<The context stack
+    std::list<std::string>            shape_names;    ///<list of shape names we have parsed definition for, but did not store
     EHintType                         hintType;       ///<The type of hint we found the cursor is at
     EHintStatus                       hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
@@ -287,8 +290,7 @@ public:
     /** @name Input parameters to the hint lookup process
      * @{  */
     std::set<std::string> ForbiddenStyles; ///<Styles we never offer as hints (e.g., ->)
-    const ShapeCollection *pShapes;        ///<What shapes do we have available prior csh parsing (pre-defined shapes).
-    std::list<std::string>shape_names;     ///<list of shape names we have parsed definition for
+    const ShapeCollection*pShapes;         ///<What shapes do we have available prior csh parsing (pre-defined shapes).
     unsigned              cshScheme;       ///<What color shceme is used by the app now (to format hints)
     std::string           ForcedDesign;    ///<What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
@@ -308,9 +310,13 @@ public:
     /** @name Functions to add a CSH entry 
      * @{  */
     void AddCSH(const CshPos&, EColorSyntaxType); ///<The basic variant: color a range to this language element type
-    void AddCSH_Error(const CshPos&pos, const char *text) {CshErrors.Add(pos, text);} ///<The basic variant for errors: add error "text" at this location
+    void AddCSH_Error(const CshPos&pos, const char *text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
+    void AddCSH_Error(const CshPos&pos, const std::string &text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
+    void AddCSH_Error(const CshPos&pos, std::string &&text) { CshErrors.Add(pos, std::move(text)); } ///<The basic variant for errors: add error "text" at this location
     void AddCSH_ErrorAfter(const CshPos&pos, const char *text); ///<Add an error just after this range
-    void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name); 
+    void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
+    void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
+    void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
     void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
     void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
@@ -364,7 +370,7 @@ public:
                     CshHintGraphicCallback c, CshHintGraphicParam);
     void AddColorValuesToHints();
     void AddDesignsToHints(bool full);
-    void AddStylesToHints();
+    void AddStylesToHints(bool include_forbidden=false);
     void AddOptionsToHints();
     void AddDesignOptionsToHints();
     void AddKeywordsToHints(bool includeParallel=true);

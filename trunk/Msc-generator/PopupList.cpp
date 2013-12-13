@@ -85,7 +85,7 @@ CSize CHintListBox::SetHintsToCurrent()
     ResetContent();
     int added = 0;
     for (const auto &h : m_csh.Hints) {
-        AddString((LPCSTR)&h);
+        AddString(h.plain.c_str());
         if (h.x_size > m_current_size.cx)
             m_current_size.cx = h.x_size;
         if (added<MAX_HINT_LISTBOX_LEN)
@@ -188,6 +188,21 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
     //Invalidate();
 }
 
+
+const CshHint* CHintListBox::GetHint(const char *plain) const
+{
+    auto i = m_csh.Hints.begin();
+    while (i!=m_csh.Hints.end())
+        if (!strcmp(i->plain.c_str(), plain))
+            break;
+        else
+            i++;
+    _ASSERT(i!=m_csh.Hints.end());
+    if (i==m_csh.Hints.end()) return NULL;
+    return &*i;
+}
+
+
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
     //Do not draw focus rectangle (or anything else) for empty lists
@@ -195,6 +210,9 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     //We do not differentiate in appearance whether we have the focus or not,
     //so for ODA_FOCUS, nothing to do
     if (lpItem->itemAction != ODA_DRAWENTIRE && lpItem->itemAction != ODA_SELECT) return;
+    
+    const CshHint * const item = GetHint((char*)lpItem->itemData);
+    if (item==NULL) return;
 
     /* Cairo 1.12.8 has a bug with Windows Display surfaces, when the original clip of the
     surface is nonzero. This results in the surface having a nonzero extent origin. When
@@ -214,7 +232,6 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     memDC.FillSolidRect(0,0,lpItem->rcItem.right-lpItem->rcItem.left,
                                            lpItem->rcItem.bottom - lpItem->rcItem.top, origDC.GetBkColor());
     Canvas canvas(Canvas::WIN, memDC.m_hDC);
-    const CshHint *item= (CshHint*)lpItem->itemData;
     Label label(item->decorated, canvas, m_format);
     const ColorType black(0,0,0);
     const FillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
@@ -255,8 +272,11 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 
 void CHintListBox::MeasureItem(LPMEASUREITEMSTRUCT lpItem)
 {
-    lpItem->itemWidth  = ((CshHint*)lpItem->itemData)->x_size;
-    lpItem->itemHeight = ((CshHint*)lpItem->itemData)->y_size;
+    const CshHint * const item = GetHint((char*)lpItem->itemData);
+    if (item) {
+        lpItem->itemWidth = item->x_size;
+        lpItem->itemHeight = item->y_size;
+    }
 }
 
 int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
@@ -264,8 +284,12 @@ int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
     // return -1 = item 1 sorts before item 2
     // return 0 = item 1 and item 2 sort the same
     // return 1 = item 1 sorts after item 2
-    CshHint *item1 = (CshHint*)lpCompareItemStruct->itemData1;
-    CshHint *item2 = (CshHint*)lpCompareItemStruct->itemData2;
+    //find the hint in m_csh
+    const CshHint * const item1 = GetHint((char*)lpCompareItemStruct->itemData1);
+    if (!item1) return 0;
+    const CshHint * const item2 = GetHint((char*)lpCompareItemStruct->itemData2);
+    if (!item2) return 0;
+
     //selectable items come first
     if (item1->selectable == item2->selectable) {
         unsigned j=0;

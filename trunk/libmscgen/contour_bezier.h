@@ -34,6 +34,7 @@ namespace contour2 {
     using contour::Range;
     using contour::DistanceType;
     using contour::test_zero;
+    using contour::test_positive;
     using contour::test_equal;
     using contour::test_smaller;
 
@@ -144,13 +145,11 @@ public:
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
 
-
-
-
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-
-
     DistanceType Distance(const Edge &) const;    //always nonnegative
+
+
+
 
     double GetAreaAboveAdjusted() const;
     double GetLength() const; ///<Returns the length of the arc.

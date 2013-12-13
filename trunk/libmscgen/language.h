@@ -37,6 +37,7 @@
    /* Put the tokens into the symbol table, so that GDB and other debuggers
       know about them.  */
    enum yytokentype {
+     TOK_EOF = 0,
      TOK_STRING = 258,
      TOK_QSTRING = 259,
      TOK_NUMBER = 260,
@@ -109,6 +110,7 @@
    };
 #endif
 /* Tokens.  */
+#define TOK_EOF 0
 #define TOK_STRING 258
 #define TOK_QSTRING 259
 #define TOK_NUMBER 260
@@ -187,7 +189,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 94 "language.yy"
+#line 95 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(ArcBase)          *arcbase;
@@ -219,7 +221,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 223 "language.h"
+#line 225 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

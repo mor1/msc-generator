@@ -92,41 +92,6 @@ std::list<std::pair<std::string, std::string>> ReadDesigns()
     return ret;
 }
 
-std::list<std::pair<std::string, std::string>> ReadShapes()
-{
-    string dir = GetFolder(1);
-    std::list<std::pair<std::string, std::string>> ret;
-
-    WIN32_FIND_DATA find_data;
-    HANDLE h = FindFirstFile((dir+"default.shape").c_str(), &find_data);
-    bool bFound = h != INVALID_HANDLE_VALUE;
-    while (bFound) {
-        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
-        char *buffer = ReadFile(in);
-        if (buffer) {
-            ret.emplace_back(dir+find_data.cFileName, buffer);
-            free(buffer);
-        }
-        bFound = FindNextFile(h, &find_data);
-    }
-    FindClose(h);
-
-    dir = GetFolder(2);
-    h = FindFirstFile((dir+"*.shape").c_str(), &find_data);
-    bFound = h != INVALID_HANDLE_VALUE;
-    while (bFound) {
-        FILE *in = fopen((dir+find_data.cFileName).c_str(), "r");
-        char *buffer = ReadFile(in);
-        if (buffer) {
-            ret.emplace_back(dir+find_data.cFileName, buffer);
-            free(buffer);
-        }
-        bFound = FindNextFile(h, &find_data);
-    }
-    FindClose(h);
-    return ret;
-}
-
 bool progressbar(double percent, void *p) 
 {
     HANDLE hOut = HANDLE(p);
@@ -155,12 +120,8 @@ int _tmain(int argc, _TCHAR* argv[])
         args.push_back(std::string(argv[i]));
         if (args.back()=="--nodesigns")
             oLoadDesigns = false;
-        else if (args.back()=="--noshapes")
-            oLoadShapes = false;
     }
 
-    if (oLoadShapes)
-        shapes = ReadShapes();
     if (oLoadDesigns)
         designs = ReadDesigns();
 
@@ -181,7 +142,7 @@ int _tmain(int argc, _TCHAR* argv[])
         }
     }
 
-    int ret = do_main(args, designs, shapes, "\\f(courier new)\\mn(12)", 
+    int ret = do_main(args, designs, "\\f(courier new)\\mn(12)", 
                       progressbar, hOut, &load_data);
     RegSetKeyValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
                    REG_KEY_LOAD_DATA, REG_SZ, load_data.c_str(), load_data.length()+1);

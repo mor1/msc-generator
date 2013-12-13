@@ -385,7 +385,9 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     return TOK_COLORDEF;
 %}
 
- 
+<<EOF>> return TOK_EOF;
+
+
 %%
 
 /* END OF FILE */

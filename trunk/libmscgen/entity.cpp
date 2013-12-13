@@ -24,21 +24,23 @@
 
 const char ShapeElement::act_code[] = "LMCEHTSSS";
 
-const char * ShapeElement::ErrorMsg(Type t, int numargs)
+string ShapeElement::ErrorMsg(Type t, int numargs)
 {
-    if (GetNumArgs(t)==numargs) return NULL;
+    string ret;
+    if (GetNumArgs(t)==numargs) return ret;
     switch (t) {
-    default: _ASSERT(0); return "Internal error.";
-    case LINE_TO: return "L (Line_to) commands require two numbers, an X and an Y coordinate.";
-    case MOVE_TO: return "M (Move_to) commands require two numbers, an X and an Y coordinate.";
-    case CURVE_TO: return "C (Curve_to) commands require six numbers, three 2D points: endpoint and two control points.";
-    case CLOSE_PATH: return "E (close path) commands require no parameters.";
-    case HINT_AREA: return "H (Hint area) commands require four numbers, two 2D points to represent a rectangle.";
-    case TEXT_AREA: return "T (Text area) commands require four numbers, two 2D points to represent a rectangle.";
+    default: _ASSERT(0); ret = "Internal error."; return ret;
+    case LINE_TO: ret = "L (Line_to) commands require two numbers, an X and an Y coordinate."; break;
+    case MOVE_TO: ret = "M (Move_to) commands require two numbers, an X and an Y coordinate."; break;
+    case CURVE_TO: ret = "C (Curve_to) commands require six numbers, three 2D points: endpoint and two control points."; break;
+    case CLOSE_PATH: ret = "E (close path) commands require no parameters."; break;
+    case HINT_AREA: ret = "H (Hint area) commands require four numbers, two 2D points to represent a rectangle."; break;
+    case TEXT_AREA: ret = "T (Text area) commands require four numbers, two 2D points to represent a rectangle."; break;
     case SECTION_BG: 
     case SECTION_FG_LINE:
-    case SECTION_FG_FILL: return "S (section) commands require one number: the section number [0-2]";
+    case SECTION_FG_FILL: ret = "S (section) commands require one number: the section number [0-2]"; break;
     }
+    return ret;
 }
 
 

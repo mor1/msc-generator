@@ -2185,14 +2185,16 @@ YY_RULE_SETUP
     return TOK_COLORDEF;
 
 	YY_BREAK
+case YY_STATE_EOF(INITIAL):
+#line 388 "language2.ll"
+return TOK_EOF;
+	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 389 "language2.ll"
+#line 391 "language2.ll"
 ECHO;
 	YY_BREAK
-#line 2194 "<stdout>"
-case YY_STATE_EOF(INITIAL):
-	yyterminate();
+#line 2198 "<stdout>"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -3331,7 +3333,7 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 389 "language2.ll"
+#line 391 "language2.ll"
 
 
 
