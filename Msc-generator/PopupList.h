@@ -35,8 +35,9 @@ public:
     void UpDownKey(int offset);
     void ChangeSelectionTo(int index, EHintItemSelectionState state);
     void ChangeSelectionTo(int index);
-    const CshHint* GetSelectedHint() {return GetHint(m_cur_sel);}
-    const CshHint* GetHint(int i) {return (0<=i && i<GetCount()) ? (const CshHint*)GetItemData(i) : NULL;}
+    const CshHint* GetSelectedHint() const {return GetHint(m_cur_sel);}
+    const CshHint* GetHint(int i) const { return (0<=i && i<GetCount()) ? GetHint((const char*)GetItemData(i)) : NULL; }
+    const CshHint* GetHint(const char *plain) const;
     virtual void DrawItem(LPDRAWITEMSTRUCT /*lpDrawItemStruct*/);
     virtual void MeasureItem(LPMEASUREITEMSTRUCT /*lpMeasureItemStruct*/);
     virtual int CompareItem(LPCOMPAREITEMSTRUCT /*lpCompareItemStruct*/);

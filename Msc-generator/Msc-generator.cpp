@@ -790,7 +790,26 @@ int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
     m_DesignErrors += msc.Error;
     //create pre-parsed data for csh
     m_designlib_csh.ParseText(text, text.GetLength(), -1, 1);
-	return errors?2:0;
+    //Now clean it up. Keep only FullDesigns, PartialDesigns, 
+    //the outermost context and forbidden styles
+    //1.clear hinted errors, actual csh entries, hints
+    m_designlib_csh.CshList.clear();
+    m_designlib_csh.CshErrors.clear();
+    m_designlib_csh.Hints.clear();
+    //2. clear entity names, marker names, all but the top of the the context stack
+    _ASSERT(m_designlib_csh.EntityNames.size()==0);
+    _ASSERT(m_designlib_csh.MarkerNames.size()==0);
+    _ASSERT(m_designlib_csh.Contexts.size()==1);
+    m_designlib_csh.EntityNames.clear();
+    m_designlib_csh.MarkerNames.clear();
+    m_designlib_csh.Contexts.erase(++m_designlib_csh.Contexts.begin(), m_designlib_csh.Contexts.end());
+    //3. clear shape names, too: these will be added via pShapes (in parsed form)
+    m_designlib_csh.shape_names.clear();
+    //4. clear all miscellaneous info that just takes up memory
+    m_designlib_csh.hintAttrName.clear();
+    m_designlib_csh.ForcedDesign.clear(); //will be set in CMscGenDoc::ChangeDesign()
+
+    return errors ? 2 : 0;
 }
 
 

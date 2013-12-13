@@ -54,6 +54,26 @@ void CshErrorList::Add(const CshPos &pos, const char *t)
     if (t) e.text=t;
 }
 
+void CshErrorList::Add(const CshPos &pos, const std::string &t)
+{
+    resize(size()+1);
+    CshError &e = at(size()-1);
+    e.first_pos = pos.first_pos;
+    e.last_pos = pos.last_pos;
+    e.color = COLOR_ERROR;
+    e.text = t;
+}
+
+void CshErrorList::Add(const CshPos &pos, std::string &&t)
+{
+    resize(size()+1);
+    CshError &e = at(size()-1);
+    e.first_pos = pos.first_pos;
+    e.last_pos = pos.last_pos;
+    e.color = COLOR_ERROR;
+    e.text = std::move(t);
+}
+
 ColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void)
 {
@@ -346,6 +366,14 @@ void Csh::AddCSH_ErrorAfter(const CshPos&pos, const char *text)
     pos2.first_pos = pos.last_pos;
     pos2.last_pos = pos.last_pos+1;
     CshErrors.Add(pos2, text);
+}
+
+void Csh::AddCSH_ErrorAfter(const CshPos&pos, std::string &&text)
+{
+    CshPos pos2;
+    pos2.first_pos = pos.last_pos;
+    pos2.last_pos = pos.last_pos+1;
+    CshErrors.Add(pos2, std::move(text));
 }
 
 void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name)
@@ -1327,10 +1355,10 @@ bool CshHintGraphicCallbackForStyles2(Canvas *canvas, CshHintGraphicParam, Csh &
 }
 
 /** Add styles available at the cursor to the list of hints. */
-void Csh::AddStylesToHints()
+void Csh::AddStylesToHints(bool include_forbidden)
 {
     for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
-        if (ForbiddenStyles.find(*i) == ForbiddenStyles.end())
+        if (include_forbidden || ForbiddenStyles.find(*i) == ForbiddenStyles.end())
             AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 

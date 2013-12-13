@@ -32,6 +32,7 @@ XY Edge::Split(double t) const
             + 3 * pow(1-t, 2) * t * c1
             + 3 * (1-t) * pow(t, 2) * c2
             + pow(t, 3) * end;
+    //(-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
 }
 
 
@@ -198,13 +199,11 @@ bool Edge::HullOverlap(const Edge &o) const
 /** Returns 16*flatness^2 */
 double Edge::Flatness() const
 {
-    double ux = 3.0*c1.x - 2.0*start.x - end.x; ux *= ux;
-    double uy = 3.0*c1.y - 2.0*start.y - end.y; uy *= uy;
-    double vx = 3.0*c2.x - 2.0*end.x - start.x; vx *= vx;
-    double vy = 3.0*c2.y - 2.0*end.y - start.y; vy *= vy;
-    if (ux < vx) ux = vx;
-    if (uy < vy) uy = vy;
-    return ux+uy;
+    const double ux = 3.0*c1.x - 2.0*start.x - end.x; 
+    const double uy = 3.0*c1.y - 2.0*start.y - end.y; 
+    const double vx = 3.0*c2.x - 2.0*end.x - start.x; 
+    const double vy = 3.0*c2.y - 2.0*end.y - start.y; 
+    return std::max(ux*ux, vx*vx)+std::max(uy*uy, vy*vy);
 }
 
 /* Returns the number of crosspoints*/
@@ -285,8 +284,8 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
 /** Calculates the crosspoints with another edge.
 *
 * This must ensure that we do not return pos values that are very close to 0 or 1
-* such values are to be rounded to 0 or 1 and in that case exatly the endpoint of the arc
-* shall be returned. (FIX This)
+* such values are to be rounded to 0 or 1 and in that case exatly the endpoint 
+* of the arc shall be returned. (FIX This)
 * The arrays shall be greater than 4, at least twice.
 *
 * @param [in] o The other edge.
@@ -535,9 +534,288 @@ Block Edge::CreateBoundingBox() const
     return Block(X.first->x, X.second->x, Y.first->y, Y.second->y);
 }
 
-double Edge::Distance(const XY &A, XY &point, double &pos) const //always nonnegative
+/**Solves a cubic equation of x^3 + a*x^2 + b*x + c
+ * Returns the number of roots.*/
+int solveCubic(double a, double b, double c, float* r)
 {
+    double p = b - a*a / 3;
+    double q = a * (2*a*a - 9*b) / 27 + c;
+    double p3 = p*p*p;
+    double d = q*q + 4*p3 / 27;
+    double offset = -a / 3;
+    if (d >= 0) { // Single solution
+        double z = sqrtf(d);
+        double u = (-q + z) / 2;
+        double v = (-q - z) / 2;
+        u = pow(u,1/3);
+        v = pow(v, 1/3);
+        r[0] = offset + u + v;
+        return 1;
+    }
+    double u = sqrtf(-p / 3);
+    double v = acos(-sqrtf(-27 / p3) * q / 2) / 3;
+    double m = cos(v), n = sin(v)*1.732050808;
+    r[0] = offset + u * (m + m);
+    r[1] = offset - u * (n + m);
+    r[2] = offset + u * (n - m);
+    return 3;
+}
+
+/** Solve quadratic equation.
+*
+* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[2]` is the coeff of `x^2`.
+* @param [out] afRoot Returns the root(s).
+* @returns the number of roots [0..2].
+*/
+unsigned solve_degree2(double afCoeff[3], double afRoot[2])
+{
+    // compute real roots to c[2]x^2+c[1]*x+c[0] = 0
+    if (afCoeff[2] == 0) {
+        //linear
+        if (test_zero(afCoeff[1]))
+            return 0;
+        afRoot[0] = -afCoeff[0]/afCoeff[1];
+        return 1;
+    }
+
+    // make polynomial monic
+    if (afCoeff[2] != 1.) {
+        afCoeff[0] = afCoeff[0]/afCoeff[2];
+        afCoeff[1] = afCoeff[1]/afCoeff[2];
+    }
+
+    double fDiscr = afCoeff[1]*afCoeff[1]-4.*afCoeff[0];
+    if (test_zero(fDiscr)) {
+        afRoot[0] = 0.5*(-afCoeff[1]);
+        return 1;
+    }
+
+    if (fDiscr >= 0.) {
+        fDiscr = sqrt(fDiscr);
+        afRoot[0] = 0.5*(-afCoeff[1]-fDiscr);
+        afRoot[1] = 0.5*(-afCoeff[1]+fDiscr);
+        return 2;
+    }
     return 0;
+}
+
+/** Solve qubic equation.
+*
+* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[3]` is the coeff of `x^3`.
+* @param [out] afRoot Returns the root(s).
+* @returns the number of roots [1..3].
+*/
+unsigned solve_degree3(double afCoeff[4], double afRoot[3])
+{
+    //one can also consider this page
+    //http://www.pouet.net/topic.php?which=9119&page=1
+
+    // compute real roots to c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
+    if (afCoeff[3] == 0)
+        return solve_degree2(afCoeff, afRoot);
+
+    // make polynomial monic
+    if (afCoeff[3] != 1.) {
+        afCoeff[0] = afCoeff[0]/afCoeff[3];
+        afCoeff[1] = afCoeff[1]/afCoeff[3];
+        afCoeff[2] = afCoeff[2]/afCoeff[3];
+    }
+
+    // convert to y^3+a*y+b = 0 by x = y-c[2]/3 and
+    const double fA = (1./3.)*(3.*afCoeff[1]-afCoeff[2]*afCoeff[2]);
+    const double fB = (1./27.)*(2.*afCoeff[2]*afCoeff[2]*afCoeff[2] -
+        9.*afCoeff[1]*afCoeff[2]+27.*afCoeff[0]);
+    const double fOffset = (1./3.)*afCoeff[2];
+
+    double fDiscr = 0.25*fB*fB + (1./27.)*fA*fA*fA;
+    const double fHalfB = 0.5*fB;
+    if (test_zero(fDiscr)) {    //3 real roots, but at least two are equal
+        double fTemp;
+        if (fHalfB >= 0.)
+            fTemp = -pow(fHalfB, double(1./3.));
+        else
+            fTemp = pow(-fHalfB, double(1./3.));
+        if (test_zero(fTemp)) {
+            afRoot[0] = -fOffset;
+            return 1;
+        }
+        afRoot[0] = 2.*fTemp-fOffset;
+        afRoot[1] = -fTemp-fOffset;
+        return 2;
+    }
+
+    if (fDiscr > 0.) { // 1 real, 2 complex roots
+        fDiscr = sqrt(fDiscr);
+        double fTemp = -fHalfB + fDiscr;
+        if (fTemp >= 0.)
+            afRoot[0] = pow(fTemp, double(1./3.));
+        else
+            afRoot[0] = -pow(-fTemp, double(1./3.));
+        fTemp = -fHalfB - fDiscr;
+        if (fTemp >= 0.)
+            afRoot[0] += pow(fTemp, double(1./3.));
+        else
+            afRoot[0] -= pow(-fTemp, double(1./3.));
+        afRoot[0] -= fOffset;
+        return 1;
+    } else if (fDiscr < 0.) {  //3 real roots
+        double fDist = sqrt(-1./3.*fA);
+        double fAngle = (1./3.)*atan2(sqrt(-fDiscr), -fHalfB);
+        double fCos = cos(fAngle);
+        double fSin = sin(fAngle);
+        static const double sqrt3 = sqrt(3.);
+        afRoot[0] = 2.*fDist*fCos-fOffset;
+        afRoot[1] = -fDist*(fCos+sqrt3*fSin)-fOffset;
+        afRoot[2] = -fDist*(fCos-sqrt3*fSin)-fOffset;
+        return 3;
+    }
+
+    return true;
+}
+
+/** Solve quadratic equation.
+*
+* Based on David Eberly's code at
+* <http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Core/MgcPolynomial.cpp>
+* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[4]` is the coeff of `x^4`.
+* @param [out] afRoot Returns the root(s).
+* @returns the number of roots [0..4]
+*/
+unsigned solve_degree4(double afCoeff[5], double afRoot[4])
+{
+    // compute real roots to c[4]*x^4+c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
+    if (afCoeff[4] == 0)
+        return solve_degree3(afCoeff, afRoot);
+
+    // make polynomial monic
+    if (afCoeff[4] != 1.) {
+        afCoeff[0] = afCoeff[0]/afCoeff[4];
+        afCoeff[1] = afCoeff[1]/afCoeff[4];
+        afCoeff[2] = afCoeff[2]/afCoeff[4];
+        afCoeff[3] = afCoeff[3]/afCoeff[4];
+    }
+
+    // reduction to resolvent cubic polynomial
+    double kResolve[4];
+    kResolve[3] = 1.;
+    kResolve[2] = -afCoeff[2];
+    kResolve[1] = afCoeff[3]*afCoeff[1]-4.*afCoeff[0];
+    kResolve[0] = -afCoeff[3]*afCoeff[3]*afCoeff[0] +
+        4.*afCoeff[2]*afCoeff[0]-afCoeff[1]*afCoeff[1];
+    double afResolveRoot[3];
+    /*int iResolveCount = */ solve_degree3(kResolve, afResolveRoot);
+    double fY = afResolveRoot[0];
+
+    unsigned num = 0;
+    double fDiscr = 0.25*afCoeff[3]*afCoeff[3]-afCoeff[2]+fY;
+    if (test_zero(fDiscr)) {
+        double fT2 = fY*fY-4.*afCoeff[0];
+        if (test_positive(fT2)) {
+            if (fT2 < 0.) // round to zero
+                fT2 = 0.;
+            fT2 = 2.*sqrt(fT2);
+            double fT1 = 0.75*afCoeff[3]*afCoeff[3]-2.*afCoeff[2];
+            if (test_positive(fT1+fT2)) {
+                double fD = sqrt(fT1+fT2);
+                afRoot[0] = -0.25*afCoeff[3]+0.5*fD;
+                afRoot[1] = -0.25*afCoeff[3]-0.5*fD;
+                num = 2;
+            }
+            if (test_positive(fT1-fT2)) {
+                double fE = sqrt(fT1-fT2);
+                afRoot[num++] = -0.25*afCoeff[3]+0.5*fE;
+                afRoot[num++] = -0.25*afCoeff[3]-0.5*fE;
+            }
+        }
+        return num;
+    }
+
+    if (fDiscr > 0.) {
+        double fR = sqrt(fDiscr);
+        double fT1 = 0.75*afCoeff[3]*afCoeff[3]-fR*fR-2.*afCoeff[2];
+        double fT2 = (4.*afCoeff[3]*afCoeff[2]-8.*afCoeff[1]-
+            afCoeff[3]*afCoeff[3]*afCoeff[3]) / (4.*fR);
+
+        double fTplus = fT1+fT2;
+        if (test_zero(fTplus)) {
+            afRoot[0] = -0.25*afCoeff[3]+0.5*fR;
+            num = 1;
+        } else if (fTplus >= 0.) {
+            double fD = sqrt(fTplus);
+            afRoot[0] = -0.25*afCoeff[3]+0.5*(fR+fD);
+            afRoot[1] = -0.25*afCoeff[3]+0.5*(fR-fD);
+            num = 2;
+        }
+        double fTminus = fT1-fT2;
+        if (test_zero(fTminus))
+            fTminus = 0.;
+        if (fTminus >= 0.) {
+            double fE = sqrt(fTminus);
+            afRoot[num++] = -0.25*afCoeff[3]+0.5*(fE-fR);
+            afRoot[num++] = -0.25*afCoeff[3]-0.5*(fE+fR);
+        }
+        return num;
+    }
+
+    //if ( fDiscr < 0. )
+    return 0;
+}
+
+double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonnegative
+{
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+    //M-to-curve vector is: curve-M
+    //substitutes:     P * t^3  +      Q *  t^2 +     R * t + S
+    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
+    //substitutes            3*P  * t^2 +    2*Q   * t +    R
+    //(curve-M).derivative is: x*x + y*y
+    // (P.3P)t^5 + (P.2Q + Q.3P)t^4 + (P.R + Q.2Q + R.3P)t^3 + 
+    // (Q.R + R.2Q + S.3P)t^2 + (R.R + S.2Q)t + S.R
+    //so we need to derive it and search for roots
+    //its derivative is:
+    // 15(P.P)t^4 + 20(P.Q)t^3 + 6(2P.R + Q.Q)t^2 + 
+    // 6(Q.R + S.P)t^2 + (R.R + S.2Q)
+
+    const XY P = -start+3*(c1-c2)+end;
+    const XY Q = (3*(start+c2)-6*c1);
+    const XY R = 3*(c1-start);
+    const XY S = start-M;
+
+    double coeff[5] = {
+        R.DotProduct(R) + 2*S.DotProduct(Q),
+        6*(Q.DotProduct(R) + S.DotProduct(P)),
+        6*(2*P.DotProduct(R) + Q.DotProduct(Q)),
+        20*P.DotProduct(Q),
+        15*P.DotProduct(P)
+    };
+
+    double result[4];
+    const unsigned num = solve_degree4(coeff, result+2);
+    double d = std::min(start.DistanceSqr(M), end.DistanceSqr(M));
+    if (start.DistanceSqr(M)<end.DistanceSqr(M)) {
+        point = start;
+        pos = 0;
+    } else {
+        point = end;
+        pos = 1;
+    }
+    for (unsigned u = 0; u<num; u++) {
+        const XY pu = Split(result[u]);
+        const double du = pu.DistanceSqr(M);
+        if (du<d) {
+            point = pu;
+            pos = result[u];
+            d = du;
+        }
+    }
+    return sqrt(d);
+}
+
+
+DistanceType Edge::Distance(const Edge &O) const    //always nonnegative
+{
+    return DistanceType();
 }
 
 

@@ -54,7 +54,7 @@ struct ShapeElement
     ShapeElement(Type aa, const char *s)
         : action(aa), str(s? s: "") {}
     static int GetNumArgs(Type t) { return t==LINE_TO||t==MOVE_TO ? 2 : t==CURVE_TO ? 6 : t==HINT_AREA || t==TEXT_AREA ? 4 : t==CLOSE_PATH ? 0 : 1; }
-    static const char * ErrorMsg(Type t, int numargs);
+    static string ErrorMsg(Type t, int numargs);
     string Write() const;
 };
 

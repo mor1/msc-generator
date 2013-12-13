@@ -69,7 +69,7 @@ static void usage()
 "Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [--pedantic]\n"
 "               [-p[=<page size>] [-m{lrud}=<margin>]] [-a[h]]\n"
 "               [-x=<width>] [-y=<height>] [-s=<scale>] [-F <font>]\n"
-"               [-S <shape_file>] [-D <design_file>] [--noshapes] [--nodesigns]\n"
+"               [--nodesigns] [-D <design_file>]\n"
 "               [--<chart_option>=<value> ...] [--<chart_design>]\n"
 "       msc-gen -l\n"
 "\n"
@@ -131,20 +131,15 @@ static void usage()
 " -F <font>   Use specified font. This must be a font name available in the\n"
 "             local system, and overrides the MSCGEN_FONT environment variable\n"
 "             if that is also set.\n"
-" -S <shape_file>\n"
-"             Load an entity shape file. You can have multiple of this option\n"
-"             to load several shape files, after the default ones.\n"
+" --no-designs\n"
+"             If you specify this no design files will be loaded (except the\n"
+"             ones you specify with -D). This is useful to increase performance\n"
+"             when you do not use them anyway."
 " -D <design_file>\n"
 "             Load file containing additional chart design definitions.\n"
 "             You can have multiple of this option to load several design\n"
-"             files, after the default ones.\n"
-" --no-shapes If you specify this no shape files will be loaded (no even the\n"
-"             ones you specify with -S. This is useful to increase performance\n"
-"             when you do not use them anyway."
-" --no-designs\n"
-"             If you specify this no design files will be loaded (no even the\n"
-"             ones you specify with -D. This is useful to increase performance\n"
-"             when you do not use them anyway."
+"             files, after the default ones. These files are loaded even if\n"
+"             --no-designs is specified.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -215,7 +210,6 @@ void sizes()
 
 int do_main(const std::list<std::string> &args, 
             const std::list<std::pair<std::string, std::string>> &design_files, 
-            std::list<std::pair<std::string, std::string>> &shape_files,
             string csh_textformat,
             MscProgress::ProgressCallback cb, void *param,
             std::string *load_data)
@@ -234,7 +228,6 @@ int do_main(const std::list<std::string> &args,
     double                  margins[] = {36, 36, 36, 36}; // half inches everywhere
     bool                    oA = false;
     bool                    oAH = false;
-    bool                    oLoadShapes = true;
     bool                    oLoadDesigns = true;
     string                  oFont;
     string ss;
@@ -257,8 +250,6 @@ int do_main(const std::list<std::string> &args,
             oProgress = false;
         else if (arg == "--nodesigns")
             oLoadDesigns = false;
-        else if (arg == "--noshapes")
-            oLoadShapes = false;
 
     Msc msc;
     msc.prepare_for_tracking = false;
@@ -374,26 +365,6 @@ int do_main(const std::list<std::string> &args,
                 i++;
                 oFont == *i;
             }
-        } else if (*i == "-S") {
-            if (i==--args.end()) {
-                msc.Error.Error(opt_pos,
-                    "Missing shape file name after '-S'.");
-                show_usage = true;
-            } else {
-                i++;
-                if (oLoadShapes) {
-                    FILE *in = fopen(i->c_str(), "r");
-                    if (in) {
-                        char *buff = ReadFile(in);
-                        if (buff) {
-                            shape_files.emplace_back(*i, buff);
-                            free(buff);
-                        }
-                        fclose(in);
-                    } else
-                        msc.Error.FatalError(opt_pos, "Failed to open shape file '" + oInputFile +"'.");
-                }
-            }
         } else if (*i == "-D") {
             if (i==--args.end()) {
                 msc.Error.Error(opt_pos,
@@ -494,8 +465,6 @@ int do_main(const std::list<std::string> &args,
             oProgress = false;
         } else if (*i == "--nocopyright") {
             msc.copyrightText.clear();
-        } else if (*i == "--noshapes") {
-            oLoadShapes = false;
         } else if (*i == "--nodesigns") {
             oLoadDesigns= false;
         } else if (*i == "--pedantic") {
@@ -681,13 +650,6 @@ int do_main(const std::list<std::string> &args,
             msc.Error.FatalError(opt_pos, "Failed to open input file '" + oInputFile +"'.");
     }
     if (msc.Error.hasFatal()) goto fatal;
-
-    //Add shapes
-    if (oLoadShapes)
-        for (auto &p: shape_files) {
-            msc.Error.AddFile(p.first);
-            msc.Shapes.Add(p.second.c_str(), msc.Error);
-        }
 
     if (oOutType == Canvas::ISMAP) {
         //Generate an empty *.map file
