@@ -859,6 +859,7 @@ BEGIN
     ID_EDIT_MARGIN_R        "Specify right page margin (in centimeters)\nRight margin"
     ID_EDIT_MARGIN_B        "Specify bottom page margin (in centimeters)\nBottom margin"
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
+    ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-ident the line as opposed to inserting a tabulator."
 END
 
 #endif    // English (United States) resources

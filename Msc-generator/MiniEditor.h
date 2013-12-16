@@ -61,11 +61,11 @@ public:
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
 	int  FindColonLabelIdent(long lStart, int *line=NULL);
-	int  FindPreviousLineIdent(long lStart, long *lEnd=NULL);
-	int  FindCurrentLineIdent(long lStart);
+    int  FindProperLineIdent(int lStart);
+    int  FindCurrentLineIdent(long lStart);
 	int  FindIdentForClosingBrace(int pos_to_be_inserted);
 	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=0, bool strict=false);
-	void SetCurrentIdentTo(int ident);
+    bool SetCurrentIdentTo(int target_ident, int current_ident, int col, long lStart, long lEnd, bool standalone);
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions

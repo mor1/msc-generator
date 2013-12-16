@@ -798,6 +798,34 @@ Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes) :
     FullDesigns["plain"] = Contexts.back();
 }
 
+void Csh::AdjustCSH(int start, int offset)
+{
+    if (offset==0) return;
+    const int upper = offset < 0 ? start - offset : start;
+    for (auto &csh : CshList) {
+        if (csh.last_pos <= start) continue;
+        if (csh.first_pos >= upper) {
+            csh.first_pos += offset;
+            csh.last_pos += offset;
+            continue;
+        }
+        if (offset>0) {
+            //here it must be that first pos is before start
+            //and last pos is after it.
+            csh.last_pos += offset;  
+            continue;
+        } 
+        //here we delete between start and upper
+        if (csh.first_pos > start)
+            csh.first_pos = start; //first pos is in the region deleted
+        if (csh.last_pos < upper)
+            csh.last_pos = start;  //last pos is in the region deleted
+        else
+            csh.last_pos += offset; //last pos is beyond the region deleted
+    }
+}
+
+
 void Csh::PushContext(bool empty)
 {
     if (empty)

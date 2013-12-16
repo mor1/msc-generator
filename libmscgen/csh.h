@@ -330,6 +330,7 @@ public:
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
     EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
+    void AdjustCSH(int start, int offset); ///<Emulate inserting or removing offset chars after start & update CSH entries
 
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.

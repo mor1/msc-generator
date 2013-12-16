@@ -372,8 +372,6 @@ msckey:       TOK_MSC TOK_EQUAL
 braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_BRACE);
-    csh.AddCSH(@3, COLOR_BRACE);
   #else
     if ($3) ($2)->Append($3); //Append any potential CommandNumbering
     $$ = $2;
@@ -382,8 +380,6 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
             | scope_open scope_close
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_BRACE);
-    csh.AddCSH(@2, COLOR_BRACE);
   #else
     $$ = new ArcList;
     //scope_close should not return here with a CommandNumbering
@@ -395,9 +391,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
             | scope_open arclist_maybe_no_semicolon error scope_close
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
-    csh.AddCSH(@4, COLOR_BRACE);
   #else
     if ($4) ($2)->Append($4); //Append any potential CommandNumbering
     $$ = $2;
@@ -408,7 +402,6 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
             | scope_open arclist_maybe_no_semicolon error TOK_EOF
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
   #else
     $$ = $2;
@@ -420,7 +413,6 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
             | scope_open arclist_maybe_no_semicolon TOK_EOF
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH_ErrorAfter(@2, "Missing a closing brace ('}').");
   #else
     $$ = $2;
@@ -1776,6 +1768,7 @@ shapedef: entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH(@2, COLOR_BRACE);
     csh.AddCSH_ErrorAfter(@$, ("Here should come a shape definition beginning with 'T', 'H', 'M', 'L', 'C', 'S' or 'E'. Ignoring this malformed shape definition for '"+string($1 ? $1: "") +"'.").c_str());
   #else
     msc.Error.Error(MSC_POS(@$).end, "Here should come a shape definition beginning with 'T', 'H', 'M', 'L', 'C', 'S' or 'E'. Ignoring this malformed shape definition for '"+string($1 ? $1: "") +"'.");
@@ -1786,6 +1779,7 @@ shapedef: entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH(@2, COLOR_BRACE);
     csh.AddCSH_ErrorAfter(@3, "Missing a closing brace ('}').");
 	csh.AddShapeName($1);
   #else
@@ -1802,6 +1796,8 @@ shapedef: entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH(@2, COLOR_BRACE);
+    csh.AddCSH(@4, COLOR_BRACE);
 	csh.AddShapeName($1);
   #else
 	if ($3) {
@@ -1815,6 +1811,8 @@ shapedef: entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_ATTRVALUE);
+    csh.AddCSH(@2, COLOR_BRACE);
+    csh.AddCSH(@5, COLOR_BRACE);
 	csh.AddShapeName($1);
     csh.AddCSH_Error(@4, "Only numbers can come after shape commands.");
   #else
@@ -2097,7 +2095,6 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_DESIGNNAME);
-    csh.AddCSH(@2, COLOR_BRACE);
     csh.AddCSH(@4, COLOR_SEMICOLON);
     csh.AddCSH(@5, COLOR_BRACE);
     (csh.Contexts.back().full ? csh.FullDesigns : csh.PartialDesigns)[$1] += csh.Contexts.back();
@@ -2114,7 +2111,6 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_DESIGNNAME);
-    csh.AddCSH(@2, COLOR_BRACE);
     csh.AddCSH(@4, COLOR_SEMICOLON);
     csh.AddCSH_Error(@5, "Could not recognize this as part of a design definition.");
     csh.AddCSH(@6, COLOR_BRACE);
@@ -2133,6 +2129,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
 scope_open_empty: TOK_OCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_BRACE);
     csh.PushContext(true);
   #else
     //push empty color & style sets for design definition
@@ -4232,6 +4229,7 @@ string: alpha_string | symbol_string | TOK_STYLE_NAME;
 scope_open: TOK_OCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_BRACE);
     csh.PushContext();
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_LINE_START)) {
         csh.AddLineBeginToHints();
@@ -4250,6 +4248,7 @@ scope_close: TOK_CCBRACKET
   #ifdef C_S_H_IS_COMPILED
     $$ = NULL;
     csh.PopContext();
+    csh.AddCSH(@1, COLOR_BRACE);
   #else
     std::pair<bool, double> hscale = msc.Contexts.back().hscale;
     $$ = msc.PopContext();
