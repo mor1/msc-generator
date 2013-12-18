@@ -63,7 +63,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         }
         ReleaseDC(pDC);
     }
-    const bool changed = csh.Hints.size() != m_csh.Hints.size();
+    bool changed = csh.Hints != m_csh.Hints;
     //save so much of "csh" as is needed to draw the hints & symbols
     m_csh.Hints = csh.Hints; 
     m_csh.pShapes = csh.pShapes;
@@ -338,7 +338,7 @@ END_MESSAGE_MAP()
 // CPopupList message handlers
 void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
 {
-    if (changed) {
+    if (changed || 1) {
         if (m_listBox.m_csh.Hints.size()==0) {
             Hide();
             return;
