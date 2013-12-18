@@ -76,6 +76,7 @@ enum EColorSyntaxType {
     COLOR_LABEL_TEXT,      ///<The text of a label, either after a colon or between quotation marks
     COLOR_LABEL_ESCAPE,    ///<The text of a lanel escape, such as '\n'
     COLOR_ERROR,           ///<A place where an error was detected.
+    COLOR_NO_ERROR,        ///<The inverse of error formatting
     COLOR_COMMENT,         ///<A comment
     COLOR_MAX              ///<No specific element, simply the maximum value
 };
@@ -86,13 +87,13 @@ struct CshEntry
     int first_pos;            ///<The first char in the range
     int last_pos;             ///<The last char in the range
     EColorSyntaxType color; ///<The type of the language element in the range
+    bool operator==(const CshEntry&o) const { return color == o.color && first_pos==o.first_pos && last_pos ==o.last_pos; }
 };
 
 /** An ordered collection of colored ranges.*/
 class CshListType : public std::vector<CshEntry>
 {
 public:
-    void AddToFront(const CshEntry &e) {insert(begin(), e);} ///<Add to the front of the collection
     void AddToBack(const CshEntry &e) {push_back(e);}        ///<Add to the end of the collection
 };
 
@@ -326,11 +327,12 @@ public:
     void AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
     void AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name); ///<At pos there is an ext pos designator name. Search and color.
     void AddCSH_SymbolName(const CshPos&pos, const char *name); ///<At pos there is a symbol. Color it.
-    void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);} ///<Add error coloring for each error collected.
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
     EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
-    void AdjustCSH(int start, int offset); ///<Emulate inserting or removing offset chars after start & update CSH entries
+    template <class EntryList>
+    static void AdjustCSHList(EntryList &, int start, int offset); ///<Emulate inserting or removing offset chars after start & update CSH entries
+    void AdjustCSH(int start, int offset) {AdjustCSHList(CshList, start, offset); AdjustCSHList(CshErrors, start, offset);}///<Emulate inserting or removing offset chars after start & update CSH entries
 
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.
@@ -390,5 +392,34 @@ void CshParse(Csh &csh, const char *buff, unsigned len);
 //returns 1 if txt is a prefix of something in coll, but not equals anything
 //returns 2 if txt equals to something in coll
 int FindPrefix(const std::set<std::string> &coll, const char *txt);
+
+template <class EntryList>
+void Csh::AdjustCSHList(EntryList & list, int start, int offset)
+{
+    if (offset==0) return;
+    const int upper = offset < 0 ? start - offset : start;
+    for (auto &csh : list) {
+        if (csh.last_pos <= start) continue;
+        if (csh.first_pos >= upper) {
+            csh.first_pos += offset;
+            csh.last_pos += offset;
+            continue;
+        }
+        if (offset>0) {
+            //here it must be that first pos is before start
+            //and last pos is after it.
+            csh.last_pos += offset;
+            continue;
+        }
+        //here we delete between start and upper
+        if (csh.first_pos > start)
+            csh.first_pos = start; //first pos is in the region deleted
+        if (csh.last_pos < upper)
+            csh.last_pos = start;  //last pos is in the region deleted
+        else
+            csh.last_pos += offset; //last pos is beyond the region deleted
+    }
+}
+
 
 #endif

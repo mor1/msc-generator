@@ -44,6 +44,15 @@ class CCshRichEditCtrl : public CRichEditCtrl
     CPopupList m_hintsPopup;
     int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
     CEditorBar * const m_parent;
+    struct Change {
+        long length_before;  //if ins==-1 we compute the inserted characters based on length
+        long start;
+        long del;
+        long ins;
+        void Clear() { del = ins = 0; }
+    } last_change;
+    CshListType csh_delta;  //those csh entries that changed since last time
+    CshListType csh_error_delta;  //those csh entries that changed since last time
 public:
     Csh  m_csh;
     int m_tabsize;

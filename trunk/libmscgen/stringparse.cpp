@@ -776,7 +776,10 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
             CshPos loc;
             loc.first_pos = startpos+pos;
             loc.last_pos = loc.first_pos+length-1;
-            csh.AddCSH(loc, color);
+            if (color == COLOR_ERROR)
+                csh.AddCSH_Error(loc, "Invalid escape sequence.");
+            else
+                csh.AddCSH(loc, color);
         }
         pos+=length;
     }

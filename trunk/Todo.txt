@@ -61,7 +61,7 @@ ADDED file.info file.url options
 FIXED: Hint popup window problem
 FIXED: Better handling of parse errors
 CHANGE: Group undo actions
-FIX: Smart ident - perhaps add TAB mode
+FIXED: Smart ident - added TAB mode
 FIX: CSH for large files. Do it offline.
 
 In 3.7.5 (feature freeze for 3.8)

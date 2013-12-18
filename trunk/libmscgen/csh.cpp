@@ -127,6 +127,7 @@ void MscInitializeCshAppearanceList(void)
     l[0][COLOR_COMMENT].           SetColor(100,100,100); l[0][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
     l[0][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[0][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[0][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;     l[0][COLOR_NO_ERROR].effects = 0;
 
     //CSH_SCHEME ==1 is the Standard one
     l[1][COLOR_KEYWORD].           SetColor(128,128,  0); l[1][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -155,6 +156,7 @@ void MscInitializeCshAppearanceList(void)
     l[1][COLOR_COMMENT].           SetColor(100,100,100); l[1][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
     l[1][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[1][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[1][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;     l[1][COLOR_NO_ERROR].effects = 0;
 
     //CSH_SCHEME ==2 is the Colorful one
     l[2][COLOR_KEYWORD].           SetColor(128,128,  0); l[2][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -183,6 +185,7 @@ void MscInitializeCshAppearanceList(void)
     l[2][COLOR_COMMENT].           SetColor(100,100,100); l[2][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
     l[2][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[2][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[2][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;     l[2][COLOR_NO_ERROR].effects = 0;
 
     //CSH_SCHEME ==3 is the Error oriented one
     l[3][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[3][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -209,7 +212,9 @@ void MscInitializeCshAppearanceList(void)
     l[3][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[3][COLOR_LABEL_TEXT].effects = 0;
     l[3][COLOR_LABEL_ESCAPE].      SetColor(  0,  0,  0); l[3][COLOR_LABEL_ESCAPE].effects = COLOR_FLAG_BOLD;
     l[3][COLOR_COMMENT].           SetColor(100,100,100); l[3][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
-    l[3][COLOR_ERROR].      SetColor(255,  0,  0);        l[3][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[3][COLOR_ERROR].             SetColor(255,  0,  0); l[3][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[3][COLOR_NO_ERROR].          SetColor(  0,  0,  0); l[3][COLOR_NO_ERROR].effects = 0;
+    l[3][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;
 }
 
 /** State of coloring */
@@ -590,7 +595,7 @@ void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType c
         match_result = 0;
     switch (match_result) {
     case 2: AddCSH(pos, color); return;
-    case 0: AddCSH(pos, COLOR_ERROR); return;
+    case 0: AddCSH_Error(pos, array == opt_names ? "Unkown chart option." : "Unknown attribute."); return;
     case 1:
         AddCSH(pos, EColorSyntaxType(color+1));
         partial_at_cursor_pos.first_pos = pos.first_pos;
@@ -797,34 +802,6 @@ Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes) :
     Contexts.back().SetToDesign(defaultDesign);
     FullDesigns["plain"] = Contexts.back();
 }
-
-void Csh::AdjustCSH(int start, int offset)
-{
-    if (offset==0) return;
-    const int upper = offset < 0 ? start - offset : start;
-    for (auto &csh : CshList) {
-        if (csh.last_pos <= start) continue;
-        if (csh.first_pos >= upper) {
-            csh.first_pos += offset;
-            csh.last_pos += offset;
-            continue;
-        }
-        if (offset>0) {
-            //here it must be that first pos is before start
-            //and last pos is after it.
-            csh.last_pos += offset;  
-            continue;
-        } 
-        //here we delete between start and upper
-        if (csh.first_pos > start)
-            csh.first_pos = start; //first pos is in the region deleted
-        if (csh.last_pos < upper)
-            csh.last_pos = start;  //last pos is in the region deleted
-        else
-            csh.last_pos += offset; //last pos is beyond the region deleted
-    }
-}
-
 
 void Csh::PushContext(bool empty)
 {
