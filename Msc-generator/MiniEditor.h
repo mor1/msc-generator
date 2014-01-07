@@ -36,23 +36,19 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-    bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
-    int m_csh_index; //-3 if CSH is up-to date, -2 if stale & compiling, -1 if stale, but compiled, >=0 if in progress (showing the line to add next)    
     CEditorBar * const m_parent;
     struct Change {
-        long length_before;  //if ins==-1 we compute the inserted characters based on length
-        long start;
-        long del;
-        long ins;
-        void Clear() { del = ins = 0; }
-    } last_change;
-    CshListType csh_delta;  //those csh entries that changed since last time
-    CshListType csh_error_delta;  //those csh entries that changed since last time
+        long length_before;     ///<What is the length of the text before the change (each newline counted as 2 chars as in GetTextLength()).
+        long sel_length_before; ///<What is the length of the selection before the change (what is likely deleted) (each newline as one character as in GetSel())
+        long cr_in_sel;         ///<How many newlines inside the selection
+        long pos;               ///<Where did the change occur (newlines counted as one char, indexed from zero)
+        bool head;              ///<true if the change happened after 'pos' (at deletion 'pos' was the first char to delete, at insertion it happens before 'pos') or before (like a backspace or ctrl+bksp).
+    } last_change; ///<Contains information recorded before a change to chart text about the impending change. Used to adjust existing CSH entries.
 public:
     Csh  m_csh;
     int m_tabsize;
@@ -82,9 +78,7 @@ public:
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
 	bool UpdateCsh(bool force = false); 
 	void CancelPartialMatch();
-	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);
-    void CopyCsh(); //copies a batch of ch entries to the ctrl. Manages the timer of parent!!
 
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
@@ -110,7 +104,6 @@ public:
 // Attributes
     CFont m_Font;
 	CCshRichEditCtrl m_ctrlEditor;
-    UINT_PTR m_timer;
 	CFindReplaceDialog* m_pFindReplaceDialog;
 	CString m_sLastFindString;
 	CString m_sLastReplaceString;
@@ -128,10 +121,8 @@ public:
 public:
 	virtual ~CEditorBar();
 	void SetReadOnly(bool=true);
-    void StartStopTimer(bool shall_continue);
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
-    afx_msg void OnTimer(UINT_PTR nEventID);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);

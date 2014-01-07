@@ -331,7 +331,7 @@ public:
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
     EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
     template <class EntryList>
-    static void AdjustCSHList(EntryList &, int start, int offset); ///<Emulate inserting or removing offset chars after start & update CSH entries
+    static void AdjustCSHList(EntryList &, int start, int offset); 
     void AdjustCSH(int start, int offset) {AdjustCSHList(CshList, start, offset); AdjustCSHList(CshErrors, start, offset);}///<Emulate inserting or removing offset chars after start & update CSH entries
 
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
@@ -393,29 +393,44 @@ void CshParse(Csh &csh, const char *buff, unsigned len);
 //returns 2 if txt equals to something in coll
 int FindPrefix(const std::set<std::string> &coll, const char *txt);
 
+/** Emulate inserting or removing offset chars after start & update CSH entries
+ * We cancel entries that are entirely in the deleted region (if offset < 0) by setting their
+ * last position to a value smaller than their first pos.
+ * @param list The list (which can be a CshListType or CshErrorList) to adjust.
+ *             As for normal csh entires, the first character of the file is 1.
+ *             Also, if the first and last position of a csh entry equals, that means
+ *             that the csh entry corresponds to a single character of the file.
+ * @param [in] start The first character of the change. Again assuming the first character of
+ *                   the file is named 1. When inserting we insert *before* this character;
+ *                   when deleting, this is the first character we delete.
+ * @param [in] offset The number of bytes inserted (for positive value) or removed (for
+ *                    negative value). Value zero requires nothing to do.*/
 template <class EntryList>
 void Csh::AdjustCSHList(EntryList & list, int start, int offset)
 {
     if (offset==0) return;
     const int upper = offset < 0 ? start - offset : start;
     for (auto &csh : list) {
-        if (csh.last_pos <= start) continue;
+        //if the entry is completely before "start" we do nothing
+        if (csh.last_pos < start) continue;
+        //if the entry is entirely after the affected region
+        //we just shift it.
         if (csh.first_pos >= upper) {
             csh.first_pos += offset;
             csh.last_pos += offset;
             continue;
         }
         if (offset>0) {
-            //here it must be that first pos is before start
-            //and last pos is after it.
+            //here 'upper==start' thus it must be that 
+            // 'first pos < start' and 'last pos >= start'
             csh.last_pos += offset;
             continue;
         }
-        //here we delete between start and upper
-        if (csh.first_pos > start)
+        //here we delete between start and upper (but not upper itself)
+        if (csh.first_pos >= start)
             csh.first_pos = start; //first pos is in the region deleted
         if (csh.last_pos < upper)
-            csh.last_pos = start;  //last pos is in the region deleted
+            csh.last_pos = start-1;  //last pos is in the region deleted
         else
             csh.last_pos += offset; //last pos is beyond the region deleted
     }

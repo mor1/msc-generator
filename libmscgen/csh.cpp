@@ -46,6 +46,10 @@ bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) co
 
 void CshErrorList::Add(const CshPos &pos, const char *t)
 {
+    //check that we do not add the same error twice
+    for (const auto &e : *this)
+        if (e.first_pos == pos.first_pos && e.text==t)
+            return;
     resize(size()+1);
     CshError &e = at(size()-1);
     e.first_pos=pos.first_pos;
@@ -56,6 +60,10 @@ void CshErrorList::Add(const CshPos &pos, const char *t)
 
 void CshErrorList::Add(const CshPos &pos, const std::string &t)
 {
+    //check that we do not add the same error twice
+    for (const auto &e : *this)
+        if (e.first_pos == pos.first_pos && e.text==t)
+            return;
     resize(size()+1);
     CshError &e = at(size()-1);
     e.first_pos = pos.first_pos;
@@ -66,6 +74,10 @@ void CshErrorList::Add(const CshPos &pos, const std::string &t)
 
 void CshErrorList::Add(const CshPos &pos, std::string &&t)
 {
+    //check that we do not add the same error twice
+    for (const auto &e : *this)
+        if (e.first_pos == pos.first_pos && e.text==t)
+            return;
     resize(size()+1);
     CshError &e = at(size()-1);
     e.first_pos = pos.first_pos;

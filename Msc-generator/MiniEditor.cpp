@@ -33,19 +33,20 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-
 CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
     m_csh(ArcBase::defaultDesign, NULL), m_hintsPopup(parent, this),
     m_parent(parent)
 {
     m_tabsize = 4;
-	m_bCshUpdateInProgress = false;  
     m_bWasReturnKey = false;
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
     m_bWasAutoComplete = false;
-    m_csh_index = -3;
-    last_change.Clear();
+    last_change.length_before = 0;
+    last_change.sel_length_before = 0;
+    last_change.cr_in_sel = 0;
+    last_change.pos = 0;
+    last_change.head = true;
 }
 
 /** Create the object. 
@@ -323,19 +324,19 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
     if (target_ident > current_ident) {
         SetSel(lStart-col, lStart-col);
         if (standalone) {
-            _ASSERT(last_change.ins==0 && last_change.del==0);
-            last_change.start = lStart-col;
-            last_change.ins = target_ident-current_ident;
-            last_change.del = 0;
+            last_change.pos = lStart-col;
+            last_change.head = true;
+            last_change.sel_length_before = 0;
+            last_change.cr_in_sel = 0;
         }
         ReplaceSel(CString(' ', target_ident-current_ident));
     } else {
         SetSel(lStart-col, lStart-col+current_ident-target_ident);
         if (standalone) {
-            _ASSERT(last_change.ins==0 && last_change.del==0);
-            last_change.start = lStart-col;
-            last_change.ins = 0;
-            last_change.del = current_ident-target_ident;
+            last_change.pos = lStart-col;
+            last_change.head = true;
+            last_change.sel_length_before = current_ident-target_ident;
+            last_change.cr_in_sel = 0;
         }
         ReplaceSel("");
     }
@@ -380,10 +381,22 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
     m_bWasReturnKey = false;
-    if (pMsg->message == WM_KEYDOWN || pMsg->message == WM_CHAR)
-        last_change.Clear();
-    else    
+    if (pMsg->message != WM_KEYDOWN && pMsg->message != WM_CHAR)
         return CRichEditCtrl::PreTranslateMessage(pMsg);
+    long lStart, lEnd;
+    GetSel(lStart, lEnd);
+    last_change.pos = lStart;
+    last_change.head = true;
+    last_change.length_before = GetTextLength();
+    last_change.sel_length_before = lEnd-lStart;
+    if (lStart==lEnd)
+        last_change.cr_in_sel = 0;
+    else {
+        int line, line2, col;
+        ConvertPosToLineCol(lStart, line, col);
+        ConvertPosToLineCol(lEnd, line2, col);
+        last_change.cr_in_sel = line2-line;
+    }
     if (InHintMode()) {
         if (pMsg->message == WM_KEYDOWN) { 
             if (pMsg->wParam == VK_ESCAPE) {CancelHintMode(); return TRUE;}
@@ -402,91 +415,91 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //if nothing selected let it run further as if not in hint mode
             }
         } else if (pMsg->message == WM_CHAR) {
-            if (isalnum(pMsg->wParam) || pMsg->wParam == '_' || pMsg->wParam == VK_BACK)
+            if (isalnum(pMsg->wParam) || pMsg->wParam == '_')
                 //characters that can make up a hinted keyword - 
                 //we insert them and re-calc hints afterwards in OnCommand
-                goto insert_char;
+                return CRichEditCtrl::PreTranslateMessage(pMsg);
             //do nothing if no item is selected
             const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();
-            if (!item) goto insert_char;
+            if (!item) return CRichEditCtrl::PreTranslateMessage(pMsg);
             //Expand hint under cursor, if it is full match or prefix
-            if (item->state != HINT_ITEM_SELECTED) goto insert_char;
+            if (item->state != HINT_ITEM_SELECTED) return CRichEditCtrl::PreTranslateMessage(pMsg);
             if (pMsg->wParam == '.') {
                 //expand only till the next dot in the hint
                 unsigned pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.first_pos;
                 pos = item->plain.find_first_of('.', pos);
                 if (pos != string::npos) {
                     ReplaceHintedString(item->plain.substr(0, pos).c_str(), false);
-                    last_change.ins++; //as we let windows insert the '.'
-                    return FALSE;
+                    return CRichEditCtrl::PreTranslateMessage(pMsg);
                 }
             }
             ReplaceHintedString(item->plain.c_str(), !item->keep);
-            last_change.ins++; //as we let windows insert whatever char is in the msg
-            return FALSE;
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
         }
     }
-
-    //show hints for ctrl+space
-    if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_SPACE 
-        && GetKeyState(VK_CONTROL) & 0x8000) {
+    //Handle a batch of WM_KEYDOWN events
+    if (pMsg->message == WM_KEYDOWN) {
+        //show hints for ctrl+space
+        if (pMsg->wParam == VK_SPACE && GetKeyState(VK_CONTROL) & 0x8000) {
             m_bUserRequested = true;
             UpdateCsh();
             //see if we are at the beginning of a word
-            long s, e;
-            GetSel(s, e);
             bool till_cursor_only = false;
-            if (s==0) till_cursor_only = true;
+            if (lStart==0) till_cursor_only = true;
             else {
                 CString str;
-                GetTextRange(s-1,s, str);
+                GetTextRange(lStart-1, lStart, str);
                 if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
             }
             //if so, set the hint mode such that we only consider the word under the curson
             //up to the cursor (and cut away the remainder)
             m_bWasAutoComplete = false; //do not prevent hint mode on this basis
-            StartHintMode(till_cursor_only); 
+            StartHintMode(till_cursor_only);
             //Update CSH as it does not happen if we return TRUE
             //if (last_change.ins>0 ||last_change.del>0)
             //    UpdateCsh(); //if replacehintedstring has filled in last_change
             return TRUE;
-    }
-
-    //Do nothing for escape
-	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
-        NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
-        return TRUE;
-	}
-    //call parent if not keys relevant for smart identing
-    if (pMsg->message == WM_KEYDOWN) {
-        if (pMsg->wParam == VK_INSERT) goto insert_clipboard;
-        if (pMsg->wParam == VK_DELETE) {
-            long end;
-            GetSel(last_change.start, end);
-            last_change.del = std::max(1L, end-last_change.start);
-            last_change.ins = 0;
-            return FALSE;
         }
+
+        //Do nothing for escape
+        if (pMsg->wParam == VK_ESCAPE) {
+            NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
+            return TRUE;
+        }
+        //call parent if not keys relevant for smart identing
+        if (pMsg->wParam == VK_INSERT) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (pMsg->wParam == VK_DELETE) {
+            //if we delete a newline, take special action
+            if (lStart == lEnd) {
+                int line, col;
+                ConvertPosToLineCol(lStart+1, line, col);
+                if (col==0) last_change.cr_in_sel = 1;
+            }
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
+        }
+        //do nothing if keydown is not TAB, ENTER or BACKSPACE
         if (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && pMsg->wParam != VK_BACK)
             return CRichEditCtrl::PreTranslateMessage(pMsg);
     }
-    if (pMsg->message == WM_CHAR && pMsg->wParam != '}')
-        goto insert_char;
 
-    long lStart, lEnd;
-	GetSel(lStart, lEnd);
+    //Do nothing for characters other than closing braces
+    if (pMsg->message == WM_CHAR && pMsg->wParam != '}')
+        return CRichEditCtrl::PreTranslateMessage(pMsg);
+
+    //At this point we have either WM_CHAR and a closing brace or WM_KEYDOWN and TAB, ENTER OR BKSPACE
+
 	int line, col;
 	ConvertPosToLineCol(lStart, line, col);
 	const int current_ident = FindCurrentLineIdent(lStart);
 
 	if (pMsg->wParam == '}') {
         //if we are in a label, do nothing
-        if (FindColonLabelIdent(lStart)>-1) goto insert_char;
-        if (current_ident!=-1 && current_ident<col) goto insert_char; //not in leading whitespace
+        if (FindColonLabelIdent(lStart)>-1) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (current_ident!=-1 && current_ident<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
 		int brace_ident = FindIdentForClosingBrace(lStart);
 		if (brace_ident == -1) brace_ident = 0; //beginning of line if no matching opening brace
 		SetCurrentIdentTo(brace_ident, current_ident, col, lStart, lEnd, true);
-		goto insert_char; //let RicheditCtrl insert the }
+        return CRichEditCtrl::PreTranslateMessage(pMsg); //let RicheditCtrl insert the }
 	}
 
     //Here are the rules for TAB
@@ -502,7 +515,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         _ASSERT(pApp);
         const bool shift = bool(GetKeyState(VK_SHIFT) & 0x8000);
         bool changed = false;
-        if (pApp->m_bTABIdents && !m_bCshUpdateInProgress) { //TAB mode
+        if (pApp->m_bTABIdents) { //TAB mode
             int eLine, eCol;
             ConvertPosToLineCol(lEnd, eLine, eCol);
             if (line == eLine) {
@@ -512,7 +525,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //leave last change as if nothing happened
                 //We go on and adjust csh all the fime in SetCurrentIdentTo(..., false).
                 SetRedraw(false);
-                m_bCshUpdateInProgress = true;
                 CString strLine;
                 for (int i = line; i<=eLine; i++) {
                     //if the last line and not really selected, skip
@@ -534,10 +546,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     }
                 }
                 SetSel(lStart, lEnd);
-                m_bCshUpdateInProgress = false;
                 SetRedraw(true);
             }
-        } else if (!m_bCshUpdateInProgress) { //smart ident, but no tab mode
+        } else { //smart ident, but no tab mode
             //if no selection:
             if (lStart == lEnd) {
                 int ident;
@@ -556,23 +567,17 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                         SetSel(lStart+(ident-col), lStart);
                         ReplaceSel("");
                         SetRedraw(true);
-                        last_change.start = lStart+(ident-col);
-                        last_change.del = col-ident;
+                        last_change.pos = lStart+(ident-col);
+                        last_change.sel_length_before = col-ident;
                     } else {
                         ReplaceSel(CString(' ', ident-col));
-                        last_change.start = lStart;
-                        last_change.ins = ident-col;
                     }
                     changed = true;
                 }
             } else {
                 //a full selection, do identation
-                //First fill in last change as if we deleted the whole selection
+                //Leave last_change as if we deleted the whole selection
                 //and inserted something - we do not track where do we change what
-                last_change.start = lStart;
-                last_change.del = lEnd-lStart;
-                last_change.ins = -1;
-                last_change.length_before = GetTextLength();
 
                 int startLine = line;
                 int endLine, endCol;
@@ -594,7 +599,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 const int offset = CalcTabStop(headCol, !shift, smartIdent, headCol, true) - headCol;
 
                 //Insert/remove "offset" amount of space from the beginning of each line
-                m_bCshUpdateInProgress = true;
                 SetRedraw(false);
                 CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
                 for (int l = startLine; l<=endLine; l++) {
@@ -615,7 +619,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 }
                 SetSel(lStart, lEnd);
                 SetRedraw(true);
-                m_bCshUpdateInProgress = false;
                 changed = true;
             }
         }
@@ -630,30 +633,34 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         const int ident = FindProperLineIdent(line);
 		//If the determined ident is zero, just let the system handle the RETURN
 		if (ident==0) 
-			goto insert_char;
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
 		//insert that many spaces as ident after the newline
 		CString spaces(' ', ident);
 		spaces.Insert(0, "\n");
-        last_change.start = lStart;
-        last_change.del = lEnd-lStart;
-        last_change.ins = ident+1;
         ReplaceSel(spaces, FALSE);
         ////Update CSH as it does not happen if we return TRUE
         //UpdateCsh(); 
 		return TRUE;
 	}
-	if (pMsg->wParam == VK_BACK) {
-		if (col==0) return FALSE;
+    if (pMsg->wParam == VK_BACK) {
+        //in case of ctrl+backspace we do not do
+        //any smart ident. In this case we have no clue about 
+        //how many characters will we delete, so we indicate unknown.
+        if (bool(GetKeyState(VK_CONTROL) & 0x8000)) {
+            last_change.head = false; 
+            last_change.sel_length_before = 0; //RichEditCtrl ignores the selection on ctrl+bksp
+            last_change.cr_in_sel = col==0 ? 1 : 0;
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
+        }
+        if (col==0) {
+            if (lStart == lEnd && lStart>0) last_change.cr_in_sel = 1; //we delete a newline
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
+        }
 		//if not in leading whitespace or at beginning of line
         if ((col==0) || (current_ident!=-1 && current_ident<col)) {
-            if (lStart!=lEnd) {
-                last_change.start = lStart;
-                last_change.del = lEnd-lStart;
-            } else if (lStart>0) {
-                last_change.start = lStart-1;
-                last_change.del = 1;
-            }
-            return FALSE;
+            if (lStart==lEnd && lStart>0) 
+                last_change.head = false;
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
         }
 		//in leading whitespace, consider smart ident and/or previous line indent
 		const int smartIdent = FindProperLineIdent(line);
@@ -663,22 +670,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         //UpdateCsh(); //setcurrentidentto(...true) has filled in last_change
         return TRUE;
 	}
-	return FALSE;
-
-insert_char:
-    long end;
-    GetSel(last_change.start, end);
-    last_change.del = end-last_change.start;
-    last_change.ins = 1;
-    return FALSE;
-
-insert_clipboard:
-    end;
-    GetSel(last_change.start, end);
-    last_change.del = end-last_change.start;
-    last_change.ins = -1;
-    last_change.length_before = GetTextLength();
-    return FALSE;
+    return CRichEditCtrl::PreTranslateMessage(pMsg);
 }
 
 void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification)
@@ -687,11 +679,9 @@ void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCo
 	undoRec.text = text;
 	EnsureCRLF(undoRec.text);
 	SetRedraw(false);
-	m_bCshUpdateInProgress = preventNotification; 
     m_csh.CshList.clear();
     m_csh.CshErrors.clear();
     SetWindowText(undoRec.text);
-	m_bCshUpdateInProgress = false;
 	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
 	SetSel(ConvertLineColToPos(lStartLine, lStartCol), ConvertLineColToPos(lEndLine, lEndCol));
     SetRedraw(true);
@@ -704,12 +694,11 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr, bool preventN
 	undoRec.text = text;
 	EnsureCRLF(undoRec.text);
 	SetRedraw(false);
-	m_bCshUpdateInProgress = preventNotification; 
     m_csh.CshList.clear();
     m_csh.CshErrors.clear();
 	SetWindowText(undoRec.text);
 	SetSel(cr);
-	m_bCshUpdateInProgress = false;
+    last_change.length_before = undoRec.text.GetLength();
 	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
     SetRedraw(true);
 	SetFocus();
@@ -731,7 +720,8 @@ CshListType Diff(const EntryList &old_list,
                     delta.back().color = neutral;
                 }
                 delta.AddToBack(*n);
-            }
+            } else if (o->color != n->color) //same position, but different color: keep new version
+                delta.AddToBack(*n);
             o++;
             n++;
         } else if (o->first_pos < n->first_pos) { //a removed item: paint with normal color
@@ -755,62 +745,116 @@ CshListType Diff(const EntryList &old_list,
     return delta;
 }
 
+/** About position values.
+CSH entries start with the first character of the file indexed as 1.
+Thus, if a csh entry corresponds to the first character (only) of a file,
+it has 'first_pos = 1' and 'last_pos = 1'. For the first three letter 
+of the file these values are 1 and 3.
+In contrast, last_change values start being indexed from zero.
+Thus if you insert a character at the beginning of the file, you get
+last_change.start = 0, and last_change.ins = 1 (being the number of characers
+inserted).
+*/
 
 bool CCshRichEditCtrl::UpdateCsh(bool force)
 {
-    if (m_bCshUpdateInProgress) return false;
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
+    if (!pApp) return false;
     //Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-    if (pApp && !pApp->m_bDoCshProcessing && !force) return false;
+    if (!pApp->m_bDoCshProcessing && !force) return false;
     CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
 
+    //record scroll and cursor position 
+    POINT scroll_pos;
     CHARRANGE cr;
+    ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
     GetSel(cr);
+
     //if we do not do CSH processing, but force is true, we clear all formatting now
     if (!pApp->m_bDoCshProcessing && force) {
         SetRedraw(false);
-        m_bCshUpdateInProgress = true;
-        POINT scroll_pos;
-        ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
         SetSel(0, -1); //select all
         SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+
+        //restore cursor and scroll position
         SetSel(cr);
         ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
-        m_bCshUpdateInProgress = false;
         SetRedraw(true);
         Invalidate();
         UpdateWindow();
-        m_csh_index = -3;
         return false;
     }
 
     //here pApp->m_bDoCshProcessing is true - Parse the text for CSH
 
-    //Take text we display and remove CRLF
+    //Take text we display and fill in unspecified last_change.{ins,del}
     CString text;
     GetWindowText(text);
-    RemoveCRLF(text);
+    //we store the length with the CRLF pairs
+    const unsigned length_now = text.GetLength();
+    
+    //'last_change.length_before' counts newline characters as two bytes long
+    //(same as GetTextLength()). OTOH 'last_change.sel_length_before' and 'pos'
+    //count each newline as one byte. This is compensated by 'last_change.cr_in_sel',
+    //which shows how many newlines are in the selection.
+    long ins, del, start;
+    if (length_now==last_change.length_before) {
+        //if the length has not changed, we still assume we deleted the selection
+        //(this function is supposedly called only if the text has changed)
+        ins = del = last_change.sel_length_before;
+        start = last_change.pos;
+        _ASSERT(last_change.head);
+    } else {
+        //If the length has changed, we have definitely deleted the selection (if any)
+        if (length_now + last_change.sel_length_before + last_change.cr_in_sel < last_change.length_before) {
+            //here we deleted more than the selection
+            //should happen only when the selection is zero
+            _ASSERT(last_change.sel_length_before==0);
+            ins = 0;
+            //still cr_in_sel may be 1 if we deleted a newline via BackSpace or Delete
+            del = last_change.length_before - length_now - last_change.cr_in_sel;
+            start = last_change.head ? last_change.pos : last_change.pos - del;
+        } else {
+            //here we deleted less than the selection (some insertion was going on)
+            ins = length_now + last_change.sel_length_before - last_change.length_before;
+            del = last_change.sel_length_before;
+            start = last_change.pos;
+            _ASSERT(last_change.head);
+        }
+    }
+    //Now remove CR ('\r') characters, keep only LF ('\n')
+    //We need to do CSH parsing on single-character EOLs, since SetSel() 
+    //treats newlines as a single character 
+    //In the meantime if we have inserted newlines via a paste
+    //(insert length unspecified), we substract one for each CR removed
+    //from the inserted range. 
+	int pos = text.Find("\r");
+	while (pos >= 0) {
+		text.Delete(pos);
+        if (pos >= start && pos < start+ins)
+            ins--;
+		pos = text.Find("\r", pos);
+	}
 
     //if we had csh entries before, consider last_change
     if (m_csh.CshList.size()) {
-        if (last_change.ins == -1)
-            last_change.ins = text.GetLength() - last_change.length_before + last_change.del;
-        m_csh.AdjustCSH(last_change.start, last_change.ins-last_change.del);
+        //Since last_change.start is as if the first char in the file is indexed
+        //at zero, we add one (csh entries are indexed from 1).
+        m_csh.AdjustCSH(start+1, ins-del);
         //if we inserted, mark inserted text as "COLOR_MAX" so that we
         //mark it properly
-        if (last_change.ins) 
+        if (ins) 
             //search for the place to insert
             for (unsigned u = 0; u<m_csh.CshList.size(); u++)
-                if (m_csh.CshList[u].first_pos > last_change.start) {
+                if (m_csh.CshList[u].first_pos > start+1) {
                     m_csh.CshList.insert(m_csh.CshList.begin()+u, CshEntry());
-                    m_csh.CshList[u].first_pos = last_change.start;
-                    m_csh.CshList[u].last_pos = last_change.start + last_change.ins;
+                    m_csh.CshList[u].first_pos = start+1;
+                    m_csh.CshList[u].last_pos = start + ins;
                     m_csh.CshList[u].color = COLOR_MAX;
                     break;
                 }
-        last_change.Clear();
     }
 
 
@@ -832,8 +876,6 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
     //retune true if the past and new m_csh.hintedStringPos overlap
     bool ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
 
-    if (!pApp->m_bShowCsh) return ret;
-
     //Apply the color syntax to the text in the editor
     if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
         MscError Error;
@@ -849,7 +891,8 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
         }
         pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
     }
-    //create a diff in delta
+    if (!pApp->m_bShowCsh) return ret;
+    //create a diff 
     //csh_list is unfortunately not always sorted by first_pos, but close.
     std::sort(m_csh.CshList.begin(), m_csh.CshList.end(),
         [](CshEntry const & a, CshEntry const &b) {
@@ -859,98 +902,41 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
         [](CshError const & a, CshError const &b) {
         return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
     });
-    csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_NORMAL);
-    csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_NO_ERROR);
+    CshListType csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_NORMAL);
+    CshListType csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_NO_ERROR);
 
-    //Do first batch of csh 
-    m_csh_index = -1;
-    CopyCsh();
-    return ret;
-}
+    //Ok now copy the delta to the editor window, if there is something to do
+    if (csh_delta.size()==0 && csh_error_delta.size()==0)
+        return ret;
 
-void CCshRichEditCtrl::CopyCsh()
-{
-    const unsigned ONE_BATCH = 100; //# of lines
-    const int PRE = 20;
-    long startfrom;
-    bool shall_invalidate = true; //XXX: speedup to set it false by default
-    bool shall_continue = false;
-    switch (m_csh_index) {
-    case -3: return;
-    case -2: return;
-    case -1: startfrom = std::max(0, GetFirstVisibleLine()-PRE); shall_invalidate = true; break;
-    default: startfrom = m_csh_index; 
-    }
-    long dotill = ConvertLineColToPos(startfrom + ONE_BATCH, 0);
-    if (dotill < 0) 
-        dotill = GetTextLength()+1;
-    startfrom = ConvertLineColToPos(startfrom, 0);
-    if (startfrom < 0) {
-        m_csh_index = -3;
-        return;
-    }
-    
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-	if (!pApp) return;
-	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-
+    //freeze screen, prevent visual updates
     SetRedraw(false);
-	//long eventMask = GetEventMask();
-	//SetEventMask(0);
-	m_bCshUpdateInProgress = true;
 
-	POINT scroll_pos;
-	::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-	CHARRANGE cr;
-	GetSel(cr);
-
-    //if (m_csh_index == -1) { //if we start anew
-    //    SetSel(0,-1); //select all
-    //    SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-    //}
     const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
     const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
     //Go backwards, since overlaid entries are added later
     for (auto i = csh_delta.rbegin(); !(i==csh_delta.rend()); i++)
-        if ( (i->first_pos <= dotill) && 
-             (i->last_pos >= startfrom) &&
-             (i->color<COLOR_MAX) ) {
-             //&&
-             //( scheme[i->color].dwEffects != effects || 
-             //  scheme[i->color].crTextColor != color || 
-             //  (MscCshAppearanceList[pApp->m_nCshScheme][i->color].mask & COLOR_FLAG_DIFFERENT_DRAW) ) ) {
-			SetSel(i->first_pos-1, i->last_pos);
-			SetSelectionCharFormat(scheme[i->color]);
-		}
+        if (i->color<COLOR_MAX) {
+            SetSel(i->first_pos-1, i->last_pos);
+            SetSelectionCharFormat(scheme[i->color]);
+        }
 
-    if (dotill >= GetTextLength()) {
-        if (pApp->m_bShowCshErrors) 
-            for (auto i = csh_error_delta.rbegin(); !(i==csh_error_delta.rend()); i++) {
-                SetSel(i->first_pos-1, i->last_pos);
-                SetSelectionCharFormat(scheme[i->color]);
-            }
-        m_csh_index = -3; // We are done
-    } else {
-        if (m_csh_index == -1) 
-            m_csh_index = 0;
-        else 
-            m_csh_index += ONE_BATCH;
-        shall_continue = true;
-    }
+     if (pApp->m_bShowCshErrors)
+        for (auto i = csh_error_delta.rbegin(); !(i==csh_error_delta.rend()); i++) {
+            SetSel(i->first_pos-1, i->last_pos);
+            SetSelectionCharFormat(scheme[i->color]);
+        }
 
+    //restore cursor and scroll position
     SetSel(cr);
-	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+    ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
-	m_bCshUpdateInProgress = false;
-	SetRedraw(true);
-	if (shall_invalidate) {
-        Invalidate();  //Invalidate only if we have shown the visible part
-        UpdateWindow();
-    }
-	//SetEventMask(eventMask);
-    m_parent->StartStopTimer(shall_continue);
+    //re-enable screen refresh and force one immediately
+    SetRedraw(true);
+    Invalidate();  
+    UpdateWindow();
+
+    return ret;
 }
 
 void CCshRichEditCtrl::CancelPartialMatch()
@@ -969,7 +955,6 @@ void CCshRichEditCtrl::CancelPartialMatch()
     if (!pApp || !pApp->m_bShowCsh) return;
 
 	SetRedraw(false);
-	m_bCshUpdateInProgress = true;
 
     //Set the partial match to the color previously proscribed in Csh
 	SetSel(m_csh.partial_at_cursor_pos.first_pos-1, m_csh.partial_at_cursor_pos.last_pos); //select all
@@ -977,7 +962,6 @@ void CCshRichEditCtrl::CancelPartialMatch()
 
 	SetSel(cr);
 
-	m_bCshUpdateInProgress = false;
 	SetRedraw(true);
 
 	Invalidate();
@@ -1131,9 +1115,11 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
     }
     SetRedraw(false);
     SetSel(pos.first_pos, pos.last_pos);
-    last_change.start = pos.first_pos;
-    last_change.del = pos.last_pos-pos.first_pos;
-    last_change.ins = subst.GetLength();
+    last_change.pos = pos.first_pos;
+    last_change.head = true;
+    last_change.sel_length_before = pos.last_pos-pos.first_pos;
+    last_change.cr_in_sel = 0; //assuming a hinted string is in a single line
+    last_change.length_before = GetTextLength();
     ReplaceSel(subst); //this will trigger an UpdateCsh
     SetRedraw(true);
 }
@@ -1157,7 +1143,6 @@ CEditorBar::CEditorBar() : m_ctrlEditor(this), m_pFindReplaceDialog(NULL)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    m_timer = NULL;
     m_lInitialSearchPos = 0;
     m_bFirstSearch = true;
 	m_bSuspendNotifications = FALSE;
@@ -1250,28 +1235,6 @@ void CEditorBar::SetReadOnly(bool readonly)
 }
 
 
-//Timer for csh.
-//This cannot be in CCshRichEditCtrl, for in that case mouse wheel scrolling
-//does not work mysteriously.
-void CEditorBar::StartStopTimer(bool shall_continue)
-{
-    const unsigned TIME_DLEAY = 30; //milliseconds
-    if (shall_continue == (m_timer!=NULL))
-        return;
-    else if (shall_continue)
-        m_timer = SetTimer(1, TIME_DLEAY, NULL);
-    else {
-        KillTimer(m_timer);
-        m_timer = NULL;
-    }
-
-}
-void CEditorBar::OnTimer(UINT_PTR nEventID)
-{
-    if (nEventID == m_timer)
-        m_ctrlEditor.CopyCsh();
-}
-
 void CEditorBar::OnSize(UINT nType, int cx, int cy)
 {
 	CDockablePane::OnSize(nType, cx, cy);
@@ -1310,7 +1273,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	int nCode = HIWORD(wParam);
 	if (hWndCtrl != m_ctrlEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
-	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return TRUE;
+	if (m_bSuspendNotifications) return TRUE;
 
 	const bool at_same_hint = m_ctrlEditor.UpdateCsh();
     int len = m_ctrlEditor.GetTextLength();
@@ -1344,7 +1307,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 
 void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result) 
 {
-    if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) {
+    if (m_bSuspendNotifications) {
         m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
         return;
     }

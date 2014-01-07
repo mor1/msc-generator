@@ -62,7 +62,7 @@ FIXED: Hint popup window problem
 FIXED: Better handling of parse errors
 CHANGE: Group undo actions
 FIXED: Smart ident - added TAB mode
-FIX: CSH for large files. Do it offline.
+FIXED: CSH for large files. Do it offline. It does not work for "test"
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
