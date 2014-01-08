@@ -1021,8 +1021,10 @@ void CMscGenApp::OnCheckCsh()
     m_bShowCsh = !m_bShowCsh;
     m_bDoCshProcessing = m_bShowCsh || m_bHints;
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh);
-    if (IsInternalEditorRunning())
+    if (IsInternalEditorRunning()) {
+        m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+    }
 }
 
 /** Enables/disables the button if we have an internal editor.*/
@@ -1043,10 +1045,14 @@ void CMscGenApp::OnComboCsh()
     pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_COMBO_CSH, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    if (m_nCshScheme == c->GetCurSel()) 
+        return;
     m_nCshScheme = c->GetCurSel();
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme);
-    if (IsInternalEditorRunning())
+    if (IsInternalEditorRunning()) {
+        m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+    }
 }
 
 
@@ -1099,8 +1105,10 @@ void CMscGenApp::OnCheckCshError()
 {
     m_bShowCshErrors = !m_bShowCshErrors;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors);
-    if (IsInternalEditorRunning())
+    if (IsInternalEditorRunning()) {
+        m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
         m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+    }
 }
 
 /** Enables the button only if we show csh and the internal editor is running.
