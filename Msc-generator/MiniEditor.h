@@ -36,6 +36,7 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
+    bool m_bCshUpdateInProgress; ///<If true, we do not update CSH (assuming one is in progress)
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
@@ -48,6 +49,10 @@ class CCshRichEditCtrl : public CRichEditCtrl
         long cr_in_sel;         ///<How many newlines inside the selection
         long pos;               ///<Where did the change occur (newlines counted as one char, indexed from zero)
         bool head;              ///<true if the change happened after 'pos' (at deletion 'pos' was the first char to delete, at insertion it happens before 'pos') or before (like a backspace or ctrl+bksp).
+        bool force_full;        ///<true if the change is so invasive, a full csh recoloring is needed
+        long start;         ///<Calculated start of change
+        long ins;           ///<Calculated number of inserted characters
+        long del;           ///<Calculated number of deleted characters
     } last_change; ///<Contains information recorded before a change to chart text about the impending change. Used to adjust existing CSH entries.
 public:
     Csh  m_csh;
@@ -76,9 +81,11 @@ public:
 	//Color Syntax Highlighting functions
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
+    void IndicateFullTextChange() { last_change.force_full = true; } ///<Indicate that we have changed so much of the text a full CSH recoloring is needed
 	bool UpdateCsh(bool force = false); 
 	void CancelPartialMatch();
-	bool NotifyDocumentOfChange(bool onlySelChange=false);
+    const Change & GetLastChange() const { return last_change; }
+	
 
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
@@ -115,7 +122,6 @@ public:
 	BOOL m_bFirstSearch;
 	bool m_bSuspendNotifications;
     long m_totalLenAtPreviousSelChange;
-    long m_totalLenAtPreviousTextChange;
 
 // Implementation
 public:

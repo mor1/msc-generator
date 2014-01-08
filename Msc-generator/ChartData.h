@@ -44,15 +44,22 @@ protected:
 public:
     unsigned ver_a, ver_b, ver_c;
 	CHARRANGE m_sel;
+    bool block_undo; //No further changes can be appended to this in the undo buffer
+    long start;
+    long ins;
+    long del;
 	CChartData() : m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), 
-        ver_a(0), ver_b(0), ver_c(0) {m_sel.cpMax = m_sel.cpMin = 0;}
+        ver_a(0), ver_b(0), ver_c(0), 
+        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0; }
 	CChartData(const char *text, const char *design=NULL) 
 		:m_text(text?text:""), m_ForcedDesign(design?design:""), 
         m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), 
-        ver_a(0), ver_b(0), ver_c(0) {m_sel.cpMax = m_sel.cpMin = 0;}
+        ver_a(0), ver_b(0), ver_c(0), 
+        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0;}
 	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL)
 		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""),
-        m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), ver_a(0), ver_b(0), ver_c(0)  {}
+        m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), ver_a(0), ver_b(0), ver_c(0), 
+        block_undo(true), start(0), ins(0), del(0)  {}
 	CChartData(const CChartData&o) {operator=(o);}
 	virtual ~CChartData() {Delete();}
     void swap(CChartData &o);

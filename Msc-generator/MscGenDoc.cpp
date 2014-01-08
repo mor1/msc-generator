@@ -617,7 +617,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 			return FALSE;
 		}
 		data.SetDesign(m_itrEditing->GetDesign());
-		InsertNewChart(data); //all pages visible
+		InsertNewChart(data); //all pages visible, undo blocked
 
 	}
 	//Copy text to the internal editor
@@ -978,7 +978,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
 		if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
-		InsertNewChart(CChartData(text, m_itrEditing->GetDesign())); 
+		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));  //undo blocked
         m_page_serialized_in = 0; //all pages visible
 	}
 	CompileEditingChart(true, false);
@@ -1125,6 +1125,7 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	if (CString(design) == m_itrEditing->GetDesign()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(design);
+    m_itrEditing->block_undo = true;
     pApp->m_designlib_csh.ForcedDesign = design;
 	CompileEditingChart(true, false);
 }
@@ -1438,6 +1439,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
 {
 	SetTrackMode(false);
 	InsertNewChart(data);
+    m_itrEditing->block_undo = true;
 	CompileEditingChart(true, false);
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1460,17 +1462,80 @@ void CMscGenDoc::OnInternalEditorChange()
 	ASSERT(pApp->IsInternalEditorRunning());
 	CString text;
 	pApp->m_pWndEditor->m_ctrlEditor.GetWindowText(text);
+
+    //First decide if we append this change to the last undo buffer or 
+    //create a new point.
+    bool append;
+    auto &last_change = pApp->m_pWndEditor->m_ctrlEditor.GetLastChange();
+    if (m_charts.size()==0)
+        append = false;
+    else if (m_itrEditing->block_undo)
+        append = false;
+    else if (last_change.force_full)
+        append = false;
+    else if (last_change.ins>0 && last_change.del>0)
+        append = false;
+    else if (m_itrEditing->ins>0 && m_itrEditing->del>0)
+        append = false;
+    else if (m_itrEditing->ins>0 && last_change.del>0)
+        append = false;
+    else if (m_itrEditing->del>0 && last_change.ins>0)
+        append = false;
+    else if (last_change.ins>0) {
+        //OK we insert - did we do this to the end of the undo record's insert
+        if (m_itrEditing->start + m_itrEditing->ins == last_change.start) {
+            append = true;
+            m_itrEditing->ins += last_change.ins;
+        } else
+            append = false;
+    } else if (last_change.del>0) {
+        //OK we deleted - did we do this at the end of the undo record's insert
+        if (m_itrEditing->start == last_change.start) {
+            append = true;
+            m_itrEditing->del += last_change.del;
+        } else if (m_itrEditing->start = last_change.start+last_change.del) {
+            append = true;
+            m_itrEditing->start -= last_change.del;
+        } else
+            append = false;
+    } else
+        append = false;
+
 	CHARRANGE cr;
 	pApp->m_pWndEditor->m_ctrlEditor.GetSel(cr);
-	//Store new stuff only if either text or selection changes
-	//Usually no notification of this sort arrives when only sel changes
-	//But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
-	if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
-        CChartData chart(text, cr, m_itrEditing->GetDesign());
-        chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
-		InsertNewChart(chart);
-		CheckIfChanged();     
-	}
+
+    if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
+        if (append) {
+            CString fd = m_itrEditing->GetDesign();
+            m_itrEditing->Set(text); 
+            m_itrEditing->m_sel = cr;
+            m_itrEditing->SetDesign(fd); //Set destroys fd and cr
+        } else {
+            CChartData chart(text, cr, m_itrEditing->GetDesign());
+            chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
+            InsertNewChart(chart);
+            //new ChartData is initialized with block_undo =  true
+            if (!last_change.force_full) {
+                m_itrEditing->block_undo = false;
+                m_itrEditing->start = last_change.start;
+                m_itrEditing->ins = last_change.ins;
+                m_itrEditing->del = last_change.del;
+            }
+        }
+        CheckIfChanged();
+    }
+
+    
+    
+    ////Store new stuff only if either text or selection changes
+	////Usually no notification of this sort arrives when only sel changes
+	////But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
+	//if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
+    //    CChartData chart(text, cr, m_itrEditing->GetDesign());
+    //    chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
+	//	InsertNewChart(chart);
+	//	CheckIfChanged();     
+	//}
 }
 
 //User changes selection in internal editor
@@ -1970,6 +2035,7 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
     if (m_pCompilingThread) return false; //skip if compiling
     CChartData chart(*m_itrEditing);
+    chart.block_undo = true;
     EntityApp *ed = dynamic_cast<EntityApp*>(arc);
     bool changed = false;
     if (ed) {
