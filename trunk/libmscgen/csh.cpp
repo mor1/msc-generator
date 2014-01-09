@@ -226,7 +226,8 @@ void MscInitializeCshAppearanceList(void)
     l[3][COLOR_COMMENT].           SetColor(100,100,100); l[3][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     l[3][COLOR_ERROR].             SetColor(255,  0,  0); l[3][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
     l[3][COLOR_NO_ERROR].          SetColor(  0,  0,  0); l[3][COLOR_NO_ERROR].effects = 0;
-    l[3][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;
+    l[3][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
+    l[3][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
 }
 
 /** State of coloring */

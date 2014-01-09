@@ -50,7 +50,6 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     m_parent(parent)
 {
     m_tabsize = 4;
-	m_bCshUpdateInProgress = false;  
     m_bWasReturnKey = false;
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
@@ -61,6 +60,8 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     last_change.pos = 0;
     last_change.head = true;
     last_change.force_full = true;
+    last_change.sel_before.cpMin = 0;
+    last_change.sel_before.cpMax = 0;
 }
 
 /** Create the object. 
@@ -399,8 +400,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     m_bWasReturnKey = false;
     if (pMsg->message != WM_KEYDOWN && pMsg->message != WM_CHAR)
         return CRichEditCtrl::PreTranslateMessage(pMsg);
-    long lStart, lEnd;
-    GetSel(lStart, lEnd);
+    GetSel(last_change.sel_before);
+    long lStart = last_change.sel_before.cpMin;
+    long lEnd = last_change.sel_before.cpMax;
     last_change.pos = lStart;
     last_change.head = true;
     last_change.length_before = GetTextLength();
@@ -457,7 +459,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         //show hints for ctrl+space
         if (pMsg->wParam == VK_SPACE && GetKeyState(VK_CONTROL) & 0x8000) {
             m_bUserRequested = true;
-            UpdateCsh(); //no changes will be detected based on the last_change value we set above
+            //just update CSH records for hints
+            DoUpdate(false, HINTS);
             //see if we are at the beginning of a word
             bool till_cursor_only = false;
             if (lStart==0) till_cursor_only = true;
@@ -643,7 +646,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             }
         }
         if (changed) 
-            UpdateCsh();
+            DoUpdate(true, CSH);
         return TRUE;
 	}
 	if (pMsg->wParam == VK_RETURN) {
@@ -687,36 +690,30 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     return CRichEditCtrl::PreTranslateMessage(pMsg);
 }
 
-void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification)
+void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, 
+                                  bool notifyDoc, bool updateCSH)
 {
-	CEditorUndoRecord undoRec;
-	undoRec.text = text;
-	EnsureCRLF(undoRec.text);
-	SetRedraw(false);
-	m_bCshUpdateInProgress = preventNotification; 
-    SetWindowText(undoRec.text);
-	m_bCshUpdateInProgress = false;
-    last_change.force_full = true;
-	if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
-	SetSel(ConvertLineColToPos(lStartLine, lStartCol), ConvertLineColToPos(lEndLine, lEndCol));
-    SetRedraw(true);
-	SetFocus();
+    CHARRANGE cr;
+    cr.cpMin = ConvertLineColToPos(lStartLine, lStartCol);
+    cr.cpMax = ConvertLineColToPos(lEndLine, lEndCol);
+    UpdateText(text, cr, notifyDoc, updateCSH);
 }
 
-void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr, bool preventNotification)
+void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr,
+                                  bool notifyDoc, bool updateCSH)
 {
-	CEditorUndoRecord undoRec;
-	undoRec.text = text;
-	EnsureCRLF(undoRec.text);
-	SetRedraw(false);
-	m_bCshUpdateInProgress = preventNotification; 
-	SetWindowText(undoRec.text);
-	SetSel(cr);
-	m_bCshUpdateInProgress = false;
+    CString t = text;
+    EnsureCRLF(t);
+    SetRedraw(false);
+    const bool saved_prevention = m_parent->m_bSuspendNotifications;
+    m_parent->m_bSuspendNotifications = true;
+    SetWindowText(t);
+    m_parent->m_bSuspendNotifications = saved_prevention;
     last_change.force_full = true;
-    if (preventNotification) UpdateCsh(); //This was done, if notifications were on during SetWindowText()
+    SetSel(cr);
+    DoUpdate(notifyDoc, updateCSH ? CSH : NO);
     SetRedraw(true);
-	SetFocus();
+    SetFocus();
 }
 
 template<class EntryList>
@@ -775,22 +772,23 @@ These are done in one go to ensure that last_change.{force_full,start,ins,del}
 are set properly (for undo considerations).
 */
 
-bool CCshRichEditCtrl::UpdateCsh(bool force)
+bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, UpdateCSHType updateCSH)
 {
     bool ret = false;
-    if (m_bCshUpdateInProgress) {
-done:
-        //Ok, notify the document about the change
-        CMscGenDoc *pDoc = GetMscGenDocument();
-        if (pDoc)
-            pDoc->OnInternalEditorChange();
-        return ret;
-    }
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
     if (!pApp) return false; //not even notify the doc - it does not exists
     //Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-    if (!pApp->m_bDoCshProcessing && !force) goto done;
+    if (!pApp->m_bDoCshProcessing || updateCSH==NO) {
+    done:
+        //Ok, notify the document about the change
+        if (notifyDoc) {
+            CMscGenDoc *pDoc = GetMscGenDocument();
+            if (pDoc)
+                pDoc->OnInternalEditorChange();
+        }
+        return ret;
+    }
     CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
 
     //record scroll and cursor position 
@@ -799,10 +797,12 @@ done:
     ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
     GetSel(cr);
 
-    //if we do not do CSH processing, but force is true, we clear all formatting now
-    if (!pApp->m_bDoCshProcessing && force) {
+    //if we do not do CSH processing, but we are forced, we clear all formatting now
+    if (!pApp->m_bDoCshProcessing && updateCSH==FORCE_CSH) {
         SetRedraw(false);
-        m_bCshUpdateInProgress = true;
+        const bool saved_notification = m_parent->m_bSuspendNotifications;
+        m_parent->m_bSuspendNotifications = true;
+
         SetSel(0, -1); //select all
         SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
 
@@ -810,7 +810,7 @@ done:
         SetSel(cr);
         ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
-        m_bCshUpdateInProgress = false;
+        m_parent->m_bSuspendNotifications = saved_notification;
         SetRedraw(true);
         Invalidate();
         UpdateWindow();
@@ -877,17 +877,30 @@ done:
 		    pos = text.Find("\r", pos);
 	    }
 
+        if (updateCSH == FORCE_CSH) {
+            //if we force a csh update (e.g., due to switching csh schemes)
+            //we force a fill update.
+            //(however, we correctly calculate ins,del,start above, since
+            //those may be needed by MscGenDoc to decide on grouping undo)
+            m_csh.CshList.clear();
+            m_csh.CshErrors.clear();
+        }
         //if we had csh entries before, consider last_change
         if (m_csh.CshList.size()) {
             //Since last_change.start is as if the first char in the file is indexed
             //at zero, we add one (csh entries are indexed from 1).
             m_csh.AdjustCSH(last_change.start+1, last_change.ins-last_change.del);
             //if we inserted, destroy any marking overlapping with the insertion
-            if (last_change.ins)
-                for (unsigned u = 0; u<m_csh.CshList.size(); u++)
-                    if (m_csh.CshList[u].first_pos <= last_change.start+1+last_change.ins &&
-                        last_change.start+1 <= m_csh.CshList[u].last_pos) 
-                            m_csh.CshList[u].color = COLOR_MAX;
+            if (last_change.ins) {
+                for (auto &csh : m_csh.CshList)
+                    if (csh.first_pos <= last_change.start+1+last_change.ins &&
+                        last_change.start+1 <= csh.last_pos) 
+                            csh.color = COLOR_MAX;
+                for (auto &csh : m_csh.CshErrors)
+                    if (csh.first_pos <= last_change.start+1+last_change.ins &&
+                        last_change.start+1 <= csh.last_pos) 
+                            csh.color = COLOR_MAX;
+            }
         }
     }
     //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
@@ -917,13 +930,13 @@ done:
         for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
             int line, col;
             ConvertPosToLineCol(i->first_pos, line, col);
-            line++; col++; //XXX WTF This is needed
+            line++; col++; //Needed as errors are indexed from one, positions from zero
             error_pos.push_back(std::pair<int, int>(line, col));
             errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
         }
         pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
     }
-    if (!pApp->m_bShowCsh) goto done;
+    if ((!pApp->m_bShowCsh || updateCSH < CSH) && updateCSH < FORCE_CSH) goto done;
     //create a diff 
     //csh_list is unfortunately not always sorted by first_pos, but close.
     std::sort(m_csh.CshList.begin(), m_csh.CshList.end(),
@@ -935,7 +948,7 @@ done:
         return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
     });
     CshListType csh_delta, csh_error_delta;
-    if (last_change.force_full) {
+    if (last_change.force_full || updateCSH == FORCE_CSH) {
         csh_delta = m_csh.CshList;
         csh_error_delta.reserve(m_csh.CshErrors.size());
         for (const auto &e : m_csh.CshErrors)
@@ -946,12 +959,19 @@ done:
     }
 
     //Ok now copy the delta to the editor window, if there is something to do
-    if (csh_delta.size()==0 && csh_error_delta.size()==0)
+    if (csh_delta.size()==0 && csh_error_delta.size()==0 && updateCSH<FORCE_CSH)
         goto done;
 
     //freeze screen, prevent visual updates
     SetRedraw(false);
-	m_bCshUpdateInProgress = true;
+    const bool saved_notification = m_parent->m_bSuspendNotifications;
+    m_parent->m_bSuspendNotifications = true;
+
+    //Erase all formatting on a full update (deltas contain all entries in this case)
+    if (last_change.force_full || updateCSH == FORCE_CSH) {
+        SetSel(0, -1); //select all
+        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+    }
 
     const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
     const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
@@ -972,7 +992,7 @@ done:
     SetSel(cr);
     ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
-	m_bCshUpdateInProgress = false;
+    m_parent->m_bSuspendNotifications = saved_notification;
     SetRedraw(true);
     Invalidate();  
     UpdateWindow();
@@ -995,7 +1015,8 @@ void CCshRichEditCtrl::CancelPartialMatch()
     if (!pApp || !pApp->m_bShowCsh) return;
 
 	SetRedraw(false);
-	m_bCshUpdateInProgress = true;
+    const bool saved_notification = m_parent->m_bSuspendNotifications;
+    m_parent->m_bSuspendNotifications = true;
 
     //Set the partial match to the color previously proscribed in Csh
 	SetSel(m_csh.partial_at_cursor_pos.first_pos-1, m_csh.partial_at_cursor_pos.last_pos); //select all
@@ -1003,8 +1024,8 @@ void CCshRichEditCtrl::CancelPartialMatch()
 
 	SetSel(cr);
 
-	m_bCshUpdateInProgress = false;
-	SetRedraw(true);
+    m_parent->m_bSuspendNotifications = saved_notification;
+    SetRedraw(true);
 
 	Invalidate();
 }
@@ -1139,6 +1160,7 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
         m_bWasAutoComplete = true; 
     }
     SetRedraw(false);
+    GetSel(last_change.sel_before);
     SetSel(pos.first_pos, pos.last_pos);
     last_change.pos = pos.first_pos;
     last_change.head = true;
@@ -1301,7 +1323,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (m_bSuspendNotifications) return TRUE;
 
     //Below we assume that last_change hase been properly filled.
-	const bool at_same_hint = m_ctrlEditor.UpdateCsh();
+	const bool at_same_hint = m_ctrlEditor.DoUpdate(true, CCshRichEditCtrl::CSH);
     int len = m_ctrlEditor.GetTextLength();
     //Update hints if we are in hint mode
     if (m_ctrlEditor.InHintMode()) {
@@ -1423,15 +1445,15 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 				return 0;
 			}
 		}
-		m_bSuspendNotifications = true;
-		m_ctrlEditor.HideSelection(TRUE, FALSE);
-		do {
+        const bool saved_notification = m_bSuspendNotifications;
+        m_bSuspendNotifications = true;
+        do {
 			m_ctrlEditor.ReplaceSel(pFindReplace->GetReplaceString());
 		} while (FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord()));
 		m_ctrlEditor.HideSelection(FALSE, FALSE);
-		m_bSuspendNotifications = false;
+		m_bSuspendNotifications = saved_notification;
         m_ctrlEditor.IndicateFullTextChange();
-		m_ctrlEditor.UpdateCsh(); 
+        m_ctrlEditor.DoUpdate(true, CCshRichEditCtrl::CSH);
 		return 0;
 	}
 	bool findnext = pFindReplace->FindNext();
