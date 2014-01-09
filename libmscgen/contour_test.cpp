@@ -929,9 +929,9 @@ void contour_test_tangent(unsigned num)
 }
 
 
-using namespace contour2;
+using namespace contour_bezier_edge;
 
-void DrawBezier(CairoContext &c, contour2::Edge &A)
+void DrawBezier(CairoContext &c, contour_bezier_edge::Edge &A)
 {
     cairo_move_to(c.cr, A.start.x, A.start.y);
     if (A.straight)
@@ -949,12 +949,12 @@ void DrawDot(CairoContext &c, XY p)
     cairo_fill(c.cr);
 }
 
-void DrawIntersection(CairoContext &c, contour2::Edge &A, std::vector<contour2::Edge> &OK, 
+void DrawIntersection(CairoContext &c, contour_bezier_edge::Edge &A, std::vector<contour_bezier_edge::Edge> &OK, 
     double off=0)
 {
     DrawBezier(c, A);
     for (unsigned uu = 0; uu<OK.size(); uu++) {
-        contour2::Edge edge(OK[uu].CreateShifted(XY(0, off*(uu+1))));
+        contour_bezier_edge::Edge edge(OK[uu].CreateShifted(XY(0, off*(uu+1))));
         DrawBezier(c, edge);
         double m[10], o[10];
         XY r[10];
@@ -966,16 +966,16 @@ void DrawIntersection(CairoContext &c, contour2::Edge &A, std::vector<contour2::
 
 void contour_test_bezier(unsigned num)
 {
-    contour2::Edge A(XY(10, 100), XY(110, 100));
-    std::vector<contour2::Edge> OK = {
-        contour2::Edge(XY(20, 100), XY(120, 100)),
-        contour2::Edge(XY(0, 100), XY(120, 100)),
-        contour2::Edge(XY(20, 100), XY(90, 100)),
-        contour2::Edge(XY(0, 100), XY(10, 100)),
-        contour2::Edge(XY(0, 100), XY(5, 100)),
-        contour2::Edge(XY(110, 100), XY(120, 100)),
-        contour2::Edge(XY(115, 100), XY(120, 100)),
-        contour2::Edge(XY(50, 50), XY(75, 150))
+    contour_bezier_edge::Edge A(XY(10, 100), XY(110, 100));
+    std::vector<contour_bezier_edge::Edge> OK = {
+        contour_bezier_edge::Edge(XY(20, 100), XY(120, 100)),
+        contour_bezier_edge::Edge(XY(0, 100), XY(120, 100)),
+        contour_bezier_edge::Edge(XY(20, 100), XY(90, 100)),
+        contour_bezier_edge::Edge(XY(0, 100), XY(10, 100)),
+        contour_bezier_edge::Edge(XY(0, 100), XY(5, 100)),
+        contour_bezier_edge::Edge(XY(110, 100), XY(120, 100)),
+        contour_bezier_edge::Edge(XY(115, 100), XY(120, 100)),
+        contour_bezier_edge::Edge(XY(50, 50), XY(75, 150))
     };
     {
         CairoContext ctx(num, Block(-10, 200, -10, 200), "bezier 1");
@@ -984,7 +984,7 @@ void contour_test_bezier(unsigned num)
 
     {
         CairoContext c(num+1, Block(-10, 200, -10, 200), "bezier 2");
-        contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
+        contour_bezier_edge::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
         DrawBezier(c, B);
         B.Split(C, D);
         C.Split(E, F);
@@ -995,12 +995,12 @@ void contour_test_bezier(unsigned num)
     }
 
 
-    contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50));
-    std::vector<contour2::Edge> OK2 = {
-        contour2::Edge(XY(50, 50), XY(75, 150)),
-        contour2::Edge(XY(10, 50), XY(75, 150)),
-        contour2::Edge(XY(80, 50), XY(45, 150), XY(100, 90), XY(70, 150)),
-        contour2::Edge(XY(100, 50), XY(45, 50), XY(120, 140), XY(20, 150))
+    contour_bezier_edge::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50));
+    std::vector<contour_bezier_edge::Edge> OK2 = {
+        contour_bezier_edge::Edge(XY(50, 50), XY(75, 150)),
+        contour_bezier_edge::Edge(XY(10, 50), XY(75, 150)),
+        contour_bezier_edge::Edge(XY(80, 50), XY(45, 150), XY(100, 90), XY(70, 150)),
+        contour_bezier_edge::Edge(XY(100, 50), XY(45, 50), XY(120, 140), XY(20, 150))
     };
     {
         CairoContext ctx(num+2, Block(-10, 200, -10, 200), "bezier 3");
@@ -1015,7 +1015,7 @@ void contour_test_bezier(unsigned num)
 
     {
         CairoContext c(num+3, Block(-10, 200, -10, 200), "bezier 4");
-        contour2::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
+        contour_bezier_edge::Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
         DrawBezier(c, B);
         B.Split(C, D);
         C.Split(E, F);

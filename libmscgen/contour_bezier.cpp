@@ -24,7 +24,10 @@ along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 #include "contour_bezier.h"
 #include <vector>
 
-namespace contour2 {
+namespace contour_bezier_edge {
+
+    using contour::angle;
+    using contour::between01_approximate_inclusive;
 
 XY Edge::Split(double t) const
 {
@@ -35,11 +38,6 @@ XY Edge::Split(double t) const
     //(-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
 }
 
-
-inline XY Mid(const XY &A, const XY &B, double t)
-{
-    return A+t*(B-A);
-}
 
 /** Splits to two bezier curves 
  * The first will be start, ret, c1, r1,
@@ -58,8 +56,8 @@ XY Edge::Split(double t, XY &r1, XY &r2) const
 }
 
 /** Splits to two bezier curves at t=0.5
-* The first will be start, ret, c1, r1,
-* The second will be ret, end, r2, c2 */
+* The first will be start, ret, Mid(start, c1, t);, r1,
+* The second will be ret, end, r2, Mid(c2, end, t); */
 XY Edge::Split(XY &r1, XY &r2) const
 {
     if (straight) {
@@ -99,6 +97,24 @@ void Edge::Split(double t, Edge &r1, Edge &r2) const
     r1.visible = r2.visible = visible;
     r1.straight = r1.start.test_equal(r1.end) || r1.Flatness()<flatness_tolerance*flatness_tolerance*16;
     r2.straight = r2.start.test_equal(r2.end) || r2.Flatness()<flatness_tolerance*flatness_tolerance*16;
+}
+
+void Edge::Chop(double t, double s)
+{
+    _ASSERT(t>=0 && s>=0 && t<=1 && s<=1 && s!=t);
+    if (s<t) std::swap(s, t);
+    XY r1, r2;
+    if (s<1) {
+        end = Split(s, r1, r2);
+        c1 = Mid(start, c1, s);
+        c2 = r2;
+        t /= s;
+    }
+    if (t>0) {
+        start = Split(t, r1, r2);
+        c1 = r1;
+        c2 = Mid(c2, end, t);
+    }
 }
 
 /** Check if two segments cross
@@ -367,82 +383,6 @@ int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) c
     return CrossingVerticalBezier(x, y, pos, forward, 1, 0);
 }
 
-/** Describes how three points can relate to each other.
-*/
-enum ETriangleDirType
-{
-    ALL_EQUAL,       ///<All three are identical.
-    A_EQUAL_B,       ///<Two of them are identical.
-    A_EQUAL_C,       ///<Two of them are identical.
-    B_EQUAL_C,       ///<Two of them are identical.
-    IN_LINE,         ///<Three separate points on a line.
-    CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
-    COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
-};
-
-/** Returns the relation of the three points `a`, `b`, `c`.
-* @ingroup contour_internal
-*/
-ETriangleDirType triangle_dir(XY a, XY b, XY c)
-{
-    if (a == b) return b==c ? ALL_EQUAL : A_EQUAL_B;
-    if (a == c) return A_EQUAL_C;
-    if (b == c) return B_EQUAL_C;
-    //Decide if we divide by x or y coordinates
-    if (fabs(a.x - b.x) < fabs(a.y - b.y)) {
-        const double m = (a.x - b.x)/(a.y - b.y);
-        double cx = m*(c.y-a.y) + a.x; //(cx, c.y) is a point on the a-b line
-        if (test_equal(cx, c.x)) return IN_LINE;
-        return ((c.x < cx) ^ (a.y < b.y)) ? COUNTERCLOCKWISE : CLOCKWISE;
-    } else {
-        const double m = (a.y - b.y)/(a.x - b.x);
-        double cy = m*(c.x-a.x) + a.y; //(c.x, cy) is a point on the a-b line
-        if (test_equal(cy, c.y)) return IN_LINE;
-        return ((c.y < cy) ^ (a.x < b.x)) ? CLOCKWISE : COUNTERCLOCKWISE;
-    }
-}
-
-/** Returns the *fake angle* of the `base`->`A` and the `base`->`B` segments.
-* @ingroup contour_internal
-*
-* In order to save computation we do not use the angles in radian
-* merely its sine, since we only do comparison with these values, no summation
-* or other arithmetics. We call this *fake angle*.
-* Values between [0..1] thus correspond to radians [0..PI/2], values
-* between [1..2] to radians [PI/2..PI], etc.
-*
-* We return an angle that follows clockwise and can be larger than 180 degrees.
-* So if `B` is just a bit cunterclockwise from `A`, we get a value close to 360
-* degree (that is the fake value 4).
-* @param base The base of the angle.
-* @param A one end
-* @param B the other end.
-* @returns The fake angle from 'A' to 'B'. -1 on error (degenerate cases)
-*/
-double compute_angle(XY base, XY A, XY B)
-{
-    bool clockwise;
-    switch (triangle_dir(base, A, B)) {
-    case IN_LINE:
-    case CLOCKWISE:
-        clockwise = true;
-        break;
-    case COUNTERCLOCKWISE:
-        clockwise = false;
-        break;
-    case B_EQUAL_C:
-        return 0;  //zero degrees
-    default:
-        return -1; //error one of them equals to another
-    };
-    double cos = (A-base).DotProduct(B-base) / base.Distance(A) / base.Distance(B);
-    cos = std::min(cos, 1.);
-    cos = std::max(cos, -1.);
-    if (clockwise)
-        return 1-cos; //gives [0..2]
-    else
-        return cos+3; //gives (2..4)
-}
 
 
 /** Calculates the angle of the edge at point `p`.
@@ -456,8 +396,8 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     _ASSERT(!incoming || pos>0); //shoud not ask for an incoming angle at pos==0
     _ASSERT(incoming  || pos<1); //shoud not ask for an outgoing angle at pos==0
     if (straight)
-        return RayAngle(incoming ? compute_angle(end, XY(end.x+100, end.y), start) : 
-                                   compute_angle(start, XY(start.x+100, start.y), end));
+        return RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : 
+                                   angle(start, XY(start.x+100, start.y), end));
 
     //bezier curve radius calc, see http://blog.avangardo.com/2010/10/c-implementation-of-bezier-curvature-calculation/
 
@@ -484,13 +424,13 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     const double invRadius = r2 / r1; //the inverse of the (signed) radius
 
     if (pos==0) //must be outgoing
-        return RayAngle(compute_angle(start, XY(start.x+100, start.y), c1), invRadius);
+        return RayAngle(angle(start, XY(start.x+100, start.y), c1), invRadius);
     if (pos==1) //must be incoming
-        return RayAngle(compute_angle(end, XY(end.x+100, start.y), c2), -invRadius);
+        return RayAngle(angle(end, XY(end.x+100, start.y), c2), -invRadius);
     XY A, B;
     const XY C = Split(pos, A, B);
-    return incoming ? RayAngle(compute_angle(C, XY(C.x+100, C.y), A), -invRadius) :
-                      RayAngle(compute_angle(C, XY(C.x+100, C.y), B), invRadius);
+    return incoming ? RayAngle(angle(C, XY(C.x+100, C.y), A), -invRadius) :
+                      RayAngle(angle(C, XY(C.x+100, C.y), B), invRadius);
 }
 
 inline double COORD(const XY &p, unsigned i) { return i ? p.y : p.x; }
@@ -761,8 +701,53 @@ unsigned solve_degree4(double afCoeff[5], double afRoot[4])
     return 0;
 }
 
+double SectionPointDistance(const XY&A, const XY&B, const XY &M, XY &point, double &pos) 
+{
+    if (test_equal(A.x, B.x)) {
+        point.x = A.x;
+        if (M.y<std::min(A.y, B.y)) {
+            point.y = std::min(A.y, B.y);
+            pos = B.y<A.y ? 1 : 0;
+        } else if (M.y>std::max(A.y, B.y)) {
+            point.y = std::max(A.y, B.y);
+            pos = B.y>A.y ? 1 : 0;
+        } else {
+            point.y = M.y;
+            pos = (M.y-A.y)/(B.y-A.y);
+            return fabs(A.x - M.x);
+        }
+        return point.Distance(M);
+    }
+    if (test_equal(A.y, B.y)) {
+        point.y = A.y;
+        if (M.x<std::min(A.x, B.x)) {
+            point.x = std::min(A.x, B.x);
+            pos = B.x<A.x ? 1 : 0;
+        } else if (M.x>std::max(A.x, B.x)) {
+            point.x = std::max(A.x, B.x);
+            pos = B.x>A.x ? 1 : 0;
+        } else {
+            point.x = M.x;
+            pos = (M.x-A.x)/(B.x-A.x);
+            return fabs(A.y - M.y);
+        }
+        return point.Distance(M);
+    }
+    //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+    const double m = fabs((A.x-M.x)*(B.x-A.x)-(B.y-A.y)*(A.y-M.y))/A.DistanceSqr(B);
+    if (m<0) { point = A; pos = 0; return A.Distance(M); }
+    if (m>1) { point = B; pos = 1; return B.Distance(M); }
+    point = A + (B-A)*m;
+    pos = m;
+    //return fabs((B.x-A.x)*(A.y-M.y)-(A.x-M.x)*(B.y-A.y))/l;
+    return point.Distance(M);
+}
+
 double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonnegative
 {
+    if (straight)
+        return SectionPointDistance(start, end, M, point, pos);
+   
     //A==start, B==c1, C==c2, D==end
     //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
     //M-to-curve vector is: curve-M
@@ -812,10 +797,544 @@ double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonneg
     return sqrt(d);
 }
 
-
-DistanceType Edge::Distance(const Edge &O) const    //always nonnegative
+//This does not give the smallest distance. 
+double SectionDistance(const XY &A, const XY &B, const XY &M, const XY &N)
 {
-    return DistanceType();
+    if (!test_zero((B-A).PerpProduct(N-M))) {
+        //They are not parallel (and none of them are degenerate, but that does not matter now)
+        const double t = (B-A).PerpProduct(A-M) / (B-A).PerpProduct(N-M);
+        const double s = (N-M).PerpProduct(A-M) / (B-A).PerpProduct(N-M);
+        if (between01_approximate_inclusive(t) && between01_approximate_inclusive(s)) 
+            return 0;
+        //here the two infinite lines cross, but the cp is outside at least one
+        //of the two sections
+    }
+    //They are either parallel, degenerate or just far away
+    //calculate the A distance only, B will come anyway
+    XY point1;
+    double dummy;
+    const double d1 = SectionPointDistance(A, B, M, point1, dummy);
+    const double d2 = SectionPointDistance(M, N, A, point1, dummy);
+    const double d3 = SectionPointDistance(A, B, N, point1, dummy);
+    const double d4 = SectionPointDistance(M, N, B, point1, dummy);
+    return std::min(std::min(d1, d2), std::min(d3, d4));
+}
+
+/** Distance of the hull from a section */
+double Edge::HullDistance(const XY &A, const XY &B) const
+{
+    double ret = SectionDistance(start, c1, A, B);
+    if (ret==0) return 0;
+    ret = std::min(ret, SectionDistance(c1, c2, A, B));
+    if (ret==0) return 0;
+    ret = std::min(ret, SectionDistance(c2, end, A, B));
+    if (ret==0) return 0;
+    ret = std::min(ret, SectionDistance(end, start, A, B));
+    if (ret==0) return 0;
+    ret = std::min(ret, SectionDistance(start, c2, A, B));
+    if (ret==0) return 0;
+    return std::min(ret, SectionDistance(c1, end, A, B));
+}
+
+/** Distance of the hull from another hull */
+double Edge::HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const
+{
+    double ret = HullDistance(A, B);
+    if (ret==0) return 0;
+    ret = std::min(ret, HullDistance(B, C));
+    if (ret==0) return 0;
+    ret = std::min(ret, HullDistance(C, D));
+    if (ret==0) return 0;
+    ret = std::min(ret, HullDistance(D, A));
+    if (ret==0) return 0;
+    ret = std::min(ret, HullDistance(A, C));
+    if (ret==0) return 0;
+    return std::min(ret, HullDistance(B, D));
+}
+
+void Edge::Distance(const Edge &o, DistanceType &ret) const    //always nonnegative
+{
+    if (ret.IsZero()) return;
+    if (straight && o.straight) {
+        //test if we cross
+        if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
+            //They are not parallel (and none of them are degenerate, but that does not matter now)
+            const double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+            const double s = (o.end-o.start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+            if (between01_approximate_inclusive(t) && between01_approximate_inclusive(s)) {
+                ret.Merge(0, start + (end-start)*t, start + (end-start)*t);
+                return;
+            }
+            //here the two infinite lines cross, but the cp is outside at least one
+            //of the two sections
+        }
+        //They are either parallel, degenerate or just far away
+        //calculate the start distance only, end will come anyway
+        XY point1, point2;
+        double dummy;
+        const double d1 = Distance(o.start, point1, dummy);
+        const double d2 = o.Distance(start, point2, dummy);
+        if (d1<d2)
+            ret.Merge(d1, point1, o.start);
+        else
+            ret.Merge(d2, start, point2);
+        return ;
+    }
+    if (straight) {
+        o.Distance(*this, ret.SwapPoints());
+        ret.SwapPoints();
+        return;
+    }
+    if (o.straight) {
+        if (ret.Distance()<HullDistance(o.start, o.end))
+            return ;
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.Distance(o, ret);
+        E2.Distance(o, ret);
+        return;
+    }
+    if (ret.Distance()<HullDistance(o.start, o.end, o.c1, o.c2))
+        return;
+    Edge E1, E2, F1, F2;
+    Split(E1, E2);
+    o.Split(F1, F2);
+    E1.Distance(F1, ret);
+    E2.Distance(F1, ret);
+    E1.Distance(F2, ret);
+    E2.Distance(F2, ret);
+}
+
+double Edge::GetAreaAboveAdjusted() const
+{
+    if (straight)
+        return start.x*end.y-start.y*end.x;
+    Edge E1, E2;
+    Split(E1, E2);
+    return E1.GetAreaAboveAdjusted()+E2.GetAreaAboveAdjusted();
+}
+
+double Edge::GetLength() const
+{
+    if (straight)
+        return (start-end).length();
+    Edge E1, E2;
+    Split(E1, E2);
+    return E1.GetLength()+E2.GetLength();
+}
+
+//returns the centroid of the area above multipled by the (signed) area above
+XY Edge::GetCentroidAreaAboveUpscaled() const
+{
+    if (straight) {
+        const XY &minY = start.y < end.y ? start : end;
+        const XY &maxY = start.y < end.y ? end : start;
+        //calculate the centroid of the rectangle and triangle below a (slanted) edge
+        //multiplied by their area.
+        //We do it in two steps: centroid by the Y coordinate of the area
+        //then multiply by the (common) x coordinate of the area
+        XY ret = XY(start.x+end.x, minY.y)*(minY.y/2) +                     //centroid of rectange times y coord of its area
+            XY(maxY.x*2+minY.x, maxY.y+minY.y*2)*((maxY.y-minY.y)/6);  //centroid of triangle times y coord of its area
+        return ret*(start.x - end.x); //this makes ret negative if edge is from right to left (as it should)
+    }
+    Edge E1, E2;
+    Split(E1, E2);
+    return E1.GetCentroidAreaAboveUpscaled()+E2.GetCentroidAreaAboveUpscaled();
+}
+
+std::vector<Edge> Edge::CreateExpand(double gap) const
+{
+    //XXX FIXME
+    Edge E;
+    if (straight) {
+        const double length = start.Distance(end);
+        const XY wh = (end-start).Rotate90CCW()/length*gap;
+        return std::vector<Edge>({Edge(start+wh, end+wh)});
+    }
+    Edge E1, E2;
+    Split(E1, E2);
+    std::vector<Edge> ret = E1.CreateExpand(gap);
+    std::vector<Edge> r = E1.CreateExpand(gap);
+    ret.insert(ret.end(), r.begin(), r.end());
+    return ret;
+}
+
+namespace Edge_CreateExpand2D {
+    inline int comp_int(const double &a, const double &b)
+    {
+        return a<b ? -1 : a==b ? 0 : 1;
+    }
+    inline double comp_dbl(const double &a, const double &b, double g)
+    {
+        return a<b ? -g : a==b ? 0 : g;
+    }
+}
+
+/** Returns a list of edges resulting in expanding "this" in 2D.
+ *
+ * See overall documentation of what a 2D expansion is.
+ * We return values describing the direction in which the edge
+ * ends and starts as below.
+ * @verbatim
+   +4  _+3 _  +2
+      |\ ^ /|
+        \|/
+   +1  <-0->  -1
+        /|\
+      |/ v \|
+   -2   -3    -4
+ * @endverbatim
+ * The above picture describes, how the end is described,
+ * the start is described in reverse, thus for lines
+ * `stype==dtype`. For degenerate edges `type==0`.
+ *
+ * @param [in] gap The size of the expansion in the x and y directions.
+ * @param [out] ret The edges resulting from the expansion (perhaps more than one).
+ * @param [out] stype The type of the starting of the edge.
+ * @param [out] etype The type of the ending of the edge.
+ */
+void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
+{
+    if (straight) {
+        ret.resize(ret.size()+1);
+        Edge &e = ret.back();
+        const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
+            Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
+        e.start = start + off;
+        e.end = end + off;
+        //expand for horizontal and vertical edges
+        if (start.x == end.x) {
+            e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
+            e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
+        }
+        if (start.y == end.y) {
+            e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
+            e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
+        }
+        etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
+            Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
+        return;
+    }
+    //see extreme points
+    //from: http://stackoverflow.com/questions/2587751/an-algorithm-to-find-bounding-box-of-closed-bezier-curves
+    std::vector<double> bounds;
+    bounds.reserve(6);
+    bounds.push_back(0);
+    bounds.push_back(1);
+
+    for (unsigned i = 0; i < 2; ++i) {
+        double b = 6 * COORD(start, i) - 12 * COORD(c1, i) + 6 * COORD(c2, i);
+        double a = -3 * COORD(start, i) + 9 * COORD(c1, i) - 9 * COORD(c2, i) + 3 * COORD(end, i);
+        double c = 3 * COORD(c1, i) - 3 * COORD(start, i);
+        if (a == 0) {
+            if (b == 0) {
+                continue;
+            }
+            double t = -c / b;
+            if (0 < t && t < 1)
+                bounds.push_back(t);
+            continue;
+        }
+        double b2ac = pow(b, 2) - 4 * c * a;
+        if (b2ac < 0) {
+            continue;
+        }
+        double  t1 = (-b + sqrt(b2ac))/(2 * a);
+        if (0 < t1 && t1 < 1)
+            bounds.push_back(t1);
+        double  t2 = (-b - sqrt(b2ac))/(2 * a);
+        if (0 < t2 && t2 < 1)
+            bounds.push_back(t2);
+    }
+    std::sort(bounds.begin(), bounds.end());
+    for (unsigned u = 1; u<bounds.size(); u++)
+        if (bounds[u-1]==bounds[u])
+            bounds.erase(bounds.begin()+u);
+    //now bounds contain a sorted list of extreme points
+    //and all values are distinct
+
+
+    const unsigned original_size = ret.size();
+    //first we segment the edge at bounding points
+    ret.reserve(original_size + bounds.size()*2);
+    ret.push_back(*this);
+    ret.back().Chop(bounds[0], bounds[1]);
+    stype = Edge_CreateExpand2D::comp_int(ret.back().start.x, ret.back().end.x) +
+            Edge_CreateExpand2D::comp_int(ret.back().start.y, ret.back().end.y)*3;
+    for (unsigned bound_index = 1; bound_index<bounds.size(); bound_index++) {
+        ret.emplace_back();
+        ret.back().visible = visible;
+        ret.push_back(*this);
+        ret.back().Chop(bounds[bound_index], bounds[bound_index+1]);
+    }
+    //Shift the segments to place
+    for (unsigned u = original_size; u<ret.size(); u += 2)
+        ret[u].Shift(XY(Edge_CreateExpand2D::comp_dbl(ret[u].end.y, ret[u].start.y, gap.x),
+            Edge_CreateExpand2D::comp_dbl(ret[u].start.x, ret[u].end.x, gap.y)));
+    //if only one segment
+    if (ret.size()==original_size+1) {
+        etype = stype;
+        return;
+    }
+    //connect the segments with lines
+    for (unsigned u = original_size+1; u<ret.size(); u += 2) {
+        ret[u].start = ret[u-1].end;
+        ret[u].end = ret[u+1].start;
+    }
+    etype = Edge_CreateExpand2D::comp_int(ret.back().start.x, ret.back().end.x) +
+            Edge_CreateExpand2D::comp_int(ret.back().start.y, ret.back().end.y)*3;
+}
+
+/** Put a dashed/dotted path into a cairo context. Needed for backends not supporting dashed lines.
+*
+* We also assume cairo dash is set to continuous: we fake dash here.
+* @param [in] cr The cairo context.
+* @param [in] pattern Contains lengths of alternating on/off segments.
+* @param [in] num contains the number of elements in pattern.
+* @param pos Shows which pattern element we shall start at (updated on return).
+* @param offset Shows at which point we shall start at within the segment selected by `pos` (updated on return).
+* @param reverse If true the path is drawn from `end` to `start`.
+*/
+void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse) const
+{
+    _ASSERT(num);
+    _ASSERT(offset<pattern[pos]);
+    if (straight) {
+        const XY & fr = reverse ? end : start;
+        const XY & to = reverse ? start : end;
+        const double len = sqrt((to.x-fr.x)*(to.x-fr.x) + (to.y-fr.y)*(to.y-fr.y));
+        const double ddx = (to.x-fr.x)/len;
+        const double ddy = (to.y-fr.y)/len;
+        double processed = 0;
+        double x = fr.x, y = fr.y;
+        if (offset) {
+            if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
+                if (pos%2==0) {//start with drawn
+                    cairo_move_to(cr, fr.x, fr.y);
+                    cairo_line_to(cr, to.x, to.y);
+                }
+                offset += len;
+                return;
+            }
+            if (pos%2==0) cairo_move_to(cr, x, y);
+            x += (pattern[pos]-offset)*ddx;
+            y += (pattern[pos]-offset)*ddy;
+            if (pos%2==0) cairo_line_to(cr, x, y);
+            processed += pattern[pos]-offset;
+            pos = (pos+1)%num;
+        }
+
+        while (processed+pattern[pos] <= len) {
+            if (pos%2==0) cairo_move_to(cr, x, y);
+            x += pattern[pos]*ddx;
+            y += pattern[pos]*ddy;
+            if (pos%2==0) cairo_line_to(cr, x, y);
+            processed += pattern[pos];
+            pos = (pos+1)%num;
+        }
+
+        offset = len - processed;
+        if (pos%2==0 && fabs(offset)>1e-10) {
+            cairo_move_to(cr, x, y);
+            cairo_line_to(cr, to.x, to.y);
+        }
+        return;
+    }
+    //curvy
+    double local_s = 0, local_e = 1;
+    //TODO Do proper length calculations
+    const double len = GetLength();
+    const double inc = 1/len;
+    double processed = 0;
+    if (offset) {
+        if (pattern[pos]-offset > len) { //remaining segment is longer than the entire length
+            offset += len;
+            if (pos%2==0) {//start with drawn
+                cairo_new_sub_path(cr);
+                cairo_move_to(cr, start.x, start.y);
+                cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y);
+            } 
+            return;
+        }
+        const double new_s = local_s + inc*(pattern[pos]-offset);
+        if (pos%2==0) {
+            cairo_new_sub_path(cr);
+            cairo_move_to(cr, start.x, start.y);
+            Edge e(*this, local_s, new_s);
+            cairo_curve_to(cr, e.c1.x, e.c1.y, e.c2.x, e.c2.y, e.end.x, e.end.y);
+        }
+        local_s = new_s;
+        processed += pattern[pos]-offset;
+        pos = (pos+1)%num;
+    }
+
+    while (processed+pattern[pos] <= len) {
+        const double new_s = local_s + inc*pattern[pos];
+        if (pos%2==0) {
+            cairo_new_sub_path(cr);
+            cairo_move_to(cr, start.x, start.y);
+            Edge e(*this, local_s, new_s);
+            cairo_curve_to(cr, e.c1.x, e.c1.y, e.c2.x, e.c2.y, e.end.x, e.end.y);
+        }
+        local_s = new_s;
+        processed += pattern[pos];
+        pos = (pos+1)%num;
+    }
+
+    offset = len - processed;
+    if (pos%2==0 && !test_zero(offset)) {
+        cairo_new_sub_path(cr);
+        cairo_move_to(cr, start.x, start.y);
+        Edge e(*this, local_s, local_e);
+        cairo_curve_to(cr, e.c1.x, e.c1.y, e.c2.x, e.c2.y, e.end.x, e.end.y);
+    }
+}
+
+
+//helpers for offsetbelow
+double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
+{
+    if (straight && o.straight) {
+        //calc for two straight edges
+        const double minAB = std::min(start.x, end.x);
+        const double maxAB = std::max(start.x, end.x);
+        const double minMN = std::min(o.GetStart().x, o.GetEnd().x);
+        const double maxMN = std::max(o.GetStart().x, o.GetEnd().x);
+        if (minAB > maxMN || minMN > maxAB) return CONTOUR_INFINITY;
+        const double x1 = std::max(minAB, minMN);
+        const double x2 = std::min(maxAB, maxMN);
+        if (start.x == end.x) {
+            touchpoint = std::max(start.y, end.y);
+            if (o.GetStart().x == o.GetEnd().x)
+                return std::min(o.GetStart().y, o.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
+            return (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(start.x-o.GetStart().x) + o.GetStart().y -
+                std::max(start.y, end.y);
+        }
+        if (o.GetStart().x == o.GetEnd().x) {
+            touchpoint = (start.y-end.y)/(start.x-end.x)*(o.GetStart().x-start.x) + start.y;
+            return std::min(o.GetStart().y, o.GetEnd().y) - touchpoint;
+        }
+        const double y1 = ((start.y-end.y)/(start.x-end.x)*(x1-start.x) + start.y);
+        const double y2 = ((start.y-end.y)/(start.x-end.x)*(x2-start.x) + start.y);
+        const double diff1 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x1-o.GetStart().x) + o.GetStart().y - y1;
+        const double diff2 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x2-o.GetStart().x) + o.GetStart().y - y2;
+        if (diff1<diff2) {
+            touchpoint = y1;
+            return diff1;
+        }
+        touchpoint = y2;
+        return diff2;
+    }
+    if (straight) {
+        if (!o.CreateBoundingBox().x.Overlaps(Range(std::min(start.x, end.x), std::max(start.x, end.x))))
+            return CONTOUR_INFINITY;
+        Edge E1, E2;
+        o.Split(E1, E2);
+        double t1, t2;
+        const double o1 = OffsetBelow(E1, t1);
+        const double o2 = OffsetBelow(E1, t2);
+        touchpoint = o1<o2 ? t1 : t2;
+        return std::min(o1, o2);
+    }
+    if (o.straight) {
+        if (!CreateBoundingBox().x.Overlaps(Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
+            return CONTOUR_INFINITY;
+        Edge E1, E2;
+        Split(E1, E2);
+        double t1, t2;
+        const double o1 = E1.OffsetBelow(o, t1);
+        const double o2 = E2.OffsetBelow(o, t2);
+        touchpoint = o1<o2 ? t1 : t2;
+        return std::min(o1, o2);
+    }
+    if (!CreateBoundingBox().x.Overlaps(o.CreateBoundingBox().x))
+        return CONTOUR_INFINITY;
+    Edge E1, E2, F1, F2;
+    Split(E1, E2);
+    o.Split(F1, F2);
+    double t[4], ob[4];
+    ob[0] = E1.OffsetBelow(F1, t[0]);
+    ob[1] = E2.OffsetBelow(F1, t[1]);
+    ob[2] = E1.OffsetBelow(F2, t[2]);
+    ob[3] = E2.OffsetBelow(F2, t[3]);
+    const unsigned u = std::min_element(ob+0, ob+3) - ob;
+    touchpoint = t[u];
+    return ob[u];
+}
+
+/** Calculates the touchpoint of tangents drawn from a given point.
+*
+* For curvy edges:
+*     Given the point `from` draw tangents to the edge (two can be drawn)
+*     and calculate where these tangents touch the it.
+*     In this context the *clockwise tangent* is the one which is traversed from
+*     `from` towards the arc touches the ellipse in the clockwise direction.
+* For straight edges:
+*     We return the `start` in both clockwise and counterclockwise.
+*     This is because we ignore the endpoint - after all it will be the startpoint
+*     of the next edge and will be considered there.
+* @param [in] from The point from which the tangents are drawn.
+* @param [out] clockwise The point where the clockwise tangent touches the ellipse.
+* @param [out] cclockwise The point where the counterclockwise tangent touches the ellipse.
+*/
+void Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    if (straight) 
+        clockwise = cclockwise = start;
+    else {
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.TangentFrom(from, clockwise, cclockwise);
+        E2.TangentFrom(from, clockwise, cclockwise);
+    }
+}
+
+/** Calculates the touchpoint of tangents drawn to touch two edges.
+*
+* Given the two edges, four such tangents can be drawn, here we focus on the two
+* outer ones, the ones that touch either both edges from above or both from below,
+* but not mixed.
+* Note that we do not consider the endpoint - since this is a helper for closed
+* contours - the start next edge will be the same as our endpoint.
+* The clockwise cand cclockwise members shall be initialized to a point
+* on the curves.
+* @param [in] o The other edge.
+* @param [out] clockwise The points where the clockwise tangent touches us
+*                        (clockwise[0]) and `o` (clockwise[1]).
+* @param [out] cclockwise The points where the counterclockwise tangent touches us
+*                         (cclockwise[0]) and `o` (cclockwise[1]).
+*/
+void Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
+{
+    XY c, cc;
+    clockwise[1] = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
+    cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
+
+    clockwise[0] = minmax_clockwise(clockwise[1], start, clockwise[0], false);
+    cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
+
+    XY cw[2], ccw[2];
+    if (straight) {
+        if (!o.straight) {
+            Edge E1, E2;
+            o.Split(E1, E2);
+            TangentFrom(E1, clockwise, cclockwise);
+            TangentFrom(E2, clockwise, cclockwise);
+        } 
+    } else if (o.straight) {
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.TangentFrom(o, clockwise, cclockwise);
+        E2.TangentFrom(o, clockwise, cclockwise);
+    } else {
+        Edge E1, E2, F1, F2;
+        Split(E1, E2);
+        o.Split(F1, F2);
+        E1.TangentFrom(F1, clockwise, cclockwise);
+        E2.TangentFrom(F1, clockwise, cclockwise);
+        E1.TangentFrom(F2, clockwise, cclockwise);
+        E2.TangentFrom(F2, clockwise, cclockwise);
+    }
 }
 
 

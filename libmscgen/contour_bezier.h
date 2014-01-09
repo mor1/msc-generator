@@ -24,58 +24,26 @@ along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 #if !defined(CONTOUR_BEZIER_H)
 #define CONTOUR_BEZIER_H
 
+#include <vector>
 #include "cairo.h"
-#include "contour_distance.h"
+#include "contour_edge.h"
 
-namespace contour2 {
+namespace contour_bezier_edge {
 
     using contour::XY;
     using contour::Block;
     using contour::Range;
     using contour::DistanceType;
+    using contour::RayAngle;
     using contour::test_zero;
     using contour::test_positive;
     using contour::test_equal;
     using contour::test_smaller;
 
-/** A helper class describing how an edge arrives/leaves a crosspoint.
-*
-* This is used to decide, which edge to continue the walk at contour
-* intersect/union operations. For straight edges this is just a direction,
-* but for curvy edges, we also need the radius of the curve, to differentiate
-* between curvy edges that have the same tangent, but different radius.
-* We do not store a very precise angle here, this is just used to sort
-* rays at a crosspoint in clockwise order.
-* Note that the direction of the ray (incoming or outgoing) plays no
-* role in determining this angle. (This is since each edge crossing the crosspoint
-* will have 2 rays added for it, one incoming one outgoing and both will
-* have an angle (each as if the were outgoing rays, so to speak.)
-*/
-struct RayAngle
+inline XY Mid(const XY &A, const XY &B, double t)
 {
-    /** The false angle [0..4], each integer corresponds to 90 degrees.
-    *
-    * In order to save computation we do not store the radian of the direction
-    * merely its sine, since we only do sorting. We call this *fake angle*.
-    * Values between [0..1] thus correspond to radians [0..PI/2], values
-    * between [1..2] to radians [PI/2..PI], etc.
-    * Note that the radian 0 is towards growing x axis ("right" you can say)
-    * and increasing radian is clockwise (in a space where y grows "downwards").
-    */
-    double angle;
-    /** The curvature of the angle.
-    *
-    * 0 is used for straight edges, positive values if the edge curves toward
-    * clockwise, larger positive values the smaller the turn radius is.
-    */
-    double curve;
-    RayAngle() {};
-    explicit RayAngle(double a, double b = 0) : angle(a), curve(b) {}
-    bool IsSimilar(const RayAngle&o) const { return test_equal(angle, o.angle) && test_equal(curve, o.curve); }  ///<Compares two RayAngles
-    bool Smaller(const RayAngle&o) const { return test_equal(angle, o.angle) ? test_smaller(curve, o.curve) : angle < o.angle; } ///<True we are smaller than `o`, that is, `o` is clockwise after us.
-};
-
-
+    return A+t*(B-A);
+}
 
 class Edge
 {
@@ -99,6 +67,7 @@ public:
         :straight(false), visible(true), start(A), end(B), c1(C), c2(D) {}
     Edge() = default;
     Edge(const Edge &) = default;
+    Edge(const Edge &e, double t, double s) : Edge(e) { Chop(t, s); }
     Edge & operator = (const Edge &) = default;
     /** Only checks shape, not visibility */
     bool operator ==(const Edge& p) const { return start==p.start && end==p.end && straight==p.straight && (!straight || (c1==p.c1 && c2==p.c2)); }
@@ -115,6 +84,7 @@ public:
     XY Split(XY &r1, XY &r2) const;
     void Split(Edge &r1, Edge &r2) const;
     void Split(double t, Edge &r1, Edge &r2) const;
+    void Chop(double t, double s);
     double Flatness() const;
     bool HullOverlap(const Edge &) const;
 
@@ -123,6 +93,8 @@ public:
                             double pos_my_offset, double pos_other_offset) const;
     unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
                                     double pos_mul, double pos_offset) const;
+    double HullDistance(const XY &A, const XY &B) const;
+    double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
 
 
 public:
@@ -140,33 +112,42 @@ public:
 
     void   PathTo(cairo_t *cr) const { if (straight) cairo_line_to(cr, end.x, end.y); else cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y); } ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
 
+    //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
+    XY PrevTangentPoint(double pos) const { return pos ? Mid(start, c1, pos) : 2*start-c1; }
+    //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
+    XY NextTangentPoint(double pos) const { return pos<1 ? Mid(c2, end, pos) : 2*end-c2; }
+
     unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
 
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-    DistanceType Distance(const Edge &) const;    //always nonnegative
-
-
-
+    DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; }    //always nonnegative
+    void Distance(const Edge &, DistanceType &ret) const;    //always nonnegative
 
     double GetAreaAboveAdjusted() const;
     double GetLength() const; ///<Returns the length of the arc.
     //returns the centroid of the area above multipled by the (signed) area above
     XY GetCentroidAreaAboveUpscaled() const;
 
-    bool Expand(double gap);
-//    void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
+    std::vector<Edge> CreateExpand(double gap) const;
+    void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
-    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse = false) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse = false) const;
 
     //helpers for offsetbelow
     double OffsetBelow(const Edge &M, double &touchpoint) const;
 
     //tangential toucher from a point
-    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    bool TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
+    void TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    void TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
+
+
+//Remove when not needed
+    Edge &Rotate(double cos, double sin, double) { start.Rotate(cos, sin); end.Rotate(cos, sin); if (!straight) { c1.Rotate(cos, sin); c2.Rotate(cos, sin); } return *this; }
+    Edge &RotateAround(const XY&c, double cos, double sin, double) { start.RotateAround(c, cos, sin); end.RotateAround(c, cos, sin); if (!straight) { c1.RotateAround(c, cos, sin); c2.RotateAround(c, cos, sin); } return *this; }
+
 };
 
 

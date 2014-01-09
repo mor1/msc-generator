@@ -35,7 +35,9 @@
 #include "cairo.h"
 #include "contour_distance.h"
 
-namespace contour {
+namespace contour_standard_edge {
+
+    using namespace contour;
 
 /** @addtogroup contour_internal
  * @{
@@ -145,45 +147,6 @@ public:
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const;
 };
-
-/** Returns true if `r` is in [0..1]
- */
-inline bool between01(double r)
-{
-    return r>=0 && r<=1;
-}
-
-/** Returns true if `r` is in [0..1] or just outside by max SMALL_NUM.
- */
-inline bool between01_approximate_inclusive(double r)
-{
-    return !(test_smaller(r, 0) || test_smaller(1, r));
-}
-
-/** Returns true if `n` is significantly smaller than 1 and not significantly
- * smaller than zero. Ensures `n` is nonzero at return.
- */
-inline bool between01_adjust(double &n)
-{
-    if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
-        return false;
-    if (!test_smaller(0,n)) n=0; //if n~=0;
-    return true;
-}
-
-/** Converts between degrees and radians.
- */
-inline double deg2rad(double degree)
-{
-    return fmod_negative_safe(degree, 360.)*(M_PI/180);
-}
-
-/** Converts between radians and degrees.
- */
-inline double rad2deg(double degree)
-{
-	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
-}
 
 /** Defines how two (finite length) sections can cross each other.
  */

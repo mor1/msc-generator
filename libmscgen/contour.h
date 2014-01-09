@@ -259,6 +259,7 @@ class Contour
      * Finally there are two rules for untangling after expansion, depending again on
      * whether we want a clockwise or counterclockwise surface.
      */
+
     enum EOperationType {
         POSITIVE_UNION=0,     ///<Take the union of two (or more) positive shapes. Include places covered by any of the shapes.
         POSITIVE_INTERSECT,   ///<Take the intersection of two (or more) positive shapes. Include places covered by all of the shapes.

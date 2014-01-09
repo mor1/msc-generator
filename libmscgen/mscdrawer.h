@@ -221,7 +221,7 @@ friend class ArcPipe;  //for exotic line joints
     /** Draw text with upper-left coordinates `p`. If isRotated is true the transformation matrix is rotated*/
     void Text(XY p, const string &s, bool isRotated);
     /** Create an arc path in cairo*/
-    void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
+    void ArcPath(const contour_standard_edge::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     /** Create an arc path in cairo*/
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     /** Create a rectangle path in cairo*/
@@ -324,7 +324,7 @@ public:
     /** Clip to a rectangle with corners, see `line.corner` and `line.radius`*/
     void Clip(const Block &b, const LineAttr &line);
     /** Clip to an ellipse */
-    void Clip(const contour::EllipseData &ellipse);
+    void Clip(const contour_standard_edge::EllipseData &ellipse);
     /** Clip to a shape */
     void Clip(const Contour &area);
     /** Clip to the inverse of a rectangle (anything outside `area` but inside `total`*/

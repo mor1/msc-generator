@@ -38,11 +38,65 @@ namespace contour {
  */
 
 
-/** An `fmod(a, b)`, that always return a value in `[0..b)` even if `a<0`
+/** Returns true if `r` is in [0..1]
  */
-template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b);}
+inline bool between01(double r)
+{
+    return r>=0 && r<=1;
+}
 
-double angle(XY base, XY A, XY B);  //expanded in contour_edge.cpp
+/** Returns true if `r` is in [0..1] or just outside by max SMALL_NUM.
+ */
+inline bool between01_approximate_inclusive(double r)
+{
+    return !(test_smaller(r, 0) || test_smaller(1, r));
+}
+
+/** Returns true if `n` is significantly smaller than 1 and not significantly
+ * smaller than zero. Ensures `n` is nonzero at return.
+ */
+inline bool between01_adjust(double &n)
+{
+    if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
+        return false;
+    if (!test_smaller(0,n)) n=0; //if n~=0;
+    return true;
+}
+
+/** An `fmod(a, b)`, that always return a value in `[0..b)` even if `a<0`
+*/
+template<typename real> real fmod_negative_safe(real a, real b) { _ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b); }
+
+/** Converts between degrees and radians.
+ */
+inline double deg2rad(double degree)
+{
+    return fmod_negative_safe(degree, 360.)*(M_PI/180);
+}
+
+/** Converts between radians and degrees.
+ */
+inline double rad2deg(double degree)
+{
+	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
+}
+
+/** Describes how three points can relate to each other.
+*/
+enum ETriangleDirType
+{
+    ALL_EQUAL,       ///<All three are identical.
+    A_EQUAL_B,       ///<Two of them are identical.
+    A_EQUAL_C,       ///<Two of them are identical.
+    B_EQUAL_C,       ///<Two of them are identical.
+    IN_LINE,         ///<Three separate points on a line.
+    CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
+    COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
+};
+
+ETriangleDirType triangle_dir(XY a, XY b, XY c);
+
+double angle(XY base, XY A, XY B);  //expanded in contour_ellipse.cpp
 
 /** Convert from a fake angle to degrees.
  */
@@ -90,7 +144,7 @@ private:
 public:
     DistanceType() {Reset();}
     void Reset() {was_inside = was_outside; distance = MaxVal(distance);}  ///<Make the distance infinite (and invalid)
-    void SwapPoints() {std::swap(point_on_me, point_on_other);}            ///<Swap `point_on_me` and `point_on_other`
+    DistanceType &SwapPoints() { std::swap(point_on_me, point_on_other); return *this; }            ///<Swap `point_on_me` and `point_on_other`
     void Merge(double d, const XY &point_on_me, const XY &point_on_other); ///<Check if `d` is smaller than `distance` and if so, replace. Set inside or outside flag depending on the sign of `d`.
     void Merge(const DistanceType &o);                                     ///<Check if `o` is smaller and replace if so.
     bool ConsiderBB(double bbdist) const {return fabs(distance) > fabs(bbdist);} ///<Return true if `bbdist` is smaller in absolute value.
