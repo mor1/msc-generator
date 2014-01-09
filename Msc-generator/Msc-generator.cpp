@@ -1023,7 +1023,7 @@ void CMscGenApp::OnCheckCsh()
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh);
     if (IsInternalEditorRunning()) {
         m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
-        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+        m_pWndEditor->m_ctrlEditor.DoUpdate(false, CCshRichEditCtrl::FORCE_CSH);
     }
 }
 
@@ -1051,7 +1051,7 @@ void CMscGenApp::OnComboCsh()
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme);
     if (IsInternalEditorRunning()) {
         m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
-        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+        m_pWndEditor->m_ctrlEditor.DoUpdate(false, CCshRichEditCtrl::FORCE_CSH);
     }
 }
 
@@ -1107,7 +1107,7 @@ void CMscGenApp::OnCheckCshError()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors);
     if (IsInternalEditorRunning()) {
         m_pWndEditor->m_ctrlEditor.IndicateFullTextChange();
-        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+        m_pWndEditor->m_ctrlEditor.DoUpdate(false, CCshRichEditCtrl::FORCE_CSH);
     }
 }
 
@@ -1127,7 +1127,7 @@ void CMscGenApp::OnCheckCshErrorInWindow()
     m_bShowCshErrorsInWindow = !m_bShowCshErrorsInWindow;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow); 
     if (IsInternalEditorRunning())
-        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+        m_pWndEditor->m_ctrlEditor.DoUpdate(false, CCshRichEditCtrl::FORCE_CSH);
 }
 
 /** Enables the button only if we show csh and the internal editor is running.

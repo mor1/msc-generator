@@ -36,7 +36,6 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-    bool m_bCshUpdateInProgress; ///<If true, we do not update CSH (assuming one is in progress)
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
@@ -50,11 +49,18 @@ class CCshRichEditCtrl : public CRichEditCtrl
         long pos;               ///<Where did the change occur (newlines counted as one char, indexed from zero)
         bool head;              ///<true if the change happened after 'pos' (at deletion 'pos' was the first char to delete, at insertion it happens before 'pos') or before (like a backspace or ctrl+bksp).
         bool force_full;        ///<true if the change is so invasive, a full csh recoloring is needed
+        CHARRANGE sel_before;   ///<The selection before the change (for undo)
         long start;         ///<Calculated start of change
         long ins;           ///<Calculated number of inserted characters
         long del;           ///<Calculated number of deleted characters
     } last_change; ///<Contains information recorded before a change to chart text about the impending change. Used to adjust existing CSH entries.
 public:
+    typedef enum UpdateCSHType {
+        NO = 0,
+        HINTS = 1,
+        CSH = 2,
+        FORCE_CSH = 3
+    };
     Csh  m_csh;
     int m_tabsize;
 	CCshRichEditCtrl(CEditorBar *parent);
@@ -79,10 +85,10 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions
-	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
-	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
+	void UpdateText(const char *text, CHARRANGE &cr, bool notifyDoc, bool updateCSH);
+    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool notifyDoc, bool updateCSH);
     void IndicateFullTextChange() { last_change.force_full = true; } ///<Indicate that we have changed so much of the text a full CSH recoloring is needed
-	bool UpdateCsh(bool force = false); 
+    bool DoUpdate(bool notifyDoc, UpdateCSHType updateCSH);
 	void CancelPartialMatch();
     const Change & GetLastChange() const { return last_change; }
 	

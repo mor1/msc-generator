@@ -55,14 +55,14 @@ ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
 
-in 3.7.6
+in 3.7.6 (feature freeze for 3.8)
 ADDED defshape command
 ADDED file.info file.url options
 FIXED: Hint popup window problem
 FIXED: Better handling of parse errors
-CHANGE: Group undo actions
+CHANGED: Group undo actions
 FIXED: Smart ident - added TAB mode
-FIXED: CSH for large files. Do it offline. It does not work for "test"
+FIXED: CSH for large files. Do it offline. 
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
