@@ -27,26 +27,15 @@
 #include <map>
 #include "contour_ellipse.h"
 
+
+
+
 namespace contour {
 
 /** @addtogroup contour_internal
  * @{
  */
 
-
-/** Describes how three points can relate to each other.
- */
-enum ETriangleDirType {
-    ALL_EQUAL,       ///<All three are identical.
-    A_EQUAL_B,       ///<Two of them are identical.
-    A_EQUAL_C,       ///<Two of them are identical.
-    B_EQUAL_C,       ///<Two of them are identical.
-    IN_LINE,         ///<Three separate points on a line.
-    CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
-    COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
-};
-
-ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
 /** A helper class describing how an edge arrives/leaves a crosspoint.
  *
@@ -197,6 +186,29 @@ enum EExpandType {
     EXPAND_BEVEL
 };
 
+/** Return which of two points are clockwise if seen from a third point.
+*
+* @param [in] from Seen from this point...
+* @param [in] A ...is this or ...
+* @param [in] B ...this point is in the clockwise direction.
+* @param [in] clockwise If false we return the one in counterclockwise direction.
+* @return `A` or `B` depending on which we selected.
+*/
+inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool clockwise)
+{
+    return (clockwise == (CLOCKWISE == triangle_dir(from, A, B))) ? B : A;
+}
+
+class ContoursHelper;
+
+} //namespace
+
+namespace contour_standard_edge {
+
+using contour::XY;
+using contour::Range;
+using contour::Block;
+
 /** Helper class to describe the arc part of a curvy edge */
 class EdgeArc
 {
@@ -232,8 +244,8 @@ public:
  */
 class Edge
 {
-    friend class SimpleContour;
-    friend class ContoursHelper;
+    friend class contour::SimpleContour;
+    friend class contour::ContoursHelper;
 public:
     /** Describes, how two expanded edges can relate to each other.
      */
@@ -606,19 +618,6 @@ inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &sty
     }
     etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
                     Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
-}
-
-/** Return which of two points are clockwise if seen from a third point.
- *
- * @param [in] from Seen from this point...
- * @param [in] A ...is this or ...
- * @param [in] B ...this point is in the clockwise direction.
- * @param [in] clockwise If false we return the one in counterclockwise direction.
- * @return `A` or `B` depending on which we selected.
- */
-inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool clockwise)
-{
-    return (clockwise == (CLOCKWISE == triangle_dir(from, A, B))) ? B : A;
 }
 
 /** Calculates the touchpoint of tangents drawn from a given point.

@@ -26,10 +26,15 @@
 
 #include <vector>
 #include <list>
-#include "contour_edge.h"
+#include "contour_bezier.h"
 
 
 namespace contour {
+
+    using contour_standard_edge::Edge;
+    using contour_standard_edge::EdgeArc;
+
+    //using contour_bezier_edge::Edge;
 
 /** A template that allows storing of state along a 1 dimensional axis.
  * @ingroup contour_internal

@@ -1187,7 +1187,7 @@ cairo_line_cap_t Canvas::SetLineCap(cairo_line_cap_t t)
 }
 
 
-void Canvas::Clip(const contour::EllipseData &ellipse)
+void Canvas::Clip(const contour_standard_edge::EllipseData &ellipse)
 {
     cairo_save(cr);
     cairo_save(cr);
@@ -1351,7 +1351,7 @@ void Canvas::Text(XY xy, const string &s, bool isRotated)
     }
 }
 
-void Canvas::ArcPath(const contour::EllipseData &ell, double s_rad, double e_rad, bool reverse)
+void Canvas::ArcPath(const contour_standard_edge::EllipseData &ell, double s_rad, double e_rad, bool reverse)
 {
     cairo_save (cr);
     ell.TransformForDrawing(cr);

@@ -57,14 +57,13 @@
 
 namespace contour {
 
-
 /** Calculates how the line `A`->`B` crosses the rectangle.
- *
- * If no crossing, an invalid range is returned.
- * If there is a crossing, "pos" values are returned, as follows.
- * `0` corresponds to `A`, `1` corresponds to `B`, values in between
- * correspond to the section `A`->`B` and outside likewise.
- */
+*
+* If no crossing, an invalid range is returned.
+* If there is a crossing, "pos" values are returned, as follows.
+* `0` corresponds to `A`, `1` corresponds to `B`, values in between
+* correspond to the section `A`->`B` and outside likewise.
+*/
 Range Block::Cut(const XY &A, const XY &B) const
 {
     Range ret;
@@ -109,6 +108,77 @@ valid:
         std::swap(ret.from, ret.till);
     return ret;
 }
+
+/** Returns the relation of the three points `a`, `b`, `c`.
+* @ingroup contour_internal
+*/
+ETriangleDirType triangle_dir(XY a, XY b, XY c)
+{
+    if (a == b) return b==c ? ALL_EQUAL : A_EQUAL_B;
+    if (a == c) return A_EQUAL_C;
+    if (b == c) return B_EQUAL_C;
+    //Decide if we divide by x or y coordinates
+    if (fabs(a.x - b.x) < fabs(a.y - b.y)) {
+        const double m = (a.x - b.x)/(a.y - b.y);
+        double cx = m*(c.y-a.y) + a.x; //(cx, c.y) is a point on the a-b line
+        if (test_equal(cx, c.x)) return IN_LINE;
+        return ((c.x < cx) ^ (a.y < b.y)) ? COUNTERCLOCKWISE : CLOCKWISE;
+    } else {
+        const double m = (a.y - b.y)/(a.x - b.x);
+        double cy = m*(c.x-a.x) + a.y; //(c.x, cy) is a point on the a-b line
+        if (test_equal(cy, c.y)) return IN_LINE;
+        return ((c.y < cy) ^ (a.x < b.x)) ? CLOCKWISE : COUNTERCLOCKWISE;
+    }
+}
+
+
+/** Returns the *fake angle* of the `base`->`A` and the `base`->`B` segments.
+* @ingroup contour_internal
+*
+* In order to save computation we do not use the angles in radian
+* merely its sine, since we only do comparison with these values, no summation
+* or other arithmetics. We call this *fake angle*.
+* Values between [0..1] thus correspond to radians [0..PI/2], values
+* between [1..2] to radians [PI/2..PI], etc.
+*
+* We return an angle that follows clockwise and can be larger than 180 degrees.
+* So if `B` is just a bit cunterclockwise from `A`, we get a value close to 360
+* degree (that is the fake value 4).
+* @param base The base of the angle.
+* @param A one end
+* @param B the other end.
+* @returns The fake angle from 'A' to 'B'. -1 on error (degenerate cases)
+*/
+double angle(XY base, XY A, XY B)
+{
+    bool clockwise;
+    switch (triangle_dir(base, A, B)) {
+    case IN_LINE:
+    case CLOCKWISE:
+        clockwise = true;
+        break;
+    case COUNTERCLOCKWISE:
+        clockwise = false;
+        break;
+    case B_EQUAL_C:
+        return 0;  //zero degrees
+    default:
+        return -1; //error one of them equals to another
+    };
+    double cos = (A-base).DotProduct(B-base) / base.Distance(A) / base.Distance(B);
+    cos = std::min(cos, 1.);
+    cos = std::max(cos, -1.);
+    if (clockwise)
+        return 1-cos; //gives [0..2]
+    else
+        return cos+3; //gives (2..4)
+}
+
+
+}  //namespace contour
+
+namespace contour_standard_edge {
+
 
 //////////////////Helper functions
 
