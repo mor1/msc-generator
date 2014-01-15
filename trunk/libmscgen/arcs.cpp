@@ -1080,7 +1080,9 @@ void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
 
     if (style.read().line.radius.second < 0) {
         //draw an arc
-        canvas.Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.read().line);
+        const Contour curve(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90);
+        curve[0][curve[0].size()-1].visible = false; //last edge is the linear segment closing it - do not draw
+        canvas.Line(curve, style.read().line);
     } else {
         //draw (part of) a rounded rectangle
         canvas.Clip(dx+src_act, chart->GetDrawing().x.till, chart->GetDrawing().y.from, chart->GetDrawing().y.till);
@@ -2786,11 +2788,15 @@ Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
 {
     _ASSERT(q<=3);
     if (r<=0 || lw<=0) return Contour();
-    Edge c1(XY(x, y), r+lw/2, 0, 0, 90*q, 90*(q+1));
-    Edge c2(XY(x, y), r-lw/2, 0, 0, 90*q, 90*(q+1));
-    c2.Invert();
-    return std::vector<Edge>({c1, Edge(c1.GetEnd(), c2.GetStart()), 
-                              c2, Edge(c2.GetEnd(), c1.GetStart())});
+    std::vector<Edge> edges;
+    Edge::GenerateEllipse(edges, XY(x, y), r+lw/2, 0, 0, 90*q, 90*(q+1));
+    const size_t end1 = edges.size();
+    edges.emplace_back();
+    Edge::GenerateEllipse(edges, XY(x, y), r-lw/2, 0, 0, 90*q, 90*(q+1), false);
+    edges.emplace_back();
+    edges[end1] = Edge(edges[end1-1].GetEnd(), edges[end1+1].GetStart());
+    edges.back() = Edge(edges[edges.size()-2].GetEnd(), edges[0].GetStart());
+    return edges;
 }
 
 void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
@@ -3160,25 +3166,18 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
         const double ymid = (ypos[0]+ypos[1])/2;
         const double xoff = left ? radius : -radius;
         const double lw2off = left ? lw/2 : -lw/2;
-        std::vector<Edge> edges({
-            Edge(XY(xpos+xoff+lw2off, ypos[0]+lw/2), XY(xpos+xoff, ypos[0]+lw/2)),
-            Edge(XY(xpos+xoff, ypos[0]+radius+lw/2), radius, 0, 0, left ? 180 : 270, left ? 270 : 360),
-            Edge(XY(xpos, ypos[0]+radius+lw/2), XY(xpos, ymid-radius)),
-            Edge(XY(xpos-xoff, ymid-radius), radius, 0, 0, left ? 0 : 90, left ? 90 : 180),
-            Edge(XY(xpos-xoff, ymid+radius), radius, 0, 0, left ? 270 : 180, left ? 360 : 270),
-            Edge(XY(xpos, ymid+radius), XY(xpos, ypos[1]-radius-lw/2)),
-            Edge(XY(xpos+xoff, ypos[1]-radius-lw/2), radius, 0, 0, left ? 90 : 0, left ? 180 : 90),
-            Edge(XY(xpos+xoff, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[1]-lw/2)),
-            Edge(XY(xpos+xoff+lw2off, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[0]+lw/2))
-        });
-        edges[8].visible = false;
-        if (left) {
-            edges[1].Invert();
-            edges[6].Invert();
-        } else {
-            edges[3].Invert();
-            edges[4].Invert();
-        }
+        std::vector<Edge> edges;
+        edges.reserve(18);
+        Edge(XY(xpos+xoff+lw2off, ypos[0]+lw/2), XY(xpos+xoff, ypos[0]+lw/2));
+        Edge::GenerateEllipse(edges, XY(xpos+xoff, ypos[0]+radius+lw/2), radius, 0, 0, 270, left ? 180 : 360, !left);
+        Edge(XY(xpos, ypos[0]+radius+lw/2), XY(xpos, ymid-radius));
+        Edge::GenerateEllipse(edges, XY(xpos-xoff, ymid-radius), radius, 0, 0, left ? 0 : 180, 90, left);
+        Edge::GenerateEllipse(edges, XY(xpos-xoff, ymid+radius), radius, 0, 0, 270, left ? 360 : 180, left);
+        Edge(XY(xpos, ymid+radius), XY(xpos, ypos[1]-radius-lw/2));
+        Edge::GenerateEllipse(edges, XY(xpos+xoff, ypos[1]-radius-lw/2), radius, 0, 0, left ? 180 : 0, 90, !left);
+        Edge(XY(xpos+xoff, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[1]-lw/2));
+        Edge(XY(xpos+xoff+lw2off, ypos[1]-lw/2), XY(xpos+xoff+lw2off, ypos[0]+lw/2));
+        edges.back().visible = false;
         Contour brace;
         brace.assign_dont_check(std::move(edges));
         canvas.Line(brace, style.read().line);
@@ -4576,11 +4575,16 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
                 (*i)->pipe_shadow += forw_end;
                 (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line);
                 (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill);
-                const Edge hole_line[2] = {Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 90, 270), 
-                                           Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 270, 90)};
+                //const Edge hole_line[2] = {Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 90, 270), 
+                //                           Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 270, 90)};
+                //(*i)->pipe_hole_curve.assign_dont_check(hole_line);
+                ////this is only half of the hole ellipsos
+                //(*i)->pipe_hole_curve[0][side == ESide::RIGHT ? 0 : 1].visible = false;
+                std::vector<Edge> hole_line;
+                Edge::GenerateEllipse(hole_line, cd, rad.x+gap_for_line, rad.y+gap_for_line,
+                                      side == ESide::RIGHT ? 0 : 180, 270, 90);
+                hole_line.back().visible = false;
                 (*i)->pipe_hole_curve.assign_dont_check(hole_line);
-                //this is only half of the hole ellipsos
-                (*i)->pipe_hole_curve[0][side == ESide::RIGHT ? 0 : 1].visible = false;
             } else {
                 //just chop off from fill and line
                 (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);

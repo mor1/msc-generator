@@ -96,9 +96,6 @@
     <ClCompile Include="progress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_bezier.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h">
@@ -192,9 +189,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="progress.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="contour_bezier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

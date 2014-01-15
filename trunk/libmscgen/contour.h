@@ -29,6 +29,7 @@
 
 namespace contour {
 
+
 class ContourWithHoles;
 
 /** A list of non-overlapping ContourWithHoles 
@@ -66,8 +67,8 @@ class ContourList : protected std::list<ContourWithHoles>
     void Shift(const XY &xy);
     void Scale(double sc);
     void SwapXY();
-    void Rotate(double cos, double sin, double radian);
-    void RotateAround(const XY&c, double cos, double sin, double radian);
+    void Rotate(double cos, double sin);
+    void RotateAround(const XY&c, double cos, double sin);
 
     EContourRelationType RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     EContourRelationType RelationTo(const ContourList &c, bool ignore_holes) const;
@@ -160,10 +161,10 @@ protected:
     void Shift(const XY &xy) {outline.Shift(xy); if (holes.size()) holes.Shift(xy);} ///<Translate the shape.
     void Scale(double sc)  {outline.Scale(sc); if (holes.size()) holes.Scale(sc);} ///<Scale the shape.
     void SwapXY() {outline.SwapXY(); if (holes.size()) holes.SwapXY();} ///<Transpose the shape: swap X and Y coordinates (but keep clockwisedness). 
-    void Rotate(double cos, double sin, double radian)
-        {outline.Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);} ///<Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
-    void RotateAround(const XY&c, double cos, double sin, double radian)
-        {outline.RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);} ///<Rotate the shape around 'c' by `radian`. `sin` and `cos` are pre-computed values.
+    void Rotate(double cos, double sin)
+        {outline.Rotate(cos, sin); if (holes.size()) holes.Rotate(cos, sin);} ///<Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
+    void RotateAround(const XY&c, double cos, double sin)
+        {outline.RotateAround(c, cos, sin); if (holes.size()) holes.RotateAround(c, cos, sin);} ///<Rotate the shape around 'c' by `radian`. `sin` and `cos` are pre-computed values.
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
     void Expand2D(const XY &gap, Contour &res) const;
@@ -318,8 +319,8 @@ protected:
     void Invert(); ///<Reverse the contour. Used internally for substraction. Untangles the resulting shape.
     Contour& invert_dont_check() {first.Invert(); if (further.size()) further.Invert(); return *this;} ///<Reverse the contour. Used internally for substraction. Does not untangle the resulting shape.
     Contour CreateInverse() const {Contour tmp(*this); tmp.Invert(); return tmp;} ///<Creates a Contour that is the invese of us.
-    void Rotate(double cos, double sin, double radian) {first.Rotate(cos, sin, radian); boundingBox = first.GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin, radian); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
-    void RotateAround(const XY&c, double cos, double sin, double radian) {first.RotateAround(c, cos, sin, radian); boundingBox = first.GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin, radian); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape around `c` by `radian`. `sin` and `cos` are pre-computed values.
+    void Rotate(double cos, double sin) {first.Rotate(cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
+    void RotateAround(const XY&c, double cos, double sin) {first.RotateAround(c, cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape around `c` by `radian`. `sin` and `cos` are pre-computed values.
 
     /** @name Operation() varianta. 
      * Performs an operation on one or two contours and stores the result in `this`. Used internally.*/
@@ -501,9 +502,9 @@ public:
     /** Transpose the contour by swapping x and y coordinate. The contour, however, remains clockwise. */
     Contour &SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY(); return *this;}
     /** Rotate the contour around the origin by `degrees` degrees. */
-    Contour &Rotate(double degrees) {if (degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);} return *this;}
+    Contour &Rotate(double degrees) {if (degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r));} return *this;}
     /** Rotate the contour around the `c` by `degrees` degrees. */
-    Contour &RotateAround(const XY&c, double degrees) {if (degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);} return *this;}
+    Contour &RotateAround(const XY&c, double degrees) {if (degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r));} return *this;}
 
     /** Create a translated version of the contour. */
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
@@ -916,20 +917,20 @@ inline void ContourList::Scale(double sc)
 }
 
 
-inline void ContourList::Rotate(double cos, double sin, double radian)
+inline void ContourList::Rotate(double cos, double sin)
 {
     boundingBox.MakeInvalid();
     for (auto i = begin(); i!=end(); i++) {
-        i->Rotate(cos, sin, radian);
+        i->Rotate(cos, sin);
         boundingBox += i->GetBoundingBox();
     }
 }
 
-inline void ContourList::RotateAround(const XY&c, double cos, double sin, double radian)
+inline void ContourList::RotateAround(const XY&c, double cos, double sin)
 {
     boundingBox.MakeInvalid();
     for (auto i = begin(); i!=end(); i++) {
-        i->RotateAround(c, cos, sin, radian);
+        i->RotateAround(c, cos, sin);
         boundingBox += i->GetBoundingBox();
     }
 }

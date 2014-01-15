@@ -1187,16 +1187,6 @@ cairo_line_cap_t Canvas::SetLineCap(cairo_line_cap_t t)
 }
 
 
-void Canvas::Clip(const contour_standard_edge::EllipseData &ellipse)
-{
-    cairo_save(cr);
-    cairo_save(cr);
-    ellipse.TransformForDrawing(cr);
-    cairo_arc(cr, 0, 0, 1, 0, 2*M_PI);
-    cairo_restore(cr);
-    cairo_clip(cr);
-}
-
 void Canvas::Clip(const Block &b, const LineAttr &line)
 {
     _ASSERT(line.IsComplete());
@@ -1351,17 +1341,6 @@ void Canvas::Text(XY xy, const string &s, bool isRotated)
     }
 }
 
-void Canvas::ArcPath(const contour_standard_edge::EllipseData &ell, double s_rad, double e_rad, bool reverse)
-{
-    cairo_save (cr);
-    ell.TransformForDrawing(cr);
-    if (reverse)
-        cairo_arc_negative(cr, 0., 0., 1., s_rad, e_rad);
-    else
-        cairo_arc(cr, 0., 0., 1., s_rad, e_rad);
-    cairo_restore (cr);
-}
-
 void Canvas::ArcPath(const XY &c, double r1, double r2, double s_rad, double e_rad, bool reverse)
 {
     cairo_save(cr);
@@ -1465,19 +1444,27 @@ void Canvas::Line(const Edge& edge, const LineAttr &line)
     SetLineAttr(line);
     const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
-        Edge e = edge;
-        e.Expand(spacing);
-        cairo_move_to(cr, e.GetStart().x, e.GetStart().y);
-        e.PathTo(cr);
-        cairo_stroke(cr);
-        e.Expand(-2*spacing);
-        cairo_move_to(cr, e.GetStart().x, e.GetStart().y);
-        e.PathTo(cr);
-        cairo_stroke(cr);
+        std::vector<Edge> edges, o;
+        edge.CreateExpand(spacing, edges, o);
+        if (edges.size()) {
+            cairo_move_to(cr, edges[0].GetStart().x, edges[0].GetStart().y);
+            for (const auto &e: edges)
+                e.PathTo(cr);
+            cairo_stroke(cr);
+            edges.clear(); o.clear();
+        }
+        edge.CreateExpand(-spacing, edges, o);
+        if (edges.size()) {
+            cairo_move_to(cr, edges[0].GetStart().x, edges[0].GetStart().y);
+            for (const auto &e: edges)
+                e.PathTo(cr);
+            cairo_stroke(cr);
+        }
         if (line.IsDouble()) 
             return;
         //triple line 
         cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        //fallthrougfh
     } 
     if (line.IsContinuous()) {
         cairo_move_to(cr, edge.GetStart().x, edge.GetStart().y);

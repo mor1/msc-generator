@@ -374,6 +374,7 @@ struct Block {
     struct Range x;
     struct Range y;
     Block() {}
+    Block(bool) { MakeInvalid(); }
     Block(double sx, double dx, double sy, double dy) :
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
     Block(const XY &ul, const XY &dr) :
