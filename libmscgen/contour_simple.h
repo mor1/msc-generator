@@ -26,15 +26,10 @@
 
 #include <vector>
 #include <list>
-#include "contour_bezier.h"
+#include "contour_edge.h"
 
 
 namespace contour {
-
-    using contour_standard_edge::Edge;
-    using contour_standard_edge::EdgeArc;
-
-    //using contour_bezier_edge::Edge;
 
 /** A template that allows storing of state along a 1 dimensional axis.
  * @ingroup contour_internal
@@ -175,6 +170,11 @@ void DoubleMap<element>::Prune()
 
 
 class Contour;
+class ContourWithHoles;
+class ContourList;
+class ContoursHelper;
+struct node;
+
 
 /** Contains a single, contigous 2D shape with no holes. Essentially a list of edges.
  * @ingroup contour_internal
@@ -191,20 +191,23 @@ class SimpleContour
 {
     friend class Contour;
 protected:
-    std::vector<Edge> edges;   ///<An ordered list of (directed) edges.
+    std::vector<Edge> edges; ///<An ordered list of (directed) edges.
 private:
-    Block  boundingBox;        ///<The bounding box for the shape.
-    bool   clockwise;          ///<Tells if the shape is clockwise or counterclockwise
-    mutable std::pair<bool, double> area_cache; ///<A cache: if `first` is true, `second` tells the surface area of the shape. Negative for counterclockwise shapes.
+    mutable bool clockwise_fresh : 1;
+    mutable bool boundingBox_fresh : 1;
+    mutable bool area_fresh : 1;
+    mutable bool clockwise : 1;
+    mutable Block  boundingBox;      ///<The bounding box for the shape.
+    mutable double area;     ///<if nonzero, it tells the surface area of the shape. Negative for counterclockwise shapes.
 
     EContourRelationType CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
-    const Block &CalculateBoundingBox();
+    const Block &CalculateBoundingBox() const;
 
     friend class ContoursHelper; //For walk related memebers
-    void CalculateClockwise();
-    double CalcualteArea() const;
+    double CalculateArea() const;                
+    void CalculateClockwise() { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } }
     void AppendDuringWalk(const Edge &);
     bool PostWalk();
     bool Sanitize();
@@ -232,17 +235,17 @@ protected:
     friend class ContourWithHoles;
     friend class ContourList;
     friend struct node;
-    SimpleContour() : clockwise(true), area_cache(true, 0.) {boundingBox.MakeInvalid();}  ///<Create an empty shape with no edges.
+    SimpleContour() : clockwise_fresh(true), area_fresh(true), boundingBox_fresh(true), clockwise(true), area(0), boundingBox(true) {}  ///<Create an empty shape with no edges.
     SimpleContour(SimpleContour &&p) {swap(p);}  ///<Move content of another shape. The other shape gets undefined.
-    SimpleContour(const SimpleContour &p) : edges(p.edges), boundingBox(p.boundingBox), clockwise(p.clockwise), area_cache(p.area_cache) {} ///<Create a copy of another shape
+    SimpleContour(const SimpleContour &p) : edges(p.edges), boundingBox(p.boundingBox), clockwise(p.clockwise), area(p.area), clockwise_fresh(p.clockwise_fresh), area_fresh(p.area_fresh), boundingBox_fresh(p.boundingBox_fresh) {} ///<Create a copy of another shape
     SimpleContour(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));} ///<Create a rectangle
     SimpleContour(const Block &b) {operator =(b);} ///<Create a rectangle
     SimpleContour(XY a, XY b, XY c); ///<Create an (eventually clockwise) triangle. Empty if degenerate.
-    SimpleContour(double ax, double ay, double bx, double by, double cx, double cy) {operator =(SimpleContour(XY(ax,ay), XY(bx,by), XY(cx,cy)));} ///<Create an (eventually clockwise) triangle. Empty if degenerate.
+    SimpleContour(double ax, double ay, double bx, double by, double cx, double cy) : SimpleContour(XY(ax,ay), XY(bx,by), XY(cx,cy)) {} ///<Create an (eventually clockwise) triangle. Empty if degenerate.
     SimpleContour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360); 
     SimpleContour &operator =(const Block &b);
     SimpleContour &operator =(SimpleContour &&p) {if (this!=&p) swap(p);  return *this;}
-    SimpleContour &operator =(const SimpleContour &p) {if (this!=&p) {if (p.size()) {edges=p.edges; boundingBox=p.boundingBox; clockwise=p.clockwise; area_cache=p.area_cache;} else clear();} return *this;}
+    SimpleContour &operator =(const SimpleContour &p) { if (this!=&p) { if (p.size()) { edges = p.edges; boundingBox = p.boundingBox; area = p.area; clockwise = p.clockwise; clockwise_fresh=p.clockwise_fresh; area_fresh=p.area_fresh; boundingBox_fresh=p.boundingBox_fresh; } else clear(); } return *this; }
     Edge &operator[](size_t edge) {return at(edge);}  ///<Returns reference to edge at index `i`.
     Edge *operator[](const XY &p) {size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}  ///<Returns pointer to edge `p` is at, NULL if `p` is not on the contour.
     const Edge *operator[](const XY &p) const {size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;} ///<Returns const pointer to edge `p` is at, NULL if `p` is not on the contour.
@@ -253,20 +256,22 @@ protected:
     EContourRelationType CheckContainment(const SimpleContour &b) const;
 
     EPointRelationType IsWithin(XY p, size_t *edge=NULL, double *pos=NULL, bool strict=true) const;
-    void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_t i=0; i<size(); i++) at(i).Shift(xy);} ///<Translates the shape.
-    void Scale(double sc) {boundingBox.Scale(sc); for (size_t i=0; i<size(); i++) at(i).Scale(sc); area_cache.second*=sc*sc;} ///<Scale the shape.
-    void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_t i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;} ///<Transpose the shape: swap XY coordinates (but keep clockwisedness).
-    void Rotate(double cos, double sin, double radian) {for (size_t i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();} ///<Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
-    void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_t i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();} ///<Rotate the shape by `radian` around `c`. `sin` and `cos` are pre-computed values.
+    void Shift(const XY &xy) { boundingBox.Shift(xy); for (auto &e : edges) e.Shift(xy); } ///<Translates the shape.
+    void Scale(double sc) { boundingBox.Scale(sc); for (auto &e : edges) e.Scale(sc); area *= sc*sc; } ///<Scale the shape.
+    void Scale(const XY &sc) { boundingBox.Scale(sc); for (auto &e : edges) e.Scale(sc); area_fresh=false; } ///<Scale the shape.
+    void SwapXY() { _ASSERT(IsSane()); boundingBox.SwapXY(); for (auto &e : edges) e.SwapXY(); Invert(); area *= -1; clockwise = !clockwise; } ///<Transpose the shape: swap XY coordinates (but keep clockwisedness).
+    void Rotate(double cos, double sin) { for (auto &e : edges) e.Rotate(cos, sin); boundingBox_fresh = false; } ///<Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
+    void Rotate(double cos, double sin, double radian) { Rotate(cos, sin); } ///<Rotate the shape by `sin` and `cos` are pre-computed values. XXX delete this
+    void RotateAround(const XY&c, double cos, double sin) { for (auto &e : edges) e.RotateAround(c, cos, sin); boundingBox_fresh = false; } ///<Rotate the shape by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
-    static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
+    static void CreateRoundForExpand(const XY &start, const XY &end, bool clockwise, std::vector<Edge> &append_to);
     EContourRelationType RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
     const Edge &operator[](size_t edge) const {return at(edge);} ///<Returns const reference to edge at index `i`.
-    void swap(SimpleContour &b) {edges.swap(b.edges); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise); std::swap(area_cache, b.area_cache);} ///<Swap data with `b`.
-    void clear() {edges.clear(); boundingBox.MakeInvalid(); area_cache.first = true; area_cache.second = 0.;} ///<Empty the shape by deleting all edges.
+    void swap(SimpleContour &b);
+    void clear() { edges.clear(); clockwise_fresh=true; area_fresh = true; boundingBox_fresh = true;  boundingBox.MakeInvalid(); area = 0.; clockwise = true; } ///<Empty the shape by deleting all edges.
 
     void assign_dont_check(const std::vector<XY> &v);      ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
     void assign_dont_check(const XY v[], size_t size);  ///<Set shape content to `v` of size `size`. Assume edges in `v` connect and do not cross.
@@ -277,11 +282,11 @@ public:
     template<size_t size> void assign_dont_check(const Edge (&v)[size]) {assign_dont_check (v, size);} ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
 
     size_t size() const {return edges.size();}             ///<Returns the number of edges.
-    const Block &GetBoundingBox() const {return boundingBox;} ///<Returns the bounding box.
-    bool GetClockWise() const {return clockwise;}             ///<Returns if the shape is clockwise.
+    const Block &GetBoundingBox() const { if (!boundingBox_fresh) CalculateBoundingBox(); return boundingBox; } ///<Returns the bounding box.
+    bool GetClockWise() const {return clockwise;}              ///<Returns if the shape is clockwise.
     bool IsEmpty() const {return edges.size()==0;}            ///<Returns if the shape is empty (no edges).
     bool IsSane() const;                                      ///<Checks if all edges connect, none degenerate, etc.
-    double GetArea() const {return area_cache.first ? area_cache.second : CalcualteArea();}  ///<Return surface area of shape.
+    double GetArea() const {return area_fresh ? area : CalculateArea();}  ///<Return surface area of shape.
     double GetCircumference(bool include_hidden=false) const;   
     XY CentroidUpscaled() const;
 
@@ -292,12 +297,12 @@ public:
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
-        if (clockwise==clockwiseonly)
+        if (GetClockWise()==clockwiseonly)
             Path(cr, show_hidden);
     } ///<Draw the shape to the path of a cairo context, but only if `clockwiseonly` equals to the clockwisedness of this shape
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {
-        if (clockwise==clockwiseonly)
+        if (GetClockWise()==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     } ///<Draw the shape in dashed lines to the path of a cairo context, but only if `clockwiseonly` equals to the clockwisedness of this shape. 
     void Distance(const SimpleContour &o, DistanceType &ret) const;
@@ -314,7 +319,8 @@ public:
 /** Simple comparison operator for container ordering */
 inline bool SimpleContour::operator <(const SimpleContour &b) const
 {
-    if (boundingBox != b.boundingBox) return boundingBox < b.boundingBox;
+    if (boundingBox_fresh && b.boundingBox_fresh && boundingBox != b.boundingBox) 
+        return boundingBox < b.boundingBox;
     if (size() != b.size()) return size() < b.size();
     for (size_t i=0; i<size(); i++)
         if (at(i) != b[i]) return at(i)<b[i];
@@ -324,7 +330,10 @@ inline bool SimpleContour::operator <(const SimpleContour &b) const
 /** Tests equality. If all edges and vertices are the same, it can still return false if different edges have index 0. */
 inline bool SimpleContour::operator ==(const SimpleContour &b) const
 {
-    if (boundingBox != b.boundingBox || size() != b.size()) return false;
+    if (boundingBox_fresh && b.boundingBox_fresh && boundingBox != b.boundingBox)
+        return false;
+    if (size() != b.size()) 
+        return false;
     for (size_t i=0; i<size(); i++)
         if (at(i) != b[i]) return false;
     return true; //equal
@@ -337,12 +346,14 @@ inline bool SimpleContour::operator ==(const SimpleContour &b) const
  */
 inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
-    if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
-    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
+    if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
     return do_offsetbelow(below, touchpoint, offset);
 }
 
 
-} //namespace
+} //namespace contour
+
+ 
 
 #endif //CONTOUR_CONTOUR_H

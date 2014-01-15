@@ -865,22 +865,22 @@ void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour 
 {
     //In allrays even indexed positions are incoming edges, odd positions are outgoing ones
     if (p1==0)  //avoid pos==0 and incoming
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at_prev(v1).Angle(true,  xy, 1));
+        AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at_prev(v1).Angle(true, 1));
     else
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at(v1).Angle(true,  xy, p1));
+        AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at(v1).Angle(true, p1));
     if (p1==1) //avoid pos==1 and outgoing
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at_next(v1).Angle(false, xy, 0));
+        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at_next(v1).Angle(false, 0));
     else
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at(v1).Angle(false, xy, p1));
+        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at(v1).Angle(false, p1));
     if (c2==NULL) return;
     if (p2==0)  //avoid pos==0 and incoming
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at_prev(v2).Angle(true,  xy, 1));
+        AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at_prev(v2).Angle(true, 1));
     else
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at(v2).Angle(true,  xy, p2));
+        AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at(v2).Angle(true, p2));
     if (p2==1) //avoid pos==1 and outgoing
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at_next(v2).Angle(false, xy, 0));
+        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at_next(v2).Angle(false, 0));
     else
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at(v2).Angle(false, xy, p2));
+        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at(v2).Angle(false, p2));
 }
 
 
@@ -1605,14 +1605,12 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             //Append a point
             if (forward) {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
-                _ASSERT(edge.IsSaneNoBoundingBox());
-                edge.SetStartStrict(next_ray.xy, next_ray.pos, true);
-                _ASSERT(edge.IsSaneNoBoundingBox());
+                edge.SetStart(next_ray.xy);
                 result.AppendDuringWalk(edge);
             } else {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
                 edge.Invert();
-                edge.SetStartStrict(next_ray.xy, 1-next_ray.pos, true);
+                edge.SetStart(next_ray.xy);
                 result.AppendDuringWalk(edge);
             }
         }
@@ -2035,7 +2033,7 @@ void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType &dist_so
     DistanceType d = dist_so_far;
     d.ClearInOut();
     outline.Distance(c.outline, d);
-    if (d.was_inside) { //one outline is inside another one, consider holes
+    if (d.WasIn()) { //one outline is inside another one, consider holes
         //see which one is in the other
         DistanceType temp = d;
         temp.ClearInOut();

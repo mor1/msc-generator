@@ -121,6 +121,11 @@ inline double radian2angle(double rad) {
     return (rad>=M_PI) ? 3 + cos(2*M_PI-rad) : 1 - cos(rad);
 }
 
+/** Defines how two (finite length) sections can cross each other.
+*/
+double point2pos_straight(const XY &M, const XY&N, const XY &p);
+
+
 /** Helper class to collect data during distance calculation.
  * 
  * We distinguish between case when an element is inside a contour or outside.
@@ -134,8 +139,8 @@ inline double radian2angle(double rad) {
 struct DistanceType
 {
 private:
-    friend class SimpleContour;
-    friend class ContourWithHoles;
+    //friend class SimpleContour;
+    //friend class ContourWithHoles;
     bool was_inside;    ///<True if there was one point of the other shape inside us.
     bool was_outside;   ///<True if there was one point of the other shape inside us.
     double distance;    ///<The smallest distance so far. (negative if one inside the other)

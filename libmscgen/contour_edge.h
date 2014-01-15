@@ -25,10 +25,9 @@
 #define CONTOUR_H
 
 #include <map>
-#include "contour_ellipse.h"
-
-
-
+#include <vector>
+#include "cairo.h"
+#include "contour_distance.h"
 
 namespace contour {
 
@@ -186,6 +185,10 @@ enum EExpandType {
     EXPAND_BEVEL
 };
 
+inline bool IsMiter(EExpandType t) { return t==EXPAND_MITER || t==EXPAND_MITER_BEVEL || t==EXPAND_MITER_ROUND|| t==EXPAND_MITER_SQUARE; }
+inline bool IsRound(EExpandType t) { return t==EXPAND_ROUND || t==EXPAND_MITER_ROUND; }
+inline bool IsBevel(EExpandType t) { return t==EXPAND_BEVEL || t==EXPAND_MITER_BEVEL; }
+
 /** Return which of two points are clockwise if seen from a third point.
 *
 * @param [in] from Seen from this point...
@@ -199,59 +202,33 @@ inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool
     return (clockwise == (CLOCKWISE == triangle_dir(from, A, B))) ? B : A;
 }
 
-class ContoursHelper;
 
-} //namespace
-
-namespace contour_standard_edge {
-
-using contour::XY;
-using contour::Range;
-using contour::Block;
-
-/** Helper class to describe the arc part of a curvy edge */
-class EdgeArc
+enum ELineCrossingType
 {
-public:
-    /** Describes what type of an edge it is. */
-    enum EEdgeType {
-        STRAIGHT=0,   ///<A straight edge. Should not be used: if an EdgeArc is allocated we are not straight.
-        FULL_CIRCLE=1,///<A curvy edge that is a full circle or ellipse.
-        ARC=2         ///<A curvy edge that is a section of a circle or ellipse.
-    };
-
-    EdgeArc() {}
-    EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
-    EEdgeType   type;          ///<Type of the edge.
-    double      s;             ///<Starting radian of a curvy edge supposedly between [0..2pi). Unused for straight edges. For FULL_CIRCLE, it still has meaning.
-    double      e;             ///<Ending radian of a curvy edge supposedly between [0..2pi). Unused for straight and full circle edges.
-    bool        clockwise_arc; ///<True if a curvy edge goes clockwise from `s` to `e`. Unused for straight edges.
-    EllipseData ell;           ///<Descriptor of the ellipse for curvy edges.
-    Block       boundingBox;   ///< A bounding box for the edge.
+    LINE_CROSSING_PARALLEL,  ///< No crossing, the two sections are parallel.
+    LINE_CROSSING_INSIDE,    ///< Real crossing, the crosspoint is inside both sections.
+    LINE_CROSSING_OUTSIDE_FW,///< The line of the two lines cross, but the crosspoint is outside at least one of the sections - towards the right end. (beyond B and/or M)
+    LINE_CROSSING_OUTSIDE_BK ///< The line of the two lines cross, but the crosspoint is outside at least one of the sections - towards the wrong end. (beyond A and/or N)
 };
 
+ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N, XY &r);
 
-/** A directed edge of a contour.
- * @ingroup contour_internal
- *
- * We distinguish two types: straight or curvy.
- * Curvy edge is a part of an ellipse. We call it tilted if the axes of the ellipse
- * are not parallel with the x and y axises. We make a distinction between tilted and
- * non-tilted curvy edges, because you need more calculations for tilted ones.
- *
- * For straight edges we only use the two endpoints from the class.
- * For curvy ones, we also use the EllipseData member.
- */
+
+inline XY Mid(const XY &A, const XY &B, double t)
+{
+    return A+t*(B-A);
+}
+
 class Edge
 {
-    friend class contour::SimpleContour;
-    friend class contour::ContoursHelper;
 public:
     /** Describes, how two expanded edges can relate to each other.
-     */
-    enum EExpandCPType {
+    */
+    enum EExpandCPType
+    {
         DEGENERATE,     ///<One of the edges have `start==end`.
-        SAME_ELLIPSIS,  ///<Theyare different segments of the same ellipse. (Should be merged).
+        TRIVIAL,        ///<The crosspoint is exactly at the end of the edge - used between segments of an edge when an edge needed to be split to several segments at expansion
+
         /** They have a crosspoint
          *
          * Usually this happens at concave vertices (or when we srink).
@@ -269,11 +246,9 @@ public:
                 |   :             +---+
            @endverbatim */
         CP_REAL,
-        /** They do not have a crosspoint, but if we extend them, they have
+        /** They do not have a crosspoint, but if we extend both of them, they have.
          *
-         * Note that "extension" for a straight edge means its a continuation in a straight line,
-         * while for a curvy edge it is the continuation of the circle/ellipse.
-         * This is the most common case for expansion.
+         * Note that "extension" for means continuation in a straight line along the tangent.
          *
          * Below see two edges with dots, the expanded edges with solid lines and their extension
          * also using dots. The `o` marks the crosspoint of the extensions.
@@ -287,25 +262,6 @@ public:
                 :   |
            @endverbatim */
         CP_EXTENDED,
-        /** They do not have a crosspoint, neither if extended, but their linear extension have.
-         *
-         * A difference exists from CP_EXTENDED but only for curvy edges, since for straight edges
-         * regular extension is linear. In the below example you can see a straight edge and
-         * a concave arc (the arc is smaller than a half-circle, so they meet at a non-zero angle).
-         * In the below figure `x` marks the end of the two expanded edges, and straigght lines
-         * represent their linear extension. The dotted extension shows the regular extension for the
-         * circular edge and we can see it will never cross the extended straight edge.
-         * The crosspoint of the linear extensions is marked by `o`.
-         * @verbatim
-            ----->-x--------o
-                           /
-             ..>...+      |
-                  :      /...
-                 :      x:   :.
-                :      /       :
-                :      |        :
-           @endverbatim */
-        NO_CP_CONVERGE,
         /** They are parallel and hence have no crosspoints.
          *
          * In this case there is no crosspoint neither if extended nor if linearly extrapolated.
@@ -327,333 +283,166 @@ public:
                 :      /
                 :      |
            @endverbatim */
-        NO_CP_PARALLEL
-    };
+        NO_CP_PARALLEL,
+        /** The two edges fo not meet, but their extension do - but at the opposite end
+         * This may usually happen either at expanding a concave vertex or shrinking a convex one.
+         * 
+         * On the figure below we see 4 edges (with dashes and pipe symbols, vertices
+         * use + signs). We shrink considerably. The shrinked version of edges 1 and 2
+         * do not cross and only their extension do. However, this extended cp (marked
+         * with an X) is beyond the wrong (bottom) end of edge 2. Originally the cp 
+         * between edges 1 and 2 was at the top end of edge 2, but after expansion it 
+         * got to the other end - this makes the expanded edge of 2 sort of 
+         * unnecessary to construct the expanded (shrunken) contour. So we mark this
+         * case separately.
+         *
+         * @verbatim
+           -->-1---------+
+                  :      |2
+                  :      |
+                  :      +->---------3----+
+                                  :       |
+           .......X......         :       V
+                                  :       |
+                        ..........:.......|
+                                  :       4
+                                  :       |
+                                
+           @endverbatim */
+        CP_INVERSE
+        };
     ///<True if two expanded edges or their extrension has crosspoints.
-    static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
+    static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==TRIVIAL; }
 
 protected:
-    XY       start;        ///<Startpoint of the edge.
-    XY       end;          ///<Endpoint of the edge, shall be different from `start`.
-    EdgeArc *arc;          ///<NULL if the edge is straight, arc data if curvy
+    friend class SimpleContour;
+    friend class ContoursHelper;
+    friend void contour_test_bezier(unsigned num);
+    struct CrossResult
+    {
+        XY r;
+        double pos_my;
+        double pos_other;
+    };
+
+    bool straight : 1;
 public:
-    mutable bool visible;      ///<True if the edge shall be shown/drawn.
-    Edge() : arc(NULL), visible(true) {}
-    Edge(const XY &s, const XY &e) : start(s), end(e), arc(NULL), visible(true) {}
-    Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
-    Edge(const Edge &o) : start(o.start), end(o.end), arc(o.arc ? new EdgeArc(*o.arc) : NULL), visible(o.visible) {}
-    Edge(Edge &&o) : start(o.start), end(o.end), arc(o.arc), visible(o.visible) {o.arc=NULL;}
+    mutable bool visible : 1;
+protected:
+    XY start;
+    XY end;
+    XY c1;
+    XY c2;
+public:
+    Edge(const XY &A, const XY &B, bool v=true)
+        :straight(true), visible(v), start(A), end(B) {}
+    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true)
+        :straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
+    Edge() = default;
+    Edge(const Edge &) = default;
+    Edge(const Edge &e, double t, double s) : Edge(e) { Chop(t, s); }
+    Edge & operator = (const Edge &) = default;
+    /** Only checks shape, not visibility */
+    bool operator ==(const Edge& p) const { return start==p.start && end==p.end && straight==p.straight && (!straight || (c1==p.c1 && c2==p.c2)); }
+    /** Only checks shape, not visibility */
+    bool operator < (const Edge& p) const { return start!=p.start ? start<p.start : end!=p.end ? end<p.end : straight!=p.straight ? straight ? true : p.straight ? false : c1!=p.c1 ? c1<p.c1 : c2<p.c2 : false; }
 
-    Edge &operator =(const Edge &o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc ? new EdgeArc(*o.arc) : NULL; visible = o.visible; return *this;}
-    Edge &operator =(Edge &&o) {if (arc) delete arc; start=o.start; end=o.end; arc = o.arc; o.arc=NULL; visible = o.visible; return *this;}
+    const XY & GetStart() const { return start; } ///<Returns the startpoint.
+    const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
 
-    EdgeArc::EEdgeType GetType() const {return arc ? EdgeArc::STRAIGHT : arc->type;}    ///<Returns the type of the edge.
-    const XY & GetStart() const {return start;} ///<Returns the startpoint.
-    const XY & GetEnd() const {return end;}     ///<Returns the endpoint.
-    Block CreateBoundingBox() const {if (arc) return arc->boundingBox; return Block(start, end);} ///<Returns a copy of the bounding box of the edge
+    XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
+
+protected:
+    XY Split(double t) const;
+    XY Split(double t, XY &r1, XY &r2) const;
+    XY Split() const { XY a, b; return Split(a, b); }
+    XY Split(XY &r1, XY &r2) const;
+    void Split(Edge &r1, Edge &r2) const;
+    void Split(double t, Edge &r1, Edge &r2) const;
+    bool Chop(double t, double s);
+    double Flatness() const;
+    bool HullOverlap(const Edge &) const;
+
+    unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
+    unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
+                            double pos_my_mul, double pos_other_mul,
+                            double pos_my_offset, double pos_other_offset) const;
+    unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
+                                    double pos_mul, double pos_offset) const;
+    double HullDistance(const XY &A, const XY &B) const;
+    double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
+
+    unsigned SolveForDistance(const XY &p, double[4]) const;
+
+    double FindBezierParam(const XY &p) const;
+
+    Edge& SetEnd(const XY &p);
+    Edge& SetStart(const XY &p);
+
+    //Helpers for expand
+    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
+    //void SetStartEndForExpand(const XY &S, const XY &E);
+    //bool IsOpposite(const XY &S, const XY &E) const;
+
+public:
+    Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
+    Edge CreateShifted(const XY&p) const { return Edge(*this).Shift(p); }
+    Edge &Scale(double sc) { start *= sc; end *= sc; if (!straight) { c1 *= sc; c2 *= sc; } return *this; }    ///<Scale the edge.
+    Edge CreateScaled(double sc) { return Edge(*this).Scale(sc); }    ///<Scale the edge.
+    Edge &Scale(const XY &sc) { start.Scale(sc); end.Scale(sc); if (!straight) { c1.Scale(sc); c2.Scale(sc); } return *this; }    ///<Scale the edge.
+    Edge CreateScaled(const XY &sc) { return Edge(*this).Scale(sc); }    ///<Scale the edge.
+    Edge &Rotate(double cos, double sin) { start.Rotate(cos, sin); end.Rotate(cos, sin); if (!straight) { c1.Rotate(cos, sin); c2.Rotate(cos, sin); } return *this; }
+    Edge CreateRotated(double cos, double sin) { return Edge(*this).Rotate(cos, sin); }
+    Edge &RotateAround(const XY&c, double cos, double sin) { start.RotateAround(c, cos, sin); end.RotateAround(c, cos, sin); if (!straight) { c1.RotateAround(c, cos, sin); c2.RotateAround(c, cos, sin); } return *this; }
+    Edge CreateRotatedAround(const XY&c, double cos, double sin) { return Edge(*this).RotateAround(c, cos, sin); }
+    Edge &SwapXY() { start.SwapXY(); end.SwapXY(); if (!straight) { c1.SwapXY(); c2.SwapXY(); } return *this; }
+    Edge CreateSwapXYd() { return Edge(*this).SwapXY(); }
+    Edge &Invert() { std::swap(start, end); if (!straight) std::swap(c1, c2); return *this; } ///<Reverses the direction of the edge.
+
+    //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
+    XY PrevTangentPoint(double pos) const { return straight ? 2*start-end : pos ? Mid(start, c1, pos) : 2*start-c1; }
+    //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
+    XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(c2, end, pos) : 2*end-c2; }
+
+    bool CheckAndCombine(const Edge &next); 
+
+    unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
+    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
+    RayAngle Angle(bool incoming, double pos) const;
+    Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
+
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-    DistanceType Distance(const Edge &) const;    //always nonnegative
+    DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; }    //always nonnegative
+    void Distance(const Edge &, DistanceType &ret) const;    //always nonnegative
 
-    const EllipseData &GetEllipseData() const {return arc->ell;} ///<Returns the ellipse data. Asserts for straight edges.
-    bool GetClockWise() const {return arc->clockwise_arc;} ///<Returns if the edge goes clockwise around the ellipse. Asserts for straight edges.
-    double GetSpan() const;
-    double GetRadianE() const {return arc->type==EdgeArc::ARC ? arc->e : arc->s;} ///<Returns the ending radian. Asserts for straight edges.
-    double GetRadianS() const {return arc->s;} ///<Returns the starting radian. Asserts for straight edges.
-    double GetRadianMidPoint() const;
-    XY Pos2Point(double pos) const;
-    void SetFullCircle() {arc->type = EdgeArc::FULL_CIRCLE; end=start; arc->e=arc->s; CalculateBoundingBoxCurvy();} ///<Makes the edge a full circle starting at 's`. Asserts for straight edges.
-
-    bool IsSane() const;
-    bool IsSaneNoBoundingBox() const;
-    /** Helper for area calculation.
-     *
-     * Return the (directed) area between the y axis and the edge times 2,
-     * minus start.x*start.y, plus end.x*end.y.
-     */
-    double GetAreaAboveAdjusted() const {return arc ? getAreaAboveAdjusted_curvy() : start.x*end.y-start.y*end.x;}
-    double GetLength() const {return arc ? arc->type == EdgeArc::FULL_CIRCLE ? arc->ell.FullCircumference() : arc->ell.SectorCircumference(arc->s,arc->e) : (end-start).length();} ///<Returns the length of the arc.
+    double GetAreaAboveAdjusted() const;
+    double GetLength() const; ///<Returns the length of the arc.
     //returns the centroid of the area above multipled by the (signed) area above
     XY GetCentroidAreaAboveUpscaled() const;
 
-    bool Expand(double gap);
+    std::vector<Edge> CreateExpand(double gap) const;
     void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
-
-    void Shift(const XY &wh) {start+=wh; end+=wh; if (arc) {arc->boundingBox.Shift(wh); arc->ell.Shift(wh);}} ///<Translate the edge.
-    void Scale(double sc) {start*=sc; end*=sc; if (arc) {arc->boundingBox.Scale(sc); arc->ell.Scale(sc);}}    ///<Scale the edge.
-    void Rotate(double cos, double sin, double radian);
-    void RotateAround(const XY&c, double cos, double sin, double radian);
-    void SwapXY();
-
-    bool operator ==(const Edge& p) const {return start==p.start && end==p.end && (arc==NULL)==(p.arc==NULL) && (!arc || equal_curvy(p));}
-    bool operator < (const Edge& p) const {return start!=p.start ? start<p.start : end!=p.end ? end<p.end : (arc==NULL)!=(p.arc==NULL) ? arc==NULL ? true : p.arc==NULL ? false : arc->type < p.arc->type : smaller_curvy(p);}
-
-    Edge &Invert() {std::swap(start, end); if (arc) {arc->clockwise_arc = !arc->clockwise_arc; std::swap(arc->s, arc->e);} return *this;} ///<Reverses the direction of the edge.
-    /** Calculates the angle of the edge at point `p`.
-     *
-     * @param [in] incoming If true the angle of the incoming segment is calculated (as if it were outgoing), if false the outgoing part.
-     * @param [in] p The angle is calculated at this point (indifferent for straight edges)
-     * @param [in] pos Should be the pos value corresponding to `p`.
-     * @returns The angle of the edge
-     */
-    RayAngle Angle(bool incoming, const XY &p, double pos) const {return arc ? angle_curvy(incoming, p, pos) :  RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : angle(start, XY(start.x+100, start.y), end));}
-
-    //Gives the intersecting points of me and another straight edge
-    unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
-    //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
-    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
-    void CalculateBoundingBoxCurvy();  ///<Calculates & returns the bounding box for curvy Edges. Fails for straight ones.
-
-
-    void   PathTo(cairo_t *cr) const {if (arc) pathto_curvy(cr); else cairo_line_to(cr, end.x, end.y);} ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
-    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
 
     //helpers for offsetbelow
     double OffsetBelow(const Edge &M, double &touchpoint) const;
 
     //tangential toucher from a point
-    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    bool TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
+    void TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    void TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
 
-protected:
-    bool equal_curvy(const Edge &p) const;
-    bool smaller_curvy(const Edge &p) const;
-    void pathto_curvy(cairo_t *cr) const;
-    RayAngle angle_curvy(bool incoming, const XY &p, double pos) const;
+    void   PathTo(cairo_t *cr) const { if (straight) cairo_line_to(cr, end.x, end.y); else cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y); } ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse = false) const;
 
-    unsigned CrossingStraightStraight(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
-
-    //Convert between pos (0..1) and coordinates
-    double pos2radian_full_circle(double r) const {return fmod_negative_safe(arc->clockwise_arc ? arc->s+r*2*M_PI : arc->s-r*2*M_PI, 2*M_PI);} ///<Convert from a pos value of [0..1] to a radian value assuming full circle
-    double radian2pos_full_circle(double r) const {return fmod_negative_safe(arc->clockwise_arc ? (r-arc->s)/(2*M_PI) : (arc->s-r)/(2*M_PI), 1.);} ///<Convert from a radian value to a pos value of [0..1] value assuming full circle
-
-    //Convert between pos (0..1) and coordinates
-    double pos2radian(double r) const;
-    double radian2pos(double r) const;
-    //helper, checks if r is between s and e
-    bool   radianbetween(double r) const;
-    //remove the part of an edge before an after point p lying on the edge
-    void   removebeforepoint_curvy(const XY &p);
-    void   removeafterpoin_curvy(const XY &p);
-    double getAreaAboveAdjusted_curvy() const;
-    static XY getcentroidareaaboveupscaled_straight(const XY&start, const XY&end);
-    XY getcentroidareaaboveupscaled_curvy() const;
-    double offsetbelow_curvy_straight(const Edge &M_straight, bool straight_is_up, double &touchpoint) const;
-
-    double FindRadianOfClosestPos(unsigned num, double pos[], double rad);
-    bool UpdateClockWise(double new_s, double new_e);
-    void SwapXYcurvy();
-    int CrossingVerticalCurvy(double x, double y[], double pos[], bool forward[]) const;
-
-    //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-    XY     PrevTangentPoint(double pos) const;
-    //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-    XY     NextTangentPoint(double pos) const;
-
-    //Removes the part of the edge before point p. Assumes p lies on us. Invalidates BoundingBox!!!
-    Edge& SetStartStrict(const XY &p, double pos, bool keep_full_circle=false);
-    Edge& SetStartLiberal(const XY &p, bool keep_full_circle=false);
-    //Removes the part of the edge after point p. Assumes p lies on us. Invalidates BoundingBox!!!
-    Edge& SetEndLiberal(const XY &p, bool keep_full_circle=false);
-    //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
-    bool   CheckAndCombine(const Edge &next);
+    static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y=0, 
+                                double tilt_deg=0, double s_deg=0, double d_deg=0, bool clockwise=true);
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
-    void SetStartEndForExpand(const XY &S, const XY &E);
-    bool IsOpposite(const XY &S, const XY &E) const;
-
-    void CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
+    void CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> &original) const;
 };
 
-/** Returns the span of an ARC in radians. Handles case when `e < s`.
- */
-inline double Edge::GetSpan() const
-{
-    if (arc->type==EdgeArc::FULL_CIRCLE) return 2*M_PI;
-    if (arc->clockwise_arc) {
-        if (arc->s < arc->e) return arc->e - arc->s;
-        else return arc->e - arc->s + 2*M_PI;
-    } else {
-        if (arc->s > arc->e) return arc->s - arc->e;
-        else return arc->s - arc->e + 2*M_PI;
-    }
-}
 
-/** Returns a point on a tangent in counterclockwise (previous) direction
- * @param pos The place where the tangent touches the edge.
- * @returns A point on the tangent, which is in counterclockwise direction.
- */
-inline XY Edge::PrevTangentPoint(double pos) const
-{
-    if (arc)
-        return arc->ell.Tangent(pos2radian(pos), !arc->clockwise_arc);
-    if (pos<=0.5)
-        return start*2-end;
-    return start;
-}
 
-/** Returns a point on a tangent in clockwise (next) direction
- * @param pos The place where the tangent touches the edge.
- * @returns A point on the tangent, which is in clockwise direction.
- */
-inline XY Edge::NextTangentPoint(double pos) const
-{
-    if (arc)
-        return arc->ell.Tangent(pos2radian(pos), arc->clockwise_arc);
-    if (pos>0.5)
-        return end*2-start;
-    return end;
-}
+} //namespace contour bezier
 
-/** Removes the part of the edge after point p.
- * @param p A point that is assumed to lie on the edge.
- * @param keep_full_circle If true, we do not chop a full circle.
- */
-inline Edge& Edge::SetEndLiberal(const XY &p, bool keep_full_circle)
-{
-    end = p;
-    if (!arc) return *this;
-    const double r = arc->ell.Point2Radian(p);
-    if (arc->type==EdgeArc::FULL_CIRCLE && !(test_equal(arc->s, r) && keep_full_circle))
-        arc->type = EdgeArc::ARC;
-    arc->e = r;
-    CalculateBoundingBoxCurvy();
-    return *this;
-}
 
-/** Return the centroid of the area below the edge multiplied by the area.
- *
- * We take the endpoints of the edge and draw a line from them to the x axis.
- * The area bounded by these two lines, the edge itself and the x axis is
- * the subject area of this function. If the `start.x < end.s` the return is
- * negated. The return is also negated (perhaps 2nd time) if the edge is above
- * the x axis (negative y values).
- * The function returns the centroid of this area, scaled by the (signed)
- * area of this area.
- *
- * In more visual terms, showing the x axis and a straight edge and the area.
- * @verbatim
- ==========> =========>
-  +++++        ------
-  __+++        ------
-  |\+++        \-----
-    \++         \ ---
-     \+          \---
-      \           \--
-                  _\|
- * @endverbatim
- * (Since in contour we treat y coordinates as growing downwards, we call these functions
- * "xxAreaAbove", meaning the area between edge & X axis.)
- * The dotted area is the area above an edge. It is counted as positive in the first example;
- * and negative in the second. If we sum all such areas, we get the area of the contour
- * (positive for clockwise and negative for counterclockwise), as it should be.
- *
- * Now, the formula for the above for an edge (X1,Y1)->(X2,Y2) is
- * AreaAbove = (X1-X2)*(Y1+Y2)/2 = (X1*Y1 - X2*Y2)/2 + (X1*Y2 - X2*Y1)/2
- * If we sum this for all edges of a connected contour the first term will
- * cancel out. Thus in the edge::xxAreaAboveAdjusted functions we return
- * the second term only (twice 2), thus we return
- * AreaAbove*2 - (X1*Y1 - X2*Y2).
- */
-inline XY Edge::GetCentroidAreaAboveUpscaled() const
-{
-    if (!arc) return getcentroidareaaboveupscaled_straight(start, end);
-    switch (arc->type) {
-    case EdgeArc::FULL_CIRCLE: return arc->ell.GetCenter() * arc->ell.FullArea();
-    case EdgeArc::ARC:         return getcentroidareaaboveupscaled_curvy();
-    case EdgeArc::STRAIGHT:    break; //should not happen
-    }
-    _ASSERT(0);
-    return XY();
-}
-
-namespace Edge_CreateExpand2D {
-inline int comp_int(const double &a, const double &b) {
-    return a<b ? -1 : a==b ? 0 : 1;
-}
-inline double comp_dbl(const double &a, const double &b, double g) {
-    return a<b ? -g : a==b ? 0 : g;
-}
-}
-
-/** Returns a list of edges resulting in expanding "this" in 2D.
- *
- * See overall documentation of what a 2D expansion is.
- * We return values describing the direction in which the edge
- * ends and starts as below.
- * @verbatim
-   +4  _+3 _  +2
-      |\ ^ /|
-        \|/
-   +1  <-0->  -1
-        /|\
-      |/ v \|
-   -2   -3    -4
- * @endverbatim
- * The above picture describes, how the end is described,
- * the start is described in reverse, thus for lines
- * `stype==dtype`. For degenerate edges `type==0`.
- *
- * @param [in] gap The size of the expansion in the x and y directions.
- * @param [out] ret The edges resulting from the expansion (perhaps more than one).
- * @param [out] stype The type of the starting of the edge.
- * @param [out] etype The type of the ending of the edge.
- */
-inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
-{
-    if (arc) return CreateExpand2DCurvy(gap, ret, stype, etype);
-    ret.resize(ret.size()+1);
-    Edge &e = *ret.rbegin();
-    const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
-                 Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
-    e.start = start + off;
-    e.end   = end   + off;
-    //expand for horizontal and vertical edges
-    if (start.x == end.x) {
-        e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
-        e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
-    }
-    if (start.y == end.y) {
-        e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
-        e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
-    }
-    etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
-                    Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
-}
-
-/** Calculates the touchpoint of tangents drawn from a given point.
- *
- * For curvy edges:
- *     Given the point `from` draw tangents to the edge (two can be drawn)
- *     and calculate where these tangents touch the it.
- *     In this context the *clockwise tangent* is the one which is traversed from
- *     `from` towards the ellipse touches the ellipse in the clockwise direction.
- * For straight edges:
- *     We return the `start` in both clockwise and counterclockwise.
- *     This is because we ignore the endpoint - after all it will be the startpoint
- *     of the next edge and will be considered there.
- * @param [in] from The point from which the tangents are drawn.
- * @param [out] clockwise The point where the clockwise tangent touches the ellipse.
- * @param [out] cclockwise The point where the counterclockwise tangent touches the ellipse.
- * @returns True if success, false if `from` is inside or on the ellipse.
- */
-inline bool Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
-{
-    if (arc && arc->type==EdgeArc::FULL_CIRCLE)
-        return arc->ell.TangentFrom(from, clockwise, cclockwise);
-    if (arc && arc->type==EdgeArc::ARC && arc->ell.TangentFrom(from, clockwise, cclockwise)) {
-        if (radianbetween(arc->ell.Point2Radian(clockwise)))
-            clockwise  = minmax_clockwise(from, start, clockwise, true);
-        else
-            clockwise = start;
-        if (radianbetween(arc->ell.Point2Radian(cclockwise)))
-            cclockwise = minmax_clockwise(from, start, cclockwise, false);
-        else
-            cclockwise = start;
-    } else
-        clockwise = cclockwise = start;
-    return true;
-}
-
-} //namespace
 
 #endif //CONTOUR_H

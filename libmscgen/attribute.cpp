@@ -512,17 +512,19 @@ Contour LineAttr::CreateRectangle_Midline(double x1, double x2, double y1, doubl
         return Contour(x1, x2, y1, y2);
     case CORNER_ROUND:
         {
-        const Edge edges[] = {
-            Edge(XY(x1+r, y1), XY(x2-r, y1)),
-            Edge(XY(x2-r, y1+r), r, r, 0, 270, 360),
-            Edge(XY(x2, y1+r), XY(x2, y2-r)),
-            Edge(XY(x2-r, y2-r), r, r, 0,   0,  90),
-            Edge(XY(x2-r, y2), XY(x1+r, y2)),
-            Edge(XY(x1+r, y2-r), r, r, 0,  90, 180),
-            Edge(XY(x1, y2-r), XY(x1, y1+r)),
-            Edge(XY(x1+r, y1+r), r, r, 0, 180, 270)};
-        ret.assign_dont_check(edges);
-        break;
+            std::vector<Edge> edges;
+            edges.reserve(8);
+
+            edges.emplace_back(XY(x1+r, y1), XY(x2-r, y1));
+            Edge::GenerateEllipse(edges, XY(x2-r, y1+r), r, r, 0, 270, 360);
+            edges.emplace_back(XY(x2, y1+r), XY(x2, y2-r));
+            Edge::GenerateEllipse(edges, XY(x2-r, y2-r), r, r, 0, 0, 90);
+            edges.emplace_back(XY(x2-r, y2), XY(x1+r, y2));
+            Edge::GenerateEllipse(edges, XY(x1+r, y2-r), r, r, 0, 90, 180);
+            edges.emplace_back(XY(x1, y2-r), XY(x1, y1+r));
+            Edge::GenerateEllipse(edges, XY(x1+r, y1+r), r, r, 0, 180, 270);
+            ret.assign_dont_check(edges);
+            break;
         }
     case CORNER_BEVEL:
         {
