@@ -1779,11 +1779,17 @@
 
 namespace contour {
 
-    using contour::angle;
-    using contour::between01_approximate_inclusive;
-
 XY Edge::Split(double t) const
 {
+    const XY P = pow(1-t, 3) * start
+        + 3 * pow(1-t, 2) * t * c1
+        + 3 * (1-t) * pow(t, 2) * c2
+        + pow(t, 3) * end;
+    double t2; 
+    XY TP;
+    double d = Distance(P, TP, t2);
+    _ASSERT(fabs(d)<0.001);
+
     return pow(1-t, 3) * start
             + 3 * pow(1-t, 2) * t * c1
             + 3 * (1-t) * pow(t, 2) * c2
@@ -1793,8 +1799,8 @@ XY Edge::Split(double t) const
 
 
 /** Splits to two bezier curves 
- * The first will be start, ret, c1, r1,
- * The second will be ret, end, r2, c2 */
+ * The first will be start, ret, Mid(start, c1, t), r1
+ * The second will be ret, end, r2, Mid(c2, end, t) */
 XY Edge::Split(double t, XY &r1, XY &r2) const
 {
     if (straight) {
@@ -1855,17 +1861,18 @@ void Edge::Split(double t, Edge &r1, Edge &r2) const
 bool Edge::Chop(double t, double s)
 {
     _ASSERT(t>=0 && s>=0 && t<=1 && s<=1);
+    _ASSERT(!straight);
     if (s<t) std::swap(s, t);
     XY r1, r2;
     if (s<1) {
         end = Split(s, r1, r2);
         c1 = Mid(start, c1, s);
-        c2 = r2;
+        c2 = r1;
         t /= s;
     }
     if (t>0) {
         start = Split(t, r1, r2);
-        c1 = r1;
+        c1 = r2;
         c2 = Mid(c2, end, t);
     }
     return t==s;
@@ -2128,19 +2135,25 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
 
 
 /** Checks if this edge and `next` can be combined into a single edge.
-* If so, also update "this" to be the combined edge & return true. */
-bool Edge::CheckAndCombine(const Edge &next)
+* If so, also update "this" to be the combined edge & returns true.
+* In pos returns the position of "next.start" in the new edge.*/
+bool Edge::CheckAndCombine(const Edge &next, double *pos)
 {
     if (straight!=next.straight) return false;
-    if (end != next.start) return false;
     if (straight) {
         const double a = angle(start, end, next.end);
         if (test_zero(a) || test_equal(a, 2)) {
+            if (pos)
+                *pos = (fabs(start.x-end.x)<fabs(start.y-end.y)) ? (next.start.y-start.y)/(next.end.y-start.y) : (next.start.x-start.x)/(next.end.x-start.x);
+            //OK, next.end is on the start->end line. Test if next.start is also in-between start and end
+            _ASSERT(start.test_equal(next.start) || test_equal(a, angle(start, end, next.start)));
+            _ASSERT(between01(fabs(start.x-end.x)<fabs(start.y-end.y) ? fabs((next.start.y-start.y)/(end.y-start.y)) : fabs((next.start.x-start.x)/(end.x-start.x))));
             end = next.end;
             return true;
         }
         return false;
     }
+    if (end != next.start) return false;
     //XXX FIXME do this for bezier curver
     return false;
 }
@@ -2187,7 +2200,6 @@ unsigned Edge::Crossing(const Edge &A, XY r[], double pos_my[], double pos_other
             pos_other[i] = 0;
             r[i] = A.start;
         }
-
     return num;
 }
 
@@ -2606,39 +2618,6 @@ double SectionPointDistance(const XY&A, const XY&B, const XY &M, XY &point, doub
     return point.Distance(M);
 }
 
-/** Return a series of parameter values potentially closest to 'p'*/
-unsigned Edge::SolveForDistance(const XY &p, double pos[4]) const
-{
-    //A==start, B==c1, C==c2, D==end
-    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
-    //M-to-curve vector is: curve-M
-    //substitutes:     P * t^3  +      Q *  t^2 +     R * t + S
-    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
-    //substitutes            3*P  * t^2 +    2*Q   * t +    R
-    //(curve-M).derivative is: x*x + y*y
-    // (P.3P)t^5 + (P.2Q + Q.3P)t^4 + (P.R + Q.2Q + R.3P)t^3 + 
-    // (Q.R + R.2Q + S.3P)t^2 + (R.R + S.2Q)t + S.R
-    //so we need to derive it and search for roots
-    //its derivative is:
-    // 15(P.P)t^4 + 20(P.Q)t^3 + 6(2P.R + Q.Q)t^2 + 
-    // 6(Q.R + S.P)t^2 + (R.R + S.2Q)
-
-    const XY P = -start+3*(c1-c2)+end;
-    const XY Q = (3*(start+c2)-6*c1);
-    const XY R = 3*(c1-start);
-    const XY S = start-p;
-
-    double coeff[5] = {
-        R.DotProduct(R) + 2*S.DotProduct(Q),
-        6*(Q.DotProduct(R) + S.DotProduct(P)),
-        6*(2*P.DotProduct(R) + Q.DotProduct(Q)),
-        20*P.DotProduct(Q),
-        15*P.DotProduct(P)
-    };
-
-     return  solve_degree4(coeff, pos);
-}
-
 
 double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonnegative
 {
@@ -2656,7 +2635,7 @@ double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonneg
         pos = 1;
     }
     for (unsigned u = 0; u<num; u++) {
-        const XY pu = Split(result[u]);
+        const XY pu = Split2(result[u]);
         const double du = pu.DistanceSqr(M);
         if (du<d) {
             point = pu;
@@ -2740,14 +2719,13 @@ double Edge::FindBezierParam(const XY &p) const
     return ret;
 }
 
-
 Edge& Edge::SetStart(const XY &p)
 {
     if (!straight) {
         XY dummy;
-        double t; 
+        double t;
         const double d = Distance(p, dummy, t);
-        _ASSERT(test_zero(d));
+        _ASSERT(fabs(d)<0.01);
         Chop(t, 1);
     }
     start = p;
@@ -2760,7 +2738,7 @@ Edge& Edge::SetEnd(const XY &p)
         XY dummy;
         double t;
         const double d = Distance(p, dummy, t);
-        _ASSERT(test_zero(d));
+        _ASSERT(fabs(d)<0.01);
         Chop(0, t);
     }
     end = p;
@@ -3508,6 +3486,7 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
     const size_t original_size = append_to.size();
     s_deg = fmod_negative_safe(s_deg, 360.)/90;
     d_deg = fmod_negative_safe(d_deg, 360.)/90;
+    if (d_deg<=s_deg) d_deg += 4;
     if (radius_y==0) radius_y = radius_x;
     //first define the unit circle
     //http://hansmuller-flex.blogspot.hu/2011/04/approximating-circular-arc-with-cubic.html
@@ -3516,19 +3495,20 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
                         {XY(0, 1), XY(-1, 0), XY(-magic_number, 1), XY(-1, magic_number)},
                         {XY(-1, 0), XY(0, -1), XY(-1, -magic_number), XY(-magic_number, -1)},
                         {XY(0, -1), XY(1, 0), XY(magic_number, -1), XY(1, -magic_number)}};
-    append_to.emplace_back(Q[unsigned(s_deg)][0], Q[unsigned(s_deg)][1], Q[unsigned(s_deg)][2], Q[unsigned(s_deg)][3]);
-    if (s_deg<d_deg && unsigned(s_deg)==unsigned(d_deg))
+    unsigned u = unsigned(s_deg);
+    const unsigned u_till = unsigned(d_deg);
+    append_to.emplace_back(Q[u][0], Q[u][1], Q[u][2], Q[u][3]);
+    if (u==u_till)
+        //single quadrant
         append_to.back().Chop(s_deg-floor(s_deg), d_deg-floor(d_deg));
     else {
-        if (s_deg!=d_deg)
-            append_to.back().Chop(s_deg-floor(s_deg), 1);
-        s_deg = (unsigned(s_deg)+1)%4;
-        while (s_deg != floor(d_deg)) {
-            append_to.emplace_back(Q[unsigned(s_deg)][0], Q[unsigned(s_deg)][1], Q[unsigned(s_deg)][2], Q[unsigned(s_deg)][3]);
-            s_deg++;
-        };
-        if (d_deg!=floor(d_deg) && s_deg!=d_deg) {
-            append_to.emplace_back(Q[unsigned(s_deg)][0], Q[unsigned(s_deg)][1], Q[unsigned(s_deg)][2], Q[unsigned(s_deg)][3]);
+        //multiple quadrants: first needs to be chopped only from its start
+        append_to.back().Chop(s_deg-floor(s_deg), 1);
+        for (u++; u!=u_till; u++)
+            append_to.emplace_back(Q[u%4][0], Q[u%4][1], Q[u%4][2], Q[u%4][3]);
+        if (d_deg!=floor(d_deg)) {
+            //d_deg is not exactly at the start of a quadrant, we append a last fractional quadrant
+            append_to.emplace_back(Q[u%4][0], Q[u%4][1], Q[u%4][2], Q[u%4][3]);
             append_to.back().Chop(0, d_deg-floor(d_deg));
         }
     }
@@ -3539,4 +3519,397 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
         std::swap(append_to[original_size + i], append_to[append_to.size()-1-i]);
 }
 
-} //namespace contour bezier
+
+
+/*
+Solving the Nearest Point-on-Curve Problem
+and
+A Bezier Curve-Based Root-Finder
+by Philip J. Schneider
+from "Graphics Gems", Academic Press, 1990
+http://tog.acm.org/resources/GraphicsGems/category.html#Curves%20and%20Surfaces_link
+http://tog.acm.org/resources/GraphicsGems/gems/NearestPoint.c
+*/
+
+const int MAXDEPTH = 64;	/*  Maximum depth for recursion */
+const double EPSILON = (ldexp(1.0, -MAXDEPTH-1)); /*Flatness control value */
+
+
+
+/*
+* CrossingCount :
+*	Count the number of times a Bezier control polygon
+*	crosses the 0-axis. This number is >= the number of roots.
+*
+*/
+unsigned CrossingCount(const XY V[6])
+{
+    unsigned n_crossings = 0;	/*  Number of zero-crossings	*/
+    bool old_sign = V[0].y < 0;
+    for (unsigned i = 1; i <= 5; i++) {
+        const bool sign = V[i].y < 0;
+        if (sign != old_sign) {
+            n_crossings++;
+            old_sign = sign;
+        }
+    }
+    return n_crossings;
+}
+
+/*
+*  ControlPolygonFlatEnough :
+*	Check if the control polygon of a Bezier curve is flat enough
+*	for recursive subdivision to bottom out.
+*
+*  Corrections by James Walker, jw@jwwalker.com, as follows:
+
+There seem to be errors in the ControlPolygonFlatEnough function in the
+Graphics Gems book and the repository (NearestPoint.c). This function
+is briefly described on p. 413 of the text, and appears on pages 793-794.
+I see two main problems with it.
+
+The idea is to find an upper bound for the error of approximating the x
+intercept of the Bezier curve by the x intercept of the line through the
+first and last control points. It is claimed on p. 413 that this error is
+bounded by half of the difference between the intercepts of the bounding
+box. I don't see why that should be true. The line joining the first and
+last control points can be on one side of the bounding box, and the actual
+curve can be near the opposite side, so the bound should be the difference
+of the bounding box intercepts, not half of it.
+
+Second, we come to the implementation. The values distance[i] computed in
+the first loop are not actual distances, but squares of distances. I
+realize that minimizing or maximizing the squares is equivalent to
+minimizing or maximizing the distances.  But when the code claims that
+one of the sides of the bounding box has equation
+a * x + b * y + c + max_distance_above, where max_distance_above is one of
+those squared distances, that makes no sense to me.
+
+I have appended my version of the function. If you apply my code to the
+cubic Bezier curve used to test NearestPoint.c,
+
+static XY bezCurve[4] = {    /  A cubic Bezier curve    /
+{ 0.0, 0.0 },
+{ 1.0, 2.0 },
+{ 3.0, 3.0 },
+{ 4.0, 2.0 },
+};
+
+my code computes left_intercept = -3.0 and right_intercept = 0.0, which you
+can verify by sketching a graph. The original code computes
+left_intercept = 0.0 and right_intercept = 0.9.
+
+*/
+
+bool ControlPolygonFlatEnough(const XY V[6]) 
+{
+    int     i;        /* Index variable        */
+    double  value;
+    double  max_distance_above;
+    double  max_distance_below;
+    double  error;        /* Precision of root        */
+    double  intercept_1,
+        intercept_2,
+        left_intercept,
+        right_intercept;
+    double  det, dInv;
+    double  a2, b2, c2;
+
+    /* Coefficients of implicit    */
+    /* eqn for line from V[0]-V[deg]*/
+    /* Derive the implicit equation for line connecting first *'
+    /*  and last control points */
+    const double a = V[0].y - V[5].y;
+    const double b = V[5].x - V[0].x;
+    const double c = V[0].x * V[5].y - V[5].x * V[0].y;
+
+    max_distance_above = max_distance_below = 0.0;
+
+    for (i = 1; i < 5; i++) {
+        value = a * V[i].x + b * V[i].y + c;
+
+        if (value > max_distance_above) {
+            max_distance_above = value;
+        } else if (value < max_distance_below) {
+            max_distance_below = value;
+        }
+    }
+
+    /*  Implicit equation for zero line */
+    const double a1 = 0.0;
+    const double b1 = 1.0;
+    const double c1 = 0.0;
+
+    /*  Implicit equation for "above" line */
+    a2 = a;
+    b2 = b;
+    c2 = c - max_distance_above;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+
+    /*  Implicit equation for "below" line */
+    a2 = a;
+    b2 = b;
+    c2 = c - max_distance_below;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+
+    /* Compute intercepts of bounding box    */
+    left_intercept = std::min(intercept_1, intercept_2);
+    right_intercept = std::max(intercept_1, intercept_2);
+
+    error = right_intercept - left_intercept;
+    const double error_better = fabs((max_distance_below-max_distance_above)/a);
+
+    return (error_better < EPSILON) ? 1 : 0;
+}
+
+
+bool ControlPolygonFlatEnough_Original(const XY V[6])
+{
+    int     i;        /* Index variable        */
+    double  value;
+    double  max_distance_above = 0;
+    double  max_distance_below = 0;
+    double  error;        /* Precision of root        */
+    double  intercept_1,
+        intercept_2,
+        left_intercept,
+        right_intercept;
+    double  det, dInv;
+    double  a2, b2, c2;
+
+    /* Coefficients of implicit    */
+    /* eqn for line from V[0]-V[deg]*/
+    /* Derive the implicit equation for line connecting first *'
+    /*  and last control points */
+    const double a = V[0].y - V[5].y;
+    const double b = V[5].x - V[0].x;
+    const double c = V[0].x * V[5].y - V[5].x * V[0].y;
+
+
+    const double abSquared = (a * a) + (b * b);
+
+    for (i = 1; i < 5; i++) {
+        /* Compute distance from each of the points to that line    */
+        const double distance = a * V[i].x + b * V[i].y + c;
+        if (distance > 0.0)
+            max_distance_above = std::max((distance * distance) / abSquared, max_distance_above);
+        else if (distance < 0.0)
+            max_distance_below = std::min(-(distance * distance) / abSquared, max_distance_below);
+    }
+    /*  Implicit equation for zero line */
+    const double a1 = 0.0;
+    const double b1 = 1.0;
+    const double c1 = 0.0;
+
+    /*  Implicit equation for "above" line */
+    a2 = a;
+    b2 = b;
+    c2 = c + max_distance_above;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+
+    /*  Implicit equation for "below" line */
+    a2 = a;
+    b2 = b;
+    c2 = c + max_distance_below;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+
+    /* Compute intercepts of bounding box    */
+    left_intercept = std::min(intercept_1, intercept_2);
+    right_intercept = std::max(intercept_1, intercept_2);
+
+    error = 0.5 * (right_intercept-left_intercept);
+    const double error_better = fabs((max_distance_below-max_distance_above)/a)/2;
+
+    return (error_better < EPSILON) ? 1 : 0;
+}
+
+/*
+*  ComputeXIntercept :
+*	Compute intersection of chord from first control point to last
+*  	with 0-axis.
+*
+*/
+/* NOTE: "T" and "Y" do not have to be computed, and there are many useless
+* operations in the following (e.g. "0.0 - 0.0").
+*/
+double ComputeXIntercept(const XY V[6])
+{
+    //returns the x offset where the V[0]->V[5] line crosses the X axis
+    const double XNM = V[5].x - V[0].x;
+    const double YNM = V[5].y - V[0].y;
+    const double XMK = V[0].x;
+    const double YMK = V[0].y;
+
+    return XMK - XNM*YMK / YNM;
+}
+
+
+/*
+*  Bezier :
+*	Evaluate a Bezier curve at a particular parameter value
+*      Fill in control points for resulting sub-curves if "Left" and
+*	"Right" are non-null.
+*
+*/
+void Bezier(const XY V[6], double t, XY Left[6], XY Right[6])
+{
+    XY 	Vtemp[6][6];
+
+    /* Copy control points	*/
+    for (unsigned j = 0; j <= 5; j++) 
+        Vtemp[0][j] = V[j];
+
+    /* Triangle computation	*/
+    for (unsigned i = 1; i <= 5; i++)
+        for (unsigned j = 0; j <= 5 - i; j++) 
+            Vtemp[i][j] = (1.0 - t) * Vtemp[i-1][j] + t * Vtemp[i-1][j+1];
+
+    for (unsigned j = 0; j <= 5; j++)
+        Left[j] = Vtemp[j][0];
+
+    for (unsigned j = 0; j <= 5; j++)
+        Right[j] = Vtemp[5-j][j];
+}
+
+
+/*
+*  FindRoots :
+*	Given a 5th-degree equation in Bernstein-Bezier form, find
+*	all of the roots in the interval [0, 1].  Return the number
+*	of roots found.
+*/
+unsigned FindRoots(XY w[6], double t[5], unsigned depth)
+{
+    int 	i;
+    XY 	Left[6],	/* New left and right 		*/
+        Right[6];	/* control polygons		*/
+
+    switch (CrossingCount(w)) {
+    case 0: 	/* No solutions here	*/
+        return 0;
+    case 1:
+        /* Unique solution	*/
+        /* Stop recursion when the tree is deep enough	*/
+        /* if deep enough, return 1 solution at midpoint 	*/
+        if (depth >= MAXDEPTH) {
+            t[0] = (w[0].x + w[5].x) / 2.0;
+            return 1;
+        }
+        if (ControlPolygonFlatEnough_Original(w)) {
+            t[0] = ComputeXIntercept(w);
+            return 1;
+        }
+    }
+
+    /* Otherwise, solve recursively after	*/
+    /* subdividing control polygon		*/
+    Bezier(w, 0.5, Left, Right);
+    const unsigned left_count = FindRoots(Left, t, depth+1);
+    const unsigned right_count = FindRoots(Right, t+left_count, depth+1);
+
+    /* Send back total number of solutions	*/
+    return (left_count+right_count);
+}
+
+
+/** Return a series of parameter values potentially closest to 'p'*/
+unsigned Edge::SolveForDistance1(const XY &p, double pos[5]) const
+{
+    /*  Convert problem to 5th-degree Bezier form	*/
+    static const double z[3][4] = {	/* Precomputed "z" for cubics	*/
+        {1.0, 0.6, 0.3, 0.1},
+        {0.4, 0.6, 0.6, 0.4},
+        {0.1, 0.3, 0.6, 1.0},
+    };
+    XY c[4], d[3]; 
+
+    /*Determine the c's -- these are vectors created by subtracting*/
+    /* point P from each of the control points				*/
+    c[0] = start - p;
+    c[1] = c1 - p;
+    c[2] = c2 - p;
+    c[3] = end - p;
+
+    /* Determine the d's -- these are vectors created by subtracting*/
+    /* each control point from the next					*/
+    //for (i = 0; i <= DEGREE - 1; i++) {
+    //    d[i] = V2ScaleII(V2Sub(&V[i+1], &V[i], &d[i]), 3.0);
+    //}
+    d[0] = 3*(c1-start);
+    d[1] = 3*(c2-c1);
+    d[2] = 3*(end-c2);
+
+    // control-points for Bezier curve whose zeros represent candidates for closest point to the input parametric curve
+    XY w[6] = {{0, 0}, {0.2, 0}, {0.4, 0}, {0.6, 0}, {0.8, 0}, {1, 0}}; 
+    for (int k = 0; k <= 5; k++) {
+        const unsigned lb = std::max(0, k - 2);
+        const unsigned ub = std::min(k, 3);
+        for (unsigned i = lb; i <= ub; i++) {
+            const int j = k - i;
+            w[k].y += d[j].DotProduct(c[i]) * z[j][i];
+        }
+    }
+
+    /* Find all possible roots of 5th-degree equation */
+    return FindRoots(w, pos, 0);
+}
+
+/** Return a series of parameter values potentially closest to 'p'*/
+unsigned Edge::SolveForDistance2(const XY &p, double pos[5]) const
+{
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+    //M-to-curve vector is: curve-M
+    //substitutes:     P * t^3  +      Q *  t^2 +     R * t + S
+    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
+    //substitutes            3*P  * t^2 +    2*Q   * t +    R
+    // curve-M is orthogonal to curve derivative where their dot product is zero
+    //Dot product in general is: W.Z = Wx*Zx + Wy*Zy
+    //(curve-M).(derivative) is: 
+    // (P.3P)t^5 + (P.2Q + Q.3P)t^4 + (P.R + Q.2Q + R.3P)t^3 + 
+    // (Q.R + R.2Q + S.3P)t^2 + (R.R + S.2Q)t + S.R
+    //so we need to search for roots
+
+    const XY P = -start+3*(c1-c2)+end;
+    const XY Q = (3*(start+c2)-6*c1);
+    const XY R = 3*(c1-start);
+    const XY S = start-p;
+
+    double coeff[6] = {
+        R.DotProduct(R) + 2*S.DotProduct(Q),
+        6*(Q.DotProduct(R) + S.DotProduct(P)),
+        6*(2*P.DotProduct(R) + Q.DotProduct(Q)),
+        20*P.DotProduct(Q),
+        15*P.DotProduct(P)
+    };
+
+    return  solve_degree4(coeff, pos);
+}
+
+unsigned Edge::SolveForDistance(const XY &p, double ret[5]) const
+{
+    Edge a(XY(0, 0), XY(1, 2), XY(3, 3), XY(4, 2));
+    XY pp(3.5, 2.0);
+    double pos[5];
+    unsigned u = a.SolveForDistance1(XY(0,0), pos);
+
+    return SolveForDistance1(p, ret);
+}
+
+} //namespace contour 
