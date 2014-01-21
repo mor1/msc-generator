@@ -459,9 +459,11 @@ void contour_test_basic(void)
 
 	Contour boxhole = Contour(130,170,60,70);
 	boxhole += Contour(160,170,60,140);
-	boxhole += Contour(130,140,60,140);
-	boxhole += Contour(130,170,130,140);
-    Draw(102, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
+    Draw(1020, boxhole);
+    boxhole += Contour(130, 140, 60, 140);
+    Draw(1021, boxhole);
+    boxhole += Contour(130, 170, 130, 140);
+    Draw(1022, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
     boxhole+=Contour(148,153, 85, 115);
 
 	Contour cooomplex;
@@ -501,6 +503,12 @@ void contour_test_basic(void)
     Draw(108, cooomplex);
 	
     cooomplex2.ClearHoles();
+
+
+    Draw(1091, Contour(100, 300, 60, 70), Contour(XY(300, 100), 100, 50), Contour(100, 300, 60, 70) + Contour(XY(300, 100), 100, 50));
+    Draw(1092, Contour(100, 300, 60, 70), Contour(XY(300, 100), 100, 50), Contour(100, 300, 60, 70) * Contour(XY(300, 100), 100, 50));
+    Draw(1093, Contour(100, 300, 60, 70), Contour(XY(300, 100), 100, 50), Contour(100, 300, 60, 70) ^ Contour(XY(300, 100), 100, 50));
+    Draw(1094, Contour(100, 300, 60, 70), Contour(XY(300, 100), 100, 50), Contour(100, 300, 60, 70) - Contour(XY(300, 100), 100, 50));
 
 	Draw(109, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
     DrawIsinside(1091, cooomplex2 ^ Contour(XY(300,101), 100, 50), 5);
@@ -542,7 +550,6 @@ void contour_test_basic(void)
 	cooomplex2.RotateAround(XY(350,100), 39);
     Contour part = cooomplex2[1];
     Contour spart = cooomplex3[1];
-    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false);
 
     Draw(117, cooomplex3, cooomplex2, "SwapXY");
     Draw(1171, cooomplex2, cooomplex2.CreateSwapXYd(), "Rotated ellipse swapXY()");
@@ -982,11 +989,11 @@ void contour_test_bezier(unsigned num)
         Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
         DrawBezier(c, B);
         B.Split(C, D);
-        C.Split(E, F);
-        DrawBezier(c, C);
-        DrawBezier(c, D);
-        DrawBezier(c, E);
-        DrawBezier(c, F);
+        C.Split(0.2, E, F);
+        DrawBezier(c, C.CreateShifted(XY(2, 2)));
+        DrawBezier(c, D.CreateShifted(XY(4, 4)));
+        DrawBezier(c, E.CreateShifted(XY(6, 6)));
+        DrawBezier(c, F.CreateShifted(XY(8, 8)));
     }
 
 
@@ -1026,6 +1033,7 @@ void contour_test_bezier(unsigned num)
  */
 void contour_test(void)
 {
+    contour_test_bezier(8000);
     contour_test_basic();
     contour_test_assign(111);
     contour_test_lohere();
@@ -1035,7 +1043,6 @@ void contour_test(void)
     contour_test_cut(7300);
     contour_test_expand2D(7400);
     contour_test_tangent(7500);
-    contour_test_bezier(8000);
 }
 
 } //namespace

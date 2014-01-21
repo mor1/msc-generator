@@ -207,9 +207,8 @@ private:
 
     friend class ContoursHelper; //For walk related memebers
     double CalculateArea() const;                
-    void CalculateClockwise() { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } }
-    void AppendDuringWalk(const Edge &);
-    bool PostWalk();
+    void CalculateClockwise() const { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } }
+    void AppendDuringWalk(const Edge &, const XY *prev_xy);
     bool Sanitize();
 
     size_t     next(size_t vertex) const {return size()<=1 ? 0 : (vertex+1)%size();}         ///<Returns index of subsequent edge, warps around to 0 at last one.
@@ -283,7 +282,7 @@ public:
 
     size_t size() const {return edges.size();}             ///<Returns the number of edges.
     const Block &GetBoundingBox() const { if (!boundingBox_fresh) CalculateBoundingBox(); return boundingBox; } ///<Returns the bounding box.
-    bool GetClockWise() const {return clockwise;}              ///<Returns if the shape is clockwise.
+    bool GetClockWise() const { if (!clockwise_fresh) CalculateClockwise(); return clockwise; }              ///<Returns if the shape is clockwise.
     bool IsEmpty() const {return edges.size()==0;}            ///<Returns if the shape is empty (no edges).
     bool IsSane() const;                                      ///<Checks if all edges connect, none degenerate, etc.
     double GetArea() const {return area_fresh ? area : CalculateArea();}  ///<Return surface area of shape.

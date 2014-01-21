@@ -181,7 +181,7 @@ enum EContourRelationType {
  * Also, any numerical result will be treated as equal if within this distance.
  * test_xxx() routines all rely on this constant for precision.
  */
-static const double SMALL_NUM = 1e-10;
+static const double SMALL_NUM = 1e-5;
 inline bool test_zero(double n) {return fabs(n)<SMALL_NUM;} ///< True if `n` is sufficiently close to zero, uses SMALL_NUM.
 inline bool test_equal(double n, double m) {return test_zero(n-m);} ///< True if `n` and `m` are sufficiently close to each other, uses SMALL_NUM
 inline bool test_smaller(double n, double m) {return n<m-SMALL_NUM;} ///< True if `n` is *really* smaller than `m`, not just by epsilon, uses SMALL_NUM

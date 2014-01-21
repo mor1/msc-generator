@@ -353,7 +353,15 @@ public:
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
 
 protected:
+    bool IsStraight() const { return straight; }
     XY Split(double t) const;
+    XY Split2(double t) const
+    {
+        return pow(1-t, 3) * start
+            + 3 * pow(1-t, 2) * t * c1
+            + 3 * (1-t) * pow(t, 2) * c2
+            + pow(t, 3) * end;
+    }
     XY Split(double t, XY &r1, XY &r2) const;
     XY Split() const { XY a, b; return Split(a, b); }
     XY Split(XY &r1, XY &r2) const;
@@ -372,12 +380,17 @@ protected:
     double HullDistance(const XY &A, const XY &B) const;
     double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
 
-    unsigned SolveForDistance(const XY &p, double[4]) const;
+    unsigned SolveForDistance(const XY &p, double ret[5]) const;
+    unsigned SolveForDistance1(const XY &p, double[5]) const;
+    unsigned SolveForDistance2(const XY &p, double[5]) const;
 
     double FindBezierParam(const XY &p) const;
 
-    Edge& SetEnd(const XY &p);
+    Edge& SetStart(const XY &p, double pos);
+    Edge& SetEnd(const XY &p, double pos);
+    //These below are expensive for curves
     Edge& SetStart(const XY &p);
+    Edge& SetEnd(const XY &p);
 
     //Helpers for expand
     EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
@@ -404,7 +417,7 @@ public:
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
     XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(c2, end, pos) : 2*end-c2; }
 
-    bool CheckAndCombine(const Edge &next); 
+    bool CheckAndCombine(const Edge &next, double *pos=NULL); 
 
     unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
@@ -439,7 +452,47 @@ public:
     void CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> &original) const;
 };
 
+//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+inline Edge& Edge::SetStart(const XY &p, double pos)
+{
+    if (!straight) {
+        XY dummy;
+        double t;
+        //test that p and pos correspond - compiles to NOP in release mode
+        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(t-pos)<0.0001);
+        Chop(pos, 1);
+    } else {
+        //test that p and pos correspond - compiles to NOP in release mode
+        if (fabs(start.x-end.x)<fabs(start.y-end.y))
+            _ASSERT(fabs((p.y-start.y)/(end.y-start.y) - pos)<0.0001);
+        else
+            _ASSERT(fabs((p.x-start.x)/(end.x-start.x) - pos)<0.0001);
+    }
+    start = p;
+    return *this;
+}
 
+//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+inline Edge& Edge::SetEnd(const XY &p, double pos)
+{
+    if (!straight) {
+        XY dummy;
+        double t;
+        //test that p and pos correspond - compiles to NOP in release mode
+        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(t-pos)<0.0001);
+        Chop(0, pos);
+    } else {
+        //test that p and pos correspond - compiles to NOP in release mode
+        if (fabs(start.x-end.x)<fabs(start.y-end.y))
+            _ASSERT(fabs((p.y-start.y)/(end.y-start.y) - pos)<0.0001);
+        else
+            _ASSERT(fabs((p.x-start.x)/(end.x-start.x) - pos)<0.0001);
+    }
+    end = p;
+    return *this;
+}
 
 } //namespace contour bezier
 

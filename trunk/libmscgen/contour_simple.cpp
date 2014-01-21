@@ -80,8 +80,8 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
         boundingBox.MakeInvalid();
         return;
     }
-    s_deg = fmod_negative_safe(s_deg, 360.)/90;
-    d_deg = fmod_negative_safe(d_deg, 360.)/90;
+    s_deg = fmod_negative_safe(s_deg, 360.);
+    d_deg = fmod_negative_safe(d_deg, 360.);
     Edge::GenerateEllipse(edges, c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
     //OK, now add a segment if not a full ellipse
     if (s_deg!=d_deg) {
@@ -280,86 +280,6 @@ EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other)
 }
 
 
-/** Appends an edge and makes checks. Used during walking.
- *
- * Appends an edge to the (yet incomplete, not closed) shape.
- * Checks that we do not append a degenerate (start==end) edge.
- * Checks if the edge to append is a direct continuation of the last edge, in which case
- * we merge the two.
- * WE DO NOT UPDATE `area_cache`, `clockwise`, `boundingBox` and do not ensure
- * we leave the shape closed.
- */
-void SimpleContour::AppendDuringWalk(const Edge &edge)
-{
-    //if the last point equals to the startpoint of edge, skip the last edge added
-    if (size()>0 && edge.GetStart().test_equal(edges.back().GetStart()))
-        edges.pop_back();
-    //check if "edge" is a direct continuation of the last edge and can be combined
-    //if not, append "edge"
-    if (size()==0 || !edges.back().CheckAndCombine(edge))
-        edges.push_back(edge);
-};
-
-
-/** Clean up and sanitize the contour after a walk.
- *
- * Cleanup consists of
- * - Check repeated points at the end
- * - Set `e` values for curvy edges
- * - Calculate edge and contour bounding boxes
- *
- * Also, do a lot of sanity checks:
- * - a contour with one edge must be a full ellipse. If it is straight, we clear()
- * - a contour with two edges must have at least one curvy edge, if not, we clear()
- * returns true if contour is OK.
- */
-bool SimpleContour::PostWalk()
-{
-    boundingBox_fresh = false;
-    area_fresh = false;
-    clockwise_fresh = false;
-
-    //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-    if (size()>1 && at(0).GetStart().test_equal(at(size()-1).GetStart()))
-        edges.pop_back();
-
-    if (size()>1) {
-        //set "end" values. Not known previously
-        //remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
-        //and we do not use the edge
-        bool was = false;
-        for (size_t i=0; i<size(); /*nope*/) 
-            if (at(i).GetStart() == at_next(i).GetStart()) {
-                edges.erase(edges.begin()+i);
-                was = true;
-            } else {
-                at(i).SetEnd(at_next(i).GetStart());
-                if (was && at_prev(i).CheckAndCombine(at(i))) 
-                    edges.erase(edges.begin()+i);
-                else
-                    i++;
-                was = false;
-            }
-
-        //Also, the beginning point (at(0]) can fall on an edge
-        //if both the last and the first edge are straight and are in-line
-        //such as when two side-by-side rectangles are merged
-        if (size()>2) {
-            if (at(size()-2).CheckAndCombine(at(size()-1)))
-                edges.pop_back();
-            if (at(size()-1).CheckAndCombine(at(0)))
-                edges.erase(edges.begin());
-        }
-    }
-    
-    //Sanity checks
-    if (size()<=1 || (size()==2 && at(1).straight && at(0).straight))
-        clear();
-    if (size()==0) return false;
-
-    _ASSERT(IsSane());
-    return true;
-}
 
 /** Swap data with `b`. */
 void SimpleContour::swap(SimpleContour &b) 
@@ -422,10 +342,11 @@ void SimpleContour::assign_dont_check(const Edge v[], size_t size)
 bool SimpleContour::IsSane() const
 {
     if (size()==0) return true;
-    if (size()==1) return false;
-    for (size_t u=0; u<size(); u++) 
+    for (size_t u = 0; u<size(); u++)
         if (at(u).GetStart().test_equal(at(u).GetEnd()))
             return false;
+    if (size()==1 && at(0).straight)
+        return false;
     if (size()==2 && at(0).straight && at(1).straight)
         return false;
     return true;
@@ -654,15 +575,18 @@ void SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, bool cl
     //since for positive originals we will keep only positive results,
     //so if we miss and we will be part of a negative contour, that
     //will get dropped anyway. (Likewise for negative orgiginals.)
-    SimpleContour round(center, radius, radius, clockwise ? s_deg : d_deg, clockwise ? d_deg : s_deg);
+    SimpleContour round(center, radius, radius, 0, clockwise ? s_deg : d_deg, clockwise ? d_deg : s_deg);
     //delete the straight edge
     if (round.edges.back().straight)
-        round.edges.erase(round.edges.begin()+round.edges.size()-1);
+        round.edges.pop_back();
     if (!clockwise) 
         round.Invert();
     //Make sure the construct starts *exactly* at 'start' and 'end'
-    round.edges.front().SetStart(start);  //these keep clockwise
-    round.edges.back().SetEnd(end);
+    //The result is not precise, we simply set the star/endpoint (keeping control points)
+    _ASSERT(round.edges.front().start.DistanceSqr(start)<1);
+    _ASSERT(round.edges.back().end.DistanceSqr(end)<1);
+    round.edges.front().start = start;
+    round.edges.back().end = end;
     append_to.insert(append_to.end(), round.edges.begin(), round.edges.end());
 }
 
@@ -822,7 +746,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         md2.emplace_back(Edge::TRIVIAL, XY());
                     }
                 }
-            } else {
+            } else if (md2.size()) {
                 //We got degenerate, do not insert
                 md2.back().cross_point = new_end = new_start; //Use this from now on.
             }
@@ -879,21 +803,29 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 md2.emplace_back(Edge::TRIVIAL, XY());
                 md2.emplace_back(Edge::TRIVIAL, XY());
             }
-            _ASSERT(md2.back().cross_type == Edge::CP_INVERSE || md2.back().cross_type == Edge::TRIVIAL);
+            _ASSERT(md2.size()==0 || md2.back().cross_type == Edge::CP_INVERSE || md2.back().cross_type == Edge::TRIVIAL);
         } //for  
         r.swap(r2);
         md.swap(md2);
-    } while (had_cp_inverse);
+    } while (0 && had_cp_inverse);
+
+    //Insert straight segments for CP_INVERSE joins
+    for (size_t u = 0; u<r.size(); u++)
+        if (md[u].cross_type == Edge::CP_INVERSE) {
+            r.emplace(r.begin()+u+1, r[u].GetEnd(), r[(u+1)%r.size()].GetStart());
+            md[u].cross_type = Edge::TRIVIAL;
+            md.emplace(md.begin()+u+1, MetaData(Edge::TRIVIAL, XY()));
+        }
 
     //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
     //next one. 
-    if (r.size()<=1) return; //empty shape
+    if (r.size()==0) return; //empty shape
     SimpleContour sp_r;
     sp_r.edges.swap(r);
     sp_r.Sanitize(); //calculates clockwiseness and blunding box
 
     //OK, now untangle 
-    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
+    res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
 }
 
 
