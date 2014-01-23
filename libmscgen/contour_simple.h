@@ -190,6 +190,23 @@ struct node;
 class SimpleContour
 {
     friend class Contour;
+    struct ExpandMetaData
+    {
+        Edge                edge;
+        Edge::EExpandCPType cross_type; //The type of crossing between edge #i and #i+1 (wrapped around)
+        XY                  original_point; // The original end vertex (for creating the round circle)
+        XY                  cross_point;//The cp between edge #i and #i+1 (wrapped around)
+        double              us_end_pos;
+        double              next_start_pos;
+
+        ExpandMetaData(const Edge &e, Edge::EExpandCPType a = Edge::TRIVIAL, const XY &b = XY(), const XY &c = XY()) :
+            edge(e), cross_type(a), original_point(b), cross_point(c) {}
+        ExpandMetaData(const XY&s, const XY &d, bool v = true, Edge::EExpandCPType a = Edge::TRIVIAL, const XY &b = XY(), const XY &c = XY()) :
+            edge(s, d, v), cross_type(a), original_point(b), cross_point(c) {}
+        ExpandMetaData(const XY&s, const XY &d, const XY&c1, const XY &c2, bool v = true, Edge::EExpandCPType a = Edge::TRIVIAL, const XY &b = XY(), const XY &c = XY()) :
+            edge(s, d, c1, c2, v), cross_type(a), original_point(b), cross_point(c) {}
+    };
+
 protected:
     std::vector<Edge> edges; ///<An ordered list of (directed) edges.
 private:
@@ -227,6 +244,9 @@ private:
     XY NextTangentPoint(size_t edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
+    static void CreateRoundForExpand(const XY &center, const XY &start, const XY &end, bool clockwise,
+                                     std::list<ExpandMetaData> &insert_to, std::list<ExpandMetaData>::iterator here,
+                                     bool visible);
     void Expand2DHelper(const XY &gap, std::vector<Edge> &a,
                         unsigned original_last, unsigned next, unsigned my_index,
                         int last_type, int stype) const;
@@ -263,7 +283,6 @@ protected:
     void Rotate(double cos, double sin, double radian) { Rotate(cos, sin); } ///<Rotate the shape by `sin` and `cos` are pre-computed values. XXX delete this
     void RotateAround(const XY&c, double cos, double sin) { for (auto &e : edges) e.RotateAround(c, cos, sin); boundingBox_fresh = false; } ///<Rotate the shape by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
-    static void CreateRoundForExpand(const XY &center, const XY &start, const XY &end, bool clockwise, std::vector<Edge> &append_to);
     EContourRelationType RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;

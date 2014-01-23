@@ -2719,31 +2719,33 @@ double Edge::FindBezierParam(const XY &p) const
     return ret;
 }
 
-Edge& Edge::SetStart(const XY &p)
-{
-    if (!straight) {
-        XY dummy;
-        double t;
-        const double d = Distance(p, dummy, t);
-        _ASSERT(fabs(d)<0.01);
-        Chop(t, 1);
-    }
-    start = p;
-    return *this;
-}
-
-Edge& Edge::SetEnd(const XY &p)
-{
-    if (!straight) {
-        XY dummy;
-        double t;
-        const double d = Distance(p, dummy, t);
-        _ASSERT(fabs(d)<0.01);
-        Chop(0, t);
-    }
-    end = p;
-    return *this;
-}
+////These are expensive for curves
+//Edge& Edge::SetStart(const XY &p)
+//{
+//    if (!straight) {
+//        XY dummy;
+//        double t;
+//        const double d = Distance(p, dummy, t);
+//        _ASSERT(fabs(d)<0.01);
+//        Chop(t, 1);
+//    }
+//    start = p;
+//    return *this;
+//}
+//
+//Edge& Edge::SetEnd(const XY &p)
+//{
+//    if (!straight) {
+//        XY dummy;
+//        double t;
+//        const double d = Distance(p, dummy, t);
+//        _ASSERT(fabs(d)<0.01);
+//        Chop(0, t);
+//    }
+//    end = p;
+//    return *this;
+//}
+//
 
 void Edge::Distance(const Edge &o, DistanceType &ret) const    //always nonnegative
 {
@@ -2828,15 +2830,15 @@ double Edge::GetLength() const
 *
 * In more visual terms, showing the x axis and a straight edge and the area.
 * @verbatim
-==========> =========>
-+++++        ------
-__+++        ------
-|\+++        \-----
-\++         \ ---
-\+          \---
-\           \--
-_\|
-* @endverbatim
+    ==========> =========>
+    +++++        ------
+    __+++        ------
+    |\+++        \-----
+      \++         \ ---
+       \+          \---
+        \           \--
+        _\|
+@endverbatim
 * (Since in contour we treat y coordinates as growing downwards, we call these functions
 * "xxAreaAbove", meaning the area between edge & X axis.)
 * The dotted area is the area above an edge. It is counted as positive in the first example;
@@ -2866,23 +2868,6 @@ XY Edge::GetCentroidAreaAboveUpscaled() const
     Edge E1, E2;
     Split(E1, E2);
     return E1.GetCentroidAreaAboveUpscaled()+E2.GetCentroidAreaAboveUpscaled();
-}
-
-std::vector<Edge> Edge::CreateExpand(double gap) const
-{
-    //XXX FIXME
-    Edge E;
-    if (straight) {
-        const double length = start.Distance(end);
-        const XY wh = (end-start).Rotate90CCW()/length*gap;
-        return std::vector<Edge>({Edge(start+wh, end+wh)});
-    }
-    Edge E1, E2;
-    Split(E1, E2);
-    std::vector<Edge> ret = E1.CreateExpand(gap);
-    std::vector<Edge> r = E1.CreateExpand(gap);
-    ret.insert(ret.end(), r.begin(), r.end());
-    return ret;
 }
 
 namespace Edge_CreateExpand2D {
@@ -3264,42 +3249,6 @@ void Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
 }
 
 
-/** Expands the edge.
-*
-* This takes the direction of the edge to determine the 'outside' side of the
-* edge to expand towards (or away from in case of a negative `gap`).
-* Destroys bounding box!
-* @param [in] gap The amount to expand (or shrink if <0)
-* @param [out] expanded Append the expanded edges to this
-* @param [out] original Append the original edge to this. If the expansion
-*                       requires to split the edge to several pieces append 
-*                       the split chunks of the original here.
-*/
-void Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> &original) const
-{
-    if (straight) {
-        const double length = start.Distance(end);
-        const XY wh = (end-start).Rotate90CCW()/length*gap;
-        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
-        original.push_back(*this);
-        return;
-    } 
-    //Tiller-Hansson: expand the start,c1,c2,end polygon.
-    const double l1 = start.Distance(c1);
-    const double l2 = c1.Distance(c2);
-    const double l3 = c2.Distance(end);
-    const XY wh1 = (c1-start).Rotate90CCW()/l1*gap;
-    const XY wh2 = (c2-c1).Rotate90CCW()/l2*gap;
-    const XY wh3 = (end-c2).Rotate90CCW()/l3*gap;
-    XY new_c1, new_c2;
-    if (LINE_CROSSING_PARALLEL == crossing_line_line(start+wh1, c1+wh1, c1+wh2, c2+wh2, new_c1))
-        _ASSERT(0);
-    if (LINE_CROSSING_PARALLEL == crossing_line_line(c1+wh2, c2+wh2, c2+wh3, end+wh3, new_c2))
-        _ASSERT(0);
-    expanded.emplace_back(start+wh1, end+wh3, new_c1, new_c2, !!visible); //Visual Studio complains for bitfields in such templates
-    original.push_back(*this);
-}
-
 /** Finds a crosspoint of two infinite lines defined by `A`->`B` and `M`->`N`
 */
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N, XY &r)
@@ -3342,9 +3291,11 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
 *
 * @param [in] M The other expanded edge.
 * @param [out] newcp Returns their new crosspoint.
+* @param [out] my_pos In case of CP_REAL returns the position of the cp on 'this', if it is a bezier.
+* @param [out[ M_pos In case of CP_REAL returns the position of the cp on M, if that is a bezier.
 * @returns The relation of the two expanded edges.
 */
-Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
+Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &my_pos, double &M_pos) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
     if (end.test_equal(M.start)) {
@@ -3396,6 +3347,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                     if (pos_us[u]> pos_us[pos])
                         pos = u;
                 newcp = r[pos];
+                my_pos = pos_us[pos];
                 return CP_REAL;
             }
         }
@@ -3429,6 +3381,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
             if (pos_M[u] < pos_M[pos])
                 pos = u;
             newcp = r[pos];
+            M_pos = pos_M[pos];
             return CP_REAL;
         } else {
             //both are beziers
@@ -3459,6 +3412,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
             if (pos_us[u]> pos_us[pos])
                 pos = u;
             newcp = r[pos];
+            my_pos = pos_us[pos];
+            M_pos = pos_M[pos];
             return CP_REAL;
         }
     }

@@ -324,8 +324,6 @@ protected:
         double pos_my;
         double pos_other;
     };
-public:
-    mutable unsigned mark : 16;
 protected:
     bool straight : 1;
 public:
@@ -336,10 +334,10 @@ protected:
     XY c1;
     XY c2;
 public:
-    Edge(const XY &A, const XY &B, bool v=true, unsigned m=0)
-        :mark(m), straight(true), visible(v), start(A), end(B) {}
-    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true, unsigned m=0)
-        :mark(m), straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
+    Edge(const XY &A, const XY &B, bool v=true)
+        :straight(true), visible(v), start(A), end(B) {}
+    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true)
+        :straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
     Edge() = default;
     Edge(const Edge &) = default;
     Edge(const Edge &e, double t, double s) : Edge(e) { Chop(t, s); }
@@ -390,14 +388,12 @@ protected:
 
     Edge& SetStart(const XY &p, double pos);
     Edge& SetEnd(const XY &p, double pos);
-    //These below are expensive for curves
-    Edge& SetStart(const XY &p);
-    Edge& SetEnd(const XY &p);
+    Edge& SetStartIgn(const XY &p, double pos);
+    Edge& SetEndIgn(const XY &p, double pos);
+    Edge& SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos);
 
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
-    //void SetStartEndForExpand(const XY &S, const XY &E);
-    //bool IsOpposite(const XY &S, const XY &E) const;
+    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, double &my_pos, double &M_pos) const;
 
 public:
     Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
@@ -435,7 +431,6 @@ public:
     //returns the centroid of the area above multipled by the (signed) area above
     XY GetCentroidAreaAboveUpscaled() const;
 
-    std::vector<Edge> CreateExpand(double gap) const;
     void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
     //helpers for offsetbelow
@@ -450,8 +445,8 @@ public:
 
     static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y=0, 
                                 double tilt_deg=0, double s_deg=0, double d_deg=0, bool clockwise=true);
-    //Helpers for expand
-    void CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> &original) const;
+    template<class Container>
+    void CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
 };
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
@@ -462,7 +457,7 @@ inline Edge& Edge::SetStart(const XY &p, double pos)
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.01);
-        _ASSERT(fabs(t-pos)<0.0001);
+        _ASSERT(fabs(t-pos)<0.001);
         Chop(pos, 1);
     } else {
         //test that p and pos correspond - compiles to NOP in release mode
@@ -483,7 +478,7 @@ inline Edge& Edge::SetEnd(const XY &p, double pos)
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.01);
-        _ASSERT(fabs(t-pos)<0.0001);
+        _ASSERT(fabs(t-pos)<0.001);
         Chop(0, pos);
     } else {
         //test that p and pos correspond - compiles to NOP in release mode
@@ -494,6 +489,96 @@ inline Edge& Edge::SetEnd(const XY &p, double pos)
     }
     end = p;
     return *this;
+}
+
+//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+//This version ignores the "pos" completely for staright lines even in debug mode
+inline Edge& Edge::SetStartIgn(const XY &p, double pos)
+{
+    if (!straight) {
+        XY dummy;
+        double t;
+        //test that p and pos correspond - compiles to NOP in release mode
+        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(t-pos)<0.001);
+        Chop(pos, 1);
+    }
+    start = p;
+    return *this;
+}
+
+//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+//This version ignores the "pos" completely for staright lines even in debug mode
+inline Edge& Edge::SetEndIgn(const XY &p, double pos)
+{
+    if (!straight) {
+        XY dummy;
+        double t;
+        //test that p and pos correspond - compiles to NOP in release mode
+        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(t-pos)<0.001);
+        Chop(0, pos);
+    }
+    end = p;
+    return *this;
+}
+
+inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos)
+{
+    if (!straight) {
+        XY dummy;
+        double tt, ss;
+        //test that p and pos correspond - compiles to NOP in release mode
+        _ASSERT(fabs(Distance(s, dummy, tt))<0.01);
+        _ASSERT(fabs(Distance(d, dummy, ss))<0.01);
+        _ASSERT(fabs(tt-spos)<0.001);
+        _ASSERT(fabs(ss-dpos)<0.001);
+        Chop(spos, dpos);
+    }
+    start = s;
+    end = d;
+    return *this;
+}
+
+
+
+/** Expands the edge.
+*
+* This takes the direction of the edge to determine the 'outside' side of the
+* edge to expand towards (or away from in case of a negative `gap`).
+* Destroys bounding box!
+* @param [in] gap The amount to expand (or shrink if <0)
+* @param [out] expanded Append the expanded edges to this
+* @param [out] original Append the original edge to this. If the expansion
+*                       requires to split the edge to several pieces append
+*                       the split chunks of the original here.
+*/
+template<class Container>
+void Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *original) const
+{
+    if (straight) {
+        const double length = start.Distance(end);
+        const XY wh = (end-start).Rotate90CCW()/length*gap;
+        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
+        if (original)
+            original->push_back(*this);
+        return;
+    }
+    //Tiller-Hansson: expand the start,c1,c2,end polygon.
+    const double l1 = start.Distance(c1);
+    const double l2 = c1.Distance(c2);
+    const double l3 = c2.Distance(end);
+    const XY wh1 = (c1-start).Rotate90CCW()/l1*gap;
+    const XY wh2 = (c2-c1).Rotate90CCW()/l2*gap;
+    const XY wh3 = (end-c2).Rotate90CCW()/l3*gap;
+    XY new_c1, new_c2;
+    if (LINE_CROSSING_PARALLEL == crossing_line_line(start+wh1, c1+wh1, c1+wh2, c2+wh2, new_c1))
+        _ASSERT(0);
+    if (LINE_CROSSING_PARALLEL == crossing_line_line(c1+wh2, c2+wh2, c2+wh3, end+wh3, new_c2))
+        _ASSERT(0);
+    expanded.emplace_back(start+wh1, end+wh3, new_c1, new_c2, !!visible); //Visual Studio complains for bitfields in such templates
+    if (original)
+        original->push_back(*this);
 }
 
 } //namespace contour bezier

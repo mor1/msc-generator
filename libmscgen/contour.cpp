@@ -1530,7 +1530,6 @@ void ContoursHelper::RevalidateAllAfter(std::vector<size_t> &ray_array, size_t f
     ray_array.resize(from);
 }
 
-
 /** Appends an edge and makes checks. Used during walking.
 *
 * Appends an edge to the (yet incomplete, not closed) shape.
@@ -1558,20 +1557,6 @@ void AppendDuringWalk(std::vector<Edge> &edges, std::vector<std::pair<double, do
         endpoints.pop_back();
     }
 
-    ////check if "edge" is a direct continuation of the last edge and can be combined
-    ////if not, append "edge"
-    ////we only merge straight edges via checkandcombine, thus for beziers, we always append 
-    ////the chopping pos unchanged
-    //double pos;
-    //if (edges.size()>0 && edges.back().CheckAndCombine(edge, &pos)) {
-    //    //Here 'pos' gives the position of edge.start in the combined, new edges.back().
-    //    //This value is between 0 and 1
-    //    _ASSERT(between01(pos));
-    //    //We want to calculate the position of the edges.back().start (which remained unchanged)
-    //    //in the terms of the old (unchanged) edge. This value may be smaller than zero.
-    //    const double d = endpoints.back().second;
-    //    endpoints.back().second = pos ? (1-endpoints.back().second) / (1-1/pos) : endpoints.back().second; //new startposition in "edge"'s terms
-    //} else {
     edges.push_back(edge);
     endpoints.emplace_back(endpos, startpos);
 };
@@ -1662,14 +1647,12 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     do {
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
-            if (forward) {
+            if (forward) 
                 AppendDuringWalk(edges, endpoints, Rays[current.index].contour->at(current.vertex), 1, 0); //just append the whole edge
-                edges.back().mark = 2000 + current.vertex;
-            } else {
+            else {
                 //Append the inverse of the edge
                 Edge edge(Rays[current.index].contour->at_prev(current.vertex));
                 edge.Invert();
-                edge.mark = 3000 +  Rays[current.index].contour->prev(current.vertex);
                 AppendDuringWalk(edges, endpoints, edge, 1, 0);
             }
             //no need to modify "current" here. A vertex is treated as both an incoming and outgoing ray
@@ -1721,13 +1704,11 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
             if (forward) {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
                 edge.SetStart(next_ray.xy, next_ray.pos);
-                edge.mark =  next_ray.vertex;
                 AppendDuringWalk(edges, endpoints, edge, terminating_pos, next_ray.pos);
             } else {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
                 edge.Invert();
                 edge.SetStart(next_ray.xy, 1-next_ray.pos);
-                edge.mark = 1000 + next_ray.vertex;
                 AppendDuringWalk(edges, endpoints, edge, terminating_pos, 1-next_ray.pos);
             }
         }
