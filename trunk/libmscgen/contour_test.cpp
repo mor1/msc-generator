@@ -1037,7 +1037,7 @@ void contour_test_bezier(unsigned num)
  */
 void contour_test(void)
 {
-//    contour_test_basic();
+    contour_test_basic();
     contour_test_assign(111);
     contour_test_lohere();
     contour_test_area(400);
