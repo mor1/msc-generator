@@ -566,6 +566,9 @@ void contour_test_basic(void)
 
     variable.ClearHoles();
 
+    const Contour ChoppedBox = Contour(100, 200, 100, 200) - Contour(100, 110, 100, 110);
+    DrawExpand(120, EXPAND_MITER, CONTOUR_INFINITY, ChoppedBox, false);
+
     const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
         XY(150,160), XY(100,160)};
 
@@ -580,6 +583,7 @@ void contour_test_basic(void)
     DrawExpand(127, EXPAND_MITER, CONTOUR_INFINITY, variable, false, "boxhole with miter");
     DrawExpand(128, EXPAND_ROUND, CONTOUR_INFINITY, variable, false, "boxhole with round");
     DrawExpand(129, EXPAND_BEVEL, CONTOUR_INFINITY, variable, false, "boxhole with bevel");
+
     DrawExpand(130, EXPAND_MITER, CONTOUR_INFINITY, later, false, "later with miter");
     DrawExpand(131, EXPAND_BEVEL, CONTOUR_INFINITY, later, false, "later with bevel");
     DrawExpand(132, EXPAND_ROUND, CONTOUR_INFINITY, later, false, "later with round");
@@ -588,7 +592,7 @@ void contour_test_basic(void)
 
     DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false, "part with miter");
     DrawExpand(136, EXPAND_ROUND, CONTOUR_INFINITY, part, false, "part with round");
-    DrawExpand(137, EXPAND_BEVEL, CONTOUR_INFINITY, part, true, "part with bevel");
+    DrawExpand(137, EXPAND_BEVEL, CONTOUR_INFINITY, part, false, "part with bevel");
 
     DrawExpand(138, EXPAND_MITER, CONTOUR_INFINITY, spart, false, "spart with round");
     DrawExpand(139, EXPAND_ROUND, CONTOUR_INFINITY, spart, false, "spart with round");
@@ -1033,8 +1037,7 @@ void contour_test_bezier(unsigned num)
  */
 void contour_test(void)
 {
-    contour_test_bezier(8000);
-    contour_test_basic();
+//    contour_test_basic();
     contour_test_assign(111);
     contour_test_lohere();
     contour_test_area(400);
@@ -1043,6 +1046,7 @@ void contour_test(void)
     contour_test_cut(7300);
     contour_test_expand2D(7400);
     contour_test_tangent(7500);
+    contour_test_bezier(8000);
 }
 
 } //namespace

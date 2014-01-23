@@ -324,7 +324,9 @@ protected:
         double pos_my;
         double pos_other;
     };
-
+public:
+    mutable unsigned mark : 16;
+protected:
     bool straight : 1;
 public:
     mutable bool visible : 1;
@@ -334,10 +336,10 @@ protected:
     XY c1;
     XY c2;
 public:
-    Edge(const XY &A, const XY &B, bool v=true)
-        :straight(true), visible(v), start(A), end(B) {}
-    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true)
-        :straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
+    Edge(const XY &A, const XY &B, bool v=true, unsigned m=0)
+        :mark(m), straight(true), visible(v), start(A), end(B) {}
+    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true, unsigned m=0)
+        :mark(m), straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
     Edge() = default;
     Edge(const Edge &) = default;
     Edge(const Edge &e, double t, double s) : Edge(e) { Chop(t, s); }
