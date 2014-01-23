@@ -380,7 +380,7 @@ bool SimpleContour::Sanitize()
             if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
                 goto clear;
     }
-    if (ret) area_fresh = boundingBox_fresh = false; //we think clockwiseness remains just by deleting a few edges.
+    if (!ret) area_fresh = boundingBox_fresh = false; //we think clockwiseness remains just by deleting a few edges.
     return ret;
 clear:
     clear();
@@ -560,14 +560,14 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
  * @param [in] clockwise The clockwisedness of the original shape.
  * @param [out] append_to Append the resulting (series of) Edge(s) to this array.
  */
-void SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, bool clockwise, 
-                                         std::vector<Edge> &append_to)
+void SimpleContour::CreateRoundForExpand(const XY &center, const XY &start, const XY &end, 
+                                         bool clockwise, std::vector<Edge> &append_to)
 {
-    XY center = (start+end)/2;
+    _ASSERT(test_equal(center.DistanceSqr(start), center.DistanceSqr(end)));
     double radius = center.Distance(start);
-    double s_deg = acos((start.x-center.x)/radius)*180/M_PI;
+    double s_deg = acos(std::max(-1., std::min(1., (start.x-center.x)/radius)))*180/M_PI;
     if (start.y<center.y) s_deg = 360-s_deg;
-    double d_deg = acos((end.x-center.x)/radius)*180/M_PI;
+    double d_deg = acos(std::max(-1., std::min(1., (end.x-center.x)/radius)))*180/M_PI;
     if (end.y<center.y) d_deg = 360-d_deg;
 
     //We do not know if the resulting contour will be clockwise or not
@@ -628,8 +628,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     struct MetaData
     {
         Edge::EExpandCPType cross_type; //The type of crossing between edge #i and #i+1 (wrapped around)
+        XY                  original_point; // The original vertex (for creating the round circle)
         XY                  cross_point;//The cp between edge #i and #i+1 (wrapped around)
-        MetaData(Edge::EExpandCPType a, const XY &b) : cross_type(a), cross_point(b) {}
+
+        MetaData(Edge::EExpandCPType a, const XY &b, const XY &c) : 
+            cross_type(a), original_point(b), cross_point(c) {}
     };
 
     std::vector<Edge> r, r2;
@@ -637,11 +640,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     //Expand all the edges
     for (size_t u = 0; u<size(); u++) {
-        size_t v = size();
         at(u).CreateExpand(gap, r, std::vector<Edge>()); //XXXX Remove last param
-        while (v < r.size()-1)
-            md.emplace_back(Edge::TRIVIAL, XY());
-        md.emplace_back(Edge::CP_INVERSE, XY()); //mark this as a relation needed to be computed
+        //if CreateExpand generated more than edge, they connect trivially to each other
+        while (md.size() < r.size()-1)
+            md.emplace_back(Edge::TRIVIAL, XY(), XY());
+        md.emplace_back(Edge::CP_INVERSE, at(u).GetEnd(), XY()); //the relation of the last of the generated edges with the next: mark this as a relation needed to be computed
     }
 
     //Calculate actual max miter length.
@@ -725,7 +728,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     //add straight edge before the inserted bezier for miters
                     if (IsMiter(type) && md[prv].cross_type==Edge::CP_EXTENDED) {
                         r2.emplace_back(new_start, r[i].GetStart(), !!r[i].visible);
-                        md2.emplace_back(Edge::TRIVIAL, XY());
+                        md2.emplace_back(Edge::TRIVIAL, XY(), XY());
                     }
                     r2.push_back(r[i]);
                     md2.push_back(md[i]);
@@ -743,7 +746,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     //add straight edge after the inserted bezier for miters
                     if (IsMiter(type) && md[i].cross_type==Edge::CP_EXTENDED) {
                         r2.emplace_back(r[i].GetEnd(), new_end, !!r[i].visible);
-                        md2.emplace_back(Edge::TRIVIAL, XY());
+                        md2.emplace_back(Edge::TRIVIAL, XY(), XY());
                     }
                 }
             } else if (md2.size()) {
@@ -771,23 +774,23 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //Remember, md[i].cross_point contains the point in between the two lines.
                 r2.emplace_back(new_end, md[i].cross_point, !!r[i].visible);
                 r2.emplace_back(md[i].cross_point, r[nxt].GetStart(), !!r[nxt].visible);
-                md2.emplace_back(Edge::TRIVIAL, XY());
-                md2.emplace_back(Edge::TRIVIAL, XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
             } else if ((md[i].cross_type == Edge::NO_CP_PARALLEL && IsRound(type)) ||
                 (md[i].cross_type == Edge::CP_EXTENDED && type == EXPAND_ROUND)) {
                 //Add a circle, from new_end and the next start
                 size_t orig = r2.size();
-                CreateRoundForExpand(new_end, r[nxt].GetStart(), clockwise ^ (gap<0), r2);
+                CreateRoundForExpand(md[i].original_point, new_end, r[nxt].GetStart(), gap>0, r2); //clockwise is fresh here
                 //add corresponding records to md2
                 for (/*nope*/; orig<r2.size(); orig++) {
                     r2[orig].visible = r[i].visible && r[nxt].visible;
-                    md2.emplace_back(Edge::TRIVIAL, XY());
+                    md2.emplace_back(Edge::TRIVIAL, XY(), XY());
                 }
             } else if ((md[i].cross_type == Edge::NO_CP_PARALLEL && IsBevel(type)) ||
                 (md[i].cross_type == Edge::CP_EXTENDED && type == EXPAND_BEVEL)) {
                 //Add a bevel from new_end and the next start
                 r2.emplace_back(new_end, r[nxt].GetStart(), r[i].visible && r[nxt].visible);
-                md2.emplace_back(Edge::TRIVIAL, XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
             } else if (md[i].cross_type == Edge::NO_CP_PARALLEL && type == EXPAND_MITER_SQUARE) {
                 //Here we add 3 edges of a half-square
                 const XY &next_start = r[nxt].GetStart();
@@ -799,30 +802,53 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 r2.emplace_back(new_end, first, r[i].visible && r[nxt].visible);
                 r2.emplace_back(first, second, r[i].visible && r[nxt].visible);
                 r2.emplace_back(second, next_start, r[i].visible && r[nxt].visible);
-                md2.emplace_back(Edge::TRIVIAL, XY());
-                md2.emplace_back(Edge::TRIVIAL, XY());
-                md2.emplace_back(Edge::TRIVIAL, XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
+                md2.emplace_back(Edge::TRIVIAL, XY(), XY());
             }
             _ASSERT(md2.size()==0 || md2.back().cross_type == Edge::CP_INVERSE || md2.back().cross_type == Edge::TRIVIAL);
         } //for  
+
+        //remove edges that have both their endpoints as inverse
+        if (had_cp_inverse) {
+            had_cp_inverse = false;
+            for (size_t u = 0; u<r2.size(); /*nope*/)
+                if (md2[u].cross_type == Edge::CP_INVERSE && 
+                    md2[(u+md2.size()-1)%md2.size()].cross_type==Edge::CP_INVERSE) {
+                    r2.erase(r2.begin()+u);
+                    md2.erase(md2.begin()+u);
+                    had_cp_inverse = true;
+                } else
+                    u++;
+        }
+        //at the beginning of the cycle we will attempt to calculate crosspoints marked Edge::CP_INVERSE
+
+        //avoid round in subsequent rounds, as md[].original_point is no longer valid
+        //and cannot be used during CreateRoundForExpand(). If this does not work,
+        //the we will need to compute a suitable center for such rounded edges by re-Expanding
+        //the edges in question and finding their crosspoints (if any), but that is probably expensive.
+        if (type == EExpandType::EXPAND_MITER_ROUND) type = EExpandType::EXPAND_MITER_BEVEL;
+        else if (type == EExpandType::EXPAND_ROUND) type = EExpandType::EXPAND_BEVEL;
+
         r.swap(r2);
         md.swap(md2);
-    } while (0 && had_cp_inverse);
+    } while (had_cp_inverse && r.size());
 
     //Insert straight segments for CP_INVERSE joins
     for (size_t u = 0; u<r.size(); u++)
         if (md[u].cross_type == Edge::CP_INVERSE) {
-            r.emplace(r.begin()+u+1, r[u].GetEnd(), r[(u+1)%r.size()].GetStart());
+            r.emplace(r.begin()+u+1, r[u].GetEnd(), r[(u+1)%r.size()].GetStart(), true, 1);
             md[u].cross_type = Edge::TRIVIAL;
-            md.emplace(md.begin()+u+1, MetaData(Edge::TRIVIAL, XY()));
+            md.emplace(md.begin()+u+1, MetaData(Edge::TRIVIAL, XY(), XY()));
         }
 
     //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
     //next one. 
     if (r.size()==0) return; //empty shape
     SimpleContour sp_r;
+    sp_r.clockwise_fresh = sp_r.area_fresh = sp_r.boundingBox_fresh = false;
     sp_r.edges.swap(r);
-    sp_r.Sanitize(); //calculates clockwiseness and blunding box
+    sp_r.Sanitize();
 
     //OK, now untangle 
     res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));

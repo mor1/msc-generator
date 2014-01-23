@@ -3310,11 +3310,11 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
     const double t = (B-A).PerpProduct(A-M) / perp;
     r = M + (N-M)*t;
     const bool t_in = between01_approximate_inclusive(t);
-    if (!t_in && t<0.5) return LINE_CROSSING_OUTSIDE_BK;
+    if (!t_in && t>0.5) return LINE_CROSSING_OUTSIDE_BK;
     const double s = (N-M).PerpProduct(M-A) / -perp;
     const bool s_in = between01_approximate_inclusive(s);
     if (s_in) return t_in ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE_FW;
-    return s>0.5 ? LINE_CROSSING_OUTSIDE_BK : LINE_CROSSING_OUTSIDE_FW;
+    return s<0.5 ? LINE_CROSSING_OUTSIDE_BK : LINE_CROSSING_OUTSIDE_FW;
 }
 
 

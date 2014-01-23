@@ -263,7 +263,7 @@ protected:
     void Rotate(double cos, double sin, double radian) { Rotate(cos, sin); } ///<Rotate the shape by `sin` and `cos` are pre-computed values. XXX delete this
     void RotateAround(const XY&c, double cos, double sin) { for (auto &e : edges) e.RotateAround(c, cos, sin); boundingBox_fresh = false; } ///<Rotate the shape by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
-    static void CreateRoundForExpand(const XY &start, const XY &end, bool clockwise, std::vector<Edge> &append_to);
+    static void CreateRoundForExpand(const XY &center, const XY &start, const XY &end, bool clockwise, std::vector<Edge> &append_to);
     EContourRelationType RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;

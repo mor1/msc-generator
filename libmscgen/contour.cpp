@@ -354,8 +354,9 @@ struct walk_data {
     size_t rays_size;       ///<What was the size of the rays array before chosing
     size_t result_size;     ///<What was the size of the resulting contour before choosing
     size_t chosen_outgoing; ///<Which ray did we choose last time
-    walk_data(size_t s, size_t s2, size_t c) :
-        rays_size(s), result_size(s2), chosen_outgoing(c) {}
+    double terminating_pos; ///<Position-to-apply to the end of the previous edge
+    walk_data(size_t s, size_t s2, size_t c, double p) :
+        rays_size(s), result_size(s2), chosen_outgoing(c), terminating_pos(p) {}
 };
 
 /** Node of a tree holding SimpleContours.
@@ -1557,23 +1558,22 @@ void AppendDuringWalk(std::vector<Edge> &edges, std::vector<std::pair<double, do
         endpoints.pop_back();
     }
 
-    //check if "edge" is a direct continuation of the last edge and can be combined
-    //if not, append "edge"
-    //we only merge straight edges via checkandcombine, thus for beziers, we always append 
-    //the chopping pos unchanged
-    double pos;
-    if (edges.size()>0 && edges.back().CheckAndCombine(edge, &pos)) {
-        //Here 'pos' gives the position of edge.start in the combined, new edges.back().
-        //This value is between 0 and 1
-        _ASSERT(between01(pos));
-        //We want to calculate the position of the edges.back().start (which remained unchanged)
-        //in the terms of the old (unchanged) edge. This value may be smaller than zero.
-
-        endpoints.back().second = pos ? 1 / (1-1/pos) : 0; //new startposition in "edge"'s terms
-    } else {
-        edges.push_back(edge);
-        endpoints.emplace_back(endpos, startpos);
-    }
+    ////check if "edge" is a direct continuation of the last edge and can be combined
+    ////if not, append "edge"
+    ////we only merge straight edges via checkandcombine, thus for beziers, we always append 
+    ////the chopping pos unchanged
+    //double pos;
+    //if (edges.size()>0 && edges.back().CheckAndCombine(edge, &pos)) {
+    //    //Here 'pos' gives the position of edge.start in the combined, new edges.back().
+    //    //This value is between 0 and 1
+    //    _ASSERT(between01(pos));
+    //    //We want to calculate the position of the edges.back().start (which remained unchanged)
+    //    //in the terms of the old (unchanged) edge. This value may be smaller than zero.
+    //    const double d = endpoints.back().second;
+    //    endpoints.back().second = pos ? (1-endpoints.back().second) / (1-1/pos) : endpoints.back().second; //new startposition in "edge"'s terms
+    //} else {
+    edges.push_back(edge);
+    endpoints.emplace_back(endpos, startpos);
 };
 
 
@@ -1662,18 +1662,22 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     do {
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
-            if (forward)
+            if (forward) {
                 AppendDuringWalk(edges, endpoints, Rays[current.index].contour->at(current.vertex), 1, 0); //just append the whole edge
-            else {
+                edges.back().mark = 2000 + current.vertex;
+            } else {
                 //Append the inverse of the edge
                 Edge edge(Rays[current.index].contour->at_prev(current.vertex));
                 edge.Invert();
+                edge.mark = 3000 +  Rays[current.index].contour->prev(current.vertex);
                 AppendDuringWalk(edges, endpoints, edge, 1, 0);
             }
             //no need to modify "current" here. A vertex is treated as both an incoming and outgoing ray
         } else { //we are at a crosspoint, not a vertex
             const Ray &ray = Rays[current.index];  //ray on which we arrive
             _ASSERT(forward == ray.incoming);
+            //The position to use as ending position for the previous ray
+            double terminating_pos = ray.incoming ? ray.pos : 1-ray.pos;
             //Mark the incoming ray (and all incoming rays its entire ray group) as invalid (=done).
             MarkAllInRayGroupOf(current.index, false);
             ray_array.push_back(current.index); //store our decision to the backtracking stack.
@@ -1693,6 +1697,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                     edges.resize(wdata.back().result_size);  //Discard parts.
                     endpoints.resize(wdata.back().result_size);
                     last_chosen = wdata.back().chosen_outgoing;
+                    terminating_pos = wdata.back().terminating_pos;
                     wdata.pop_back(); //pop the backtracking stack
                     switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
                     //if next to pick is another ray group, we need to backtrace one more
@@ -1702,25 +1707,28 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                 //we even removed this backtrace from wdata, if there are more
                 //rays to choose from, we will re-add them below
             }
+            //'ray' cannot be used from here, as we may have switched to a different previous ray above
+
             //Now switch to outgoing ray
             current.index = switch_to;
             MarkAllInRayGroupOf(current.index, false);
             const Ray &next_ray = Rays[current.index];
             //check if this was the only choice (exclude case when we did a backtrace)
             if (next_ray.angle.IsSimilar(Rays[next_ray.link_in_cp.next].angle))
-                wdata.push_back(walk_data(ray_array.size(), edges.size(), switch_to));
+                wdata.emplace_back(ray_array.size(), edges.size(), switch_to, terminating_pos);
             forward = !next_ray.incoming;  //fw may change if we need to walk on an incoming ray
             //Append a point
             if (forward) {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
                 edge.SetStart(next_ray.xy, next_ray.pos);
-                AppendDuringWalk(edges, endpoints, edge,
-                                 ray.incoming ? ray.pos : 1-ray.pos, next_ray.pos);
+                edge.mark =  next_ray.vertex;
+                AppendDuringWalk(edges, endpoints, edge, terminating_pos, next_ray.pos);
             } else {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
                 edge.Invert();
                 edge.SetStart(next_ray.xy, 1-next_ray.pos);
-                AppendDuringWalk(edges, endpoints, edge, ray.incoming ? ray.pos : 1-ray.pos, 1-next_ray.pos);
+                edge.mark = 1000 + next_ray.vertex;
+                AppendDuringWalk(edges, endpoints, edge, terminating_pos, 1-next_ray.pos);
             }
         }
         //Now find the next cp and corresponding incoming ray
@@ -1739,7 +1747,6 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     //set "end" values. Not known previously
     //remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
     //and we do not use the edge
-    bool last_was_deleted = false;
     for (size_t i = 0; i<edges.size(); /*nope*/) {
         const size_t next = (i+1)%edges.size();
         if (edges[i].GetStart() == edges[next].GetStart() && edges[i].IsStraight()) {
@@ -1749,35 +1756,21 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
             endpoints[next].first = endpoints[i].first; //save the end position of the previous edge
             edges.erase(edges.begin()+i);
             endpoints.erase(endpoints.begin()+i);
-            last_was_deleted = true;
             continue;
         } 
-        //Set edge endpoint. The position is updated as follows.
+        //Set edge endpoint. The position is updated as described at the beginning of the function
         edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
-        //since the last edge was deleted we try to combine with our previous one
-        if (last_was_deleted) {
-            double pos;
-            const size_t prev = (i+edges.size()-1)%edges.size();
-            if (edges[prev].CheckAndCombine(edges[i], &pos)) {
-                endpoints[prev].second = pos ? 1 - (1-1/pos) : 0; //new startposition in "edge[i-1]"'s terms
-                edges.erase(edges.begin()+i);
-                endpoints.erase(endpoints.begin()+i);
-                last_was_deleted = true;
-                continue;
-            }
-        } 
         i++;
-        last_was_deleted = false;
     }
-    //Also, the beginning point (at(0]) can fall on an edge
-    //if both the last and the first edge are straight and are in-line
-    //such as when two side-by-side rectangles are merged
+    //Now try to combine edges to save on them.
+    //since the last edge was deleted we try to combine with our previous one
     //we do not maintain endpoints any more
-    if (edges.size()>2) {
-        if (edges[edges.size()-2].CheckAndCombine(edges.back()))
-            edges.pop_back();
-        if (edges.back().CheckAndCombine(edges[0]))
-            edges.erase(edges.begin());
+    for (size_t i = 0; i<edges.size(); /*nope*/) {
+        const size_t prev = (i+edges.size()-1)%edges.size();
+        if (edges[prev].CheckAndCombine(edges[i]))
+            edges.erase(edges.begin()+i);
+        else
+            i++;
     }
 
     //Sanity checks
@@ -1829,6 +1822,7 @@ int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const Simple
  * @returns the resulting inserted node.*/
 node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 {
+    if (n.contour.size()==0) return 0;
     for (auto i = list->begin(); i!=list->end(); /*nope*/) {
         const EContourRelationType res = i->contour.CheckContainment(n.contour);
         switch (res) {
@@ -2111,12 +2105,11 @@ void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negati
     outline.Expand(outline.GetClockWise() && gap>0 ? type4positive : type4negative, gap, res,
                    outline.GetClockWise() && gap>0 ? miter_limit_positive : miter_limit_negative);
     if (holes.size()==0 || res.IsEmpty()) return;
-    Contour tmp;
-    for (auto i=holes.begin(); i!=holes.end(); i++) {
-        i->Expand(type4positive, type4negative, gap, tmp, miter_limit_positive, miter_limit_negative);
+    for (const auto &h : holes) {
+        Contour tmp;
+        h.Expand(type4positive, type4negative, gap, tmp, miter_limit_positive, miter_limit_negative);
         //in case "i" is an actual holes, it is are already inversed, adding is the right op
         res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
-        tmp.clear();
     }
 }
 
@@ -2126,12 +2119,11 @@ void ContourWithHoles::Expand2D(const XY &gap, Contour &res) const
     if (test_zero(gap.x) && test_zero(gap.y)) {res = *this; return;}
     outline.Expand2D(gap, res);
     if (holes.size()==0 || res.IsEmpty()) return;
-    Contour tmp;
-    for (auto i=holes.begin(); i!=holes.end(); i++) {
-        i->Expand2D(gap, tmp);
+    for (const auto & h: holes) {
+        Contour tmp;
+        h.Expand2D(gap, tmp);
         //in case "i" is an actual holes, it is are already inversed, adding is the right op
         res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
-        tmp.clear();
     }
 }
 
