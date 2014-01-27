@@ -1966,7 +1966,7 @@ unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double p
             s = (o.start.x-start.x)/(end.x-start.x);
         else
             s = (o.start.y-start.y)/(end.y-start.y);
-        if (!between01_adjust(s)) return 0;  //if outside [0..1] or too close to 1
+        if (!between01_adjust(s)) return 0;  //if outside [0..1] 
         r[0] = o.start; //o.start is on AB
         pos_other[0] = 0;
         pos_my[0] = s;
@@ -1985,9 +1985,10 @@ unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double p
         t[1] = (end.y-o.start.y)/(o.end.y-o.start.y);
     }
     if (t[0] > t[1]) std::swap(t[0], t[1]);
-    if (!test_smaller(t[0], 1) || test_smaller(t[1], 0))
+    if (!test_smaller(t[0], 1) || !test_smaller(1, t[1]))
         return 0; //AB lies outside MN
     if (!test_smaller(0, t[0])) t[0] = 0; //if close to 0 or even smaller snap it there
+    if (!test_smaller(t[1], 1)) t[1] = 1;
     const bool dosecond = test_smaller(0, t[1]) && test_smaller(t[1], 1); //if t[1]!~=0 and t[1]!~=1
     unsigned num = 0;
     for (int i = 0; i<(dosecond ? 2 : 1); i++) {
@@ -2066,8 +2067,7 @@ double Edge::Flatness() const
     return std::max(ux*ux, vx*vx)+std::max(uy*uy, vy*vy);
 }
 
-/* Returns the number of crosspoints
- * We do not return a crosspoint, whose parameter is 1.*/
+/* Returns the number of crosspoints */
 unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
                               double pos_my_mul, double pos_other_mul, 
                               double pos_my_offset, double pos_other_offset) const
@@ -2085,26 +2085,13 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return 0;
         case 2:
             pos_my[1] = pos_my[1]*pos_my_mul+pos_my_offset;
-            if (!test_equal(pos_my[1], 1)) {
-                pos_other[1] = pos_other[1]*pos_other_mul+pos_other_offset;
-                if (!test_equal(pos_other[1], 1))
-                    second_exists = true;
-            }
+            pos_other[1] = pos_other[1]*pos_other_mul+pos_other_offset;
+            second_exists = true;
             //fallthrough
         case 1:
             pos_my[0] = pos_my[0]*pos_my_mul+pos_my_offset;
-            if (!test_equal(pos_my[0], 1)) {
-                pos_other[0] = pos_other[0]*pos_other_mul+pos_other_offset;
-                if (!test_equal(pos_other[0], 1))
-                    return second_exists ? 2 : 1;
-            }
-            if (second_exists) {
-                r[0] = r[1];
-                pos_my[0] = pos_my[1];
-                pos_other[0] = pos_other[1];
-                return 1;
-            }
-            return 0;
+            pos_other[0] = pos_other[0]*pos_other_mul+pos_other_offset;
+            return second_exists ? 2 : 1;
         }
     }
     if (!HullOverlap(A)) return 0;
@@ -2161,11 +2148,10 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 
 /** Calculates the crosspoints with another edge.
 *
-* This must ensure that we do not return pos values that are very close to 0 
-* such values are to be rounded to 0 in that case exatly the start point
+* This must ensure that we do not return pos values that are very close to 0 or 1
+* such values are to be rounded to 0 (or 1) in that case exatly the start point
 * of the arc shall be returned. 
-* The function does not return crosspoints where one of the positions is close to 1.
-* The arrays shall be greater than 4, at least twice.
+* The arrays shall be at least Edge::MAX_CP big.
 *
 * @param [in] o The other edge.
 * @param [out] r The crosspoins.
@@ -2175,8 +2161,9 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 */
 unsigned Edge::Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const
 {
-
+    //use int because we may substract one
     int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
+    _ASSERT(num<Edge::MAX_CP);
     //In case of multiple hits, we need to remove erroneously occuring ones
     //these are the ones, where both pos_my and pos_otehr are close
     //We do it pairwise
@@ -2199,8 +2186,14 @@ unsigned Edge::Crossing(const Edge &A, XY r[], double pos_my[], double pos_other
         } else if (test_zero(pos_other[i])) {
             pos_other[i] = 0;
             r[i] = A.start;
+        } else if (test_equal(1, pos_my[i])) {
+            pos_my[i] = 1;
+            r[i] = end;
+        } else if (test_equal(1, pos_other[i])) {
+            pos_other[i] = 1;
+            r[i] = A.end;
         }
-    return num;
+        return num;
 }
 
 

@@ -31,6 +31,8 @@
 
 namespace contour {
 
+extern int expand_debug;
+
 /** A template that allows storing of state along a 1 dimensional axis.
  * @ingroup contour_internal
  *

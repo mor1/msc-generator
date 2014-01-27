@@ -314,6 +314,8 @@ public:
     ///<True if two expanded edges or their extrension has crosspoints.
     static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==TRIVIAL; }
 
+    enum {MAX_CP=9};
+
 protected:
     friend class SimpleContour;
     friend class ContoursHelper;
