@@ -52,14 +52,17 @@ inline bool between01_approximate_inclusive(double r)
     return !(test_smaller(r, 0) || test_smaller(1, r));
 }
 
-/** Returns true if `n` is significantly smaller than 1 and not significantly
- * smaller than zero. Ensures `n` is nonzero at return.
+/** Returns true if `n` is not significantly outside [0,1] (by max SMALL_NUM). 
+  If n is close to 0 or 1 we return exactly 0 or 1.
  */
 inline bool between01_adjust(double &n)
 {
-    if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
+    if (test_smaller(1,n) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
         return false;
-    if (!test_smaller(0,n)) n=0; //if n~=0;
+    if (!test_smaller(0, n))
+        n = 0; //if n~=0;
+    else if (!test_smaller(n, 1))
+        n = 1; //if n~=1;
     return true;
 }
 

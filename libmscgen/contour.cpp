@@ -821,6 +821,7 @@ bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
 /** Adds and links a ray. 
  *
  * This is a helper, it shall be called four times for each crosspoint.
+ * We check for already inserted rays and do not insert duplicate ones.
  * @param [in] point The coordinate of the crosspoint of the ray.
  * @param [in] m_c True if the main Contour this ray belongs to was clockwise.
  * @param [in] c The SimpleContour the ray belongs to.
@@ -852,7 +853,8 @@ bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const Simple
  *
  * This shall be called for all cps, when found.
  * In this function we avoid incoming rays with pos==0, we use the previous edge and pos==1.
- * Same way we avoid outgoing rays with pos==1.0. We use the next edge and pos==0 instead.
+ * We expect the position to never equal to 1 (those should be reported as position 0 at
+ * the next edge). We check for doubly inserted cps and ignore them.
  * @param [in] xy The coordinate of the crosspoint.
  * @param [in] m_c1 True if the main Contour of c1 is clockwise.
  * @param [in] c1 One of the SimpleContour the cp belongs to.
@@ -865,24 +867,25 @@ bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const Simple
 void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour *c1, size_t v1, double p1,
                                                  bool m_c2, const SimpleContour *c2, size_t v2, double p2)
 {
+    _ASSERT(p1<1 && p2<1 && p1>=0 && p2>=0);
     //In allrays even indexed positions are incoming edges, odd positions are outgoing ones
     if (p1==0)  //avoid pos==0 and incoming
         AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at_prev(v1).Angle(true, 1));
     else
         AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at(v1).Angle(true, p1));
-    if (p1==1) //avoid pos==1 and outgoing
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at_next(v1).Angle(false, 0));
-    else
-        AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at(v1).Angle(false, p1));
+    //if (p1==1) //avoid pos==1 and outgoing
+    //    AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at_next(v1).Angle(false, 0));
+    //else
+    AddCrosspointHelper(xy, m_c1, c1, v1, p1, false, c1->at(v1).Angle(false, p1));
     if (c2==NULL) return;
     if (p2==0)  //avoid pos==0 and incoming
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at_prev(v2).Angle(true, 1));
     else
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at(v2).Angle(true, p2));
-    if (p2==1) //avoid pos==1 and outgoing
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at_next(v2).Angle(false, 0));
-    else
-        AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at(v2).Angle(false, p2));
+    //if (p2==1) //avoid pos==1 and outgoing
+    //    AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at_next(v2).Angle(false, 0));
+    //else
+    AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at(v2).Angle(false, p2));
 }
 
 
@@ -890,8 +893,8 @@ void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour 
 unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
 {
     unsigned ret=0;
-    XY r[4];
-    double one_pos[4], two_pos[4];
+    XY r[Edge::MAX_CP];
+    double one_pos[Edge::MAX_CP], two_pos[Edge::MAX_CP];
     //We need to check edges subsequent to each other, since crazy circles may cross at places
     //more than their endpoint. Assumedly Crossing() will not return pos==1 crosspoints
     //so we will not get normal vertices back
@@ -904,9 +907,18 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
                 //_ASSERT(i->at(u2).Pos2Point(two_pos[k]).test_equal(r[k]));
                 _ASSERT(i->at(u1).Pos2Point(one_pos[k]).DistanceSqr(r[k])<0.1);
                 _ASSERT(i->at(u2).Pos2Point(two_pos[k]).DistanceSqr(r[k])<0.1);
-                _ASSERT(!test_equal(1, one_pos[k]));
-                _ASSERT(!test_equal(1, two_pos[k]));
-                AddCrosspoint(r[k], bool(), &*i, u1, one_pos[k], bool(), &*i, u2, two_pos[k]);
+                //skip crosspoints that are vertices: one edge joins the next
+                if (one_pos[k]==1 && two_pos[k]==0 && i->next(u1)==u2) continue;
+                if (one_pos[k]==0 && two_pos[k]==1 && i->next(u2)==u1) continue;
+                //change vertex crosspoints which are detected at the _end_
+                //of an edge to be expressed as being at the beginning of the
+                //following edge.
+                //This is to avoid a vertex cp to be added twice (in case it is detected
+                //again for the following edge).
+                AddCrosspoint(r[k], bool(), &*i, one_pos[k]==1 ? i->next(u1) : u1,
+                                                 one_pos[k]==1 ? 0 : one_pos[k], 
+                                    bool(), &*i, two_pos[k]==1 ? i->next(u2) : u2,
+                                                 two_pos[k]==1 ? 0 : two_pos[k]);
             }
             ret += n;
         }
@@ -969,13 +981,21 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const SimpleContour *i
                                                bool m_c2, const SimpleContour *i2)
 {
     unsigned ret=0;
-    XY r[4];
-    double one_pos[4], two_pos[4];
+    XY r[Edge::MAX_CP];
+    double one_pos[Edge::MAX_CP], two_pos[Edge::MAX_CP];
     for (size_t u1 = 0; u1<i1->size(); u1++)
         for (size_t u2 = 0; u2<i2->size(); u2++) {
             const unsigned n = i1->at(u1).Crossing(i2->at(u2), r, one_pos, two_pos);
-            for (unsigned k=0; k<n;k++)
-                AddCrosspoint(r[k], m_c1, i1, u1, one_pos[k], m_c2, i2, u2, two_pos[k]);
+            for (unsigned k = 0; k<n; k++) 
+                //change vertex crosspoints which are detected at the _end_
+                //of an edge to be expressed as being at the beginning of the
+                //following edge.
+                //This is to avoid a vertex cp to be added twice (in case it is detected
+                //again for the following edge).
+                AddCrosspoint(r[k], m_c1, i1, one_pos[k]==1 ? i1->next(u1) : u1, 
+                                              one_pos[k]==1 ? 0 : one_pos[k], 
+                                    m_c2, i2, two_pos[k]==1 ? i2->next(u2) : u2,
+                                              two_pos[k]==1 ? 0 : two_pos[k]);
             ret += n;
         }
     return ret;

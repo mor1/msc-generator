@@ -32,6 +32,8 @@
 
 namespace contour {
 
+int expand_debug=false;
+
 ///////////////////////////// SimpleContour
 
 //Do not create degenerate triangles.
@@ -302,6 +304,7 @@ void SimpleContour::assign_dont_check(const std::vector<XY> &v)
     if (v.size()<2) return;
     for (size_t i = 0; i<v.size(); i++)
         edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
+    clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
 
@@ -311,6 +314,7 @@ void SimpleContour::assign_dont_check(const XY v[], size_t size)
     if (size < 2) return;
     for (size_t i=0; i<size; i++)
         edges.push_back(Edge(v[i], v[(i+1)%size]));
+    clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
 
@@ -319,6 +323,7 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
     clear();
     if (v.size()<2) return;
     edges = v;
+    clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
@@ -327,6 +332,7 @@ void SimpleContour::assign_dont_check(std::vector<Edge> &&v)
     clear();
     if (v.size()<2) return;
     edges.swap(v);
+    clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
@@ -336,6 +342,7 @@ void SimpleContour::assign_dont_check(const Edge v[], size_t size)
     if (size < 2) return;
     for (size_t i=0; i<size; i++)
         edges.push_back(v[i]);
+    clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
@@ -656,6 +663,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     bool had_cp_inverse;
     
+    if (expand_debug==2) goto end;
+
     do {
         //Find how and where expanded edges meet
         //do not do this for edge segments genera
@@ -827,12 +836,12 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         if (type == EExpandType::EXPAND_MITER_ROUND) type = EExpandType::EXPAND_MITER_BEVEL;
         else if (type == EExpandType::EXPAND_ROUND) type = EExpandType::EXPAND_BEVEL;
     } while (had_cp_inverse && r.size());
-
+end:
     //Insert straight segments for CP_INVERSE joins
     for (auto i = r.begin(); i!=r.end(); i++)
         if (i->cross_type == Edge::CP_INVERSE) {
             const auto next_i = r.next(i);
-            r.emplace(next_i, Edge(i->edge.GetEnd(), next_i->edge.GetStart(), true));
+            r.emplace(next_i, Edge(i->edge.GetEnd(), next_i->edge.GetStart(), false));
         } 
 
     //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
@@ -846,7 +855,15 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     sp_r.Sanitize();
 
     //OK, now untangle 
-    res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
+    switch (expand_debug) {
+    case 2:
+    case 1:
+        res = std::move(sp_r);
+        break;
+    case 0:
+        res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
+        break;
+    }
 }
 
 
@@ -945,11 +962,11 @@ void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
     if (size()==0 || cr==NULL) return;
     bool closed = true;
     cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
-    for (size_t i = 0; i<size(); i++)
-        if (show_hidden || at(i).visible)
-            at(i).PathTo(cr);
+    for (const auto &e : edges)
+        if (show_hidden || e.visible)
+            e.PathTo(cr);
         else {
-            cairo_move_to(cr, at(i).GetEnd().x, at(i).GetEnd().y);
+            cairo_move_to(cr, e.GetEnd().x, e.GetEnd().y);
             closed = false;
         }
     if (closed)
