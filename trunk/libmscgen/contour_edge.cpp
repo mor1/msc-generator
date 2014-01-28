@@ -2292,7 +2292,7 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     if (pos==0) //must be outgoing
         return RayAngle(angle(start, XY(start.x+100, start.y), c1), invRadius);
     if (pos==1) //must be incoming
-        return RayAngle(angle(end, XY(end.x+100, start.y), c2), -invRadius);
+        return RayAngle(angle(end, XY(end.x+100, end.y), c2), -invRadius);
     XY A, B;
     const XY C = Split(pos, A, B);
     return incoming ? RayAngle(angle(C, XY(C.x+100, C.y), A), -invRadius) :
@@ -3432,6 +3432,8 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
                            double tilt_deg, double s_deg, double d_deg, bool clockwise)
 {
     const size_t original_size = append_to.size();
+    if (!clockwise) 
+        std::swap(s_deg, d_deg);
     s_deg = fmod_negative_safe(s_deg, 360.)/90;
     d_deg = fmod_negative_safe(d_deg, 360.)/90;
     if (d_deg<=s_deg) d_deg += 4;
@@ -3460,6 +3462,16 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
             append_to.back().Chop(0, d_deg-floor(d_deg));
         }
     }
+    //Now we have (part of) a unit circle. 
+    for (size_t i = original_size; i<append_to.size(); i++) {
+        //Distort to make an ellipse
+        append_to[i].Scale(XY(radius_x, radius_y));
+        //next, tilt
+        append_to[i].Rotate(cos(tilt_deg/180*M_PI), sin(tilt_deg/180*M_PI));
+        //next move
+        append_to[i].Shift(c);
+    }
+    //Done. Invert if counterclockwise is needed
     if (clockwise) return;
     for (size_t i = original_size; i<append_to.size(); i++)
         append_to[i].Invert();

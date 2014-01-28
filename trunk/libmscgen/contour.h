@@ -637,7 +637,7 @@ public:
     /** Strokes the shape on a cairo context. Line with, color, dash, operation, transformations and mask are taken from `cr`.*/
     void Line(cairo_t *cr) const {Contour::Path(cr, false); cairo_stroke(cr);}
     /** Strokes the shape on a cairo context, stroking holes with a dashed line.*/
-    void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
+    void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, true); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, false); cairo_stroke(cr); cairo_restore(cr);}
     /** Fills the shape on a cairo context with the source set in the context.*/
     void Fill(cairo_t *cr) const {Contour::Path(cr, true); cairo_fill(cr);}
     /** @} */ //name Graphics related operations

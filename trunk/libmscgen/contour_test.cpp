@@ -574,31 +574,31 @@ void contour_test_basic(void)
 
     variable.ClearHoles();
 
-    //const Contour ChoppedBox = Contour(100, 200, 100, 200) - Contour(100, 110, 100, 110);
-    //DrawExpand(120, EXPAND_MITER, CONTOUR_INFINITY, ChoppedBox, 0);
+    const Contour ChoppedBox = Contour(100, 200, 100, 200) - Contour(100, 110, 100, 110);
+    DrawExpand(120, EXPAND_MITER, CONTOUR_INFINITY, ChoppedBox, 0);
 
-    //const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
-    //    XY(150,160), XY(100,160)};
+    const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
+        XY(150,160), XY(100,160)};
 
-    //DrawExpand(121, EXPAND_MITER, CONTOUR_INFINITY, Contour(forexpbevel), 0);
-    //DrawExpand(122, EXPAND_ROUND, CONTOUR_INFINITY, Contour(forexpbevel), 0);
-    //DrawExpand(123, EXPAND_BEVEL, CONTOUR_INFINITY, Contour(forexpbevel), 0);
+    DrawExpand(121, EXPAND_MITER, CONTOUR_INFINITY, Contour(forexpbevel), 0);
+    DrawExpand(122, EXPAND_ROUND, CONTOUR_INFINITY, Contour(forexpbevel), 0);
+    DrawExpand(123, EXPAND_BEVEL, CONTOUR_INFINITY, Contour(forexpbevel), 0);
 
-    //Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
-    //DrawExpand(124, EXPAND_MITER, CONTOUR_INFINITY, box, 0, "box with miter");
-    //DrawExpand(125, EXPAND_ROUND, CONTOUR_INFINITY, box, 0, "box with round");
-    //DrawExpand(126, EXPAND_BEVEL, CONTOUR_INFINITY, box, 0, "box with bevel");
-    //DrawExpand(127, EXPAND_MITER, CONTOUR_INFINITY, variable, 0, "boxhole with miter");
-    //DrawExpand(128, EXPAND_ROUND, CONTOUR_INFINITY, variable, 0, "boxhole with round");
-    //DrawExpand(129, EXPAND_BEVEL, CONTOUR_INFINITY, variable, 0, "boxhole with bevel");
+    Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
+    DrawExpand(124, EXPAND_MITER, CONTOUR_INFINITY, box, 0, "box with miter");
+    DrawExpand(125, EXPAND_ROUND, CONTOUR_INFINITY, box, 0, "box with round");
+    DrawExpand(126, EXPAND_BEVEL, CONTOUR_INFINITY, box, 0, "box with bevel");
+    DrawExpand(127, EXPAND_MITER, CONTOUR_INFINITY, variable, 0, "boxhole with miter");
+    DrawExpand(128, EXPAND_ROUND, CONTOUR_INFINITY, variable, 0, "boxhole with round");
+    DrawExpand(129, EXPAND_BEVEL, CONTOUR_INFINITY, variable, 0, "boxhole with bevel");
 
-    //DrawExpand(130, EXPAND_MITER, CONTOUR_INFINITY, later, 0, "later with miter");
-    //DrawExpand(131, EXPAND_BEVEL, CONTOUR_INFINITY, later, 0, "later with bevel");
-    //DrawExpand(132, EXPAND_ROUND, CONTOUR_INFINITY, later, 0, "later with round");
-    //DrawExpand(133, EXPAND_MITER, CONTOUR_INFINITY, cooomplex, 0, "complex with miter");
-    //DrawExpand(134, EXPAND_MITER, CONTOUR_INFINITY, huhu, 0, "huhu with miter");
+    DrawExpand(130, EXPAND_MITER, CONTOUR_INFINITY, later, 0, "later with miter");
+    DrawExpand(131, EXPAND_BEVEL, CONTOUR_INFINITY, later, 0, "later with bevel");
+    DrawExpand(132, EXPAND_ROUND, CONTOUR_INFINITY, later, 0, "later with round");
+    DrawExpand(133, EXPAND_MITER, CONTOUR_INFINITY, cooomplex, 0, "complex with miter");
+    DrawExpand(134, EXPAND_MITER, CONTOUR_INFINITY, huhu, 0, "huhu with miter");
 
-    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, 2, "part with miter");
+    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, 0, "part with miter");
     DrawExpand(136, EXPAND_ROUND, CONTOUR_INFINITY, part, 0, "part with round");
     DrawExpand(137, EXPAND_BEVEL, CONTOUR_INFINITY, part, 0, "part with bevel");
 
@@ -617,7 +617,7 @@ void contour_test_basic(void)
     Contour form2 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 25) + Contour(XY(100, 25), 10, 25);
     Contour form3 = Contour(0, 100, 0, 50) + Contour(XY(0, 25), 10, 35) - Contour(XY(100, 25), 10, 35);
     Contour form4 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 35) + Contour(XY(100, 25), 10, 35);
-    Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15) - Contour(XY(0, 40), 10);
+    Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15); // -Contour(XY(0, 40), 10);
 
     
     DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
@@ -678,41 +678,41 @@ void contour_test_lohere(void)
     Draw(2196, a, b);
     Draw (2197,b, b - Contour(10,40,10,40));
     
-    DrawExpand(250, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(251, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(252, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(253, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(254, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(255, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(250, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere1, 0);
+    DrawExpand(251, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere2, 0);
+    DrawExpand(252, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere3, 0);
+    DrawExpand(253, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere4, 0);
+    DrawExpand(254, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere5, 0);
+    DrawExpand(255, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere6, 0);
 
-    DrawExpand(260, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(261, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(262, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(263, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(264, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(265, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(260, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere1, 0);
+    DrawExpand(261, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere2, 0);
+    DrawExpand(262, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere3, 0);
+    DrawExpand(263, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere4, 0);
+    DrawExpand(264, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere5, 0);
+    DrawExpand(265, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere6, 0);
 
-    DrawExpand(270, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(271, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(272, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(273, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(274, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(275, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(270, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere1, 0);
+    DrawExpand(271, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere2, 0);
+    DrawExpand(272, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere3, 0);
+    DrawExpand(273, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere4, 0);
+    DrawExpand(274, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere5, 0);
+    DrawExpand(275, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere6, 0);
 
-    DrawExpand(350, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
-    DrawExpand(351, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
-    DrawExpand(352, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
+    DrawExpand(350, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(60,50), 20), 0);
+    DrawExpand(351, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 20), 0);
+    DrawExpand(352, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), 0);
 
-    DrawExpand(353, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + generated_forms::rombusz, false);
-    DrawExpand(354, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::rombusz + generated_forms::rombusz.CreateShifted(XY(40,0)), false);
+    DrawExpand(353, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + generated_forms::rombusz, 0);
+    DrawExpand(354, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::rombusz + generated_forms::rombusz.CreateShifted(XY(40,0)), 0);
 
-    DrawExpand(355, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::concave, false);
+    DrawExpand(355, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::concave, 0);
 
-    DrawExpand(356, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::triangle, false);
-    DrawExpand(357, EXPAND_MITER, 1.2, generated_forms::triangle, false);
-    DrawExpand(358, EXPAND_MITER, 2, generated_forms::triangle, false);
-    DrawExpand(359, EXPAND_MITER, 1, generated_forms::triangle, false);
-    DrawExpand(360, EXPAND_MITER, 0, generated_forms::triangle, false);
+    DrawExpand(356, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::triangle, 0);
+    DrawExpand(357, EXPAND_MITER, 1.2, generated_forms::triangle, 0);
+    DrawExpand(358, EXPAND_MITER, 2, generated_forms::triangle, 0);
+    DrawExpand(359, EXPAND_MITER, 1, generated_forms::triangle, 0);
+    DrawExpand(360, EXPAND_MITER, 0, generated_forms::triangle, 0);
 };
 
 void contour_test_assign(unsigned num)
