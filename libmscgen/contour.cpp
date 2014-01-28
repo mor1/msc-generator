@@ -1179,8 +1179,8 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh
             //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
     int ret = 0;
     for (size_t e=0; e<cwh->outline.size();e++) {
-        double x[2], pos[2];
-        bool fw[2];
+        double x[3], pos[3];
+        bool fw[3];
         Edge tmp(cwh->outline[e]);
         tmp.SwapXY();
         const int num = tmp.CrossingVertical(xy.y, x, pos, fw);

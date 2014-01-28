@@ -449,6 +449,9 @@ public:
                                 double tilt_deg=0, double s_deg=0, double d_deg=0, bool clockwise=true);
     template<class Container>
     void CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
+
+    unsigned atX(double x, double roots[3]) const;
+    unsigned atX(double x, double y[3], double pos[3], bool forward[3]) const;
 };
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
