@@ -141,9 +141,11 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
     for (e = 0; e<size(); e++) {
         if (edge) *edge = e;      //return value
         if (at(e).GetStart().test_equal(p)) return WI_ON_VERTEX;
-        double y[2], po[2];
-        bool forward[2];
+        double y[3], po[3];
+        bool forward[3];
         switch (at(e).CrossingVertical(p.x, y, po, forward)) {
+        case 3:
+            _ASSERT(0);
         case 2:
             if ((strict && y[1] == p.y) ||  //on an edge, we are _not_ approximate here
                 (!strict&& test_equal(y[1], p.y))) {  //on an edge, we are approximate here
@@ -1018,8 +1020,8 @@ double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpo
  */
 void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
-    double y[2], pos[2];
-    bool forward[2];
+    double y[3], pos[3];
+    bool forward[3];
     for (size_t i=0; i<size(); i++) {
         const int num = at(i).CrossingVertical(x, y, pos, forward);
         for (int j = 0; j<num; j++)

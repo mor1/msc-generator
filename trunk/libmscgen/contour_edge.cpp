@@ -2229,6 +2229,8 @@ unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool f
 }
 
 
+
+
 /** Calculates where an edge crosses a vertical line.
 *
 * This is done for the purposes of SimpleContour::IsWithin.
@@ -2246,7 +2248,20 @@ unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool f
 int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
 {
     if (straight && start.x == x && end.x == x) return -1; //vertical line
-    return CrossingVerticalBezier(x, y, pos, forward, 1, 0);
+    if (straight) return CrossingVerticalBezier(x, y, pos, forward, 1, 0);
+
+    double loc_pos[3], loc_y[3];
+    bool loc_fw[3];
+    double loc_pos2[3], loc_y2[3];
+    bool loc_fw2[3];
+    unsigned a = CrossingVerticalBezier(x, loc_y, loc_pos, loc_fw, 1, 0);
+    unsigned b = atX(x, loc_y2, loc_pos2, loc_fw2);
+    std::sort(loc_pos, loc_pos+a);
+    std::sort(loc_pos2, loc_pos2+b);
+    _ASSERT(a==b && ((a==0) || (a==1 && 0.001>fabs(loc_y[0] - loc_y2[0])) || 
+        (a==2 && 0.001>fabs(loc_y[0] - loc_y2[0]) && 0.001>fabs(loc_y[1] - loc_y2[1])) ||
+        (a==3 && 0.001>fabs(loc_y[0] - loc_y2[0]) && 0.001>fabs(loc_y[1] - loc_y2[1]) && 0.001>fabs(loc_y[2] - loc_y2[2]))));
+    return atX(x, y, pos, forward);
 }
 
 
@@ -2712,34 +2727,6 @@ double Edge::FindBezierParam(const XY &p) const
     return ret;
 }
 
-////These are expensive for curves
-//Edge& Edge::SetStart(const XY &p)
-//{
-//    if (!straight) {
-//        XY dummy;
-//        double t;
-//        const double d = Distance(p, dummy, t);
-//        _ASSERT(fabs(d)<0.01);
-//        Chop(t, 1);
-//    }
-//    start = p;
-//    return *this;
-//}
-//
-//Edge& Edge::SetEnd(const XY &p)
-//{
-//    if (!straight) {
-//        XY dummy;
-//        double t;
-//        const double d = Distance(p, dummy, t);
-//        _ASSERT(fabs(d)<0.01);
-//        Chop(0, t);
-//    }
-//    end = p;
-//    return *this;
-//}
-//
-
 void Edge::Distance(const Edge &o, DistanceType &ret) const    //always nonnegative
 {
     if (ret.IsZero()) return;
@@ -2965,7 +2952,7 @@ void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int
     ret.back().Chop(bounds[0], bounds[1]);
     stype = Edge_CreateExpand2D::comp_int(ret.back().start.x, ret.back().end.x) +
             Edge_CreateExpand2D::comp_int(ret.back().start.y, ret.back().end.y)*3;
-    for (unsigned bound_index = 1; bound_index<bounds.size(); bound_index++) {
+    for (unsigned bound_index = 1; bound_index<bounds.size()-1; bound_index++) {
         ret.emplace_back();
         ret.back().visible = visible;
         ret.push_back(*this);
@@ -3871,5 +3858,89 @@ unsigned Edge::SolveForDistance(const XY &p, double ret[5]) const
 
     return SolveForDistance1(p, ret);
 }
+
+/** Return a series of parameter values where the x coordinate of the curve is 'x'*/
+unsigned Edge::atX(double x, double roots[3]) const
+{
+    _ASSERT(!straight);
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+
+    double coeff[4] = {start.x-x, 
+                       3*(c1.x-start.x), 
+                       3*(start.x+c2.x)-6*c1.x, 
+                       -start.x+3*(c1.x-c2.x)+end.x};
+    unsigned ret = solve_degree3(coeff, roots);
+    for (unsigned i = 0; i<ret; i++) 
+        if (!between01_adjust(roots[i])) {
+            for (unsigned k=i+1; k<ret; k++)
+                roots[k-1] = roots[k];
+            ret--;
+        }
+    return ret;
+}
+
+/** Return a series of parameter values where the x coordinate of the curve is 'x'.
+* We do not return touchpoints.
+* Also returns true for each a crosspoint in 'forward' if the line at x is crossed 
+* from left to right (so inside of contour is below y).
+* Certain rules apply to the case when the vertical line crosses one of the ends of the edge.
+* 1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
+* 2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
+* In short: we include the endpoint with the larger x coordinate only.
+*/
+unsigned Edge::atX(double x, double y[3], double pos[3], bool forward[3]) const
+{
+    _ASSERT(!straight);
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+
+    double coeff[4] = {start.x-x,
+        3*(c1.x-start.x),
+        3*(start.x+c2.x)-6*c1.x,
+        -start.x+3*(c1.x-c2.x)+end.x};
+    unsigned ret = solve_degree3(coeff, pos);
+    //Here y[] contains parameter values, not y coordinates (yet)
+    for (unsigned i = 0; i<ret; /*nope*/)
+        if (!between01_adjust(pos[i])) {
+            for (unsigned k = i+1; k<ret; k++)
+                pos[k-1] = pos[k];
+            ret--;
+        } else i++;
+    //Eliminate two cps very close - likely a touchpoint
+    if (ret==3) {
+        if (test_equal(pos[2], pos[1]))
+            ret = 1;
+        else if (test_equal(pos[2], pos[0])) {
+            ret = 1;
+            pos[0] = pos[1];
+        } else if (test_equal(pos[1], pos[0]))
+            ret = 0;
+    } else if (ret == 2 && (test_equal(pos[1], pos[0])))
+        ret = 0;
+    // El
+    for (unsigned i = 0; i<ret; /*nope*/) {
+        const double fw_x = NextTangentPoint(pos[i]).x;
+        if (fw_x == x) {
+            if (pos[i]==0 || pos[i]==1) {
+                if (ret)
+            }
+        }
+        forward[i] = fw_x > x; //cross leftward
+        //kill if touchpoint (not at the end) or needs to be ignored at endpoints
+        if ((fw_x == x && pos[i]<1 && pos[i]>0) || 
+            (pos[i]==0 && forward[i]) || 
+            (pos[i]==1 &&!forward[i])) { 
+            for (unsigned k = i+1; k<ret; k++)
+                pos[k-1] = pos[k];
+            ret--;
+        } else {
+            y[i] = Split(pos[i]).y;
+            i++;
+        }
+    }
+    return ret;
+}
+
 
 } //namespace contour 
