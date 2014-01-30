@@ -413,14 +413,14 @@ public:
     Edge &Invert() { std::swap(start, end); if (!straight) std::swap(c1, c2); return *this; } ///<Reverses the direction of the edge.
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-    XY PrevTangentPoint(double pos) const { return straight ? 2*start-end : pos ? Mid(start, c1, pos) : 2*start-c1; }
+    XY PrevTangentPoint(double pos) const { return straight ? 2*start-end : pos ? Mid(Mid(start, c1, pos), Mid(c1, c2, pos), pos) : 2*start-c1; }
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-    XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(c2, end, pos) : 2*end-c2; }
+    XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(Mid(c1, c2, pos), Mid(c2, end, pos), pos) : 2*end-c2; }
 
     bool CheckAndCombine(const Edge &next, double *pos=NULL); 
 
-    unsigned Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const;
-    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
+    unsigned Crossing(const Edge &A, XY r[Edge::MAX_CP], double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const;
+    int CrossingVertical(double x, double y[3], double pos[3], int cross_dir[3]) const;
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
 
@@ -451,7 +451,6 @@ public:
     void CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
 
     unsigned atX(double x, double roots[3]) const;
-    unsigned atX(double x, double y[3], double pos[3], bool forward[3]) const;
 };
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated

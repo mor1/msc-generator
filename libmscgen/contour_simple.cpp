@@ -140,16 +140,32 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
     size_t e;
     for (e = 0; e<size(); e++) {
         if (edge) *edge = e;      //return value
-        if (at(e).GetStart().test_equal(p)) return WI_ON_VERTEX;
+        if (at(e).GetStart().test_equal(p)) 
+            return WI_ON_VERTEX;
         double y[3], po[3];
-        bool forward[3];
-        switch (at(e).CrossingVertical(p.x, y, po, forward)) {
-        case 3:
-            _ASSERT(0);
-        case 2:
-            if ((strict && y[1] == p.y) ||  //on an edge, we are _not_ approximate here
-                (!strict&& test_equal(y[1], p.y))) {  //on an edge, we are approximate here
-                //we have tested that at(e) is not equal to p, so no need to test for that here
+        int forward[3];
+        int num = at(e).CrossingVertical(p.x, y, po, forward);
+
+        if (num==-1) {
+            if (test_equal(at(e).GetEnd().y, p.y)) {
+                if (edge) *edge = next(e);
+                return WI_ON_VERTEX; //on vertex
+            }
+            //Equality to at(e).GetStart is already tested above
+            //now test if we are in-between 
+            if ((p.y < at(e).GetStart().y && at(e).GetEnd().y < p.y) ||
+                (at(e).GetStart().y < p.y && p.y < at(e).GetEnd().y)) {
+                if (pos) *pos = (p.y-at(e).GetStart().y)/(at(e).GetEnd().y-at(e).GetStart().y);
+                return WI_ON_EDGE; //goes through p
+            }
+            //if we are not between we just continue
+            continue;
+        }
+
+        for (unsigned u = 0; u<num; u++) {
+            if ((strict && y[u] == p.y) ||  //on an edge, we are _not_ approximate here
+                (!strict&& test_equal(y[u], p.y))) {  //on an edge, we are approximate here
+                //we have tested that at(e).start is not equal to p, so no need to test for that here
                 if (test_equal(at(e).GetEnd().x, p.x)) {
                     if (edge) *edge = next(e);
                     return WI_ON_VERTEX;
@@ -158,37 +174,8 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
                     return WI_ON_EDGE; // on an edge, but not vertex
                 }
             }
-            if (y[1] > p.y) count ++;
-            //fallthrough
-        case 1:
-            if ((strict && y[0] == p.y) ||  //on an edge, we are _not_ approximate here
-                (!strict&& test_equal(y[0], p.y))) {  //on an edge, we are approximate here
-                //we have tested that at(e) is not equal to p, so no need to test for that here
-                if (test_equal(at(e).GetEnd().x, p.x)) {
-                    if (edge) *edge = next(e);
-                    return WI_ON_VERTEX;
-                } else {
-                    if (pos) *pos = po[0];
-                    return WI_ON_EDGE; // on an edge, but not vertex
-                }
-            }
-            if (y[0] > p.y) count ++;
-            break;
-        case -1:
-            if ((test_smaller(p.y, at(e).GetStart().y) && test_smaller(at(e).GetEnd().y, p.y)) ||
-                (test_smaller(at(e).GetStart().y, p.y) && test_smaller(p.y, at(e).GetEnd().y))) {
-                if (pos) *pos = (p.y-at(e).GetStart().y)/(at(e).GetEnd().y-at(e).GetStart().y);
-                return WI_ON_EDGE; //goes through p
-            }
-            //we have tested that at(e) is not equal to p, so no need to test for that here
-            if (test_equal(at(e).GetEnd().y, p.y)) {
-                if (edge) *edge = next(e);
-                return WI_ON_VERTEX; //on vertex
-            }
-        case 0:
-            break;
-        default:
-            _ASSERT(0);
+            if (forward[u]!=0 && y[u] > p.y) 
+                count++;
         }
     }
     return count&1 ? WI_INSIDE : WI_OUTSIDE; //even is out
@@ -1021,11 +1008,12 @@ double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpo
 void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
     double y[3], pos[3];
-    bool forward[3];
+    int forward[3];
     for (size_t i=0; i<size(); i++) {
         const int num = at(i).CrossingVertical(x, y, pos, forward);
         for (int j = 0; j<num; j++)
-            section.Set(y[j], forward[j] == GetClockWise());
+            if (forward[j])
+                section.Set(y[j], forward[j] == (GetClockWise()?1:-1));
     }
 }
 
