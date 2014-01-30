@@ -664,8 +664,7 @@ protected:
     bool IsCoverageToInclude(int cov, Contour::EOperationType type) const;
     size_t FindRayGroupEnd(size_t from, int &coverage, size_t abort_at1, size_t abort_at2) const;
     bool GoToCoverage(size_t &from, size_t &to, int &cov_now, Contour::EOperationType type, bool start, size_t abort_at) const;
-    int  CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh) const;
-    int  CalcCoverageHelper(const XY &xy) const;
+    int  CalcCoverageHelper(const XY &xy, size_t cp_head, const ContourWithHoles *cwh) const;
     int  CalcCoverageHelper(size_t cp_head) const;
     int  CalcCoverageHelper(const SimpleContour *sc) const;
     size_t ClosestNextCP(size_t from, size_t to) const;
@@ -1162,51 +1161,65 @@ bool ContoursHelper::GoToCoverage(size_t &from, size_t &to, int &cov_now, Contou
     return start == IsCoverageToInclude(cov_now, type);
 }
 
-/** Calculates the coverage of a ContourWithHoles close to a cp in the <0, -inf> direction assuming an untangle operation.
+/** Calculates the coverage of a ContourWithHoles close to a point in the <0, -inf> direction assuming an untangle operation.
  *
  * Holes are considered just like the outline.
- * @param [in] xy The coordinates of the cp.
+ * @param [in] xy The coordinates of the point
+ * @param [in] cp_head If the point is a cp in 'Rays' the head ray for the crosspoint. 
+ *                     Else link_info::no_link.
  * @param [in] cwh The shape for which coverage is calculated.
  * @returns The coverage just a bit right-up from the cp, just before a hypothetical ray with RayAngle of <0,-inf>.*/
-int ContoursHelper::CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh) const
+int ContoursHelper::CalcCoverageHelper(const XY &xy, size_t cp_head, const ContourWithHoles *cwh) const
 {
-            //For each edge, we see if it crosses the (xy.x, xy.y)->(inf, xy.y) line
-            //if it crosses clockwise: +1 cov
-            //if it crosses cclockwise: -1 cov
-            //if it is an ellipse that crosses twice and not in xy:
-            //    change cov according to cps that ar strictly left of xy
-            //if it is an ellipse that touches the line: no change in cov
-            //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
+    _ASSERT(cp_head == link_info::no_link || Rays[cp_head].xy == xy);
+    //For each edge, we see if it crosses the (xy.x, xy.y)->(inf, xy.y) line
+    //if it crosses clockwise: +1 cov
+    //if it crosses cclockwise: -1 cov
+    //if it is an ellipse that crosses twice and not in xy:
+    //    change cov according to cps that ar strictly left of xy
+    //if it is an ellipse that touches the line: no change in cov
+    //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
+
+    //For beziers, we check if this particular edge is part of the crosspoint. 
+    //If so, we ignore it outright to save processing (and avoid problems from numerical 
+    //imprecision)
     int ret = 0;
     for (size_t e=0; e<cwh->outline.size();e++) {
+        if (cp_head != link_info::no_link && !cwh->outline[e].IsStraight()) {
+            //for beziers search the crosspoint if we are part of this cp
+            size_t u = cp_head; 
+            do {
+                if (Rays[u].contour == &cwh->outline) {
+                    //We ignore an edge if the cp is on it...
+                    //...or the cp is a vertex and the endpoint of the edge is it.
+                    if ((Rays[u].vertex == e) ||
+                        (Rays[u].vertex == cwh->outline.next(e) && Rays[u].pos==0)) {
+                        u = link_info::no_link;
+                        break;
+                    }
+                }
+                u = Rays[u].link_in_cp.next;
+            } while (u!=cp_head);
+            //if the cp is on 'e' we do nothing
+            if (u!=cp_head) 
+                continue;
+        }
         double x[3], pos[3];
-        bool fw[3];
+        int fw[3];
         Edge tmp(cwh->outline[e]);
         tmp.SwapXY();
         const int num = tmp.CrossingVertical(xy.y, x, pos, fw);
         //do nothing for -1 or 0 returns
         for (int f=0; f<num; f++)
             if (test_smaller(xy.x, x[f])) {
-                if (fw[f]) ret++;    //fw is inverse due to Edge::SwapXY above
-                else ret--;
+                if (fw[f]==+1) ret++;    //fw is inverse due to Edge::SwapXY above
+                else if (fw[f]==-1) ret--;
+                //do nothing for touchpoints
             }
     }
     //now consider the holes
     for (auto i = cwh->holes.begin(); i!=cwh->holes.end(); i++)
-        ret += CalcCoverageHelper(xy, &*i);
-    return ret;
-}
-
-/** Calculates the coverage close to a cp in the <0, -inf> direction assuming an untangle operation.
- *
- * Holes are considered just like the outline.
- * @param [in] xy The coordinates of the cp.
- * @returns The coverage just a bit right-up from the cp, just before a hypothetical ray with RayAngle of <0,-inf>.*/
-int ContoursHelper::CalcCoverageHelper(const XY &xy) const
-{
-    int ret = CalcCoverageHelper(xy, &C1->first);
-    for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
-        ret += CalcCoverageHelper(xy, &*i);
+        ret += CalcCoverageHelper(xy, cp_head, &*i);
     return ret;
 }
 
@@ -1217,13 +1230,13 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy) const
  * @returns The coverage just a bit right-up from the cp, just before a hypothetical ray with RayAngle of <0,-inf>.*/
 int ContoursHelper::CalcCoverageHelper(size_t cp_head) const
 {
-    int ret = CalcCoverageHelper(Rays[cp_head].xy, &C1->first);
+    int ret = CalcCoverageHelper(Rays[cp_head].xy, cp_head, &C1->first);
     for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
-        ret += CalcCoverageHelper(Rays[cp_head].xy, &*i);
+        ret += CalcCoverageHelper(Rays[cp_head].xy, cp_head, &*i);
     if (C2!=NULL) {
-        ret += CalcCoverageHelper(Rays[cp_head].xy, &C2->first);
+        ret += CalcCoverageHelper(Rays[cp_head].xy, cp_head, &C2->first);
         for (auto i = C2->further.begin(); i!=C2->further.end(); i++)
-            ret += CalcCoverageHelper(Rays[cp_head].xy, &*i);
+            ret += CalcCoverageHelper(Rays[cp_head].xy, cp_head, &*i);
     }
     //And now add coverage for curves with tangent of zero
     size_t ray_no = cp_head;
@@ -1249,7 +1262,7 @@ int ContoursHelper::CalcCoverageHelper(size_t cp_head) const
 int ContoursHelper::CalcCoverageHelper(const SimpleContour *sc) const
 {
     const XY &xy = sc->at(0).GetStart();
-    int ret =  CalcCoverageHelper(xy, &C1->first);
+    int ret =  CalcCoverageHelper(xy, link_info::no_link, &C1->first);
     const XY next = sc->NextTangentPoint(0, 0);
     const XY prev = sc->PrevTangentPoint(0, 0);
     const double a_next = angle(xy, XY(xy.x+100, xy.y), next);
@@ -1692,7 +1705,24 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                     if (wdata.size()==0) {
                         //cannot backtrace: give up
                         //_ASSERT(0);
-                        return SimpleContour();
+                        edges.emplace_back(ray.xy, edges[0].GetStart());
+                        endpoints.emplace_back(terminating_pos, 0);
+                        for (size_t i = 0; i<edges.size()-1; /*nope*/) {
+                            const size_t next = i+1;
+                            if (edges[i].GetStart() == edges[next].GetStart() && edges[i].IsStraight()) {
+                                //the next edge starts at the same location as the current one 
+                                //and the current edge is straight (no chance of a looping edge)
+                                //we shall delete the current edge.
+                                endpoints[next].first = endpoints[i].first; //save the end position of the previous edge
+                                edges.erase(edges.begin()+i);
+                                endpoints.erase(endpoints.begin()+i);
+                                continue;
+                            }
+                            //Set edge endpoint. The position is updated as described at the beginning of the function
+                            edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
+                            i++;
+                        }
+                        goto endend;
                     }
                     _ASSERT(ray_array.size()>=wdata.back().rays_size);
                     _ASSERT(edges.size()>=wdata.back().result_size);
@@ -1763,6 +1793,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
         edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
         i++;
     }
+endend:
     //Now try to combine edges to save on them.
     //since the last edge was deleted we try to combine with our previous one
     //we do not maintain endpoints any more

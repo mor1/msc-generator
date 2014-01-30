@@ -2159,7 +2159,8 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * @param [out] pos_other The pos values of the corresponding crosspoints on the other edge.
 * @returns The number of crosspoins found [0..4].
 */
-unsigned Edge::Crossing(const Edge &A, XY r[], double pos_my[], double pos_other[]) const
+unsigned Edge::Crossing(const Edge &A, XY r[Edge::MAX_CP], 
+                        double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
     //use int because we may substract one
     int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
@@ -2205,7 +2206,7 @@ unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool f
         if ((start.x >= x && end.x < x) ||      //we cross leftward
             (start.x < x && end.x >= x)) {      //we cross rightward
             //we cross p's line y
-            pos[0] = (x - start.x)/(end.x - start.x);
+            pos[0] = (x - start.x)/(end.x - start.x) * pos_mul + pos_offset;
             y[0] = (end.y - start.y)*pos[0]+ start.y;
             forward[0] = start.x < x; //we cross rightward
             return 1;
@@ -2238,30 +2239,136 @@ unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool f
 * 1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
 * 2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
 * In short: we include the endpoint with the larger x coordinate only.
+* There are some additional rules to the above. If a bezier curve touches the line at 'x'
+* we return the touchpoint as a crosspoint (marking it with 0 in 'forward').
+* Except if the touchpoint is at one end of the bezier - in this case we count it as
+* a crossing point and return either +1 or -1 in 'forward'.
 * @param [in] x The x coordinate of the vertical line.
 * @param [out] y The y coordinates of the crosspoints.
 * @param [out] pos The pos values for the respective crosspoints [0..1]
-* @param [out] forward True for a crosspoint if the line at x is crossed from left to right
-*              (so inside of contour is below y).
+* @param [out] forward +1 for a crosspoint if the line at x is crossed from left to right
+*              (so inside of contour is below y), -1 if the line crosses from right to left,
+*              and 0 if the (bezier curve) touches the line.
 * @returns The number of crosspoints, or -1 if edhe is a vertical line exacty on x.
 */
-int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
+int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3]) const
 {
-    if (straight && start.x == x && end.x == x) return -1; //vertical line
-    if (straight) return CrossingVerticalBezier(x, y, pos, forward, 1, 0);
+    if (straight) {
+        if ((start.x >= x && end.x < x) ||      //we cross leftward
+            (start.x < x && end.x >= x)) {      //we cross rightward
+            //we cross p's line y
+            pos[0] = (x - start.x)/(end.x - start.x);
+            y[0] = (end.y - start.y)*pos[0]+ start.y;
+            forward[0] = start.x < x ? +1 : -1; 
+            return 1;
+        }
+        if (start.x == x && end.x == x)
+            return -1; //vertical line
+        return 0;
+    }
 
+    unsigned ret = atX(x, pos);
+    if (ret==0)
+        goto end;
+    std::sort(pos, pos+ret);
+    for (unsigned i = 0; i<ret; i++) {
+        const double fw_x = NextTangentPoint(pos[i]).x;
+        if (test_equal(x, fw_x))
+            forward[i] = 0;
+        else
+            forward[i] = fsign(fw_x-x);
+        y[i] = Split(pos[i]).y;
+        _ASSERT(test_equal(Split(pos[i]).x, x));
+    }
+
+    //Below: Sanitize touching cps. 
+    //This is needed, since we say that a cp is toucing on potentially
+    //numerically unstable info
+    //We ignore touching cps at the endpoints of the arc for now, those will
+    //be converted to crossing cps later.
+
+    switch (ret) {
+    case 1:
+        //1. A single touchpoint at the middle is valid only if start
+        //and endpoints are on the same side of the vertical line
+        if (forward[0]==0 && pos[0]!=1 && pos[0]!=0)
+            if ((start.x < x) != (end.x < x))
+                forward[0] = start.x < x ? +1 : -1;
+        break;
+    case 3:
+        //2. A touchpoint (as middle cp) at the inside of the curve is valid only if 
+        //and the halfway points till the prev cp and next cp are on the same side 
+        //of the vertical line
+        if (forward[1]==0)
+            if ((Split((pos[0]+pos[1])/2).x < x) != (Split((pos[1]+pos[2])/2).x < x))
+                forward[1] = Split((pos[0]+pos[1])/2).x < x ? +1 : -1;
+        //fallthrough
+    case 2:
+        _ASSERT(forward[0] || forward[1]);
+        //3. A first touchpoint at the inside of the curve is valid only if startpoint
+        //and the halfway point till the next cp are on the same side of the vertical line
+        if (forward[0]==0 && pos[0]!=0)
+            if ((start.x < x) != (Split((pos[0]+pos[1])/2).x < x))
+                forward[0] = start.x < x ? +1 : -1;
+        //3. A last touchpoint at the inside of the curve is valid only if endpoint
+        //and the halfway point till the prev cp are on the same side of the vertical line
+        if (forward[ret-1]==0 && pos[ret-1]!=1)
+            if ((end.x < x) != (Split((pos[ret-2]+pos[ret-1])/2).x < x))
+                forward[ret-1] = end.x > x ? +1 : -1;
+    }
+
+    //Now convert touching cps if they occure at the endpoints
+    //Either ignore them if they are at the wrong endpoint or convert them to crossing
+    if (pos[ret-1]==1) 
+        switch(forward[ret-1]) {
+        case 0:  //If a touchpoint is at he end, we convert it to a crossing one
+            //determine if we arrive to the endpoint left or right
+            if (ret>=2)
+                forward[ret-1] = -forward[ret-2];
+            else
+                forward[ret-1] = start.x < x ? +1 : -1;
+            if (forward[ret-1]==1)
+                break;
+            //fallthrough if we set forward[ret-1] to -1
+        case -1:
+            //if the endpoint is right-to left, we ignore it
+            if (--ret==0)
+                goto end;
+    }
+    if (pos[0]==0)
+        switch (forward[0]) {
+        case 0: //If a touchpoint is at he start, we convert it to a crossing one
+            //determine if we depart from the startpoint left or right
+            if (ret>=2)
+                forward[0] = -forward[1];
+            else
+                forward[0] = end.x>x ? +1 : -1;
+            if (forward[0]==-1)
+                break;
+            //fallthrough for forward[0]==1
+        case 1:
+            //if the start point is left to right, we ignore it
+            if (--ret==0)
+                goto end;
+            for (unsigned u = 0; u<ret; u++) {
+                forward[u] = forward[u+1];
+                y[u] = y[u+1];
+                pos[u] = pos[u+1];
+            }
+    }
+
+end:
+    //the code below is just for error checking - remove when done.
     double loc_pos[3], loc_y[3];
     bool loc_fw[3];
-    double loc_pos2[3], loc_y2[3];
-    bool loc_fw2[3];
     unsigned a = CrossingVerticalBezier(x, loc_y, loc_pos, loc_fw, 1, 0);
-    unsigned b = atX(x, loc_y2, loc_pos2, loc_fw2);
     std::sort(loc_pos, loc_pos+a);
-    std::sort(loc_pos2, loc_pos2+b);
-    _ASSERT(a==b && ((a==0) || (a==1 && 0.001>fabs(loc_y[0] - loc_y2[0])) || 
-        (a==2 && 0.001>fabs(loc_y[0] - loc_y2[0]) && 0.001>fabs(loc_y[1] - loc_y2[1])) ||
-        (a==3 && 0.001>fabs(loc_y[0] - loc_y2[0]) && 0.001>fabs(loc_y[1] - loc_y2[1]) && 0.001>fabs(loc_y[2] - loc_y2[2]))));
-    return atX(x, y, pos, forward);
+    if (!test_equal(x, start.x) && !test_equal(x, end.x))
+        _ASSERT(a==ret && ((a==0) || (a==1 && 0.01>fabs(loc_pos[0] - pos[0])) ||
+            (a==2 && 0.01>fabs(loc_pos[0] - pos[0]) && 0.01>fabs(loc_pos[1] - pos[1])) ||
+            (a==3 && 0.01>fabs(loc_pos[0] - pos[0]) && 0.01>fabs(loc_pos[1] - pos[1]) && 0.01>fabs(loc_pos[2] - pos[2]))));
+
+    return ret;
 }
 
 
@@ -2452,7 +2559,7 @@ unsigned solve_degree3(double afCoeff[4], double afRoot[3])
 
     double fDiscr = 0.25*fB*fB + (1./27.)*fA*fA*fA;
     const double fHalfB = 0.5*fB;
-    if (test_zero(fDiscr)) {    //3 real roots, but at least two are equal
+    if (fabs(fDiscr)<1e-10) {    //3 real roots, but at least two are equal
         double fTemp;
         if (fHalfB >= 0.)
             fTemp = -pow(fHalfB, double(1./3.));
@@ -3871,76 +3978,14 @@ unsigned Edge::atX(double x, double roots[3]) const
                        3*(start.x+c2.x)-6*c1.x, 
                        -start.x+3*(c1.x-c2.x)+end.x};
     unsigned ret = solve_degree3(coeff, roots);
-    for (unsigned i = 0; i<ret; i++) 
+    for (unsigned i = 0; i<ret; /*nope*/) 
         if (!between01_adjust(roots[i])) {
             for (unsigned k=i+1; k<ret; k++)
                 roots[k-1] = roots[k];
             ret--;
-        }
-    return ret;
-}
-
-/** Return a series of parameter values where the x coordinate of the curve is 'x'.
-* We do not return touchpoints.
-* Also returns true for each a crosspoint in 'forward' if the line at x is crossed 
-* from left to right (so inside of contour is below y).
-* Certain rules apply to the case when the vertical line crosses one of the ends of the edge.
-* 1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
-* 2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
-* In short: we include the endpoint with the larger x coordinate only.
-*/
-unsigned Edge::atX(double x, double y[3], double pos[3], bool forward[3]) const
-{
-    _ASSERT(!straight);
-    //A==start, B==c1, C==c2, D==end
-    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
-
-    double coeff[4] = {start.x-x,
-        3*(c1.x-start.x),
-        3*(start.x+c2.x)-6*c1.x,
-        -start.x+3*(c1.x-c2.x)+end.x};
-    unsigned ret = solve_degree3(coeff, pos);
-    //Here y[] contains parameter values, not y coordinates (yet)
-    for (unsigned i = 0; i<ret; /*nope*/)
-        if (!between01_adjust(pos[i])) {
-            for (unsigned k = i+1; k<ret; k++)
-                pos[k-1] = pos[k];
-            ret--;
-        } else i++;
-    //Eliminate two cps very close - likely a touchpoint
-    if (ret==3) {
-        if (test_equal(pos[2], pos[1]))
-            ret = 1;
-        else if (test_equal(pos[2], pos[0])) {
-            ret = 1;
-            pos[0] = pos[1];
-        } else if (test_equal(pos[1], pos[0]))
-            ret = 0;
-    } else if (ret == 2 && (test_equal(pos[1], pos[0])))
-        ret = 0;
-    // El
-    for (unsigned i = 0; i<ret; /*nope*/) {
-        const double fw_x = NextTangentPoint(pos[i]).x;
-        if (fw_x == x) {
-            if (pos[i]==0 || pos[i]==1) {
-                if (ret)
-            }
-        }
-        forward[i] = fw_x > x; //cross leftward
-        //kill if touchpoint (not at the end) or needs to be ignored at endpoints
-        if ((fw_x == x && pos[i]<1 && pos[i]>0) || 
-            (pos[i]==0 && forward[i]) || 
-            (pos[i]==1 &&!forward[i])) { 
-            for (unsigned k = i+1; k<ret; k++)
-                pos[k-1] = pos[k];
-            ret--;
-        } else {
-            y[i] = Split(pos[i]).y;
+        } else
             i++;
-        }
-    }
     return ret;
 }
-
 
 } //namespace contour 
