@@ -2057,6 +2057,92 @@ bool Edge::HullOverlap(const Edge &o) const
     return false;
 }
 
+
+/** Determines which side of a line four points are.
+ * Returns +1 or -1 if all points are on one or the other side.
+ * Returns 0 if some points are on one and others on the other side;
+ * or if any point is exactly on the line.*/
+int Edge::WhichSide(const XY &A, const XY &B) const
+{
+    //http://www.geometrictools.com/LibMathematics/Intersection/Intersection.html
+    // Vertices are projected to the form A+t*B.  Return value is +1 if all
+    // t > 0, -1 if all t < 0, 0 otherwise, in which case the line splits the
+    // curve's hull or straight segment we are.
+
+    const unsigned num = straight ? 2 : 4;
+    const XY Perp = (A-B).Rotate90CW();
+    unsigned positive = 0, negative = 0;
+    for (unsigned i = 0; i < num; ++i) {
+        const double t = Perp.DotProduct((&start)[i] - A);
+        if (t > 0) ++positive;
+        else if (t < 0) ++negative;
+        if (positive > 0 && negative > 0) return 0;
+    }
+    return positive==num ? +1 : negative==num ? -1 : 0;
+}
+
+/**Determines if the convex hull represented by the four points overlap with us */
+bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const
+{
+    int one, total;
+    total = WhichSide(A, B);
+    if (total==0) return true;
+    total += one = WhichSide(B, C);
+    if (one==0) return true;
+    total += one = WhichSide(C, D);
+    if (one==0) return true;
+    total += one = WhichSide(D, A);
+    if (one==0) return true;
+    //it still may be that 'o' is completely iside 'this'
+    if (total==-4) return true;
+    return false;
+}
+
+bool Edge::HullOverlap2(const Edge &o) const
+{
+    //Assume at least one is curvy
+    _ASSERT(!straight || !o.straight);
+    if (straight) return o.HullOverlap2(*this);
+    //Now we are curvy, o may or may not be.
+    //First check if a bounding box signals no crossing
+    if (o.straight) {
+        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
+            Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
+            return false;
+        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
+            Range(std::min(o.start.y, o.end.y), std::max(o.start.y, o.end.y))))
+            return false;
+    } else {
+        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
+            Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
+            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x)))))
+            return false;
+        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
+            Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
+            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y)))))
+            return false;
+    }
+    //Determine our convex hull by checking which diagonals cross
+    double t, s;
+    if (Cross(start, c2, end, c1, t, s))
+        //diagonals are start->c2 and end->c1
+        //hull is start->c1->c2->end
+        return o.OverlapConvexHull(start, c1, c2, end);
+    if (Cross(start, c1, end, c2, t, s))
+        //diagonals are start->c1 and end->c2
+        //hull is start->end->c1->c2
+        return o.OverlapConvexHull(start, end, c1, c2);
+    _ASSERT(Cross(start, end, c1, c2, t, s));
+    //diagonals are start->end and c1->c2
+    //hull is start->c2->end->c1
+    return o.OverlapConvexHull(start, c2, end, c1);
+}
+
+
 /** Returns 16*flatness^2 */
 double Edge::Flatness() const
 {
@@ -2094,7 +2180,10 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return second_exists ? 2 : 1;
         }
     }
-    if (!HullOverlap(A)) return 0;
+    const bool one = HullOverlap(A);
+    const bool  two = HullOverlap2(A);
+   // _ASSERT(one==two || A.straight || straight);
+    if (!two) return 0;
     Edge M1, M2, A1, A2;
     Split(M1, M2);
     pos_my_mul /= 2;
