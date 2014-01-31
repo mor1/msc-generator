@@ -1063,11 +1063,6 @@ void contour_test(void)
     generate_forms();
     using namespace generated_forms;
 
-    Contour bb = part.CreateExpand(32, EXPAND_ROUND, EXPAND_ROUND);
-
-    DrawExpand(136, EXPAND_ROUND, CONTOUR_INFINITY, part, 2, "part with round");
-
-
     contour_test_basic();
     contour_test_expand();
     contour_test_assign(111);

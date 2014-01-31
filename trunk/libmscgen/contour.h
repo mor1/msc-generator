@@ -53,6 +53,8 @@ class ContourList : protected std::list<ContourWithHoles>
     friend class ContourWithHoles;
     friend class Contour;
     friend class ContoursHelper;
+    friend void contour_test(void);
+
     Block boundingBox; ///< Bounding box containing all of the ContourWithHole shapes.
 
     ContourList() {boundingBox.MakeInvalid();}
@@ -129,6 +131,8 @@ class ContourWithHoles
     friend class ContourList;
     friend class Contour;
     friend class ContoursHelper;
+    friend void contour_test(void);
+
 protected:
     SimpleContour outline; ///<The outer shape
     ContourList   holes;   ///<The list of holes in it - inside `outline`

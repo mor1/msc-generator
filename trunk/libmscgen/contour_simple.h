@@ -171,13 +171,6 @@ void DoubleMap<element>::Prune()
 }
 
 
-class Contour;
-class ContourWithHoles;
-class ContourList;
-class ContoursHelper;
-struct node;
-
-
 /** Contains a single, contigous 2D shape with no holes. Essentially a list of edges.
  * @ingroup contour_internal
  *
@@ -192,6 +185,12 @@ struct node;
 class SimpleContour
 {
     friend class Contour;
+    friend class ContourWithHoles;
+    friend class ContourList;
+    friend class ContoursHelper; //For walk related memebers
+    friend struct node;
+    friend void contour_test(void);
+
     struct ExpandMetaData
     {
         Edge                edge;
@@ -224,7 +223,6 @@ private:
 
     const Block &CalculateBoundingBox() const;
 
-    friend class ContoursHelper; //For walk related memebers
     double CalculateArea() const;                
     void CalculateClockwise() const { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } }
     void AppendDuringWalk(const Edge &, const XY *prev_xy);
@@ -253,9 +251,6 @@ private:
                         unsigned original_last, unsigned next, unsigned my_index,
                         int last_type, int stype) const;
 protected:
-    friend class ContourWithHoles;
-    friend class ContourList;
-    friend struct node;
     SimpleContour() : clockwise_fresh(true), area_fresh(true), boundingBox_fresh(true), clockwise(true), area(0), boundingBox(true) {}  ///<Create an empty shape with no edges.
     SimpleContour(SimpleContour &&p) {swap(p);}  ///<Move content of another shape. The other shape gets undefined.
     SimpleContour(const SimpleContour &p) : edges(p.edges), boundingBox(p.boundingBox), clockwise(p.clockwise), area(p.area), clockwise_fresh(p.clockwise_fresh), area_fresh(p.area_fresh), boundingBox_fresh(p.boundingBox_fresh) {} ///<Create a copy of another shape

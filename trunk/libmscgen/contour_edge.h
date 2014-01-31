@@ -221,6 +221,7 @@ inline XY Mid(const XY &A, const XY &B, double t)
 
 class Edge
 {
+    friend void contour_test(void);
 public:
     /** Describes, how two expanded edges can relate to each other.
     */
@@ -353,6 +354,8 @@ public:
     const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
 
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
+    int WhichSide(const XY &A, const XY &B) const;
+    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
 
 protected:
     bool IsStraight() const { return straight; }
@@ -372,6 +375,7 @@ protected:
     bool Chop(double t, double s);
     double Flatness() const;
     bool HullOverlap(const Edge &) const;
+    bool HullOverlap2(const Edge &) const;
 
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
