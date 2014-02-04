@@ -23,12 +23,12 @@
 //We do not compile csh, so define the below macro as a no-op
 #define CHAR_IF_CSH(A) A
 #include "msc.h" //required by language.h to define YYSTYPE
+#define YYMSC_RESULT_TYPE Msc
+#define RESULT msc
 #include "language.h"
 //parse_tools.h requires YYLTYPE, this is why we must include language.h
 //plus YYSTYPE is also required by language2.h
 #include "parse_tools.h"
-#define YYMSC_RESULT_TYPE Msc
-#define RESULT msc
 #include "language_misc.h"
 #include "language2.h"
 #include "attribute.h"  //for case insensitive compares

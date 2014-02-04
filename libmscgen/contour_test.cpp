@@ -43,7 +43,7 @@ public:
     cairo_t *cr;
     CairoContext(unsigned i, const Block &place, const char *text=NULL, bool two=true, int sub=-1);
     ~CairoContext();
-    void Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, double center = 5, bool vertices=false);
+    void Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, double center = 5, int vertices = 0, const std::map<size_t, XY> &cps = std::map<size_t, XY>());
     void Draw1(const Contour& area, bool other=false) {Draw(area, false, other?1:0, other?0:1, 0, true);}
     void Draw2(const Contour& area) {Draw(area, true, 0,0,1, true);}
 };
@@ -51,7 +51,7 @@ public:
 CairoContext::CairoContext(unsigned i, const Block &pl, const char *text, bool two, int sub) : x(two?pl.x.Spans()+10:0)
 {
     const double expand_by = 20;
-    const double size_by = 3;
+    const double size_by = 8;
     Block place(pl);
     place.Expand(expand_by);
     static char fileName[40];
@@ -109,7 +109,8 @@ CairoContext::~CairoContext()
         fclose(outFile);
 };
 
-void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, double center, bool vertices)
+void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, 
+                        double center, int vertices, const std::map<size_t, XY> &cps)
 {
     if (!cr) return;
     if (shifted)
@@ -125,6 +126,7 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
         cairo_arc(cr, c.x, c.y, center, 0, 2*M_PI);
         cairo_fill(cr);
     }
+    cairo_set_font_size(cr, 1);
     if (vertices) {
         for (unsigned u = 0; u<area[0].size(); u++) {
             cairo_new_sub_path(cr);
@@ -132,6 +134,26 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
             cairo_close_path(cr);
         }
         cairo_stroke(cr);
+        cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+        if (vertices==2) {
+            cairo_set_font_size(cr, 1);
+            for (unsigned u = 0; u<area[0].size(); u++) {
+                cairo_move_to(cr, area[0][u].GetStart().x+1, area[0][u].GetStart().y-1);
+                char buff[100];
+                sprintf(buff, "%u: %lg; %lg", u, area[0][u].GetStart().x, area[0][u].GetStart().y);
+                cairo_show_text(cr, buff);
+            }
+        }
+        for (auto &e: cps) {
+            cairo_new_sub_path(cr);
+            cairo_arc(cr, e.second.x, e.second.y, 1, 0, 2*M_PI);
+            cairo_close_path(cr);
+            cairo_stroke(cr);
+            cairo_move_to(cr, e.second.x+1, e.second.y+1);
+            char buff[100];
+            sprintf(buff, "(%u): %lg; %lg", e.first, e.second.x, e.second.y);
+            cairo_show_text(cr, buff);
+        }
     }
     if (shifted)
         cairo_translate(cr, -x, 0);
@@ -191,12 +213,12 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, u
             char buff[4000];
             sprintf(buff, "Inner expanded by %g %s", gap, text ? text : "");
             CairoContext context2(i, area1.GetBoundingBox().CreateExpand(40), buff, false, int(num2));
-            context2.Draw(area1.CreateExpand(gap+step, et, et, limit, limit), false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true);
-            context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, r[num2%2], g[num2%2], b[num2%2], true);
+            context2.Draw(area1.CreateExpand(gap+step, et, et, limit, limit), false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true, 0);
+            context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, r[num2%2], g[num2%2], b[num2%2], true, 0);
             if (method==2) {
                 expand_debug = 1;
                 cairo_set_line_width(context2.cr, 0.5);
-                context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, 0, 0, 0, false, 5, true);
+                context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, 0, 0, 0, false, 0, 2, expand_debug_cps);
                 expand_debug = 0;
                 cairo_set_line_width(context2.cr, 2);
             }
@@ -1062,6 +1084,11 @@ void contour_test(void)
 {
     generate_forms();
     using namespace generated_forms;
+
+    Contour cc;
+    cooomplex2[0].outline.Expand(EXPAND_ROUND, -16, cc, CONTOUR_INFINITY);
+
+    DrawExpand(153, EXPAND_MITER, CONTOUR_INFINITY, cooomplex2[0], 2, "rounded complex3 with miter");
 
     contour_test_basic();
     contour_test_expand();

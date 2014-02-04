@@ -238,84 +238,84 @@ public:
          * for clarification you can see the whole shape to the right in small. The edges in question
          * are in dots there.
          * @verbatim
-            ..<.....+
-                |   :
-            -<--o---:         +-------+
-                |   :         |       |
-                |   :         +...+   |
-                |   :             :   |
-                |   :             +---+
-           @endverbatim */
-        CP_REAL,
-        /** They do not have a crosspoint, but if we extend both of them, they have.
-         *
-         * Note that "extension" for means continuation in a straight line along the tangent.
-         *
-         * Below see two edges with dots, the expanded edges with solid lines and their extension
-         * also using dots. The `o` marks the crosspoint of the extensions.
-         * @verbatim
-            -->--...o
-                    :
-            .>..+   :
-                :   |
-                :   |
-                :   |
-                :   |
-           @endverbatim */
-        CP_EXTENDED,
-        /** They are parallel and hence have no crosspoints.
-         *
-         * In this case there is no crosspoint neither if extended nor if linearly extrapolated.
-         * The best example is below: a straight edge meets a half-circle.
-         * (The straight edge being a tangent of the half circle.)
-         * In this case linear extension of the half circle is still parallel to the
-         * straight edge, while normal extension (not shown) actually diverges.
-         * No potential crosspoint can be identified here, so what we return is a
-         * point in between the two edges, currently 5 times further than the distance
-         * between the two `x`s. See `o` below.
-         * `x` shows the end of the expanded edges and solid lines show linear
-         * extensions.
-         * @verbatim
-            ----->-x------------------
+         ..<.....+
+         |   :
+         -<--o---:         +-------+
+         |   :         |       |
+         |   :         +...+   |
+         |   :             :   |
+         |   :             +---+
+         @endverbatim */
+         CP_REAL,
+         /** They do not have a crosspoint, but if we extend both of them, they have.
+          *
+          * Note that "extension" for means continuation in a straight line along the tangent.
+          *
+          * Below see two edges with dots, the expanded edges with solid lines and their extension
+          * also using dots. The `o` marks the crosspoint of the extensions.
+          * @verbatim
+          -->--...o
+          :
+          .>..+   :
+          :   |
+          :   |
+          :   |
+          :   |
+          @endverbatim */
+          CP_EXTENDED,
+          /** They are parallel and hence have no crosspoints.
+           *
+           * In this case there is no crosspoint neither if extended nor if linearly extrapolated.
+           * The best example is below: a straight edge meets a half-circle.
+           * (The straight edge being a tangent of the half circle.)
+           * In this case linear extension of the half circle is still parallel to the
+           * straight edge, while normal extension (not shown) actually diverges.
+           * No potential crosspoint can be identified here, so what we return is a
+           * point in between the two edges, currently 5 times further than the distance
+           * between the two `x`s. See `o` below.
+           * `x` shows the end of the expanded edges and solid lines show linear
+           * extensions.
+           * @verbatim
+           ----->-x------------------
 
-             ..>...+                              o
-                  :
-                 :      -x----------------
-                :      /
-                :      |
+           ..>...+                              o
+           :
+           :      -x----------------
+           :      /
+           :      |
            @endverbatim */
-        NO_CP_PARALLEL,
-        /** The two edges fo not meet, but their extension do - but at the opposite end
-         * This may usually happen either at expanding a concave vertex or shrinking a convex one.
-         * 
-         * On the figure below we see 4 edges (with dashes and pipe symbols, vertices
-         * use + signs). We shrink considerably. The shrinked version of edges 1 and 2
-         * do not cross and only their extension do. However, this extended cp (marked
-         * with an X) is beyond the wrong (bottom) end of edge 2. Originally the cp 
-         * between edges 1 and 2 was at the top end of edge 2, but after expansion it 
-         * got to the other end - this makes the expanded edge of 2 sort of 
-         * unnecessary to construct the expanded (shrunken) contour. So we mark this
-         * case separately.
-         *
-         * @verbatim
-           -->-1---------+
-                  :      |2
-                  :      |
-                  :      +->---------3----+
-                                  :       |
-           .......X......         :       V
-                                  :       |
-                        ..........:.......|
-                                  :       4
-                                  :       |
-                                
-           @endverbatim */
-        CP_INVERSE
-        };
+           NO_CP_PARALLEL,
+           /** The two edges fo not meet, but their extension do - but at the opposite end
+            * This may usually happen either at expanding a concave vertex or shrinking a convex one.
+            *
+            * On the figure below we see 4 edges (with dashes and pipe symbols, vertices
+            * use + signs). We shrink considerably. The shrinked version of edges 1 and 2
+            * do not cross and only their extension do. However, this extended cp (marked
+            * with an X) is beyond the wrong (bottom) end of edge 2. Originally the cp
+            * between edges 1 and 2 was at the top end of edge 2, but after expansion it
+            * got to the other end - this makes the expanded edge of 2 sort of
+            * unnecessary to construct the expanded (shrunken) contour. So we mark this
+            * case separately.
+            *
+            * @verbatim
+            -->-1---------+
+            :      |2
+            :      |
+            :      +->---------3----+
+            :       |
+            .......X......         :       V
+            :       |
+            ..........:.......|
+            :       4
+            :       |
+
+            @endverbatim */
+            CP_INVERSE
+    };
     ///<True if two expanded edges or their extrension has crosspoints.
     static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==TRIVIAL; }
 
-    enum {MAX_CP=9};
+    enum { MAX_CP = 9 };
 
 protected:
     friend class SimpleContour;
@@ -337,9 +337,9 @@ protected:
     XY c1;
     XY c2;
 public:
-    Edge(const XY &A, const XY &B, bool v=true)
+    Edge(const XY &A, const XY &B, bool v = true)
         :straight(true), visible(v), start(A), end(B) {}
-    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v=true)
+    Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v = true)
         :straight(false), visible(v), start(A), end(B), c1(C), c2(D) {}
     Edge() = default;
     Edge(const Edge &) = default;
@@ -356,6 +356,7 @@ public:
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
     int WhichSide(const XY &A, const XY &B) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
+    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
 
 protected:
     bool IsStraight() const { return straight; }
@@ -376,13 +377,14 @@ protected:
     double Flatness() const;
     bool HullOverlap(const Edge &) const;
     bool HullOverlap2(const Edge &) const;
+    bool HullOverlap3(const Edge &) const;
 
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
-                            double pos_my_mul, double pos_other_mul,
-                            double pos_my_offset, double pos_other_offset) const;
+        double pos_my_mul, double pos_other_mul,
+        double pos_my_offset, double pos_other_offset) const;
     unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
-                                    double pos_mul, double pos_offset) const;
+        double pos_mul, double pos_offset) const;
     double HullDistance(const XY &A, const XY &B) const;
     double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
 
@@ -391,6 +393,8 @@ protected:
     unsigned SolveForDistance2(const XY &p, double[5]) const;
 
     double FindBezierParam(const XY &p) const;
+
+    Block GetBezierHullBlock() const;
 
     Edge& SetStart(const XY &p, double pos);
     Edge& SetEnd(const XY &p, double pos);
@@ -421,10 +425,11 @@ public:
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
     XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(Mid(c1, c2, pos), Mid(c2, end, pos), pos) : 2*end-c2; }
 
-    bool CheckAndCombine(const Edge &next, double *pos=NULL); 
+    bool CheckAndCombine(const Edge &next, double *pos = NULL);
 
     unsigned Crossing(const Edge &A, XY r[Edge::MAX_CP], double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const;
     int CrossingVertical(double x, double y[3], double pos[3], int cross_dir[3]) const;
+    int CrossingHorizontalCPEvaluate(const XY &xy, bool self) const;
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
 
@@ -449,12 +454,13 @@ public:
     void   PathTo(cairo_t *cr) const { if (straight) cairo_line_to(cr, end.x, end.y); else cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y); } ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse = false) const;
 
-    static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y=0, 
-                                double tilt_deg=0, double s_deg=0, double d_deg=0, bool clockwise=true);
+    static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y = 0,
+        double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
     template<class Container>
     void CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
 
     unsigned atX(double x, double roots[3]) const;
+    unsigned atY(double y, double roots[3]) const;
 };
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
@@ -588,6 +594,16 @@ void Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *orig
     if (original)
         original->push_back(*this);
 }
+
+inline Block Edge::GetBezierHullBlock() const
+{
+    _ASSERT(!straight);
+    return Block(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+                 std::max(std::max(start.x, end.x), std::max(c1.x, c2.x)),
+                 std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+                 std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))); 
+}
+
 
 } //namespace contour bezier
 

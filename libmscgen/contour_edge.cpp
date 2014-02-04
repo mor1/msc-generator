@@ -1912,7 +1912,7 @@ int Cross(const XY &A1, const XY &A2, const XY &B1, const XY &B2, double &t, dou
         return ((t<0 && s<0) || (t>1 && s>1)) ? 0 : 2;
     }
     s = ((B1.x-A1.x)*(A2.y-A1.y) - (B1.y-A1.y)*(A2.x-A1.x)) / denom;
-    if (s<0 || s>1) return false;
+    if (s<0 || s>1) return 0;
     t = fabs(A2.x-A1.x) > fabs(A2.y-A1.y) ? 
             (s*(B2.x-B1.x) + B1.x-A1.x)/(A2.x-A1.x) : 
             (s*(B2.y-B1.y) + B1.y-A1.y)/(A2.y-A1.y);
@@ -2093,10 +2093,29 @@ bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) con
     if (one==0) return true;
     total += one = WhichSide(D, A);
     if (one==0) return true;
-    //it still may be that 'o' is completely iside 'this'
+    //it still may be that 'o' is completely iside 'ABCD'
+    //XXX ToDo: Check for clockwiseness of ABCD
     if (total==-4) return true;
     return false;
 }
+
+/**Determines if the triangle represented by the three points overlap with us */
+bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C) const
+{
+    int one, total;
+    total = WhichSide(A, B);
+    if (total==0) return true;
+    total += one = WhichSide(B, C);
+    if (one==0) return true;
+    total += one = WhichSide(C, A);
+    if (one==0) return true;
+    //it still may be that 'o' is completely iside 'ABC'
+    //XXX ToDo: Check for clockwiseness of ABC
+    if (total==-3) return true;
+    return false;
+}
+
+
 
 bool Edge::HullOverlap2(const Edge &o) const
 {
@@ -2136,12 +2155,79 @@ bool Edge::HullOverlap2(const Edge &o) const
         //diagonals are start->c1 and end->c2
         //hull is start->end->c1->c2
         return o.OverlapConvexHull(start, end, c1, c2);
-    _ASSERT(Cross(start, end, c1, c2, t, s));
-    //diagonals are start->end and c1->c2
-    //hull is start->c2->end->c1
-    return o.OverlapConvexHull(start, c2, end, c1);
+    if (Cross(start, end, c1, c2, t, s))
+        //diagonals are start->end and c1->c2
+        //hull is start->c2->end->c1
+        return o.OverlapConvexHull(start, c2, end, c1);
+    //OK, the hull is a triangle, with one of the points inside it
+
+    //Ok, now test how start->end crosses c1->c2
+    const double denom = ((c2.y-c1.y)*(end.x-start.x) - (c2.x-c1.x)*(end.y-start.y));
+    _ASSERT(!test_zero(denom)); //they should not be are parallel 
+    s = ((c1.x-start.x)*(end.y-start.y) - (c1.y-start.y)*(end.x-start.x)) / denom;
+    t = fabs(end.x-start.x) > fabs(end.y-start.y) ?
+        (s*(c2.x-c1.x) + c1.x-start.x)/(end.x-start.x) :
+        (s*(c2.y-c1.y) + c1.y-start.y)/(end.y-start.y);
+    if (s>=0 && s<=1) {
+        //OK, start->end crosses c1->c2 somewhere inside c1->c2
+        _ASSERT(t<0 || t>1);
+        if (t<0)
+            //the point inside is "start"
+            return o.OverlapConvexHull(end, c1, c2);
+        else
+            //the point inside is "end"
+            return o.OverlapConvexHull(start, c1, c2);
+    } else {
+        //OK, start->end is crossed by c1->c2 somewhere inside start->end 
+        //(or else they just cross outside both sections and one of the Cross() calls 
+        //above should have fired)
+        _ASSERT(s<0 || s>1);
+        _ASSERT(t<=0 || t<=1);
+        if (s<0)
+            //the point inside is "c1"
+            return o.OverlapConvexHull(end, start, c2);
+        else
+            //the point inside is "c2"
+            return o.OverlapConvexHull(start, c1, end);
+    }
 }
 
+bool Edge::HullOverlap3(const Edge &o) const
+{
+    //Assume at least one is curvy
+    _ASSERT(!straight || !o.straight);
+    if (straight) {
+        if (!Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
+            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y))).Overlaps(
+            Range(std::min(start.y, end.y), std::max(start.y, end.y))))
+            return false;
+        if (!Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
+            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x))).Overlaps(
+            Range(std::min(start.x, end.x), std::max(start.x, end.x))))
+            return false;
+    } else if (o.straight) {
+        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
+            Range(std::min(o.start.y, o.end.y), std::max(o.start.y, o.end.y))))
+            return false;
+        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
+            Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
+            return false;
+    } else {
+        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
+            Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
+            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y)))))
+            return false;
+        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
+            Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
+            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x)))))
+            return false;
+    }
+    return true;
+}
 
 /** Returns 16*flatness^2 */
 double Edge::Flatness() const
@@ -2180,10 +2266,11 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return second_exists ? 2 : 1;
         }
     }
-    const bool one = HullOverlap(A);
-    const bool  two = HullOverlap2(A);
+    //const bool one = HullOverlap(A);
+    //const bool  two = HullOverlap2(A);
    // _ASSERT(one==two || A.straight || straight);
-    if (!two) return 0;
+    //if (!two) return 0;
+    if (!HullOverlap3(A)) return 0;
     Edge M1, M2, A1, A2;
     Split(M1, M2);
     pos_my_mul /= 2;
@@ -2222,7 +2309,8 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
             if (pos)
                 *pos = (fabs(start.x-end.x)<fabs(start.y-end.y)) ? (next.start.y-start.y)/(next.end.y-start.y) : (next.start.x-start.x)/(next.end.x-start.x);
             //OK, next.end is on the start->end line. Test if next.start is also in-between start and end
-            _ASSERT(start.test_equal(next.start) || test_equal(a, angle(start, end, next.start)));
+            _ASSERT(start.test_equal(next.start) || test_equal(0, angle(start, end, next.start))
+                || test_equal(2, angle(start, end, next.start)));
             _ASSERT(between01(fabs(start.x-end.x)<fabs(start.y-end.y) ? fabs((next.start.y-start.y)/(end.y-start.y)) : fabs((next.start.x-start.x)/(end.x-start.x))));
             end = next.end;
             return true;
@@ -2460,6 +2548,121 @@ end:
     return ret;
 }
 
+/** Calculates how many times the edge crosses a vertical line right of a point.
+* If we cross the vertical line clockwise (up-to-down, y grows downward) that counts
+* as +1 crossing. If we cross it counterclockwise (down-to-up) that counts as -1.
+* Crosses at or left of the point (lower or equal x values) are ignored.
+* This is done for the purposes of ContoursHelper::CalcCoverageHelper().
+*
+* Certain rules apply to the case when the vertical line crosses one of the ends of the edge.
+* 1. an upward edge includes its starting endpoint, and excludes its final endpoint;
+* 2. a downward edge excludes its starting endpoint, and includes its final endpoint;
+* In short: we include the endpoint with the larger y coordinate only (y grows downwards).
+* Touchpoints (when the edge remains fully on one side of the line) are also ignored,
+* except if it is exactly at one end of the bezier. In that case (if it is right of 
+* 'x') we count it for the rules above.
+* We also ignore horizontal lines exactly on xy.y. (Return 0 for these.)
+* @param [in] xy The y coordinate specifies the vertical line. The x coordinate
+*                specifies the point (right of which we are interested in cps).
+* @param [in] self True, if we know that 'xy' lies on 'this'. In this case
+*                  a crossing in the vicinity of xy is considered to go through 
+*                  xy (and is therefore ignored).
+* @returns The (signed) number of crosspoints.
+*/
+int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
+{
+    if (straight) {
+        //If xy lies on us, we ignore the single crossing we may have.
+        if (self) return 0; 
+        //if the edge is fully above or below the line or left of the point, we return 0.
+        //We also return 0, if the endpoint with the smaller y coordinate is on the line
+        //(to implement rules #1 and #2 above).
+        if (std::min(start.y, end.y) >= xy.y || std::max(start.y, end.y) < xy.y ||
+            std::max(start.x, end.x) < xy.x)
+            return 0;
+        //return 0 for horizontal straight edges (now start.y==end.y must equal to xy.y)
+        if (start.y == end.y) return 0;
+        //test for start and endpoints
+        if (start == xy) return start.y > end.y ? -1 : 0;
+        if (end == xy) return start.y < end.y ? +1 : 0;
+        //test if we cross right of xy.x
+        if ((xy.y - start.y)/(end.y - start.y)*(end.x-start.x) + start.x <= xy.x)
+            return 0;
+        //Ok, we should not be ignored, return +1 or -1
+            return start.y < xy.y ? +1 : -1;
+    }
+    //Here we handle beziers
+    //Check if we are far off.
+    const Block b = GetBezierHullBlock();
+    if (b.y.from >= xy.y || b.y.till < xy.y || b.x.till < xy.x)
+        return 0;
+
+    double pos[3], x[3];
+    unsigned num = atY(xy.y, pos);
+    if (num==0)
+        return 0;
+    std::sort(pos, pos+num);
+    unsigned close = 0;
+    unsigned last = 0;
+    const double threshold = 0.2;
+    for (unsigned i = 0; i<num; i++) {
+        x[i] = Split(pos[i]).x;
+        //if the crosspoint is much to the left or right (by 'threshold' units) do not refine
+        if (x[i]+threshold < xy.x) continue;
+        if (x[i]-threshold > xy.x) continue;
+        //else refine
+        close++;
+        last = i;
+    }
+    //now close holds the number of cps close to xy
+    if (close>(self ? 1 : 0)) {
+        //refine the relevant cps
+        for (unsigned i = 0; i<num; i++) {
+            if (x[i]+threshold < xy.x) continue;
+            if (x[i]-threshold > xy.x) continue;
+            if (fabs(Split(pos[i]).y - xy.y)<0.00001) continue;
+            _ASSERT(0);
+        }
+    } else if (self && close==1) {
+        //if only one cp and we know it is on us, use exact value.
+        x[last] = xy.x;
+    }
+    int ret = 0;
+    for (unsigned i = 0; i<num; i++)
+        if (x[i]>xy.x) {
+            int dir;
+            const double fw_y = NextTangentPoint(pos[i]).y;
+            if (test_equal(xy.y, fw_y)) {
+                //a relevant crossing point, but the tangent is parallel to the horizontal line...
+                //XXX TODO: Check for Inflection point
+                //Else we assume it is a touchpoint - we can ignore if not at the endpoint
+                if (pos[i]!=0. && pos[i]!=1) continue;
+                //Get second derivative
+                const double ss0 = 6 - 6 * pos[i];
+                const double ss1 = -12 + 18 * pos[i];
+                const double ss2 = 6 - 18 * pos[i];
+                const double ss3 = 6 * pos[i];
+                const double d2y = start.y * ss0 + c1.y * ss1 + c2.y * ss2 + end.y * ss3;
+                _ASSERT(!test_zero(d2y));
+                //now if d2y is positive we curl upwards - this is the endpoint (start or end)
+                //with the smaller y coordinate - we ignore
+                if (d2y>0) continue;
+                //else if this is the startpoint we cross upwards (-1) else we cross downwards (+1)
+                if (pos[i]==0)
+                    ret--;
+                else
+                    ret++;
+                continue;
+            } else
+                dir = fsign(fw_y-xy.y);
+            //check correct behaviour for endings
+            if (pos[i]==0 && dir==+1) continue;
+            if (pos[i]==1 && dir==-1) continue;
+            ret += dir;
+        }
+
+    return ret;
+}
 
 
 /** Calculates the angle of the edge at point `p`.
@@ -4062,19 +4265,41 @@ unsigned Edge::atX(double x, double roots[3]) const
     //A==start, B==c1, C==c2, D==end
     //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
 
-    double coeff[4] = {start.x-x, 
-                       3*(c1.x-start.x), 
-                       3*(start.x+c2.x)-6*c1.x, 
-                       -start.x+3*(c1.x-c2.x)+end.x};
+    double coeff[4] = {start.x-x,
+        3*(c1.x-start.x),
+        3*(start.x+c2.x)-6*c1.x,
+        -start.x+3*(c1.x-c2.x)+end.x};
     unsigned ret = solve_degree3(coeff, roots);
-    for (unsigned i = 0; i<ret; /*nope*/) 
+    for (unsigned i = 0; i<ret; /*nope*/)
         if (!between01_adjust(roots[i])) {
-            for (unsigned k=i+1; k<ret; k++)
+            for (unsigned k = i+1; k<ret; k++)
                 roots[k-1] = roots[k];
             ret--;
         } else
             i++;
-    return ret;
+        return ret;
+}
+
+/** Return a series of parameter values where the x coordinate of the curve is 'x'*/
+unsigned Edge::atY(double y, double roots[3]) const
+{
+    _ASSERT(!straight);
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+
+    double coeff[4] = {start.y-y,
+        3*(c1.y-start.y),
+        3*(start.y+c2.y)-6*c1.y,
+        -start.y+3*(c1.y-c2.y)+end.y};
+    unsigned ret = solve_degree3(coeff, roots);
+    for (unsigned i = 0; i<ret; /*nope*/)
+        if (!between01_adjust(roots[i])) {
+            for (unsigned k = i+1; k<ret; k++)
+                roots[k-1] = roots[k];
+            ret--;
+        } else
+            i++;
+        return ret;
 }
 
 } //namespace contour 

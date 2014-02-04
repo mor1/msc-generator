@@ -63,6 +63,12 @@ FIXED: Better handling of parse errors
 CHANGED: Group undo actions
 FIXED: Smart ident - added TAB mode
 FIXED: CSH for large files. Do it offline. 
+CHANGED: To bezier lib.
+FIX: More precise CrossingVertical - refine result
+FIX: Looping edges
+FIX: Shrinking beziers.
+
+
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly

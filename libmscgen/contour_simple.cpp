@@ -33,6 +33,8 @@
 namespace contour {
 
 int expand_debug=false;
+std::map<size_t, XY> expand_debug_cps;
+
 
 ///////////////////////////// SimpleContour
 
