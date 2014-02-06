@@ -61,7 +61,7 @@ struct RayAngle {
      */
     double angle;
     /** The curvature of the angle.
-     *
+     * This is actually 1/radius.
      * 0 is used for straight edges, positive values if the edge curves toward
      * clockwise, larger positive values the smaller the turn radius is.
      */
@@ -247,9 +247,11 @@ public:
          |   :             +---+
          @endverbatim */
          CP_REAL,
-         /** They do not have a crosspoint, but if we extend both of them, they have.
+         /** They do not have a crosspoint, but if we extend them, they have
           *
-          * Note that "extension" for means continuation in a straight line along the tangent.
+          * Note that "extension" for a straight edge means its a continuation in a straight line,
+          * while for a curvy edge it is the continuation of the circle/ellipse.
+          * This is the most common case for expansion.
           *
           * Below see two edges with dots, the expanded edges with solid lines and their extension
           * also using dots. The `o` marks the crosspoint of the extensions.
@@ -308,7 +310,6 @@ public:
             ..........:.......|
             :       4
             :       |
-
             @endverbatim */
             CP_INVERSE
     };
@@ -352,16 +353,13 @@ public:
 
     const XY & GetStart() const { return start; } ///<Returns the startpoint.
     const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
+    bool IsStraight() const { return straight; }
+    bool IsDot() const { return start.test_equal(end) && (straight || (start.test_equal(c1) && end.test_equal(c2))); }
 
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
-    int WhichSide(const XY &A, const XY &B) const;
-    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
-    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
 
 protected:
-    bool IsStraight() const { return straight; }
-    XY Split(double t) const;
-    XY Split2(double t) const
+    XY Split(double t) const
     {
         return pow(1-t, 3) * start
             + 3 * pow(1-t, 2) * t * c1
@@ -375,16 +373,21 @@ protected:
     void Split(double t, Edge &r1, Edge &r2) const;
     bool Chop(double t, double s);
     double Flatness() const;
+    int WhichSide(const XY &A, const XY &B) const;
+    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
+    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
     bool HullOverlap(const Edge &) const;
     bool HullOverlap2(const Edge &) const;
     bool HullOverlap3(const Edge &) const;
 
+    bool AreCPsOnSameSide() const { _ASSERT(!straight); return fsign((start-end).Rotate90CW().DotProduct(c1)) == fsign((start-end).Rotate90CW().DotProduct(c2)); }
+
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
-        double pos_my_mul, double pos_other_mul,
-        double pos_my_offset, double pos_other_offset) const;
+                            double pos_my_mul, double pos_other_mul,
+                            double pos_my_offset, double pos_other_offset) const;
     unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
-        double pos_mul, double pos_offset) const;
+                                    double pos_mul, double pos_offset) const;
     double HullDistance(const XY &A, const XY &B) const;
     double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
 
@@ -428,6 +431,7 @@ public:
     bool CheckAndCombine(const Edge &next, double *pos = NULL);
 
     unsigned Crossing(const Edge &A, XY r[Edge::MAX_CP], double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const;
+    unsigned SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], double pos2[Edge::MAX_CP]) const;
     int CrossingVertical(double x, double y[3], double pos[3], int cross_dir[3]) const;
     int CrossingHorizontalCPEvaluate(const XY &xy, bool self) const;
     RayAngle Angle(bool incoming, double pos) const;
@@ -457,7 +461,9 @@ public:
     static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y = 0,
         double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
     template<class Container>
-    void CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
+    bool CreateExpand(double gap, Container &expanded, std::vector<Edge> *original = NULL) const;
+    template<class Container>
+    bool CreateExpandOneSegment(double gap, Container &expanded, std::vector<Edge> *original) const;
 
     unsigned atX(double x, double roots[3]) const;
     unsigned atY(double y, double roots[3]) const;
@@ -554,6 +560,7 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
     return *this;
 }
 
+unsigned solve_degree2(double afCoeff[3], double afRoot[2]);
 
 
 /** Expands the edge.
@@ -562,13 +569,15 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
 * edge to expand towards (or away from in case of a negative `gap`).
 * Destroys bounding box!
 * @param [in] gap The amount to expand (or shrink if <0)
-* @param [out] expanded Append the expanded edges to this
+* @param [out] expanded Append the expanded edges to this. The elements of this container
+*                       must have a constructor (XY,XY,XY,XY,bool) for beziers and one
+*                       (XY,XY,bool) for straight lines.
 * @param [out] original Append the original edge to this. If the expansion
 *                       requires to split the edge to several pieces append
 *                       the split chunks of the original here.
 */
 template<class Container>
-void Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *original) const
+bool Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *original) const
 {
     if (straight) {
         const double length = start.Distance(end);
@@ -576,8 +585,73 @@ void Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *orig
         expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
         if (original)
             original->push_back(*this);
-        return;
+        return true;
     }
+    //calculate X and Y extremes and inflection points
+    //we can have at most 2 of each. Plus 2 for the two endpoints
+    double t[8];
+    //Start with extremes. X first
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
+    //substitutes are        [2]    t^2 +     [1]    t +    [0]
+    double Ycoeff[3] = {3*(c1.y-start.y),
+                        6*(start.y-2*c1.y+c2.y),
+                        3*(-start.y+3*(c1.y-c2.y)+end.y)};
+    unsigned num = solve_degree2(Ycoeff, t+1);
+    double Xcoeff[3] = {3*(c1.x-start.x),
+                        6*(start.x-2*c1.x+c2.x),
+                        3*(-start.x+3*(c1.x-c2.x)+end.x)};
+    num += solve_degree2(Xcoeff, t+num+1);
+    //The inflection ponts are
+    const XY a = c1-start, b = c2-c1-a, c = end-c2-a-2*b;
+    double Icoeff[3] = {a.x*b.y - a.y*b.x,
+                        a.x*c.y - a.y*c.x,
+                        b.x*c.y - b.y*c.x};
+    num += solve_degree2(Icoeff, t+num+1);
+    //prune roots outside [0,1] range or close to 0 or one
+    for (unsigned k = num; k>0; k--)
+        if (t[k] < SMALL_NUM || t[k]>1-SMALL_NUM) {
+            for (unsigned kk = k; kk<num; kk++)
+                t[kk] = t[kk+1];
+            num--;
+        }
+    if (num==0) {
+        return CreateExpandOneSegment(gap, expanded, original);
+    } else {
+        std::sort(t+1, t+num);
+        t[0] = 0;
+        t[num] = 1;
+        bool ret = false;
+        for (unsigned k = 0; k<num; k++) {
+            Edge e(*this, t[k], t[k+1]);
+            ret |= e.CreateExpandOneSegment(gap, expanded, original);
+        }
+        return ret;
+    }
+}
+
+/* Create an expanded version of one bezier segment, which is "orderly"
+ * This is a helper for CreateExpand().
+ * Orderly means that 
+ * - no inflection points
+ * - no local x or y extremes (inside the bezier)
+ *
+ * The above means that 
+ * - both c1 and c2 are on same side of start->end line
+ * - start->c1->c2->end is clockwise
+ */
+template<class Container>
+bool Edge::CreateExpandOneSegment(double gap, Container &expanded, std::vector<Edge> *original) const
+{
+
+    //TODO: Shrink till it becomes flat - then shring further like a line
+    //Somehow we should preserve the tangents at the end - so that if this edge
+    //connects to its neighbour via CP_PARALLEL, the right join is added
+
+    //test assumptions
+    XY dummy;
+    _ASSERT(LINE_CROSSING_INSIDE == crossing_line_line(start, c2, end, c1, dummy));
     //Tiller-Hansson: expand the start,c1,c2,end polygon.
     const double l1 = start.Distance(c1);
     const double l2 = c1.Distance(c2);
@@ -585,14 +659,46 @@ void Edge::CreateExpand(double gap, Container &expanded, std::vector<Edge> *orig
     const XY wh1 = (c1-start).Rotate90CCW()/l1*gap;
     const XY wh2 = (c2-c1).Rotate90CCW()/l2*gap;
     const XY wh3 = (end-c2).Rotate90CCW()/l3*gap;
+    const XY new_start = start+wh1;
+    const XY new_end = end+wh3;
     XY new_c1, new_c2;
-    if (LINE_CROSSING_PARALLEL == crossing_line_line(start+wh1, c1+wh1, c1+wh2, c2+wh2, new_c1))
+    if (LINE_CROSSING_PARALLEL == crossing_line_line(new_start, c1+wh1, c1+wh2, c2+wh2, new_c1))
         _ASSERT(0);
-    if (LINE_CROSSING_PARALLEL == crossing_line_line(c1+wh2, c2+wh2, c2+wh3, end+wh3, new_c2))
+    if (LINE_CROSSING_PARALLEL == crossing_line_line(c1+wh2, c2+wh2, c2+wh3, new_end, new_c2))
         _ASSERT(0);
-    expanded.emplace_back(start+wh1, end+wh3, new_c1, new_c2, !!visible); //Visual Studio complains for bitfields in such templates
+    /* If c1 or c2 got to the other end of the (changed) start->end line, we return zero. */
+    const XY perp = (start-end).Rotate90CW();
+    const XY new_perp = (new_start-new_end).Rotate90CW();
+    if (fsign(perp.DotProduct(c1 - start)) != fsign(new_perp.DotProduct(new_c1 - new_start)) ||
+        fsign(perp.DotProduct(c2 - start)) != fsign(new_perp.DotProduct(new_c2 - new_start))) {
+        //Edge E1, E2;
+        //Split(E1, E2);
+        //E1.CreateExpandOneSegment(gap, expanded, original);
+        //E2.CreateExpandOneSegment(gap, expanded, original);
+        return false;
+    }
     if (original)
         original->push_back(*this);
+    /* If c1 and c2 switched order (start->c1 crosses end->c2), we crop them to the crosspoint.
+    *             1__2
+    *            /    \        You can see here the original 4 points (S=start, E=end,
+    *           / \  / \       1=c1, 2=c2); and the shifted version of start->c1 and end->c2.
+    *          /   \/   \      you see that original c1 is left of c2, whereas the shifted
+    *         /    /\    \     versions are in the opposite order (shifted c1 is right of
+    *        S----/--\----E    shifted c2).
+    */
+    const bool use_x_c = fabs(c1.x-c2.x) > fabs(c1.y-c2.y);
+    if ((use_x_c ? c1.x<c2.x : c1.y<c2.y) != (use_x_c ? new_c1.x<new_c2.x : new_c1.y<new_c2.y)) {
+        XY new_c;
+        if (LINE_CROSSING_PARALLEL == crossing_line_line(start+wh1, new_c1, end+wh3, new_c2, new_c)) {
+            //we became a line
+            expanded.emplace_back(start+wh1, end+wh3, !!visible); //Visual Studio complains for bitfields in such templates
+            return true;
+        }
+        new_c1 = new_c2 = new_c;
+    }
+    expanded.emplace_back(start+wh1, end+wh3, new_c1, new_c2, !!visible); //Visual Studio complains for bitfields in such templates
+    return true;
 }
 
 inline Block Edge::GetBezierHullBlock() const

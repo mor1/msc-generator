@@ -1015,6 +1015,16 @@ void DrawIntersection(CairoContext &c, Edge &A, std::vector<Edge> &OK,
     }
 }
 
+void DrawSelfIntersection(CairoContext &c, Edge &A)
+{
+    DrawBezier(c, A);
+    double m[10], o[10];
+    XY r[10];
+    unsigned num = A.SelfCrossing(r, m, o);
+    for (unsigned u = 0; u<num; u++)
+        DrawDot(c, r[u]);
+}
+
 void contour_test_bezier(unsigned num)
 {
     Edge A(XY(10, 100), XY(110, 100));
@@ -1029,12 +1039,12 @@ void contour_test_bezier(unsigned num)
         Edge(XY(50, 50), XY(75, 150))
     };
     {
-        CairoContext ctx(num, Block(-10, 200, -10, 200), "bezier 1");
+        CairoContext ctx(num, Block(-10, 200, -10, 200), "bezier Intersection");
         DrawIntersection(ctx, A, OK, 10);
     }
 
     {
-        CairoContext c(num+1, Block(-10, 200, -10, 200), "bezier 2");
+        CairoContext c(num+1, Block(-10, 200, -10, 200), "bezier split");
         Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
         DrawBezier(c, B);
         B.Split(C, D);
@@ -1054,7 +1064,7 @@ void contour_test_bezier(unsigned num)
         Edge(XY(100, 50), XY(45, 50), XY(120, 140), XY(20, 150))
     };
     {
-        CairoContext ctx(num+2, Block(-10, 200, -10, 200), "bezier 3");
+        CairoContext ctx(num+2, Block(-10, 200, -10, 200), "bezier Intersection 2");
         DrawIntersection(ctx, B, OK2);
     }
 
@@ -1065,7 +1075,7 @@ void contour_test_bezier(unsigned num)
 
 
     {
-        CairoContext c(num+3, Block(-10, 200, -10, 200), "bezier 4");
+        CairoContext c(num+3, Block(-10, 200, -10, 200), "bezier bounding box");
         Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50)), C, D, E, F;
         DrawBezier(c, B);
         B.Split(C, D);
@@ -1074,6 +1084,16 @@ void contour_test_bezier(unsigned num)
         cairo_rectangle(c.cr, BB.x.from, BB.y.from, BB.x.Spans(), BB.y.Spans());
         cairo_stroke(c.cr);
     }
+
+    {
+        CairoContext c(num+4, Block(-10, 200, -10, 200), "bezier self intersection");
+        Edge s(XY(50, 100), XY(100, 100), XY(100, 50), XY(50, 50));
+        DrawSelfIntersection(c, s);
+        Edge s2(XY(50, 100), XY(100, 100), XY(200, 50), XY(00, 50)); s2.Shift(XY(0, 100));
+        DrawSelfIntersection(c, s2);
+        DrawSelfIntersection(c, s2.SwapXY());
+    }
+
 }
 
 /** A set of drawing operations drawing interesting test cases.
@@ -1086,11 +1106,12 @@ void contour_test(void)
     using namespace generated_forms;
 
     Contour cc;
-    cooomplex2[0].outline.Expand(EXPAND_ROUND, -16, cc, CONTOUR_INFINITY);
+    form1[0].outline.Expand(EXPAND_ROUND, -12, cc, CONTOUR_INFINITY);
 
-    DrawExpand(153, EXPAND_MITER, CONTOUR_INFINITY, cooomplex2[0], 2, "rounded complex3 with miter");
+    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
 
-    contour_test_basic();
+
+//    contour_test_basic();
     contour_test_expand();
     contour_test_assign(111);
     contour_test_lohere();

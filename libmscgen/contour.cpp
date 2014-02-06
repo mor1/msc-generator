@@ -889,7 +889,7 @@ void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour 
 }
 
 
-//finds all crosspoints between all simplecontours found in this tree.
+//finds all crosspoints between all edges of this SimpleContour (except vertices)
 unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
 {
     unsigned ret=0;
@@ -922,6 +922,15 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
             }
             ret += n;
         }
+    for (size_t u1 = 1; u1<i->size(); u1++) {
+        const unsigned n = i->at(u1).SelfCrossing(r, one_pos, two_pos);
+        _ASSERT(n<=1);
+        if (n==1)
+            AddCrosspoint(r[0], bool(), &*i, one_pos[0]==1 ? i->next(u1) : u1,
+                                             one_pos[0]==1 ? 0 : one_pos[0], 
+                                bool(), &*i, two_pos[0]==1 ? i->next(u1) : u1,
+                                             two_pos[0]==1 ? 0 : two_pos[0]);
+    }
     return ret;
 }
 
@@ -1832,18 +1841,15 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     //and we do not use the edge
     for (size_t i = 0; i<edges.size(); /*nope*/) {
         const size_t next = (i+1)%edges.size();
-        if (edges[i].GetStart() == edges[next].GetStart() && edges[i].IsStraight()) {
-            //the next edge starts at the same location as the current one 
-            //and the current edge is straight (no chance of a looping edge)
-            //we shall delete the current edge.
+        //Set edge endpoint. The position is updated as described at the beginning of the function
+        edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
+        if (edges[i].IsDot()) {
+            //the edge became a dot (zero length) we shall delete it.
             endpoints[next].first = endpoints[i].first; //save the end position of the previous edge
             edges.erase(edges.begin()+i);
             endpoints.erase(endpoints.begin()+i);
-            continue;
-        } 
-        //Set edge endpoint. The position is updated as described at the beginning of the function
-        edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
-        i++;
+        } else 
+            i++;
     }
 endend:
     //Now try to combine edges to save on them.
@@ -1860,7 +1866,7 @@ endend:
     //Sanity checks
     if (edges.size()==0)
         return SimpleContour();
-    if (edges.size()==1 && edges[0].straight)
+    if (edges.size()==1 && edges[0].IsDot())
         return SimpleContour();
     if (edges.size()==2 && edges[0].straight && edges[1].straight)
         return SimpleContour();

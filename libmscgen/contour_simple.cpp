@@ -631,7 +631,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     //Expand all the edges
     for (size_t u = 0; u<size(); u++) {
-        at(u).CreateExpand(gap, r); 
+        if (!at(u).CreateExpand(gap, r))
+            //false is returned if a bezier degenerates - replace with a line
+            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, r);
         //all edges are marked as trivially connecting
         //the relation of the last of the generated edges with the next: 
         //mark this as a relation needed to be computed
