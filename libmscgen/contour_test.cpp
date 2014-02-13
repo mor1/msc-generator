@@ -985,12 +985,11 @@ void contour_test_tangent(unsigned num)
 }
 
 
-void DrawBezier(CairoContext &c, Edge &A)
+void DrawBezier(CairoContext &c, const Edge &A)
 {
     cairo_move_to(c.cr, A.GetStart().x, A.GetStart().y);
     A.PathTo(c.cr);
     cairo_set_line_width(c.cr, 1);
-    cairo_set_source_rgb(c.cr, 0, 0, 0);
     cairo_stroke(c.cr);
 }
 
@@ -1096,23 +1095,62 @@ void contour_test_bezier(unsigned num)
 
 }
 
+
+
+void DrawExpandedEdge(unsigned num, const Edge &B, double from, double to, double step=4)
+{
+    CairoContext c(num, B.CreateBoundingBox().Expand(100) , "bezier split");
+    cairo_set_source_rgb(c.cr, 0, 1, 0);
+    for (double u = from; u<=to; u += step) {
+        if (u==0) {
+            cairo_set_source_rgb(c.cr, 0, 0, 1);
+            continue;
+        }
+        std::vector<Edge> expanded;
+        B.CreateExpand(u, expanded);
+        for (auto &e: expanded) {
+            DrawBezier(c, e);
+            cairo_arc(c.cr, e.GetStart().x, e.GetStart().y, 1.5, 0, 2*M_PI);
+            cairo_fill(c.cr);
+        }
+    }
+    cairo_set_source_rgb(c.cr, 0, 0, 0);
+    DrawBezier(c, B);
+};
+
+
+void contour_test_expand_edge(unsigned num)
+{
+    Edge B(XY(10, 100), XY(110, 100), XY(10, 50), XY(110, 50));
+    DrawExpandedEdge(num+1, B, -100, 100);
+    Edge C(XY(363.35930691517569, 112.10491300035402), XY(360.17853270272951, 111.28309269662574),
+        XY(361.51724681455380, 114.13457366503485), XY(364.78943702329889, 111.59984873101280));
+    DrawExpandedEdge(num+2, C.CreateScaled(XY(10,10)), -4, 4);
+    Edge D(XY(10, 10), XY(100, 20), XY(60, 10), XY(100, 14));
+    DrawExpandedEdge(num+3, D, -100, 100);
+    DrawExpandedEdge(num+4, D.CreateScaled(XY(0.5, 5)), -100, 100);
+}
+
+
 /** A set of drawing operations drawing interesting test cases.
  * @ingroup contour_internal
  * Not very sophisticated, I admit.
  */
 void contour_test(void)
 {
+
+
     generate_forms();
     using namespace generated_forms;
 
     Contour cc;
-    form1[0].outline.Expand(EXPAND_ROUND, -12, cc, CONTOUR_INFINITY);
+//    form1[0].outline.Expand(EXPAND_ROUND, -12, cc, CONTOUR_INFINITY);
 
     DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
-
-
-//    contour_test_basic();
     contour_test_expand();
+    contour_test_expand_edge(370);
+
+    contour_test_basic();
     contour_test_assign(111);
     contour_test_lohere();
     contour_test_area(400);
