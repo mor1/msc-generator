@@ -128,6 +128,14 @@ inline double radian2angle(double rad) {
 */
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
 
+/** Returns +1 if P is on the right side of A->B, -1 on left side
+* and 0 if on the line. */
+inline int WhichSectionSide(const XY&A, const XY&B, const XY&P)
+{
+    return fsign((B-A).Rotate90CW().DotProduct(P-A));
+}
+
+
 
 /** Helper class to collect data during distance calculation.
  * 

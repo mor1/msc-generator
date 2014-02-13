@@ -1444,16 +1444,16 @@ void Canvas::Line(const Edge& edge, const LineAttr &line)
     SetLineAttr(line);
     const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
-        std::vector<Edge> edges, o;
-        edge.CreateExpand(spacing, edges, &o);
+        std::vector<Edge> edges;
+        //edge.CreateExpand(spacing, edges);
         if (edges.size()) {
             cairo_move_to(cr, edges[0].GetStart().x, edges[0].GetStart().y);
             for (const auto &e: edges)
                 e.PathTo(cr);
             cairo_stroke(cr);
-            edges.clear(); o.clear();
+            edges.clear(); 
         }
-        edge.CreateExpand(-spacing, edges, &o);
+        //edge.CreateExpand(-spacing, edges);
         if (edges.size()) {
             cairo_move_to(cr, edges[0].GetStart().x, edges[0].GetStart().y);
             for (const auto &e: edges)

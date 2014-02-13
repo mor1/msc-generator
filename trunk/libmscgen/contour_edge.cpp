@@ -297,9 +297,14 @@ void Edge::Split(double t, Edge &r1, Edge &r2) const
 bool Edge::Chop(double t, double s)
 {
     _ASSERT(t>=0 && s>=0 && t<=1 && s<=1);
-    _ASSERT(!straight);
     if (s<t) std::swap(s, t);
     XY r1, r2;
+    if (straight) {
+        r1 = (s<1) ? start+(end-start)*s : end;
+        if (t) start = start + (end-start)*t;
+        end = r1;
+        return t==s;
+    }
     if (s<1) {
         end = Split(s, r1, r2);
         c1 = Mid(start, c1, s);
@@ -357,17 +362,17 @@ int Cross(const XY &A1, const XY &A2, const XY &B1, const XY &B2, double &t, dou
 
 
 /** Check if two segments cross
- * returns 0 if none, 1 if yes, 2 if they are rectilinear and overlap.
- * 0 - no crossing
- * 1 - one crossing point (in r[0])
- * 2 - the two sections intersects from r[0] to r[1]
- * if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
- * in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
- * See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
- * crossing points that result in a pos value close to 1 are ignored
- * In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
- * sections are returned (if they overlap or touch)
- */
+* returns 0 if none, 1 if yes, 2 if they are rectilinear and overlap.
+* 0 - no crossing
+* 1 - one crossing point (in r[0])
+* 2 - the two sections intersects from r[0] to r[1]
+* if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
+* in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
+* See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
+* crossing points that result in a pos value close to 1 are ignored
+* In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
+* sections are returned (if they overlap or touch)
+*/
 unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
 {
     _ASSERT(straight && o.straight);
@@ -438,6 +443,118 @@ unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double p
     }
     return num;
 }
+
+
+/** Check if two segments cross
+ * returns 0 if none, 1 if yes, 2 if they are rectilinear and overlap.
+ * 0 - no crossing
+ * 1 - one crossing point (in r[0])
+ * 2 - the two sections intersects from r[0] to r[1]
+ * if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
+ * in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
+ * See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
+ * crossing points that result in a pos value close to 1 are ignored
+ * In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
+ * sections are returned (if they overlap or touch)
+ */
+unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
+{
+    _ASSERT(straight && o.straight);
+    if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
+        //They are not parallel (and none of them are degenerate, but that does not matter now)
+        double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+        if (t<0 || t>1) return 0;
+        double s = (o.end-o.start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+        if (s<0 || s>1) return 0; //the intersection of the line is outside AB
+        r[0] = o.start + (o.end-o.start)*t;
+        pos_other[0] = t;
+        pos_my[0] = s;
+        return 1;
+    }
+    //either they are parallel or one or both sections are degenerate (= a point)
+    if (o.start==o.end) {
+        if (!test_zero((o.start-start).PerpProduct(end-start)))
+            return 0; //o.start is not on AB's line and AB is not degenerate
+        if (start==end) {
+            if (start==o.start) {
+                r[0] = o.start;
+                pos_other[0] = 0;
+                pos_my[0] = 0;
+                return 1;
+            }
+            return 0; //both sections degenerate to a point, but do not overlap
+        }
+        double s;
+        //select x or y depending on precision
+        //o.start lies on AB, let us see if between start and end
+        if (fabs(start.x-end.x) > fabs(start.y-end.y))
+            s = (o.start.x-start.x)/(end.x-start.x);
+        else
+            s = (o.start.y-start.y)/(end.y-start.y);
+        if (s<0 || s>1) return 0;  //if outside [0..1] 
+        r[0] = o.start; //o.start is on AB
+        pos_other[0] = 0;
+        pos_my[0] = s;
+        return 1;
+    }
+    if (!test_zero((start-o.start).PerpProduct(o.end-o.start)))
+        return 0; //start is not on MN's line
+    //They are either parallel and on the same line or AB is degenerate and lies on MN's line
+    double t[2];
+    //select x or y depending on precision
+    if (fabs(o.start.x-o.end.x) > fabs(o.start.y-o.end.y)) {
+        t[0] = (start.x-o.start.x)/(o.end.x-o.start.x);
+        t[1] = (end.x-o.start.x)/(o.end.x-o.start.x);
+    } else {
+        t[0] = (start.y-o.start.y)/(o.end.y-o.start.y);
+        t[1] = (end.y-o.start.y)/(o.end.y-o.start.y);
+    }
+    if (t[0] > t[1]) std::swap(t[0], t[1]);
+    if (t[0]>1 || t[1]<0)
+        return 0; //AB lies outside MN
+    unsigned num = 0;
+    for (int i = 0; i<2; i++) {
+        if (t[i]<0 || t[i]>1) continue;
+        r[num] = o.start + (o.end-o.start)*t[i];
+        pos_other[num] = t[i];
+        if (fabs(start.x-end.x) > fabs(start.y-end.y))
+            pos_my[num] = (r[num].x-start.x)/(end.x-start.x);
+        else
+            pos_my[num] = (r[num].y-start.y)/(end.y-start.y);
+        if (pos_my[num]>=0 && pos_my[num]<=1) num++;
+    }
+    return num;
+}
+
+/** Returns the crossing of a bezier with an infinite line.
+ * We do not filter the result by position values falling outside [0,1]*/
+unsigned Edge::CrossingLine(const XY &A, const XY &B, double pos_my[], double pos_segment[]) const
+{
+    _ASSERT(!straight);
+    _ASSERT(!B.test_equal(A));
+    //rotate and shift the bezier so that the line we cross becomes the X axis
+    const double l = A.Distance(B);
+    const double sin_r = (B.y-A.y)/l;
+    const double cos_r = (A.x-B.x)/l;
+    const Edge e = CreateShifted(-B).Rotate(cos_r, sin_r);
+    //Now find the parameter values of crossing x, (where y=0)
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+    double coeff[4] = {e.start.y,
+                       3*(e.c1.y-e.start.y),
+                       3*(e.start.y-2*e.c1.y+e.c2.y),
+                       -e.start.y+3*(e.c1.y-e.c2.y)+e.end.y};
+    unsigned num = solve_degree3(coeff, pos_my);
+    //x coordinates of the crosspoints divided by segment length serve as positions of the segment
+    for (unsigned u = 0; u<num; u++) {
+        between01_adjust(pos_my[u]);
+        const XY xy = e.Split(pos_my[u]);
+//        _ASSERT(test_zero(fabs(xy.y)));
+        pos_segment[u] = xy.x/l;
+    }
+    return num;
+}
+
 
 bool Edge::HullOverlap(const Edge &o) const
 {
@@ -686,7 +803,7 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return A.CrossingBezier(*this, r, pos_other, pos_my, pos_other_mul, pos_my_mul,
                                     pos_other_offset, pos_my_offset);
         bool second_exists = false;
-        switch (CrossingSegments(A, r, pos_my, pos_other)) {
+        switch (CrossingSegments_NoSnap(A, r, pos_my, pos_other)) {
         default:
             _ASSERT(0); //fallthrough
         case 0: 
@@ -844,16 +961,18 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
         Split(roots[0], A, B);
         num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[0], 0, roots[0]);
         for (unsigned u = 0; u<num; u++) {
-            if (pos1[u]==roots[0]) {
+            if ((fabs(pos1[u]-roots[0])<1e-10 || fabs(pos1[u]-pos2[u])<1e-10) ||
+                (num==3 && (fabs(pos1[0]-pos1[1])<1e-10 || fabs(pos2[0]-pos2[1])<1e-10))) {
                 for (unsigned uu = u; uu<num-1; uu++) {
                     pos1[uu] = pos1[uu+1];
                     pos2[uu] = pos2[uu+1];
                     r[uu] = r[uu+1];
                 }
                 num--;
-                break;
             }
         }
+        if (num>=2 && (fabs(pos1[num-2]-pos1[num-1])<1e-10 || fabs(pos2[num-2]-pos2[num-1])<1e-10))
+            num--;
         return num;
     }
     /* Two such points may happen in two ways
@@ -871,7 +990,12 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
     _ASSERT(num==2);
     Split(roots[0], A, C); //C is a dummy
     Split(roots[1], C, B);
-    return A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1]);
+    num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1]);
+    if (num>1) {
+        //Purge those which coincide with one of the split points
+        _ASSERT(0);
+    }
+    return num;
 }
 
 
@@ -1134,26 +1258,39 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
             const double fw_y = NextTangentPoint(pos[i]).y;
             if (test_equal(xy.y, fw_y)) {
                 //a relevant crossing point, but the tangent is parallel to the horizontal line...
-                //XXX TODO: Check for Inflection point
-                //Else we assume it is a touchpoint - we can ignore if not at the endpoint
-                if (pos[i]!=0. && pos[i]!=1) continue;
                 //Get second derivative
                 const double ss0 = 6 - 6 * pos[i];
                 const double ss1 = -12 + 18 * pos[i];
                 const double ss2 = 6 - 18 * pos[i];
                 const double ss3 = 6 * pos[i];
                 const double d2y = start.y * ss0 + c1.y * ss1 + c2.y * ss2 + end.y * ss3;
-                _ASSERT(!test_zero(d2y));
-                //TODO: Solve what if it is zero (-25,15 - 0,40; c1=c2=-15,40)
-                //now if d2y is positive we curl upwards - this is the endpoint (start or end)
-                //with the smaller y coordinate - we ignore
-                if (d2y>0) continue;
-                //else if this is the startpoint we cross upwards (-1) else we cross downwards (+1)
-                if (pos[i]==0)
-                    ret--;
-                else
-                    ret++;
-                continue;
+                if (test_zero(d2y)) {
+                    //no inflection point - then this is a touchpoint (tangent is horizontal)
+                    //We can ignore if not at the endpoint
+                    if (pos[i]!=0. && pos[i]!=1) continue;
+
+                    //now if d2y is positive we curl upwards - this is the endpoint (start or end)
+                    //with the smaller y coordinate - we ignore
+                    if (d2y>0) continue;
+
+                    //else if this is the startpoint we cross upwards (-1) else we cross downwards (+1)
+                    if (pos[i]==0)
+                        ret--;
+                    else
+                        ret++;
+                    continue;
+                } else {
+                    //If the Y component of second derivative is zero (that is both 
+                    //first and second derivatives point to exact same/opposite direction =>
+                    //this is an inflection point)
+                    //then let us see the third derivative.
+                    //TODO: Solve what if it is zero (-25,15 - 0,40; c1=c2=-15,40)
+                    const double d3y = start.y * -6 + c1.y * 18 + c2.y * -18 + end.y * 6;
+                    _ASSERT(!test_zero(d3y));
+                    //if the Y component of the 3rd derivative is positive, then Y will grow
+                    //as we move with increasing position (we cross downwards = clockwise)
+                    dir = fsign(d3y);
+                }
             } else
                 dir = fsign(fw_y-xy.y);
             //check correct behaviour for endings
@@ -1332,7 +1469,7 @@ double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonneg
     if (straight)
         return SectionPointDistance(start, end, M, point, pos);
    
-    double result[4];
+    double result[5];
     const unsigned num = SolveForDistance(M, result);
     double d = std::min(start.DistanceSqr(M), end.DistanceSqr(M));
     if (start.DistanceSqr(M)<end.DistanceSqr(M)) {
@@ -2534,6 +2671,27 @@ unsigned Edge::SolveForDistance2(const XY &p, double pos[5]) const
     return  solve_degree4(coeff, pos);
 }
 
+/**
+* Refine a point projection's [t] value.
+*/
+double Edge::refineProjection(const XY &p, double t, double distancesqr, double precision) const
+{
+    if (precision < 0.0001) return t;
+    // refinement
+    const double prev_t = t-precision;
+    const double next_t = t+precision;
+    const XY prev = Split(prev_t);
+    const XY next = Split(next_t);
+    const double prev_distance = p.DistanceSqr(prev);
+    const double next_distance = p.DistanceSqr(next);
+    // smaller distances?
+    if (prev_t >= 0 && prev_distance < distancesqr) { return refineProjection(p, prev_t, prev_distance, precision); }
+    if (next_t <= 1 && next_distance < distancesqr) { return refineProjection(p, next_t, next_distance, precision); }
+    // larger distances
+    return refineProjection(p, t, distancesqr, precision/2.0);
+}
+
+
 unsigned Edge::SolveForDistance(const XY &p, double ret[5]) const
 {
     Edge a(XY(0, 0), XY(1, 2), XY(3, 3), XY(4, 2));
@@ -2587,5 +2745,228 @@ unsigned Edge::atY(double y, double roots[3]) const
             i++;
         return ret;
 }
+
+/** Expands the edge.
+*
+* This takes the direction of the edge to determine the 'outside' side of the
+* edge to expand towards (or away from in case of a negative `gap`).
+* Destroys bounding box!
+* @param [in] gap The amount to expand (or shrink if <0)
+* @param [out] expanded Append the expanded edges to this. The elements of this container
+*                       must have a constructor (XY,XY,XY,XY,bool) for beziers and one
+*                       (XY,XY,bool) for straight lines.
+* @param [out] original Append the original edge to this. If the expansion
+*                       requires to split the edge to several pieces append
+*                       the split chunks of the original here.
+*/
+bool Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const
+{
+    if (straight) {
+        const double length = start.Distance(end);
+        const XY wh = (end-start).Rotate90CCW()/length*gap;
+        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
+        if (original)
+            original->push_back(*this);
+        return true;
+    }
+    //calculate X and Y extremes and inflection points
+    //we can have at most 2 of each. Plus 2 for the two endpoints
+    std::vector<double> t(8);
+    //Start with extremes. X first
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
+    //substitutes are        [2]    t^2 +     [1]    t +    [0]
+    double Ycoeff[3] = {3*(c1.y-start.y),
+        6*(start.y-2*c1.y+c2.y),
+        3*(-start.y+3*(c1.y-c2.y)+end.y)};
+    unsigned num = solve_degree2(Ycoeff, &t[1]);
+    double Xcoeff[3] = {3*(c1.x-start.x),
+        6*(start.x-2*c1.x+c2.x),
+        3*(-start.x+3*(c1.x-c2.x)+end.x)};
+    num += solve_degree2(Xcoeff, &t[num+1]);
+    //The inflection ponts are
+    const XY a = c1-start, b = c2-c1-a, c = end-c2-a-2*b;
+    double Icoeff[3] = {a.x*b.y - a.y*b.x,
+        a.x*c.y - a.y*c.x,
+        b.x*c.y - b.y*c.x};
+    num += solve_degree2(Icoeff, &t[num+1]);
+    t.resize(num+1);
+    //Second derivative is: (-6A+18B-18C+6D)t + (6A-12B+6C)
+    double Y2coeff[2] = {6*(start.y-2*c1.y+c2.y),
+        6*(-start.y+3*(c1.y-c2.y)+end.y)};
+    if (!test_zero(Y2coeff[1])) {
+        double s = -Y2coeff[0]/Y2coeff[1];
+        if (between01_adjust(s))
+            t.push_back(s);
+    }
+    double X2coeff[2] = {6*(start.x-2*c1.x+c2.x),
+        6*(-start.x+3*(c1.x-c2.x)+end.x)};
+    if (!test_zero(X2coeff[1])) {
+        double s = -X2coeff[0]/X2coeff[1];
+        if (between01_adjust(s))
+            t.push_back(s);
+    }
+    //prune roots outside [0,1] range or close to 0 or one
+    for (unsigned k = num; k>0; k--)
+        if (t[k] < SMALL_NUM || t[k]>1-SMALL_NUM)
+            t.erase(t.begin()+k);
+    if (t.size()>1) {
+        std::sort(++t.begin(), t.end());
+        //remove duplicates (like a cusp at an X extreme)
+        for (unsigned k = t.size()-2; k>0; k--)
+            if (test_equal(t[k], t[k+1]))
+                t.erase(t.begin()+k);
+    }
+    const unsigned size_before = expanded.size();
+    const int orig_offset = original ? int(original->size())-int(size_before) : 0;
+    if (t.size()==1)
+        CreateExpandOneSegment(gap, expanded, original);
+    else {
+        t[0] = 0;
+        t.push_back(1);
+        for (unsigned k = 0; k<t.size()-1; k++) {
+            Edge e(*this, t[k], t[k+1]);
+            e.CreateExpandOneSegment(gap, expanded, original);
+        }
+    }
+    //Remove loops in the created set - beware some of them degenerated to a segment
+    XY r[9];
+    double pos_one[9], pos_two[9];
+    //Start by removing self-intersections
+    for (unsigned u = size_before; u<expanded.size(); u++) 
+        if (!expanded[u].IsStraight()) {
+            unsigned num = expanded[u].SelfCrossing(r, pos_one, pos_two);
+            if (num==0) continue;
+            if (num==2) {
+                if (pos_one[0]<pos_one[1] && pos_two[0]>pos_two[1])
+                    num--;
+                else if (pos_one[0]>pos_one[1] && pos_two[0]<pos_two[1]) {
+                    num--;
+                    pos_one[0] = pos_one[1];
+                    pos_two[0] = pos_two[1];
+                } else
+                    //a strange crossing system - give up
+                    continue;
+            }
+            const double p1 = std::min(pos_one[0], pos_two[0]);
+            const double p2 = std::max(pos_one[0], pos_two[0]);
+            //Shop to remove the part between the two positions
+            expanded.emplace(expanded.begin()+u+1, expanded[u], p2, 1);
+            expanded[u].Chop(0,p1);
+            if (original) {
+                original->emplace(original->begin()+u+orig_offset+1, (*original)[u+orig_offset], p2, 1);
+                (*original)[u+orig_offset].Chop(0, p1);
+            }
+        }
+    //Now find the two outermost crosspoints.
+    //If crosspoints do not happen like that, we will be unsuccessful here.
+    //That case will be handled during the untangle operation that completes 
+    //SimpleContour::Expand().
+    for (unsigned u = size_before; u<expanded.size()-1; u++)
+        for (unsigned v = expanded.size()-1; u<v; v--) {
+            unsigned num = expanded[u].Crossing(expanded[v], r, pos_one, pos_two);
+            if (!num) continue;
+            //Check if in case of several crosspoints the one with smallest pos in "pos_one"
+            //corresponds to the one with largest pos in "pos_two"
+            unsigned small = std::min_element(pos_one, pos_one+num) - pos_one;
+            unsigned large = std::max_element(pos_two, pos_two+num) - pos_two;
+            //If they do not - we could not easily remove the loop - we give up
+            if (small!=large) 
+                return size_before != expanded.size();
+            //Loop found. Chop these edges and remove all edges in-between
+            //XXX ToDo: This is not perfect. We may have a bad loop still or even several!!!
+            expanded[u].Chop(0, pos_one[small]);
+            expanded[v].Chop(pos_two[large], 1);
+            expanded.erase(expanded.begin()+u+1, expanded.begin()+v);
+            if (original) {
+                u += orig_offset;
+                v += orig_offset;
+                (*original)[u].Chop(0, pos_one[small]);
+                (*original)[v].Chop(pos_two[large], 1);
+                original->erase(original->begin()+u+1, original->begin()+v);
+            }
+            return true;
+        }
+    //No loops found.
+    return size_before != expanded.size();
+}
+
+bool Edge::CreateExpandOneSegment(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const
+{
+    if (straight) {
+        const double length = start.Distance(end);
+        const XY wh = (end-start).Rotate90CCW()/length*gap;
+        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
+        if (original)
+            original->push_back(*this);
+        return true;
+    }
+    //test assumptions
+    XY dummy;
+    //_ASSERT(LINE_CROSSING_INSIDE == crossing_line_line(start, c2, end, c1, dummy));
+    //Tiller-Hansson: expand the start,c1,c2,end polygon.
+    const double l0 = start.Distance(c1);
+    const double l12 = c1.Distance(c2);
+    const double l3 = c2.Distance(end);
+    const XY wh0 = (c1-start).Rotate90CCW()/l0*gap;
+    const XY wh12 = (c2-c1).Rotate90CCW()/l12*gap;
+    const XY wh3 = (end-c2).Rotate90CCW()/l3*gap;
+    const XY new_start = start+wh0;
+    const XY new_end = end+wh3;
+    XY new_c1, new_c2;
+    //If we can compute new c1 and c2 from the intersection of the offset hull lines, do so.
+    if (LINE_CROSSING_PARALLEL == crossing_line_line(new_start, c1+wh0, c1+wh12, c2+wh12, new_c1) ||
+        LINE_CROSSING_PARALLEL == crossing_line_line(c1+wh12, c2+wh12, c2+wh3, new_end, new_c2)) {
+        //if not, project the control points towards the original curve
+        XY dummy, C1, C2;
+        double dumm;
+        //get the normal for all 4 control points
+        const double l1 = Distance(c1, C1, dumm);
+        const double l2 = Distance(c2, C2, dumm);
+        const bool left_1 = (start-C1).Rotate90CCW().DotProduct(c1-C1) < 0;
+        const bool left_2 = (start-C1).Rotate90CCW().DotProduct(c1-C1) < 0;
+        const XY wh1 = (c1-C1)/l1*(left_1 ? gap : -gap);
+        const XY wh2 = (c2-C2)/l2*(left_2 ? gap : -gap);
+        new_c1 = c1+wh1;
+        new_c2 = c2+wh2;
+    }
+    expanded.emplace_back(new_start, new_end, new_c1, new_c2, !!visible);
+
+    //Test error of the resulting offset curve
+    const double EPSILON = 0.1;
+    //offset the middle point of the result along the normal of the result back onto the original
+    const XY Mid = expanded.back().Split();
+    const XY Normal = (expanded.back().NextTangentPoint(0.5)-Mid).Rotate90CW()+Mid;
+    XY r[9];
+    double pos_me[9], pos_seg[9];
+    unsigned num = CrossingLine(Mid, Normal, pos_me, pos_seg);
+    _ASSERT(num);
+    //find crossing closest to Mid (pos_seg==0)
+    double minpos = MaxVal(minpos);
+    int p = -1;
+    for (unsigned u = 0; u<num; u++)
+        if (between01(pos_me[u]) && minpos>fabs(pos_seg[u])) {
+            p = u;
+            minpos = fabs(pos_seg[u]);
+        }
+    //if the normal does not eben project back to the original 
+    //or if the projected point is too far away, we subdivide
+    if (p==-1 || fabs(fabs(gap)-Split(pos_me[p]).Distance(Mid)) > EPSILON) {
+        expanded.pop_back();
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.CreateExpandOneSegment(gap, expanded, original);
+        E2.CreateExpandOneSegment(gap, expanded, original);
+    } else 
+        //else we are OK with the emplaced offset curve
+        if (original)
+            original->push_back(*this);
+
+    return true;
+}
+
+
+
 
 } //namespace contour 

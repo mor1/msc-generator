@@ -925,7 +925,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
     for (size_t u1 = 1; u1<i->size(); u1++) {
         const unsigned n = i->at(u1).SelfCrossing(r, one_pos, two_pos);
         _ASSERT(n<=1);
-        if (n==1)
+        if (n==1 && !(one_pos))
             AddCrosspoint(r[0], bool(), &*i, one_pos[0]==1 ? i->next(u1) : u1,
                                              one_pos[0]==1 ? 0 : one_pos[0], 
                                 bool(), &*i, two_pos[0]==1 ? i->next(u1) : u1,

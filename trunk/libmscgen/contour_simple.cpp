@@ -66,7 +66,7 @@ SimpleContour::SimpleContour(XY a, XY b, XY c) :
  * If not a full ellipse/circle a line segment is added as _the last edge_ to close it.
  *
  * @param [in] c Centerpoint
- * @param [in] radius_x Radius in the x direction. Its absolute value is used.
+ * @param [in] radius_x Radius in the y direction. Its absolute value is used.
  * @param [in] radius_y Radius in the y direction (same as `radius_x` if omitted = circle) Its absolute value is used.
  * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
  * @param [in] s_deg The startpoint of the arc.
@@ -331,13 +331,17 @@ void SimpleContour::assign_dont_check(const Edge v[], size_t size)
 bool SimpleContour::IsSane() const
 {
     if (size()==0) return true;
+    if (size()==1) {
+        if (at(0).IsStraight()) return false;
+        if (at(0).IsDot()) return false;
+        if (at(0).GetStart().test_equal(at(0).GetEnd())) return true;
+        return false;
+    }
+    if (size()==2 && at(0).straight && at(1).straight)
+        return false;
     for (size_t u = 0; u<size(); u++)
         if (at(u).GetStart().test_equal(at(u).GetEnd()))
             return false;
-    if (size()==1 && at(0).straight)
-        return false;
-    if (size()==2 && at(0).straight && at(1).straight)
-        return false;
     return true;
 }
 
@@ -630,10 +634,15 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
 
     //Expand all the edges
+    std::vector<Edge> tmp;
+    tmp.reserve(10);
     for (size_t u = 0; u<size(); u++) {
-        if (!at(u).CreateExpand(gap, r))
+        tmp.clear();
+        if (!at(u).CreateExpand(gap, tmp))
             //false is returned if a bezier degenerates - replace with a line
-            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, r);
+            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, tmp);
+        for (auto t: tmp)
+            r.emplace_back(t);
         //all edges are marked as trivially connecting
         //the relation of the last of the generated edges with the next: 
         //mark this as a relation needed to be computed
