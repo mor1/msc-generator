@@ -340,7 +340,7 @@ bool SimpleContour::IsSane() const
     if (size()==2 && at(0).straight && at(1).straight)
         return false;
     for (size_t u = 0; u<size(); u++)
-        if (at(u).GetStart().test_equal(at(u).GetEnd()))
+        if (at(u).IsDot())
             return false;
     return true;
 }
@@ -355,7 +355,7 @@ bool SimpleContour::Sanitize()
     if (size()==0) return true;
     if (size()==1) goto clear;
     for (size_t u=0; u<size(); /*nope*/)
-        if (at(u).GetStart().test_equal(at(u).GetEnd())) {
+        if (at(u).IsDot()) {
             edges.erase(edges.begin()+u);
             ret = false;
         } else

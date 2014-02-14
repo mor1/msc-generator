@@ -1837,27 +1837,20 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
 
     if (edges.size()==0) return SimpleContour();
     //set "end" values. Not known previously
-    //remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
-    //and we do not use the edge
-    for (size_t i = 0; i<edges.size(); /*nope*/) {
+    for (size_t i = 0; i<edges.size(); i++) {
         const size_t next = (i+1)%edges.size();
         //Set edge endpoint. The position is updated as described at the beginning of the function
         edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
-        if (edges[i].IsDot()) {
-            //the edge became a dot (zero length) we shall delete it.
-            endpoints[next].first = endpoints[i].first; //save the end position of the previous edge
-            edges.erase(edges.begin()+i);
-            endpoints.erase(endpoints.begin()+i);
-        } else 
-            i++;
     }
 endend:
-    //Now try to combine edges to save on them.
-    //since the last edge was deleted we try to combine with our previous one
-    //we do not maintain endpoints any more
+    //Remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
+    //and we do not use the edge.
+    //We do not maintain endpoints any more
+    //Also try to combine edges to save on them.
+    //Since the last edge was deleted we try to combine with our previous one
     for (size_t i = 0; i<edges.size(); /*nope*/) {
         const size_t prev = (i+edges.size()-1)%edges.size();
-        if (edges[prev].CheckAndCombine(edges[i]))
+        if (edges[i].IsDot() || edges[prev].CheckAndCombine(edges[i]))
             edges.erase(edges.begin()+i);
         else
             i++;
@@ -1865,8 +1858,6 @@ endend:
 
     //Sanity checks
     if (edges.size()==0)
-        return SimpleContour();
-    if (edges.size()==1 && edges[0].IsDot())
         return SimpleContour();
     if (edges.size()==2 && edges[0].straight && edges[1].straight)
         return SimpleContour();

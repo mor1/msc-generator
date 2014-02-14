@@ -353,6 +353,8 @@ public:
 
     const XY & GetStart() const { return start; } ///<Returns the startpoint.
     const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
+    const XY &GetC1() const { _ASSERT(!straight); return c1; }
+    const XY &GetC2() const { _ASSERT(!straight); return c2; }
     bool IsStraight() const { return straight; }
     bool IsDot() const { return start.test_equal(end) && (straight || (start.test_equal(c1) && end.test_equal(c2))); }
 

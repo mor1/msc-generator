@@ -460,7 +460,7 @@ unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double p
 unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
 {
     _ASSERT(straight && o.straight);
-    if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
+    if (fabs((end-start).PerpProduct(o.end-o.start))>1e-10) {
         //They are not parallel (and none of them are degenerate, but that does not matter now)
         double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
         if (t<0 || t>1) return 0;
@@ -514,13 +514,15 @@ unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], d
         return 0; //AB lies outside MN
     unsigned num = 0;
     for (int i = 0; i<2; i++) {
-        if (t[i]<0 || t[i]>1) continue;
+        if (t[i]<0) t[i] = 0;
+        if (t[i]>1) t[i] = 1;
         r[num] = o.start + (o.end-o.start)*t[i];
         pos_other[num] = t[i];
         if (fabs(start.x-end.x) > fabs(start.y-end.y))
             pos_my[num] = (r[num].x-start.x)/(end.x-start.x);
         else
             pos_my[num] = (r[num].y-start.y)/(end.y-start.y);
+        _ASSERT(pos_my[num]>=0 && pos_my[num]<=1);
         if (pos_my[num]>=0 && pos_my[num]<=1) num++;
     }
     return num;
@@ -802,21 +804,22 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
         if (!A.straight)
             return A.CrossingBezier(*this, r, pos_other, pos_my, pos_other_mul, pos_my_mul,
                                     pos_other_offset, pos_my_offset);
-        bool second_exists = false;
         switch (CrossingSegments_NoSnap(A, r, pos_my, pos_other)) {
         default:
             _ASSERT(0); //fallthrough
         case 0: 
             return 0;
         case 2:
-            pos_my[1] = pos_my[1]*pos_my_mul+pos_my_offset;
-            pos_other[1] = pos_other[1]*pos_other_mul+pos_other_offset;
-            second_exists = true;
-            //fallthrough
+            //parallel segments: take midpoint 
+            //(this is clearly a parallel segment due to numeric precision issues)
+            pos_my[0] = (pos_my[0]+pos_my[1])/2*pos_my_mul+pos_my_offset;
+            pos_other[0] = (pos_other[0]+pos_other[1])/2*pos_other_mul+pos_other_offset;
+            r[0] = (r[0]+r[1])/2;
+            return 1;
         case 1:
             pos_my[0] = pos_my[0]*pos_my_mul+pos_my_offset;
             pos_other[0] = pos_other[0]*pos_other_mul+pos_other_offset;
-            return second_exists ? 2 : 1;
+            return 1;
         }
     }
     //const bool one = HullOverlap(A);
@@ -892,6 +895,8 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 unsigned Edge::Crossing(const Edge &A, XY r[Edge::MAX_CP], 
                         double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
+    if (straight && A.straight)
+        return CrossingSegments(A, r, pos_my, pos_other);
     //use int because we may substract one
     int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
     _ASSERT(num<Edge::MAX_CP);
@@ -960,42 +965,53 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
         */
         Split(roots[0], A, B);
         num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[0], 0, roots[0]);
-        for (unsigned u = 0; u<num; u++) {
-            if ((fabs(pos1[u]-roots[0])<1e-10 || fabs(pos1[u]-pos2[u])<1e-10) ||
-                (num==3 && (fabs(pos1[0]-pos1[1])<1e-10 || fabs(pos2[0]-pos2[1])<1e-10))) {
-                for (unsigned uu = u; uu<num-1; uu++) {
-                    pos1[uu] = pos1[uu+1];
-                    pos2[uu] = pos2[uu+1];
-                    r[uu] = r[uu+1];
-                }
+    } else {
+        /* Two such points may happen in two ways
+        *                             \
+        *                              |     In the first case we need to test only
+        *          _-_                 *     the first and third segment.
+        *         /   \                |     In the second case there is no CP,
+        *        |     |              /      but testing the third and first segment
+        *        *     *             /       will be quick (no overlap) and it is
+        *        |     |            |        suitable to decide that we have the
+        *         \   /             *        second case.
+        *           X               |
+        *          / \               \
+        */
+        _ASSERT(num==2);
+        Split(roots[0], A, C); //C is a dummy
+        Split(roots[1], C, B);
+        num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1]);
+    }
+    //remove degenerate values
+    for (unsigned u = 0; u<num; u++)
+        if (fabs(pos1[u]-pos2[u])<1e-10) {
+            std::copy(pos1+u+1, pos1+num, pos1+u);
+            std::copy(pos2+u+1, pos2+num, pos2+u);
+            std::copy(r+u+1, r+num, r+u);
+            num--;
+        }
+    //remove duplicates
+    for (unsigned u = 0; u+1<num; u++) 
+        for (unsigned uu = u+1; uu<num; uu++) 
+            if (fabs(pos1[u]-pos1[uu])<1e-10 || fabs(pos2[u]-pos2[uu])<1e-10) {
+                std::copy(pos1+uu+1, pos1+num, pos1+uu);
+                std::copy(pos2+uu+1, pos2+num, pos2+uu);
+                std::copy(r+uu+1, r+num, r+uu);
                 num--;
             }
-        }
-        if (num>=2 && (fabs(pos1[num-2]-pos1[num-1])<1e-10 || fabs(pos2[num-2]-pos2[num-1])<1e-10))
-            num--;
-        return num;
+    if (num<=1) return num;
+    //We can have a lot of crosspoints here, due to numerical problems, 
+    //e.g., when a 
+    //pick the widest -if possible
+    unsigned min = std::min_element(pos1, pos1+num) - pos1;
+    //_ASSERT(min == std::max_element(pos2, pos2+num) - pos2);
+    if (min>0) {
+        pos1[0] = pos1[min];
+        pos2[0] = pos2[min];
+        r[0] = r[min];
     }
-    /* Two such points may happen in two ways
-    *                             \
-    *                              |     In the first case we need to test only
-    *          _-_                 *     the first and third segment.
-    *         /   \                |     In the second case there is no CP,
-    *        |     |              /      but testing the third and first segment
-    *        *     *             /       will be quick (no overlap) and it is
-    *        |     |            |        suitable to decide that we have the
-    *         \   /             *        second case.
-    *           X               |
-    *          / \               \
-    */
-    _ASSERT(num==2);
-    Split(roots[0], A, C); //C is a dummy
-    Split(roots[1], C, B);
-    num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1]);
-    if (num>1) {
-        //Purge those which coincide with one of the split points
-        _ASSERT(0);
-    }
-    return num;
+    return 1;
 }
 
 
@@ -1265,6 +1281,17 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
                 const double ss3 = 6 * pos[i];
                 const double d2y = start.y * ss0 + c1.y * ss1 + c2.y * ss2 + end.y * ss3;
                 if (test_zero(d2y)) {
+                    //If the Y component of second derivative is zero (that is both 
+                    //first and second derivatives point to exact same/opposite direction =>
+                    //this is an inflection point)
+                    //then let us see the third derivative.
+                    const double d3y = start.y * -6 + c1.y * 18 + c2.y * -18 + end.y * 6;
+                    _ASSERT(!test_zero(d3y));
+                    //if the Y component of the 3rd derivative is positive, then Y will grow
+                    //as we move with increasing position (we cross downwards = clockwise)
+                    dir = fsign(d3y);
+                    //We continue after the two elses below
+                } else {
                     //no inflection point - then this is a touchpoint (tangent is horizontal)
                     //We can ignore if not at the endpoint
                     if (pos[i]!=0. && pos[i]!=1) continue;
@@ -1279,17 +1306,6 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
                     else
                         ret++;
                     continue;
-                } else {
-                    //If the Y component of second derivative is zero (that is both 
-                    //first and second derivatives point to exact same/opposite direction =>
-                    //this is an inflection point)
-                    //then let us see the third derivative.
-                    //TODO: Solve what if it is zero (-25,15 - 0,40; c1=c2=-15,40)
-                    const double d3y = start.y * -6 + c1.y * 18 + c2.y * -18 + end.y * 6;
-                    _ASSERT(!test_zero(d3y));
-                    //if the Y component of the 3rd derivative is positive, then Y will grow
-                    //as we move with increasing position (we cross downwards = clockwise)
-                    dir = fsign(d3y);
                 }
             } else
                 dir = fsign(fw_y-xy.y);
@@ -2863,7 +2879,7 @@ bool Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edg
     //If crosspoints do not happen like that, we will be unsuccessful here.
     //That case will be handled during the untangle operation that completes 
     //SimpleContour::Expand().
-    for (unsigned u = size_before; u<expanded.size()-1; u++)
+    for (unsigned u = size_before; u+1<expanded.size(); u++)
         for (unsigned v = expanded.size()-1; u<v; v--) {
             unsigned num = expanded[u].Crossing(expanded[v], r, pos_one, pos_two);
             if (!num) continue;
@@ -2886,9 +2902,12 @@ bool Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edg
                 (*original)[v].Chop(pos_two[large], 1);
                 original->erase(original->begin()+u+1, original->begin()+v);
             }
-            return true;
+            goto sanitize;
         }
-    //No loops found.
+sanitize:
+    //Make sure connecting edges really connect
+    for (unsigned u = size_before; u+1<expanded.size(); u++) 
+        expanded[u].end = expanded[u+1].start = (expanded[u].end + expanded[u+1].start)/2;
     return size_before != expanded.size();
 }
 
