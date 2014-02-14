@@ -985,11 +985,26 @@ void contour_test_tangent(unsigned num)
 }
 
 
-void DrawBezier(CairoContext &c, const Edge &A)
+void DrawBezier(CairoContext &c, const Edge &A, bool cp=false)
 {
     cairo_move_to(c.cr, A.GetStart().x, A.GetStart().y);
     A.PathTo(c.cr);
     cairo_set_line_width(c.cr, 1);
+    cairo_stroke(c.cr);
+    if (!cp)
+        return;
+    cairo_set_line_width(c.cr, 0.1);
+    cairo_move_to(c.cr, A.GetStart().x, A.GetStart().y);
+    cairo_line_to(c.cr, A.GetC1().x, A.GetC1().y);
+    cairo_new_sub_path(c.cr);
+    cairo_arc(c.cr, A.GetC1().x, A.GetC1().y, 2, 0, 2*M_PI);
+    cairo_close_path(c.cr);
+    cairo_stroke(c.cr);
+    cairo_move_to(c.cr, A.GetEnd().x, A.GetEnd().y);
+    cairo_line_to(c.cr, A.GetC2().x, A.GetC2().y);
+    cairo_new_sub_path(c.cr);
+    cairo_arc(c.cr, A.GetC2().x, A.GetC2().y, 2, 0, 2*M_PI);
+    cairo_close_path(c.cr);
     cairo_stroke(c.cr);
 }
 
@@ -1115,7 +1130,7 @@ void DrawExpandedEdge(unsigned num, const Edge &B, double from, double to, doubl
         }
     }
     cairo_set_source_rgb(c.cr, 0, 0, 0);
-    DrawBezier(c, B);
+    DrawBezier(c, B, true);
 };
 
 
@@ -1129,6 +1144,16 @@ void contour_test_expand_edge(unsigned num)
     Edge D(XY(10, 10), XY(100, 20), XY(60, 10), XY(100, 14));
     DrawExpandedEdge(num+3, D, -100, 100);
     DrawExpandedEdge(num+4, D.CreateScaled(XY(0.5, 5)), -100, 100);
+    Edge E(XY(358.54443175183923, 112.67285885729200), XY(359.15216313510109, 111.24507956375152),
+        XY(358.51438629292340, 112.76784570986187), XY(359.13316525536862, 111.28086760759919));
+    DrawExpandedEdge(num+5, E.CreateScaled(XY(50, 50)), 1, -1);
+    Edge F(XY(358.54443175183923, 112.67285885729200), XY(359.15216313510109, 111.24507956375152),
+        XY(358.51438629292340, 112.76784570986187), XY(359.13316525536862, 111.28086760759919));
+    //DrawExpandedEdge(num+6, E.CreateScaled(XY(500, 500)), 1, -1);
+    XY r[9];
+    double p1[9], p2[9];
+    unsigned n = F.CreateScaled(XY(500, 100)).SelfCrossing(r, p1, p2);
+    n = F.SelfCrossing(r, p1, p2);
 }
 
 
@@ -1138,21 +1163,21 @@ void contour_test_expand_edge(unsigned num)
  */
 void contour_test(void)
 {
-
-
     generate_forms();
     using namespace generated_forms;
 
-    Contour cc;
-//    form1[0].outline.Expand(EXPAND_ROUND, -12, cc, CONTOUR_INFINITY);
+    //Contour cc;
+    //cooomplex3[0].outline.Expand(EXPAND_ROUND, -24, cc, CONTOUR_INFINITY);
 
-    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
+    //DrawExpand(150, EXPAND_MITER, CONTOUR_INFINITY, cooomplex3[0], 2, "complex3 with miter");
+    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
+    
     contour_test_expand();
-    contour_test_expand_edge(370);
 
     contour_test_basic();
     contour_test_assign(111);
     contour_test_lohere();
+    contour_test_expand_edge(370);
     contour_test_area(400);
     contour_test_relations(7000);
     contour_test_distance(7100);
