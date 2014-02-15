@@ -900,7 +900,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
     //so we will not get normal vertices back
     for (size_t u1 = 1; u1<i->size(); u1++)
         for (size_t u2 = 0; u2<u1; u2++) {
-            const unsigned n = i->at(u1).Crossing(i->at(u2), r, one_pos, two_pos);
+            const unsigned n = i->at(u2).Crossing(i->at(u1), i->next(u2)==u1, r, two_pos, one_pos);
             for (unsigned k=0; k<n;k++) {
                 //main_clockwise values are dummy
                 //_ASSERT(i->at(u1).Pos2Point(one_pos[k]).test_equal(r[k]));
@@ -994,7 +994,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const SimpleContour *i
     double one_pos[Edge::MAX_CP], two_pos[Edge::MAX_CP];
     for (size_t u1 = 0; u1<i1->size(); u1++)
         for (size_t u2 = 0; u2<i2->size(); u2++) {
-            const unsigned n = i1->at(u1).Crossing(i2->at(u2), r, one_pos, two_pos);
+            const unsigned n = i1->at(u1).Crossing(i2->at(u2), false, r, one_pos, two_pos);
             for (unsigned k = 0; k<n; k++) 
                 //change vertex crosspoints which are detected at the _end_
                 //of an edge to be expressed as being at the beginning of the

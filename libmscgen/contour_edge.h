@@ -26,6 +26,7 @@
 
 #include <map>
 #include <vector>
+#include <list>
 #include "cairo.h"
 #include "contour_distance.h"
 
@@ -286,6 +287,29 @@ public:
                 :      |
            @endverbatim */
            NO_CP_PARALLEL_SAME_DIR,
+          /** They are parallel, point the opposite direction and hence have no crosspoints.
+           *
+           * In this case there is no crosspoint not even if linearly extrapolated.
+           * The main example is below. A straight edge meets a half-circle.
+           * (The straight edge being a tangent of the half circle.) However, in contrast to 
+           * NO_CP_PARALLEL_SAME_DIR, the half circle was overshrunken and the direction
+           * of its connecting edge changed (has the same tangent, but reversed 180 degrees).
+           * (In these cases the shrunken edge has a cusp, which is difficult to show in ascii.)
+           * No potential crosspoint can be identified here, so what we return is 
+           * the same as for NO_CP_PARALLEL_SAME_DIR, that is a
+           * point in between the two edges, currently 5 times further than the distance
+           * between the two `x`s. See `o` below. * `x` shows the end of the expanded edges 
+           * and solid lines show linear extensions.
+           * @verbatim
+            ----->-x------------------
+
+             ..>...+                 o
+                  :        /-
+                 :   ----x- /               
+                :          /
+                :         |  
+           @endverbatim */
+           NO_CP_PARALLEL_OPPOSITE_DIR,
            /** The two edges do not meet, but their extension do - but at the opposite end
             * This may usually happen either at expanding a concave vertex or shrinking a convex one.
             *
@@ -313,7 +337,9 @@ public:
             CP_INVERSE
     };
     ///<True if two expanded edges or their extrension has crosspoints.
-    static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==TRIVIAL; }
+    static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==CP_TRIVIAL; }
+    ///<True if two expanded edges or their extrension has crosspoints.
+    static bool IsParallel(EExpandCPType t) { return t==NO_CP_PARALLEL_SAME_DIR || t==NO_CP_PARALLEL_OPPOSITE_DIR; }
 
     enum { MAX_CP = 9 };
 
@@ -413,9 +439,10 @@ protected:
 
     //Helpers for expand
     EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, double &my_pos, double &M_pos) const;
-    static void RemoveLoop(std::vector<Edge> &edges, unsigned first, unsigned last = std::numeric_limits<unsigned>::max(), 
-                           bool self = false, 
-                           std::vector<Edge>*original = NULL, int orig_offset = 0);
+    template <typename E, typename Iterator>
+    static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
+                                 std::vector<Edge>*original = NULL, size_t orig_offset = 0);
+    static bool IsSameDir(const XY &A, const XY&B, const XY&M, const XY &N);
 
 public:
     Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
@@ -439,7 +466,7 @@ public:
 
     bool CheckAndCombine(const Edge &next, double *pos = NULL);
 
-    unsigned Crossing(const Edge &A, XY r[Edge::MAX_CP], double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const;
+    unsigned Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP], double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const;
     unsigned SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], double pos2[Edge::MAX_CP]) const;
     int CrossingVertical(double x, double y[3], double pos[3], int cross_dir[3]) const;
     int CrossingHorizontalCPEvaluate(const XY &xy, bool self) const;
@@ -469,12 +496,8 @@ public:
 
     static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y = 0,
         double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
-    bool CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original = NULL) const;
-    bool CreateExpandOneSegment(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const;
-    bool CreateExpandOneSegment2(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const;
-    bool CreateExpandOneSegment3(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const;
-    bool CreateExpandOneSegment4(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const;
-    bool CreateExpandOneSegment5(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const;
+    bool CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge> *original = NULL) const;
+    bool CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const;
 
     unsigned atX(double x, double roots[3]) const;
     unsigned atY(double y, double roots[3]) const;
@@ -581,6 +604,91 @@ inline Block Edge::GetBezierHullBlock() const
         std::max(std::max(start.y, end.y), std::max(c1.y, c2.y)));
 }
 
+/** Find and eliminate any potential loop in the segment [first,last)
+ * does not work with vectors (iterators must survive insert+delete ops)
+ */
+template <typename E, typename Iterator>
+static void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self,
+                             std::vector<Edge>*original, size_t orig_offset)
+{
+    XY r[9];
+    double pos_one[9], pos_two[9];
+    unsigned orig_u = orig_offset, orig_v;
+    //Start by removing self-intersections
+    if (self)
+        for (auto i = first; i!=last; i++,orig_u++)
+            if (!i->IsStraight()) {
+                unsigned num = i->SelfCrossing(r, pos_one, pos_two);
+                if (num==0) continue;
+                if (num==2) {
+                    if (pos_one[0]<pos_one[1] && pos_two[0]>pos_two[1])
+                        num--;
+                    else if (pos_one[0]>pos_one[1] && pos_two[0]<pos_two[1]) {
+                        num--;
+                        pos_one[0] = pos_one[1];
+                        pos_two[0] = pos_two[1];
+                    } else
+                        //a strange crossing system - give up
+                        continue;
+                }
+                const double p1 = std::min(pos_one[0], pos_two[0]);
+                const double p2 = std::max(pos_one[0], pos_two[0]);
+                //Chop to remove the part between the two positions
+                auto next_i = i;
+                next_i++;
+                edges.emplace(next_i, *i)->Chop(p2, 1);
+                i->Chop(0, p1);
+                if (original) {
+                    original->emplace(original->begin()+orig_u+1, (*original)[orig_u], p2, 1);
+                    (*original)[orig_u].Chop(0, p1);
+                }
+            }
+    //Now find the two outermost crosspoints.
+    //If crosspoints do not happen like that, we will be unsuccessful here.
+    auto prev_last = last;
+    prev_last--;
+    orig_u = orig_offset;
+    for (auto u = first; u!=last; u++, orig_u++) {
+        orig_v = original ? original->size()-1 : 0;
+        for (auto v = prev_last; v!=u; v--, orig_v--) {
+            auto next_u = u; next_u++;
+            unsigned num = u->Crossing(*v, next_u==v, r, pos_one, pos_two);
+            if (!num) continue;
+            //Check if in case of several crosspoints the one with smallest pos in "pos_one"
+            //corresponds to the one with largest pos in "pos_two"
+            unsigned small = std::min_element(pos_one, pos_one+num) - pos_one;
+            unsigned large = std::max_element(pos_two, pos_two+num) - pos_two;
+            //If they do not - we could not easily remove the loop - we give up
+            if (small!=large) {
+                //_ASSERT(0);
+                return;
+            }
+            //Loop found. Chop these edges and remove all edges in-between
+            //XXX ToDo: This is not perfect. We may have a bad loop still or even several!!!
+            u->Chop(0, pos_one[small]);
+            v->Chop(pos_two[large], 1);
+            u->end = v->start = (u->end + v->start)/2;
+            edges.erase(++u, v); //we modify u here, but use it no longer
+            if (original) {
+                (*original)[orig_u].Chop(0, pos_one[small]);
+                (*original)[orig_v].Chop(pos_two[large], 1);
+                original->erase(original->begin()+orig_u+1, original->begin()+orig_v);
+            }
+            return;
+        }
+    }
+}
+
+/** Assuming A->B is parallel to M->N returns if they point to the same direction 
+ * (and false if opposite) */
+inline bool Edge::IsSameDir(const XY &A, const XY&B, const XY&M, const XY &N)
+{
+    _ASSERT(A!=B && M!=N && test_zero((A-B).Rotate90CW().DotProduct(M-N)));
+    if (fabs(A.x-B.x)>fabs(A.y-B.y))
+        return fsign(A.x-B.x)==fsign(M.x-N.x);
+    else
+        return fsign(A.y-B.y)==fsign(M.y-N.y);
+}
 
 } //namespace contour bezier
 

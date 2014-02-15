@@ -1023,7 +1023,7 @@ void DrawIntersection(CairoContext &c, Edge &A, std::vector<Edge> &OK,
         DrawBezier(c, edge);
         double m[10], o[10];
         XY r[10];
-        unsigned num = A.Crossing(OK[uu], r, m, o);
+        unsigned num = A.Crossing(OK[uu], false, r, m, o);
         for (unsigned u = 0; u<num; u++)
             DrawDot(c, r[u]+XY(0, off*(uu+1)));
     }
@@ -1121,7 +1121,7 @@ void DrawExpandedEdge(unsigned num, const Edge &B, double from, double to, doubl
             cairo_set_source_rgb(c.cr, 0, 0, 1);
             continue;
         }
-        std::vector<Edge> expanded;
+        std::list<Edge> expanded;
         B.CreateExpand(u, expanded);
         for (auto &e: expanded) {
             DrawBezier(c, e);
@@ -1169,6 +1169,7 @@ void contour_test(void)
     //Contour cc;
     //cooomplex3[0].outline.Expand(EXPAND_ROUND, -24, cc, CONTOUR_INFINITY);
 
+    DrawExpand(164, EXPAND_MITER, CONTOUR_INFINITY, form5, 0, "two inverse circles with miter");
     //DrawExpand(150, EXPAND_MITER, CONTOUR_INFINITY, cooomplex3[0], 2, "complex3 with miter");
     DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
     

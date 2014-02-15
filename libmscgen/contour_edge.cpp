@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <vector>
+#include <list>
 #include <algorithm>
 #include "contour_edge.h"
 
@@ -887,25 +888,61 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * The arrays shall be at least Edge::MAX_CP big.
 *
 * @param [in] o The other edge.
+* @param [in] is_next If true we assume A follows *this (and thus do not report
+*             if their start and endpoints (respectively) meet.
 * @param [out] r The crosspoins.
 * @param [out] pos_my The pos values of the corresponding crosspoints on me.
 * @param [out] pos_other The pos values of the corresponding crosspoints on the other edge.
 * @returns The number of crosspoins found [0..4].
 */
-unsigned Edge::Crossing(const Edge &A, XY r[Edge::MAX_CP], 
+unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
                         double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
-    if (straight && A.straight)
-        return CrossingSegments(A, r, pos_my, pos_other);
+    if (straight && A.straight) {
+        unsigned num = CrossingSegments(A, r, pos_my, pos_other);
+        if (num==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
+            return 0;
+        return num;
+    }
+    //ToDo: A quick test: if their bounding box only meets at the joint
+    //start/endpoint, we return here    
     //use int because we may substract one
     int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
     _ASSERT(num<Edge::MAX_CP);
+    //Snap the crosspoints to the start of the curves
+    for (int i = 0; i<num; i++)
+        if (test_zero(pos_my[i])) {
+            pos_my[i] = 0;
+            r[i] = start;
+        } else if (test_zero(pos_other[i])) {
+        pos_other[i] = 0;
+        r[i] = A.start;
+        } else if (test_equal(1, pos_my[i])) {
+            pos_my[i] = 1;
+            r[i] = end;
+        } else if (test_equal(1, pos_other[i])) {
+            pos_other[i] = 1;
+            r[i] = A.end;
+        }
+        
+    //We remove crosspoints where our end meets A's start (if is_next is true)
+    if (is_next)
+        for (int i = 0; i<num; i++)
+            if (pos_my[i]==1 && pos_other[i]==0) {
+                //erase index i
+                num--;
+                for (int k = i; k<num; k++) {
+                    r[k] = r[k+1];
+                    pos_my[k] = pos_my[k+1];
+                    pos_other[k] = pos_other[k+1];
+                }
+            }
     //In case of multiple hits, we need to remove erroneously occuring ones
     //these are the ones, where both pos_my and pos_otehr are close
     //We do it pairwise
     for (int i = 0; i<num-1; i++)
         for (int j = i+1; j<num; j++)
-            if (test_equal(pos_my[i], pos_my[j]) && test_equal(pos_other[i], pos_other[j])) {
+            if ((test_equal(pos_my[i], pos_my[j]) && test_equal(pos_other[i], pos_other[j]))) {
                 //erase index j
                 num--;
                 for (int k = j; k<num; k++) {
@@ -914,22 +951,7 @@ unsigned Edge::Crossing(const Edge &A, XY r[Edge::MAX_CP],
                     pos_other[k] = pos_other[k+1];
                 }
             }
-     //Snap the crosspoints to the start of the curves
-     for (int i = 0; i<num; i++)
-        if (test_zero(pos_my[i])) {
-            pos_my[i] = 0;
-            r[i] = start;
-        } else if (test_zero(pos_other[i])) {
-            pos_other[i] = 0;
-            r[i] = A.start;
-        } else if (test_equal(1, pos_my[i])) {
-            pos_my[i] = 1;
-            r[i] = end;
-        } else if (test_equal(1, pos_other[i])) {
-            pos_other[i] = 1;
-            r[i] = A.end;
-        }
-        return num;
+    return num;
 }
 
 unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], double pos2[Edge::MAX_CP]) const
@@ -2130,10 +2152,10 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
 */
 Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &my_pos, double &M_pos) const
 {
-    if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
+    if (start.test_equal(end) || M.start.test_equal(M.end)) return CP_DEGENERATE;
     if (end.test_equal(M.start)) {
         newcp = end;
-        return TRIVIAL;
+        return CP_TRIVIAL;
     }
     const double parallel_join_multipiler = 5;
     if (M.straight) {
@@ -2141,11 +2163,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
             switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
             default: _ASSERT(0);
             case LINE_CROSSING_PARALLEL:
-                if (end.test_equal(M.start)) {
-                    newcp = end;
-                    return CP_REAL;
-                }
-                return NO_CP_PARALLEL;
+                return Edge::IsSameDir(end, start, M.start, M.end) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
             case LINE_CROSSING_OUTSIDE_FW: return CP_EXTENDED;
             case LINE_CROSSING_OUTSIDE_BK: return CP_INVERSE;
             case LINE_CROSSING_INSIDE: return CP_REAL;
@@ -2154,7 +2172,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
             //we are bezier, but M is straight
             XY r[8];
             double pos_us[8], pos_M[8];
-            int num = Crossing(Edge(M.start, M.end), r, pos_us, pos_M);
+            int num = Crossing(Edge(M.start, M.end), false, r, pos_us, pos_M);
             if (!num) {
                 const XY tangent = NextTangentPoint(1.0);
                 //if not parallel, we cross at an extension
@@ -2171,7 +2189,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
                     const double mlen = M.end.Distance(M.start);
                     newcp = M.start + (M.start-M.end)/mlen*dist;
-                    return NO_CP_PARALLEL;
+                    return Edge::IsSameDir(end, tangent, M.end, M.start) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             } else {
                 //several crosspoints: use the one closest to the end of the bezier
@@ -2189,7 +2207,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
         if (straight) {
             //we are a straight, but M is bezier
             double pos_us[8], pos_M[8];
-            int num = M.Crossing(*this, r, pos_M, pos_us);
+            int num = M.Crossing(*this, false, r, pos_M, pos_us);
             if (!num) {
                 const XY tangent = M.PrevTangentPoint(0.0);
                 switch (crossing_line_line(start, end, tangent, M.start, newcp)) {
@@ -2205,7 +2223,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
                     const double len = end.Distance(start);
                     newcp = end + (end-start)/len*dist;
-                    return NO_CP_PARALLEL;
+                    return Edge::IsSameDir(start, end, M.start, tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             }
             //several crosspoints: use the one closest to the start of the bezier
@@ -2219,7 +2237,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
         } else {
             //both are beziers
             double pos_us[8], pos_M[8];
-            int num = Crossing(M, r, pos_us, pos_M);
+            int num = Crossing(M, false, r, pos_us, pos_M);
             if (!num) {
                 const XY tangent1 = NextTangentPoint(1.0);
                 const XY tangent2 = M.PrevTangentPoint(0.0);
@@ -2235,8 +2253,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                     //if we are parallel, calculate a conv point
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
                     const double len = end.Distance(tangent1);
-                    newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
-                    return NO_CP_PARALLEL;
+                    newcp = (end+M.start)/2 - (end-tangent1)/len*dist;
+                    return Edge::IsSameDir(end, tangent1, M.start, tangent2) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             }
             //several crosspoints: use the one closest to the end of us
@@ -2766,7 +2784,6 @@ unsigned Edge::atY(double y, double roots[3]) const
 *
 * This takes the direction of the edge to determine the 'outside' side of the
 * edge to expand towards (or away from in case of a negative `gap`).
-* Destroys bounding box!
 * @param [in] gap The amount to expand (or shrink if <0)
 * @param [out] expanded Append the expanded edges to this. The elements of this container
 *                       must have a constructor (XY,XY,XY,XY,bool) for beziers and one
@@ -2775,7 +2792,7 @@ unsigned Edge::atY(double y, double roots[3]) const
 *                       requires to split the edge to several pieces append
 *                       the split chunks of the original here.
 */
-bool Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const
+bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const
 {
     if (straight) {
         const double length = start.Distance(end);
@@ -2834,84 +2851,32 @@ bool Edge::CreateExpand(double gap, std::vector<Edge> &expanded, std::vector<Edg
             if (test_equal(t[k], t[k+1]))
                 t.erase(t.begin()+k);
     }
-    const unsigned size_before = expanded.size();
-    const int orig_offset = original ? int(original->size())-int(size_before) : 0;
+    std::list<Edge> tmp;
+    const size_t orig_offset = original ? original->size() : 0;
     if (t.size()==1)
-        CreateExpandOneSegment(gap, expanded, original);
+        CreateExpandOneSegment(gap, tmp, original);
     else {
         t[0] = 0;
         t.push_back(1);
         for (unsigned k = 0; k<t.size()-1; k++) {
             Edge e(*this, t[k], t[k+1]);
-            e.CreateExpandOneSegment(gap, expanded, original);
+            e.CreateExpandOneSegment(gap, tmp, original);
         }
     }
+
     //Remove loops in the created set - beware some of them degenerated to a segment
-    XY r[9];
-    double pos_one[9], pos_two[9];
-    //Start by removing self-intersections
-    for (unsigned u = size_before; u<expanded.size(); u++) 
-        if (!expanded[u].IsStraight()) {
-            unsigned num = expanded[u].SelfCrossing(r, pos_one, pos_two);
-            if (num==0) continue;
-            if (num==2) {
-                if (pos_one[0]<pos_one[1] && pos_two[0]>pos_two[1])
-                    num--;
-                else if (pos_one[0]>pos_one[1] && pos_two[0]<pos_two[1]) {
-                    num--;
-                    pos_one[0] = pos_one[1];
-                    pos_two[0] = pos_two[1];
-                } else
-                    //a strange crossing system - give up
-                    continue;
-            }
-            const double p1 = std::min(pos_one[0], pos_two[0]);
-            const double p2 = std::max(pos_one[0], pos_two[0]);
-            //Shop to remove the part between the two positions
-            expanded.emplace(expanded.begin()+u+1, expanded[u], p2, 1);
-            expanded[u].Chop(0,p1);
-            if (original) {
-                original->emplace(original->begin()+u+orig_offset+1, (*original)[u+orig_offset], p2, 1);
-                (*original)[u+orig_offset].Chop(0, p1);
-            }
-        }
-    //Now find the two outermost crosspoints.
-    //If crosspoints do not happen like that, we will be unsuccessful here.
-    //That case will be handled during the untangle operation that completes 
-    //SimpleContour::Expand().
-    for (unsigned u = size_before; u+1<expanded.size(); u++)
-        for (unsigned v = expanded.size()-1; u<v; v--) {
-            unsigned num = expanded[u].Crossing(expanded[v], r, pos_one, pos_two);
-            if (!num) continue;
-            //Check if in case of several crosspoints the one with smallest pos in "pos_one"
-            //corresponds to the one with largest pos in "pos_two"
-            unsigned small = std::min_element(pos_one, pos_one+num) - pos_one;
-            unsigned large = std::max_element(pos_two, pos_two+num) - pos_two;
-            //If they do not - we could not easily remove the loop - we give up
-            if (small!=large) 
-                return size_before != expanded.size();
-            //Loop found. Chop these edges and remove all edges in-between
-            //XXX ToDo: This is not perfect. We may have a bad loop still or even several!!!
-            expanded[u].Chop(0, pos_one[small]);
-            expanded[v].Chop(pos_two[large], 1);
-            expanded.erase(expanded.begin()+u+1, expanded.begin()+v);
-            if (original) {
-                u += orig_offset;
-                v += orig_offset;
-                (*original)[u].Chop(0, pos_one[small]);
-                (*original)[v].Chop(pos_two[large], 1);
-                original->erase(original->begin()+u+1, original->begin()+v);
-            }
-            goto sanitize;
-        }
-sanitize:
+    RemoveLoop(tmp, tmp.begin(), tmp.end(), true, original, orig_offset);
+    if (tmp.size()==0) return false;
+
     //Make sure connecting edges really connect
-    for (unsigned u = size_before; u+1<expanded.size(); u++) 
-        expanded[u].end = expanded[u+1].start = (expanded[u].end + expanded[u+1].start)/2;
-    return size_before != expanded.size();
+    for (auto i = tmp.begin(), j = ++tmp.begin(); j!=tmp.end(); i++, j++)
+        i->end = j->start = (i->end + j->start)/2;
+    expanded.splice(expanded.end(), tmp);
+
+    return true;
 }
 
-bool Edge::CreateExpandOneSegment(double gap, std::vector<Edge> &expanded, std::vector<Edge> *original) const
+bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const
 {
     if (straight) {
         const double length = start.Distance(end);
