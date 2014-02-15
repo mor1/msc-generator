@@ -227,8 +227,8 @@ public:
     */
     enum EExpandCPType
     {
-        DEGENERATE,     ///<One of the edges have `start==end`.
-        TRIVIAL,        ///<The crosspoint is exactly at the end of the edge - used between segments of an edge when an edge needed to be split to several segments at expansion
+        CP_DEGENERATE,     ///<One of the edges have `start==end`.
+        CP_TRIVIAL,        ///<The crosspoint is exactly at the end of the edge - used between segments of an edge when an edge needed to be split to several segments at expansion
 
         /** They have a crosspoint
          *
@@ -238,14 +238,14 @@ public:
          * for clarification you can see the whole shape to the right in small. The edges in question
          * are in dots there.
          * @verbatim
-         ..<.....+
-         |   :
-         -<--o---:         +-------+
-         |   :         |       |
-         |   :         +...+   |
-         |   :             :   |
-         |   :             +---+
-         @endverbatim */
+            ..<.....+
+                |   :
+            -<--o---:         +-------+
+                |   :         |       |
+                |   :         +...+   |
+                |   :             :   |
+                |   :             +---+
+           @endverbatim */
          CP_REAL,
          /** They do not have a crosspoint, but if we extend them, they have
           *
@@ -256,38 +256,37 @@ public:
           * Below see two edges with dots, the expanded edges with solid lines and their extension
           * also using dots. The `o` marks the crosspoint of the extensions.
           * @verbatim
-          -->--...o
-          :
-          .>..+   :
-          :   |
-          :   |
-          :   |
-          :   |
-          @endverbatim */
+            -->--...o
+                    :
+            .>..+   :
+                :   |
+                :   |
+                :   |
+                :   |
+           @endverbatim */
           CP_EXTENDED,
-          /** They are parallel and hence have no crosspoints.
+          /** They are parallel, point the same direction and hence have no crosspoints.
            *
-           * In this case there is no crosspoint neither if extended nor if linearly extrapolated.
-           * The best example is below: a straight edge meets a half-circle.
+           * In this case there is no crosspoint not even if linearly extrapolated.
+           * The main example is below. A straight edge meets a half-circle.
            * (The straight edge being a tangent of the half circle.)
            * In this case linear extension of the half circle is still parallel to the
-           * straight edge, while normal extension (not shown) actually diverges.
+           * straight edge.
            * No potential crosspoint can be identified here, so what we return is a
            * point in between the two edges, currently 5 times further than the distance
-           * between the two `x`s. See `o` below.
-           * `x` shows the end of the expanded edges and solid lines show linear
-           * extensions.
+           * between the two `x`s. See `o` below. * `x` shows the end of the expanded edges 
+           * and solid lines show linear extensions.
            * @verbatim
-           ----->-x------------------
+            ----->-x------------------
 
-           ..>...+                              o
-           :
-           :      -x----------------
-           :      /
-           :      |
+             ..>...+                 o
+                  :
+                 :      -x----------------
+                :      /
+                :      |
            @endverbatim */
-           NO_CP_PARALLEL,
-           /** The two edges fo not meet, but their extension do - but at the opposite end
+           NO_CP_PARALLEL_SAME_DIR,
+           /** The two edges do not meet, but their extension do - but at the opposite end
             * This may usually happen either at expanding a concave vertex or shrinking a convex one.
             *
             * On the figure below we see 4 edges (with dashes and pipe symbols, vertices
@@ -301,15 +300,15 @@ public:
             *
             * @verbatim
             -->-1---------+
-            :      |2
-            :      |
-            :      +->---------3----+
-            :       |
+                   :      |2
+                   :      |
+                   :      +->---------3----+
+                                   :       |
             .......X......         :       V
-            :       |
-            ..........:.......|
-            :       4
-            :       |
+                                   :       |
+                         ..........:.......|
+                                   :       4
+                                   :       |
             @endverbatim */
             CP_INVERSE
     };
@@ -414,6 +413,9 @@ protected:
 
     //Helpers for expand
     EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, double &my_pos, double &M_pos) const;
+    static void RemoveLoop(std::vector<Edge> &edges, unsigned first, unsigned last = std::numeric_limits<unsigned>::max(), 
+                           bool self = false, 
+                           std::vector<Edge>*original = NULL, int orig_offset = 0);
 
 public:
     Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
