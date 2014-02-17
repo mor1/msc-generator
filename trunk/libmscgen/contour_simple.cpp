@@ -756,6 +756,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //add straight edge after the bezier for miters
                 //insert _after_ i (before next_i)
                 if (IsMiter(type) && i->cross_type ==Edge::CP_EXTENDED)
+                    //make sure we copy the metadata, as well ('cross_type' and afterwards)
+                    //beacuse the next iteration will rely on these, when adding
                     r.emplace(next_i, i->GetEnd(), new_end, !!i->visible, i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos);
             }
 
@@ -766,18 +768,42 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     (i->cross_point-next_i->GetStart()).Normalize()*gap_limit;
                 _ASSERT(bevel_end.length() < 100000);
                 if (!bevel_end.test_equal(new_end))
+                    //make sure we copy the metadata, as well ('cross_type' and afterwards)
+                    //beacuse the next iteration will rely on these, when adding
                     r.emplace(next_i, new_end, bevel_end, i->visible && next_i->visible, i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos);
             }
 
-            //Ok here the current status is:
-            //- for miters we have added the edge (for all) and the straight line of CP_EXTENDED, but
-            //  nothing for NO_CP_PARALLEL_XXX. 
-            //- for round/bevel expand types we just added the 
+            //What we did so far:
+            //- We have adjusted the start/endpoint of the edge and handled everything around
+            //  the start of the edge.
+            //- for miters we have 1) added the straight line needed for beziers and CP_EXTENDED;
+            //  2) added the bevel if the miter would have been too long; basically we handled
+            //  everything, except the parallel case
+            //- for round/bevel expand types we just added the edge, no join specifics
             //Below we add whatever line join is needed.
-            //Note that we do nothing for CP_REAL, TRIVIAL or CP_INVERSE. 
-            //now even if we have inserted 'i' still points to the original edge
-            
-            /* For CP_PARALLEL_XXX_DIR we have 8 cases
+            //Note that we do nothing for CP_REAL, TRIVIAL or CP_INVERSE, as for the first two
+            //nothing needs to be done, for the latter we do not know what to do.
+            //Now even if we have inserted 'i' still points to the original edge.
+
+            if (i->cross_type == Edge::CP_EXTENDED) {
+                if (type == EXPAND_BEVEL) {
+                    //Add a bevel from new_end and the next start
+                    r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);// , i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos);
+                } else if (type == EXPAND_ROUND) {
+                    //Add a circle, from new_end and the next start
+                    CreateRoundForExpand(i->original_point, new_end, next_i->GetStart(), gap>0,
+                                         r, next_i, i->visible && next_i->visible);
+                }
+            }
+            //We have done everything for non-parallel joins
+            if (!Edge::IsParallel(i->cross_type)) {
+                i = next_i;
+                if (done) break;
+                else continue;
+            }
+
+            /* Here we handle CP_PARALLEL_XXX_DIR.
+             * For CP_PARALLEL_XXX_DIR we have 8 cases
              * Both edges could change direction or not, times whether they ended up 
              * in the same diretion or not.
              * (We say opposite direction when the two edges meet smoothly
@@ -832,80 +858,91 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
              * This will create a very small hole just right of the x, before the miter line crosses the
              * expanded edge (first time) as it goes towards the o. Such small holes shall be removed.)
              */
+
+            //assert that not both are straight (
+            _ASSERT(!i->IsStraight() || !next_i->IsStraight());
+
             //Find where the expanded version of this edge begins and where does the next one end.
+            //This is so that we can remove loops
             auto start_orig_us = i;
             auto end_orig_next = next_i;
-            if (Edge::IsParallel(i->cross_type)) {
-                while (start_orig_us!=r.begin() && start_orig_us->original_edge==i->original_edge)
-                    start_orig_us--;
-                //step back to the first element
-                if (start_orig_us->original_edge!=i->original_edge)
-                    start_orig_us++;
-                while (end_orig_next!=r.end() && end_orig_next->original_edge==next_i->original_edge)
-                    end_orig_next++;
-                //leave to point beyond the last element
+            while (start_orig_us!=r.begin() && start_orig_us->original_edge==i->original_edge)
+                start_orig_us--;
+            //step back to the first element
+            if (start_orig_us->original_edge!=i->original_edge)
+                start_orig_us++;
+            while (end_orig_next!=r.end() && end_orig_next->original_edge==next_i->original_edge)
+                end_orig_next++;
+            //leave to point beyond the last element
 
-                //If we are at the end of the list (and next_i & end_orig_next
-                //are at the beginning, we copy them to the end, so RemoveLoop
-                //can operate on a contigous series of edges.
-                //(RemoveLoop does not do circular iterator increments/decrements)
-                if (done) {
-                    r.splice(r.end(), r, next_i, end_orig_next);
-                    end_orig_next = r.end();
-                }
+            //Now determine which direction the round/bevel/miter needs to be added.
+            //This is done by updating i->cross_point.
+            //Note that FindExpandedEdgesCP() calculates a CP as below
+            //- if both of the edges are straight, the cp is undefined. This should not happen by the way.
+            //- if one is straight, the cp is on the straight line. This is the right
+            //  (original) direction as ends of straight edges do not change direction when expanded.
+            //- if both are bezier, the calculated cp is calcualted based on the direction 
+            //  of the first edge (in "i")
+            //Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
+            //changed direction.
+            if (!i->IsStraight() && !next_i->IsStraight() && 
+                !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
+                                i->GetEnd(), i->NextTangentPoint(1.0))) 
+                //in this case flip cp to the original vertex
+                i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
+
+            //If we are at the end of the list (and next_i & end_orig_next
+            //are at the beginning, we copy them to the end, so RemoveLoop
+            //can operate on a contigous series of edges.
+            //(RemoveLoop does not do circular iterator increments/decrements)
+            if (done) {
+                r.splice(r.end(), r, next_i, end_orig_next);
+                end_orig_next = r.end();
             }
 
-            if (Edge::IsParallel(i->cross_type) && type == EXPAND_MITER) {
+            //Below we add the line joins. 
+            //We do not copy metadata, all new edges will have CP_TRIVIAL joins to their 
+            //following edge. This is just as well, since we add edges such that the last
+            //edge ends exactly in next_i->GetStart() - so we form a trivial join.
+            if (type == EXPAND_MITER) {
                 //We add two lines (two miters)
                 //Remember, i->cross_point contains the point in between the two lines.
                 //We do not limit these miters, even if miter_limit is not infinite.
                 r.emplace(next_i, new_end, i->cross_point, !!i->visible);
-                auto ii = r.emplace(next_i, i->cross_point, next_i->GetStart(), !!next_i->visible);// , i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos );
+                auto ii = r.emplace(next_i, i->cross_point, next_i->GetStart(), !!next_i->visible);
                 Edge::RemoveLoop(r, start_orig_us, ii);
                 Edge::RemoveLoop(r, ii, end_orig_next);
-            } else if ((Edge::IsParallel(i->cross_type) && IsRound(type)) ||
-                (i->cross_type == Edge::CP_EXTENDED && type == EXPAND_ROUND)) {
+            } else if (IsRound(type)) {
                 //Add a circle, from new_end and the next start
-                CreateRoundForExpand(i->original_point, new_end, next_i->GetStart(), gap>0, 
+                CreateRoundForExpand(i->original_point, new_end, next_i->GetStart(), gap>0,
                                      r, next_i, i->visible && next_i->visible);
-                ////we have inserted edges, which will all have TRIVIAL cp connections
-                ////towards the edge _after_ them. This is erroneous for the last such edge
-                ////so we copy the cp type of the original edge to the last inserted one.
-                //const auto j = r.prev(next_i);
-                //j->cross_point = i->cross_point;
-                //j->cross_type = i->cross_type;
-                //j->original_point = i->original_point;
-                //j->next_start_pos = i->next_start_pos;
-
-                if (Edge::IsParallel(i->cross_type)) {
-                    Edge::RemoveLoop(r, start_orig_us, next_i);
-                    //i and next_i may be destroyed here. Search loops from start_orig_us again
-                    Edge::RemoveLoop(r, start_orig_us, end_orig_next);
-                }
-            } else if ((Edge::IsParallel(i->cross_type) && IsBevel(type)) ||
-                (i->cross_type == Edge::CP_EXTENDED && type == EXPAND_BEVEL)) {
+                Edge::RemoveLoop(r, start_orig_us, next_i);
+                //i and next_i may be destroyed here. Search loops from start_orig_us again
+                Edge::RemoveLoop(r, start_orig_us, end_orig_next);
+            } else if (IsBevel(type)) {
                 //Add a bevel from new_end and the next start
-                r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);// , i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos);
-                //Here we do not remove loops - no point.
-            } else if (Edge::IsParallel(i->cross_type) && type == EXPAND_MITER_SQUARE) {
+                r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
+            } else if (type == EXPAND_MITER_SQUARE) {
                 //Here we add 3 edges of a half-square
                 const XY &next_start = next_i->GetStart();
                 const double dist = new_end.Distance(next_start)/2;
-                const XY first_tangent = i->NextTangentPoint(1.0);
-                const XY first = new_end + (first_tangent - new_end).Normalize()*dist;
-                const XY second_tangent = next_i->PrevTangentPoint(0.0);
-                const XY second = next_start + (second_tangent - next_start).Normalize()*dist;
+                const XY first_tangent = at(i->original_edge).NextTangentPoint(1.0) - 
+                                         at(i->original_edge).GetEnd();
+                const XY first = new_end + first_tangent*(dist/first_tangent.length());
+                const XY second_tangent = at(next_i->original_edge).PrevTangentPoint(0.0) - 
+                                          at(next_i->original_edge).GetStart();
+                const XY second = next_start + second_tangent*(dist/second_tangent.length());
                 r.emplace(next_i, new_end, first, i->visible && next_i->visible);
                 r.emplace(next_i, first, second, i->visible && next_i->visible);
-                r.emplace(next_i, second, next_start, i->visible && next_i->visible);// , i->cross_type, i->original_point, i->cross_point, double(), i->next_start_pos);
+                r.emplace(next_i, second, next_start, i->visible && next_i->visible);
                 if (Edge::IsParallel(i->cross_type)) {
                     Edge::RemoveLoop(r, start_orig_us, next_i);
                     //i and next_i may be destroyed here. Search loops from start_orig_us again
                     Edge::RemoveLoop(r, start_orig_us, end_orig_next);
                 }
             }
-            
-            i = end_orig_next; //step the cycle (usually equals next_i, except for CP_PARALLEL_XXX)
+
+            i = --end_orig_next; //step the cycle 
             if (done)
                 break;
         } //for cycle through edges
