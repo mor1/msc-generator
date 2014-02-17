@@ -472,6 +472,7 @@ public:
     int CrossingHorizontalCPEvaluate(const XY &xy, bool self) const;
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
+    XY Edge::XMaxExtreme(double &pos) const;
 
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
     DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; }    //always nonnegative

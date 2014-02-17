@@ -1432,6 +1432,58 @@ Block Edge::CreateBoundingBox() const
     return Block(X.first->x, X.second->x, Y.first->y, Y.second->y);
 }
 
+/** Returns the position of (one of) the rightmost point of the edge */
+XY Edge::XMaxExtreme(double &p) const
+{
+    if (straight) {
+        p = start.x>end.x ? 0. : 1.;
+        return start.x>end.x ? start : end;
+    } 
+
+    //from: http://stackoverflow.com/questions/2587751/an-algorithm-to-find-bounding-box-of-closed-bezier-curves
+    std::vector<double> pos;
+    std::vector<XY> xy;
+    pos.reserve(6);   xy.reserve(6);
+    pos.push_back(0); xy.push_back(start);
+    pos.push_back(1); xy.push_back(end);
+
+    double b = 6 * start.x - 12 * c1.x + 6 * c2.x;
+    double a = -3 * start.x + 9 * c1.x - 9 * c2.x + 3 * end.x;
+    double c = 3 * c1.x - 3 * start.x;
+    if (a == 0) {
+        if (b == 0) {
+            goto end;
+        }
+        double t = -c / b;
+        if (0 < t && t < 1) {
+            pos.push_back(t);
+            xy.push_back(Split(t));
+        }
+        goto end;
+    }
+    double b2ac = pow(b, 2) - 4 * c * a;
+    if (b2ac < 0) {
+        goto end;
+    }
+    double  t1 = (-b + sqrt(b2ac))/(2 * a);
+    if (0 < t1 && t1 < 1) {
+        pos.push_back(t1);
+        xy.push_back(Split(t1));
+    }
+    double  t2 = (-b - sqrt(b2ac))/(2 * a);
+    if (0 < t2 && t2 < 1) {
+        pos.push_back(t2);
+        xy.push_back(Split(t2));
+    }
+end:
+    const auto X = std::max_element(xy.begin(), xy.end(),
+                   [](const XY &a, const XY &b) {return a.x<b.x; });
+    p = pos[X - xy.begin()];
+    return *X;
+}
+
+
+
 /**Solves a cubic equation of x^3 + a*x^2 + b*x + c
  * Returns the number of roots.*/
 int solveCubic(double a, double b, double c, float* r)

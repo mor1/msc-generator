@@ -324,6 +324,7 @@ struct Ray
      * Values used during any walk (both untangle and combine)
      * They are mutable so that updating status can be made on const Ray sturctures.
      * @{ */
+    mutable int    coverage_at_0_minus_inf; ///<For untangle, the coverage at ray (0,-inf). Only at CP heads!!
     mutable bool   valid;     ///<False if this ray have already been included in a contour resulting from a walk.
     mutable size_t seq_num;   ///<Stop the walk if arriving to a ray with the same seq num as where we started the walk 
     mutable size_t switch_to; ///<Index of another ray for this cp, where the walk shoud be continued if arriving on this ray. `no_link` on error.
@@ -630,6 +631,8 @@ protected:
     size_t InsertToLooseList(Ray::list_type type, size_t index);
     /**Links a ray `index` to the loose list of type `type' with head of `head`.*/
     bool InsertToStrictList(Ray::list_type type, size_t index, size_t head);
+    /** Finds the cp_head of this ray */
+    size_t FindCPHead(size_t r) const;
     /**Returns true if `c` has any crosspoints (any ray having it as contour)*/
     bool IsContourInRays(const SimpleContour *c) const;
     bool AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a);
@@ -805,6 +808,17 @@ bool ContoursHelper::InsertToStrictList(Ray::list_type type, size_t index, size_
         return true;
     }
     return false;
+}
+
+size_t ContoursHelper::FindCPHead(size_t r) const
+{
+    if (r == link_info::no_link) {
+        _ASSERT(0);
+        return r;
+    }
+    while (Rays[r].link_cps.next != link_info::no_link)
+        r = Rays[r].link_cps.next;
+    return r;
 }
 
 //Finds the head of the strict list for a contour
@@ -1430,6 +1444,82 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
     StartRays.reserve(Rays.size()/4);
     size_t seq_num = 0;
 
+    //if we do untangle (single contour), we first walk around and calculate the coverage
+    //around each crosspoint
+    //There may be multiple contours 
+    //Start from the leftmost point of the curve
+    if (C2==NULL && Rays[link_contours_head].link_contours.next == link_contours_head) {
+        const SimpleContour *c = Rays[link_contours_head].contour;
+        unsigned edge = 0;
+        double pos, x = c->at(0).XMaxExtreme(pos).x;
+        for (size_t e = 1; e<c->size(); e++) {
+            double pos2, x2 = c->at(e).XMaxExtreme(pos2).x;
+            if (x < x2) {
+                edge = e;
+                pos = pos2;
+                x = x2;
+            }
+        }
+        //Walk around the contour to the extreme found above.
+        //There we know that rightwards there is coverage zero.
+        //We know that cps in the in_contour list are ordered by <edge_no,pos,incomin>
+        size_t u = link_contours_head;
+        do {
+            size_t next = Rays[u].link_in_contour.next;
+            if (next == link_contours_head) break;
+            if (Rays[next].vertex > edge) break;
+            if (Rays[next].vertex == edge &&
+                !test_smaller(Rays[next].pos, pos)) break;
+            u = next;
+        } while (u!=link_info::no_link);
+        _ASSERT(u!=link_info::no_link);
+
+        //step back to the incoming ray
+        u = Rays[u].link_in_contour.prev;
+
+        //Now walk along each cp in the contour and calculate the requested coverage
+        const XY started_with = Rays[u].xy;
+        int coverage = 0;  //coverage just right from the upcoming cp's (in <0,-inf> direction)
+        bool done = false;
+        //Special case: If the rightmost point lies ~exactly on a crosspoint
+        if (Rays[u].vertex == edge && test_equal(Rays[u].pos, pos)) {
+            //we know coverage is zero right of this cp (nothing of the contour is right of us)
+            Rays[FindCPHead(u)].coverage_at_0_minus_inf = 0;
+            //Now find any valid outgoing ray in the cp
+            while (Rays[u].incoming)
+                u = Rays[u].link_in_cp.next;
+            u = Rays[u].link_in_contour.next;
+            done = Rays[u].xy==started_with; //ops, next cp is same as first => only one cp => we are done
+        }
+
+        if (!done)
+            do {
+                _ASSERT(Rays[u].incoming);
+                //We arrive on ray 'u' and coverage is 'coverage' on our external side (left side)
+                //Find what is the coverage at the <0, -inf> direction
+                //We walk around till we hit the cp_head, which has the lowest angle (just after
+                //<0,-inf>
+                int loc_cov = coverage;
+                size_t uu = Rays[u].link_in_cp.next;
+                while (uu!=link_info::no_link && Rays[uu].link_cps.next!=link_info::no_link) {
+                    loc_cov += Rays[uu].incoming ? -1 : +1;
+                    uu = Rays[uu].link_in_cp.next;
+                };
+                //uu now points to the cp head
+                Rays[uu].coverage_at_0_minus_inf = loc_cov;
+
+                const size_t v = Rays[u].link_in_contour.next; //the outgoing ray corresponding to us
+                _ASSERT(!Rays[v].incoming);
+                _ASSERT((Rays[v].vertex == Rays[u].vertex && Rays[v].pos == Rays[u].pos) || 
+                        (Rays[v].pos == 0 && Rays[v].pos == 1));
+                //Walk around the crosspoint till we get to the corresponding outgoing ray
+                for (size_t uuu = Rays[u].link_in_cp.next; uuu!=link_info::no_link && uuu!=v; uuu = Rays[uuu].link_in_cp.next)
+                    coverage += Rays[uuu].incoming ? -1 : +1;
+                u = v;
+            } while (u!=link_info::no_link && Rays[u].xy!=started_with);
+    }
+
+
     //Cylce through the crosspoints
     size_t cp_head = link_cps_head;
     do {
@@ -1465,7 +1555,12 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
         if (C2==NULL)  { //we do untangle
             //For untangle we go through all the edges and see, how many times are this
             //particular cp being circled around to find what is the coverage here
-            coverage_before_r = CalcCoverageHelper(cp_head);
+            //If we could calculate the coverage for the crosspoints, use that
+            if (Rays[link_contours_head].link_contours.next == link_contours_head) {
+                coverage_before_r = Rays[cp_head].coverage_at_0_minus_inf;
+                _ASSERT(coverage_before_r == CalcCoverageHelper(cp_head));
+            } else
+                coverage_before_r = CalcCoverageHelper(cp_head);
         } else {
             //here we have
             //1. well-formed contours
