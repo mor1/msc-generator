@@ -64,11 +64,13 @@ class Shape
     Block max;
     Block label_pos;
     Block hint_pos;
-    std::vector<ShapeElement> bg, fg_fill, fg_line;
-    std::vector<ShapeElement> &GetSection() { return current_section==0 ? bg : current_section==1 ? fg_fill : fg_line; }
+    Contour bg, fg_fill, fg_line;
+    Contour  &GetSection(unsigned section) { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
     unsigned current_section;
+    std::vector<Edge> current_section_data;
+    XY current_section_point;
 public:
-    const std::vector<ShapeElement> &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
+    const Contour  &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
     const std::string name;
     const FileLineCol definition_pos;
     const std::string url;
@@ -76,14 +78,13 @@ public:
     Shape() : current_section(1), name(), definition_pos(), url(), info() { max.MakeInvalid(); label_pos.MakeInvalid(); hint_pos.MakeInvalid(); }
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i);
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i, Shape &&s);
-    bool IsEmpty() const { return bg.size()+fg_fill.size()+fg_line.size() == 0; }
+    bool IsEmpty() const { return bg.IsEmpty() && fg_fill.IsEmpty() && fg_line.IsEmpty(); }
     void Add(ShapeElement &&e);
     Block GetLabelPos(const Block &o) const;
     Block GetHintPos() const { return hint_pos; }
     Block GetMax() const { return max; }
     const string &GetURL() const { return url; }
     const string &GetInfo() const { return info; }
-    string Write() const;
     void Path(cairo_t *cr, unsigned section, const Block &o) const;
 };
 
@@ -104,12 +105,12 @@ public:
     bool Add(const string &name, const FileLineCol &pos, 
              const std::string &u, const std::string &i, 
              Shape *s, MscError &error);
-    string Write() const;
     unsigned ShapeNum() const { return shapes.size(); }
     int GetShapeNo(const string&sh_name) const;
     void  AttributeValues(Csh &csh) const;
     std::vector<const string*> ShapeNames() const;
     void Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const;
+    Contour Cover(unsigned sh, const Block &o) const;
     const Shape * GetShape(unsigned shape) { if (shape>=shapes.size()) return NULL; return &shapes[shape]; }
 };
 

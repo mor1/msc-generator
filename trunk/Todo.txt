@@ -54,7 +54,6 @@ ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
-
 in 3.7.6 (feature freeze for 3.8)
 ADDED defshape command
 ADDED file.info file.url options
@@ -65,10 +64,12 @@ FIXED: Smart ident - added TAB mode
 FIXED: CSH for large files. Do it offline. 
 CHANGED: To bezier lib.
 FIX: More precise CrossingVertical - refine result
-FIX: Looping edges
-FIX: Shrinking beziers.
-
-
+FIXED: Looping edges
+FIXED: Shrinking beziers.
+FIX: Optimize Crossing() for subsequent edges
+FIX: Optimize OffsetBelow with existing offset info
+FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
+FIX: Optimize Tangent functions
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
