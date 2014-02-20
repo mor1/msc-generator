@@ -109,6 +109,7 @@ CairoContext::~CairoContext()
         fclose(outFile);
 };
 
+
 void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, 
                         double center, int vertices, const std::map<size_t, XY> &cps)
 {
@@ -137,12 +138,13 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
         cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
         if (vertices==2) {
             cairo_set_font_size(cr, 1);
-            for (unsigned u = 0; u<area[0].size(); u++) {
-                cairo_move_to(cr, area[0][u].GetStart().x+1, area[0][u].GetStart().y-1);
-                char buff[100];
-                sprintf(buff, "%u: %lg; %lg", u, area[0][u].GetStart().x, area[0][u].GetStart().y);
-                cairo_show_text(cr, buff);
-            }
+            for (auto &c : expand_debug_contour)
+                for (unsigned u = 0; u<c.size(); u++) {
+                    cairo_move_to(cr, c[u].GetStart().x+1, c[u].GetStart().y-1);
+                    char buff[100];
+                    sprintf(buff, "%u: %lg; %lg", u, c[u].GetStart().x, c[u].GetStart().y);
+                    cairo_show_text(cr, buff);
+                }
         }
         for (auto &e: cps) {
             cairo_new_sub_path(cr);
@@ -214,14 +216,20 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, u
             sprintf(buff, "Inner expanded by %g %s", gap, text ? text : "");
             CairoContext context2(i, area1.GetBoundingBox().CreateExpand(40), buff, false, int(num2));
             context2.Draw(area1.CreateExpand(gap+step, et, et, limit, limit), false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true, 0);
+#ifdef _DEBUG
+            expand_debug = 1;
+            expand_debug_contour.clear();
+            expand_debug_cps.clear();
+#endif
             context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, r[num2%2], g[num2%2], b[num2%2], true, 0);
+#ifdef _DEBUG
+            expand_debug = 0;
             if (method==2) {
-                expand_debug = 1;
                 cairo_set_line_width(context2.cr, 0.5);
                 context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, 0, 0, 0, false, 0, 2, expand_debug_cps);
-                expand_debug = 0;
                 cairo_set_line_width(context2.cr, 2);
             }
+#endif
             num2++;
         }
     }
@@ -343,7 +351,7 @@ void DrawExpand2D(unsigned i, const Contour &c1, const XY &gap, const char *text
     const Contour c2 = c1.CreateExpand2D(gap);
     Block b = c1.GetBoundingBox();
     b += c2.GetBoundingBox();
-    b += XY(100,100);
+    b.Expand(10);
     CairoContext c(i, b, text, false);
     c.Draw(c1, false, 1, 0, 0, true, 0);
     c.Draw(c2, false, 0.5, 1, 0.5, true, 0);
@@ -477,8 +485,8 @@ void generate_forms()
     lohere4 = Contour(0,100, 0,100) +
                       Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
                       Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
-    lohere5 = lohere3[0];
-    lohere6 = lohere3[1];
+    lohere5 = lohere3 * Contour(75,100, 75,100);
+    lohere6 = lohere3 - Contour(0, 25, 0, 25) -Contour(75, 100, 0, 25) - Contour(0, 25, 75, 100) - Contour(75, 100, 75, 100);
 
     rombusz = Contour(40,80,40,80).CreateRotatedAround(XY(60,60),45);
     concave = Contour(0,40,0,100) - Contour(0,20,30,60) + Contour(XY(20,45), 15);
@@ -1166,17 +1174,18 @@ void contour_test(void)
     generate_forms();
     using namespace generated_forms;
 
-    //Contour cc;
-    //cooomplex3[0].outline.Expand(EXPAND_ROUND, -24, cc, CONTOUR_INFINITY);
+#ifdef _DEBUG
+    expand_debug = 1;
+    expand_debug_contour.clear();
+#endif
+    Contour cc;
 
-    DrawExpand(164, EXPAND_MITER, CONTOUR_INFINITY, form5, 0, "two inverse circles with miter");
-    //DrawExpand(150, EXPAND_MITER, CONTOUR_INFINITY, cooomplex3[0], 2, "complex3 with miter");
-    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
-    
-    contour_test_expand();
+    contour_test_tangent(7500);
+
 
     contour_test_basic();
     contour_test_assign(111);
+    contour_test_expand();
     contour_test_lohere();
     contour_test_expand_edge(370);
     contour_test_area(400);

@@ -230,19 +230,19 @@ void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, 
         c.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);
 }
 
-void ContourList::Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const
+void ContourList::Distance(const ContourWithHoles &ch, DistanceType &dist_so_far) const
 {
-    if (IsEmpty() || c.IsEmpty()) return;
+    if (IsEmpty() || ch.IsEmpty()) return;
     if (dist_so_far.IsZero()) return;
-    const double bbdist = GetBoundingBox().Distance(c.GetBoundingBox());
+    const double bbdist = GetBoundingBox().Distance(ch.GetBoundingBox());
     if (!dist_so_far.ConsiderBB(bbdist)) {
         dist_so_far.MergeInOut(bbdist);
         return;
     }
     for (auto &c : *this) {
-        const double bbdist2 = c.GetBoundingBox().Distance(c.GetBoundingBox());
+        const double bbdist2 = ch.GetBoundingBox().Distance(c.GetBoundingBox());
         if (dist_so_far.ConsiderBB(bbdist2))
-            c.Distance(c, dist_so_far);
+            c.Distance(ch, dist_so_far);
         else
             dist_so_far.MergeInOut(bbdist2);
         if (dist_so_far.IsZero())
@@ -324,7 +324,6 @@ struct Ray
      * Values used during any walk (both untangle and combine)
      * They are mutable so that updating status can be made on const Ray sturctures.
      * @{ */
-    mutable int    coverage_at_0_minus_inf; ///<For untangle, the coverage at ray (0,-inf). Only at CP heads!!
     mutable bool   valid;     ///<False if this ray have already been included in a contour resulting from a walk.
     mutable size_t seq_num;   ///<Stop the walk if arriving to a ray with the same seq num as where we started the walk 
     mutable size_t switch_to; ///<Index of another ray for this cp, where the walk shoud be continued if arriving on this ray. `no_link` on error.
@@ -1444,82 +1443,6 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
     StartRays.reserve(Rays.size()/4);
     size_t seq_num = 0;
 
-    //if we do untangle (single contour), we first walk around and calculate the coverage
-    //around each crosspoint
-    //There may be multiple contours 
-    //Start from the leftmost point of the curve
-    if (C2==NULL && Rays[link_contours_head].link_contours.next == link_contours_head) {
-        const SimpleContour *c = Rays[link_contours_head].contour;
-        unsigned edge = 0;
-        double pos, x = c->at(0).XMaxExtreme(pos).x;
-        for (size_t e = 1; e<c->size(); e++) {
-            double pos2, x2 = c->at(e).XMaxExtreme(pos2).x;
-            if (x < x2) {
-                edge = e;
-                pos = pos2;
-                x = x2;
-            }
-        }
-        //Walk around the contour to the extreme found above.
-        //There we know that rightwards there is coverage zero.
-        //We know that cps in the in_contour list are ordered by <edge_no,pos,incomin>
-        size_t u = link_contours_head;
-        do {
-            size_t next = Rays[u].link_in_contour.next;
-            if (next == link_contours_head) break;
-            if (Rays[next].vertex > edge) break;
-            if (Rays[next].vertex == edge &&
-                !test_smaller(Rays[next].pos, pos)) break;
-            u = next;
-        } while (u!=link_info::no_link);
-        _ASSERT(u!=link_info::no_link);
-
-        //step back to the incoming ray
-        u = Rays[u].link_in_contour.prev;
-
-        //Now walk along each cp in the contour and calculate the requested coverage
-        const XY started_with = Rays[u].xy;
-        int coverage = 0;  //coverage just right from the upcoming cp's (in <0,-inf> direction)
-        bool done = false;
-        //Special case: If the rightmost point lies ~exactly on a crosspoint
-        if (Rays[u].vertex == edge && test_equal(Rays[u].pos, pos)) {
-            //we know coverage is zero right of this cp (nothing of the contour is right of us)
-            Rays[FindCPHead(u)].coverage_at_0_minus_inf = 0;
-            //Now find any valid outgoing ray in the cp
-            while (Rays[u].incoming)
-                u = Rays[u].link_in_cp.next;
-            u = Rays[u].link_in_contour.next;
-            done = Rays[u].xy==started_with; //ops, next cp is same as first => only one cp => we are done
-        }
-
-        if (!done)
-            do {
-                _ASSERT(Rays[u].incoming);
-                //We arrive on ray 'u' and coverage is 'coverage' on our external side (left side)
-                //Find what is the coverage at the <0, -inf> direction
-                //We walk around till we hit the cp_head, which has the lowest angle (just after
-                //<0,-inf>
-                int loc_cov = coverage;
-                size_t uu = Rays[u].link_in_cp.next;
-                while (uu!=link_info::no_link && Rays[uu].link_cps.next!=link_info::no_link) {
-                    loc_cov += Rays[uu].incoming ? -1 : +1;
-                    uu = Rays[uu].link_in_cp.next;
-                };
-                //uu now points to the cp head
-                Rays[uu].coverage_at_0_minus_inf = loc_cov;
-
-                const size_t v = Rays[u].link_in_contour.next; //the outgoing ray corresponding to us
-                _ASSERT(!Rays[v].incoming);
-                _ASSERT((Rays[v].vertex == Rays[u].vertex && Rays[v].pos == Rays[u].pos) || 
-                        (Rays[v].pos == 0 && Rays[v].pos == 1));
-                //Walk around the crosspoint till we get to the corresponding outgoing ray
-                for (size_t uuu = Rays[u].link_in_cp.next; uuu!=link_info::no_link && uuu!=v; uuu = Rays[uuu].link_in_cp.next)
-                    coverage += Rays[uuu].incoming ? -1 : +1;
-                u = v;
-            } while (u!=link_info::no_link && Rays[u].xy!=started_with);
-    }
-
-
     //Cylce through the crosspoints
     size_t cp_head = link_cps_head;
     do {
@@ -1556,11 +1479,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
             //For untangle we go through all the edges and see, how many times are this
             //particular cp being circled around to find what is the coverage here
             //If we could calculate the coverage for the crosspoints, use that
-            if (Rays[link_contours_head].link_contours.next == link_contours_head) {
-                coverage_before_r = Rays[cp_head].coverage_at_0_minus_inf;
-                _ASSERT(coverage_before_r == CalcCoverageHelper(cp_head));
-            } else
-                coverage_before_r = CalcCoverageHelper(cp_head);
+            coverage_before_r = CalcCoverageHelper(cp_head);
         } else {
             //here we have
             //1. well-formed contours
@@ -1577,12 +1496,13 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                     //For overall clockwise Contours in this case coverage is +1
                     //For overall ccl Contours coverage is -1 exactly in the other case
                     if (Rays[ray_no].angle.Smaller(Rays[outgoing].angle) ==
-                        Rays[ray_no].main_clockwise)
-                        coverage_before_r += Rays[ray_no].main_clockwise ? +1 : -1;
+                        Rays[ray_no].contour->GetClockWise())
+                        coverage_before_r += Rays[ray_no].contour->GetClockWise() ? +1 : -1;
                 }
                 ray_no = Rays[ray_no].link_in_cp.next;
             } while (ray_no != cp_head);
         }
+
 
         size_t r = cp_head;
         size_t tmp = r;
@@ -1590,8 +1510,12 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
         //find first ray group after we shall not include. (coverage is not according to the requirement)
         if (!GoToCoverage(tmp, r, coverage_before_r, type, false, tmp))
             goto next_cp; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
-        {
+        { //open a scope to allow constructions to be jumped over by the goto above
         const size_t original_started_at_ray = r;
+        const unsigned orig_start_size = StartRays.size();
+        const unsigned orig_seq_num = seq_num;
+        unsigned marked_rays = 0;
+
         while(1) {
             //find first ray group (between "start_from" and "start_to" after which coverage is above reauirement
             size_t start_from = r, start_to;
@@ -1617,6 +1541,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
             //start_from may equal end_to. We destroy "start_from" here
             do {
                 Rays[start_from].seq_num = seq_num;
+                marked_rays++;
                 start_from = Rays[start_from].link_in_cp.next;
             } while (start_from!=end_to);
             seq_num++;
@@ -1628,6 +1553,66 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
             if (original_started_at_ray == r)
                 break;
         } //while through regions of sufficient coverage
+
+        //Test for a special case:
+        //A touching crosspoint, where a bezier touches a line or two beziers touch, without
+        //actually crossing each other. In this case we strive to keep the contour together
+        //in order to avoid spiky vertices.
+        //This is important only if these edges are all at the border of included and not
+        //included coverage (so that they are included in the walk). If this happens inside
+        //a contour and would not be part of the final result we do not care.
+        //We start by testing a few prerequisites. If we have created two sequence nums and
+        //marked four edges, only then do we start investigating.
+        if (marked_rays==4 && seq_num == orig_seq_num+2) {
+            //OK, we may have a thing here. See if 
+            //a) we have 4 rays in the cp
+            //b) all are along the same line (same angle +-2)
+            unsigned no_rays = 1;
+            size_t rays[4] = {cp_head};
+            const double angle = Rays[cp_head].angle.angle;
+            const double angle2 = angle<2 ? angle+2 : angle-2;
+            for (size_t x = Rays[cp_head].link_in_cp.next; x!=cp_head; x = Rays[x].link_in_cp.next)
+                if (!test_equal(Rays[x].angle.angle, angle) && !test_equal(Rays[x].angle.angle, angle2))
+                    goto next_cp;  //angles do not align: this is not the special case
+                else if (no_rays==4)
+                    goto next_cp; //too many rays: this is not the special case
+                else
+                    rays[no_rays++] = x;
+
+            //OK, now we shall see if two of the rays go in one and two of the rays go in the other dir
+            const size_t same = test_equal(Rays[rays[0]].angle.angle, Rays[rays[1]].angle.angle) ? 0 : 3;
+            if (!test_equal(Rays[rays[same]].angle.angle, Rays[rays[(same+1)%4]].angle.angle))
+                goto next_cp;
+            if (!test_equal(Rays[rays[(same+2)%4]].angle.angle, Rays[rays[(same+3)%4]].angle.angle))
+                goto next_cp;
+            if (!test_equal(angle2, Rays[rays[(same+2)%4]].angle.angle))
+                goto next_cp;
+            //Now we know this is the special case. 
+            //Index 'same' and 'same+1' (modulo 4) of 'rays' point to the same direction and 
+            //'same+2' and 'same+3' also point to the same dir and these two dirs are opposite
+            //if the two rays going the same dir are not switching to each other, the existing
+            //arrangement will keep the contours together and we need not do anything.
+            if (Rays[rays[same]].seq_num != Rays[rays[(same+1)%4]].seq_num)
+                goto next_cp;
+            _ASSERT(Rays[rays[same]].switch_to == rays[(same+1)%4]);
+            _ASSERT(Rays[rays[(same+1)%4]].switch_to == rays[same]);
+            _ASSERT(Rays[rays[(same+2)%4]].switch_to == rays[(same+3)%4]);
+            _ASSERT(Rays[rays[(same+3)%4]].switch_to == rays[(same+2)%4]);
+            _ASSERT(Rays[rays[same]].seq_num == Rays[rays[(same+1)%4]].seq_num);
+            _ASSERT(Rays[rays[(same+2)%4]].seq_num == Rays[rays[(same+3)%4]].seq_num);
+            //Ok, we need to rearrange
+            //instead of switching from same<->same+1 and same+2<->same+3, we shall 
+            //switch from same<->same+3 and same+1<->same+2.
+            Rays[rays[same]].switch_to = rays[(same+3)%4];
+            Rays[rays[(same+3)%4]].switch_to = rays[same];
+            Rays[rays[(same+1)%4]].switch_to = rays[(same+2)%4];
+            Rays[rays[(same+2)%4]].switch_to = rays[(same+1)%4];
+            std::swap(Rays[rays[same]].seq_num, Rays[rays[(same+2)%4]].seq_num);
+            StartRays.resize(orig_start_size);
+            StartRays.push_back(rays[same]);
+            StartRays.push_back(rays[(same+1)%4]);
+        }
+
         }
 next_cp:
         cp_head = Rays[cp_head].link_cps.next;
@@ -1683,10 +1668,15 @@ void ContoursHelper::Advance(RayPointer &p, bool forward) const
             //If next cp is on a different edge or on the same edge but wrong direction
             //we switch to vertex (In the latter case next cp will happen once we have
             //cricled the whole contour and got back to this edge)
-            p.at_vertex = true;
-            if (forward)
+            if (forward) {
                 p.vertex = Rays[p.index].contour->next(p.vertex);
-            // else use updated p.vertex
+                //However, if the next cp is exactlty on the start of the next edge
+                //(p.vertex(the next edge) == Rays[p.index].vertex (the edge of the next cp)
+                // AND (Rays[p.index].pos==0 (the next cp is at the start of the edge)
+                // then we remain in cp mode
+                p.at_vertex = p.vertex != Rays[p.index].vertex || Rays[p.index].pos>0;
+            } else 
+                p.at_vertex = true;
         }
         //else we remained on the same edge, use updated p.index
     }
@@ -1859,7 +1849,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                 do {
                     if (wdata.size()==0) {
                         //cannot backtrace: give up
-                        if (edges.size()==0)
+                        //if (edges.size()==0)
                             return SimpleContour();
                         edges.emplace_back(ray.xy, edges[0].GetStart());
                         endpoints.emplace_back(terminating_pos, 0);
@@ -1931,6 +1921,8 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     }
 
     if (edges.size()==0) return SimpleContour();
+    if (edges.size()==1 && edges.front().IsStraight()) return SimpleContour();
+    if (edges.size()==2 && edges.front().IsStraight() && edges.back().IsStraight()) return SimpleContour();
     //set "end" values. Not known previously
     for (size_t i = 0; i<edges.size(); i++) {
         const size_t next = (i+1)%edges.size();
@@ -2659,4 +2651,12 @@ Range Contour::CutWithTangent(const XY &A, const XY &B, std::pair<XY, XY> &from,
     }
     return ret2;
 }
+
+#ifdef _DEBUG
+int expand_debug = false;
+std::map<size_t, XY> expand_debug_cps;
+std::list<std::vector<Edge>> expand_debug_contour;
+#endif
+
+
 } //namespace

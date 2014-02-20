@@ -910,21 +910,22 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
     int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
     _ASSERT(num<Edge::MAX_CP);
     //Snap the crosspoints to the start of the curves
-    for (int i = 0; i<num; i++)
+    for (int i = 0; i<num; i++) {
         if (test_zero(pos_my[i])) {
             pos_my[i] = 0;
             r[i] = start;
-        } else if (test_zero(pos_other[i])) {
-        pos_other[i] = 0;
-        r[i] = A.start;
         } else if (test_equal(1, pos_my[i])) {
             pos_my[i] = 1;
             r[i] = end;
-        } else if (test_equal(1, pos_other[i])) {
+        }
+        if (test_equal(1, pos_other[i])) {
             pos_other[i] = 1;
             r[i] = A.end;
+        } else if (test_zero(pos_other[i])) {
+            pos_other[i] = 0;
+            r[i] = A.start;
         }
-        
+    }
     //We remove crosspoints where our end meets A's start (if is_next is true)
     if (is_next)
         for (int i = 0; i<num; i++)
@@ -951,6 +952,18 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
                     pos_other[k] = pos_other[k+1];
                 }
             }
+    //if one is a horizontal/vertical straight line, we need to snap the cp to that line
+    if (straight) {
+        if (start.x==end.x)
+            std::for_each(r, r+num, [&](XY &a) {a.x = start.x; });
+        else if (start.y==end.y)
+            std::for_each(r, r+num, [&](XY &a) {a.y = start.y; });
+    } else if (A.straight) {
+        if (A.start.x==A.end.x)
+            std::for_each(r, r+num, [&](XY &a) {a.x = A.start.x; });
+        else if (A.start.y==A.end.y)
+            std::for_each(r, r+num, [&](XY &a) {a.y = A.start.y; });
+    }
     return num;
 }
 
@@ -1256,7 +1269,7 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
     //Here we handle beziers
     //Check if we are far off.
     const Block b = GetBezierHullBlock();
-    if (b.y.from >= xy.y || b.y.till < xy.y || b.x.till < xy.x)
+    if (!test_smaller(b.y.from, xy.y) || test_smaller(b.y.till, xy.y) || test_smaller(b.x.till, xy.x))
         return 0;
 
     double pos[3], x[3];
@@ -1814,12 +1827,10 @@ namespace Edge_CreateExpand2D {
 void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
 {
     if (straight) {
-        ret.resize(ret.size()+1);
-        Edge &e = ret.back();
         const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
             Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
-        e.start = start + off;
-        e.end = end + off;
+        ret.emplace_back(start+off, end+off, !!visible);
+        Edge &e = ret.back();
         //expand for horizontal and vertical edges
         if (start.x == end.x) {
             e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
@@ -2005,153 +2016,6 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
         cairo_move_to(cr, start.x, start.y);
         Edge e(*this, local_s, local_e);
         cairo_curve_to(cr, e.c1.x, e.c1.y, e.c2.x, e.c2.y, e.end.x, e.end.y);
-    }
-}
-
-
-//helpers for offsetbelow
-double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
-{
-    if (straight && o.straight) {
-        //calc for two straight edges
-        const double minAB = std::min(start.x, end.x);
-        const double maxAB = std::max(start.x, end.x);
-        const double minMN = std::min(o.GetStart().x, o.GetEnd().x);
-        const double maxMN = std::max(o.GetStart().x, o.GetEnd().x);
-        if (minAB > maxMN || minMN > maxAB) return CONTOUR_INFINITY;
-        const double x1 = std::max(minAB, minMN);
-        const double x2 = std::min(maxAB, maxMN);
-        if (start.x == end.x) {
-            touchpoint = std::max(start.y, end.y);
-            if (o.GetStart().x == o.GetEnd().x)
-                return std::min(o.GetStart().y, o.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
-            return (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(start.x-o.GetStart().x) + o.GetStart().y -
-                std::max(start.y, end.y);
-        }
-        if (o.GetStart().x == o.GetEnd().x) {
-            touchpoint = (start.y-end.y)/(start.x-end.x)*(o.GetStart().x-start.x) + start.y;
-            return std::min(o.GetStart().y, o.GetEnd().y) - touchpoint;
-        }
-        const double y1 = ((start.y-end.y)/(start.x-end.x)*(x1-start.x) + start.y);
-        const double y2 = ((start.y-end.y)/(start.x-end.x)*(x2-start.x) + start.y);
-        const double diff1 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x1-o.GetStart().x) + o.GetStart().y - y1;
-        const double diff2 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x2-o.GetStart().x) + o.GetStart().y - y2;
-        if (diff1<diff2) {
-            touchpoint = y1;
-            return diff1;
-        }
-        touchpoint = y2;
-        return diff2;
-    }
-    if (straight) {
-        if (!o.CreateBoundingBox().x.Overlaps(Range(std::min(start.x, end.x), std::max(start.x, end.x))))
-            return CONTOUR_INFINITY;
-        Edge E1, E2;
-        o.Split(E1, E2);
-        double t1, t2;
-        const double o1 = OffsetBelow(E1, t1);
-        const double o2 = OffsetBelow(E1, t2);
-        touchpoint = o1<o2 ? t1 : t2;
-        return std::min(o1, o2);
-    }
-    if (o.straight) {
-        if (!CreateBoundingBox().x.Overlaps(Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
-            return CONTOUR_INFINITY;
-        Edge E1, E2;
-        Split(E1, E2);
-        double t1, t2;
-        const double o1 = E1.OffsetBelow(o, t1);
-        const double o2 = E2.OffsetBelow(o, t2);
-        touchpoint = o1<o2 ? t1 : t2;
-        return std::min(o1, o2);
-    }
-    if (!CreateBoundingBox().x.Overlaps(o.CreateBoundingBox().x))
-        return CONTOUR_INFINITY;
-    Edge E1, E2, F1, F2;
-    Split(E1, E2);
-    o.Split(F1, F2);
-    double t[4], ob[4];
-    ob[0] = E1.OffsetBelow(F1, t[0]);
-    ob[1] = E2.OffsetBelow(F1, t[1]);
-    ob[2] = E1.OffsetBelow(F2, t[2]);
-    ob[3] = E2.OffsetBelow(F2, t[3]);
-    const unsigned u = std::min_element(ob+0, ob+3) - ob;
-    touchpoint = t[u];
-    return ob[u];
-}
-
-/** Calculates the touchpoint of tangents drawn from a given point.
-*
-* For curvy edges:
-*     Given the point `from` draw tangents to the edge (two can be drawn)
-*     and calculate where these tangents touch the it.
-*     In this context the *clockwise tangent* is the one which is traversed from
-*     `from` towards the arc touches the ellipse in the clockwise direction.
-* For straight edges:
-*     We return the `start` in both clockwise and counterclockwise.
-*     This is because we ignore the endpoint - after all it will be the startpoint
-*     of the next edge and will be considered there.
-* @param [in] from The point from which the tangents are drawn.
-* @param [out] clockwise The point where the clockwise tangent touches the ellipse.
-* @param [out] cclockwise The point where the counterclockwise tangent touches the ellipse.
-*/
-void Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
-{
-    if (straight) 
-        clockwise = cclockwise = start;
-    else {
-        Edge E1, E2;
-        Split(E1, E2);
-        E1.TangentFrom(from, clockwise, cclockwise);
-        E2.TangentFrom(from, clockwise, cclockwise);
-    }
-}
-
-/** Calculates the touchpoint of tangents drawn to touch two edges.
-*
-* Given the two edges, four such tangents can be drawn, here we focus on the two
-* outer ones, the ones that touch either both edges from above or both from below,
-* but not mixed.
-* Note that we do not consider the endpoint - since this is a helper for closed
-* contours - the start next edge will be the same as our endpoint.
-* The clockwise cand cclockwise members shall be initialized to a point
-* on the curves.
-* @param [in] o The other edge.
-* @param [out] clockwise The points where the clockwise tangent touches us
-*                        (clockwise[0]) and `o` (clockwise[1]).
-* @param [out] cclockwise The points where the counterclockwise tangent touches us
-*                         (cclockwise[0]) and `o` (cclockwise[1]).
-*/
-void Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
-{
-    XY c, cc;
-    clockwise[1] = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
-    cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
-
-    clockwise[0] = minmax_clockwise(clockwise[1], start, clockwise[0], false);
-    cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
-
-    XY cw[2], ccw[2];
-    if (straight) {
-        if (!o.straight) {
-            Edge E1, E2;
-            o.Split(E1, E2);
-            TangentFrom(E1, clockwise, cclockwise);
-            TangentFrom(E2, clockwise, cclockwise);
-        } 
-    } else if (o.straight) {
-        Edge E1, E2;
-        Split(E1, E2);
-        E1.TangentFrom(o, clockwise, cclockwise);
-        E2.TangentFrom(o, clockwise, cclockwise);
-    } else {
-        Edge E1, E2, F1, F2;
-        Split(E1, E2);
-        o.Split(F1, F2);
-        E1.TangentFrom(F1, clockwise, cclockwise);
-        E2.TangentFrom(F1, clockwise, cclockwise);
-        E1.TangentFrom(F2, clockwise, cclockwise);
-        E2.TangentFrom(F2, clockwise, cclockwise);
     }
 }
 
@@ -3001,6 +2865,153 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
 
     return true;
 }
+
+//helpers for offsetbelow
+double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
+{
+    if (straight && o.straight) {
+        //calc for two straight edges
+        const double minAB = std::min(start.x, end.x);
+        const double maxAB = std::max(start.x, end.x);
+        const double minMN = std::min(o.GetStart().x, o.GetEnd().x);
+        const double maxMN = std::max(o.GetStart().x, o.GetEnd().x);
+        if (minAB > maxMN || minMN > maxAB) return CONTOUR_INFINITY;
+        const double x1 = std::max(minAB, minMN);
+        const double x2 = std::min(maxAB, maxMN);
+        if (start.x == end.x) {
+            touchpoint = std::max(start.y, end.y);
+            if (o.GetStart().x == o.GetEnd().x)
+                return std::min(o.GetStart().y, o.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
+            return (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(start.x-o.GetStart().x) + o.GetStart().y -
+                std::max(start.y, end.y);
+        }
+        if (o.GetStart().x == o.GetEnd().x) {
+            touchpoint = (start.y-end.y)/(start.x-end.x)*(o.GetStart().x-start.x) + start.y;
+            return std::min(o.GetStart().y, o.GetEnd().y) - touchpoint;
+        }
+        const double y1 = ((start.y-end.y)/(start.x-end.x)*(x1-start.x) + start.y);
+        const double y2 = ((start.y-end.y)/(start.x-end.x)*(x2-start.x) + start.y);
+        const double diff1 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x1-o.GetStart().x) + o.GetStart().y - y1;
+        const double diff2 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x2-o.GetStart().x) + o.GetStart().y - y2;
+        if (diff1<diff2) {
+            touchpoint = y1;
+            return diff1;
+        }
+        touchpoint = y2;
+        return diff2;
+    }
+    if (straight) {
+        if (!o.CreateBoundingBox().x.Overlaps(Range(std::min(start.x, end.x), std::max(start.x, end.x))))
+            return CONTOUR_INFINITY;
+        Edge E1, E2;
+        o.Split(E1, E2);
+        double t1, t2;
+        const double o1 = OffsetBelow(E1, t1);
+        const double o2 = OffsetBelow(E1, t2);
+        touchpoint = o1<o2 ? t1 : t2;
+        return std::min(o1, o2);
+    }
+    if (o.straight) {
+        if (!CreateBoundingBox().x.Overlaps(Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
+            return CONTOUR_INFINITY;
+        Edge E1, E2;
+        Split(E1, E2);
+        double t1, t2;
+        const double o1 = E1.OffsetBelow(o, t1);
+        const double o2 = E2.OffsetBelow(o, t2);
+        touchpoint = o1<o2 ? t1 : t2;
+        return std::min(o1, o2);
+    }
+    if (!CreateBoundingBox().x.Overlaps(o.CreateBoundingBox().x))
+        return CONTOUR_INFINITY;
+    Edge E1, E2, F1, F2;
+    Split(E1, E2);
+    o.Split(F1, F2);
+    double t[4], ob[4];
+    ob[0] = E1.OffsetBelow(F1, t[0]);
+    ob[1] = E2.OffsetBelow(F1, t[1]);
+    ob[2] = E1.OffsetBelow(F2, t[2]);
+    ob[3] = E2.OffsetBelow(F2, t[3]);
+    const unsigned u = std::min_element(ob+0, ob+3) - ob;
+    touchpoint = t[u];
+    return ob[u];
+}
+
+/** Calculates the touchpoint of tangents drawn from a given point.
+*
+* For curvy edges:
+*     Given the point `from` draw tangents to the edge (two can be drawn)
+*     and calculate where these tangents touch the it.
+*     In this context the *clockwise tangent* is the one which is traversed from
+*     `from` towards the arc touches the ellipse in the clockwise direction.
+* For straight edges:
+*     We return the `start` in both clockwise and counterclockwise.
+*     This is because we ignore the endpoint - after all it will be the startpoint
+*     of the next edge and will be considered there.
+* @param [in] from The point from which the tangents are drawn.
+* @param [out] clockwise The point where the clockwise tangent touches the ellipse.
+* @param [out] cclockwise The point where the counterclockwise tangent touches the ellipse.
+*/
+void Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    if (straight)
+        clockwise = cclockwise = start;
+    else {
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.TangentFrom(from, clockwise, cclockwise);
+        E2.TangentFrom(from, clockwise, cclockwise);
+    }
+}
+
+/** Calculates the touchpoint of tangents drawn to touch two edges.
+*
+* Given the two edges, four such tangents can be drawn, here we focus on the two
+* outer ones, the ones that touch either both edges from above or both from below,
+* but not mixed.
+* Note that we do not consider the endpoint - since this is a helper for closed
+* contours - the start next edge will be the same as our endpoint.
+* The clockwise cand cclockwise members shall be initialized to a point
+* on the curves.
+* @param [in] o The other edge.
+* @param [out] clockwise The points where the clockwise tangent touches us
+*                        (clockwise[0]) and `o` (clockwise[1]).
+* @param [out] cclockwise The points where the counterclockwise tangent touches us
+*                         (cclockwise[0]) and `o` (cclockwise[1]).
+*/
+void Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
+{
+    XY c, cc;
+    clockwise[1] = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
+    cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
+
+    clockwise[0] = minmax_clockwise(clockwise[1], start, clockwise[0], false);
+    cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
+
+    XY cw[2], ccw[2];
+    if (straight) {
+        if (!o.straight) {
+            Edge E1, E2;
+            o.Split(E1, E2);
+            TangentFrom(E1, clockwise, cclockwise);
+            TangentFrom(E2, clockwise, cclockwise);
+        }
+    } else if (o.straight) {
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.TangentFrom(o, clockwise, cclockwise);
+        E2.TangentFrom(o, clockwise, cclockwise);
+    } else {
+        Edge E1, E2, F1, F2;
+        Split(E1, E2);
+        o.Split(F1, F2);
+        E1.TangentFrom(F1, clockwise, cclockwise);
+        E2.TangentFrom(F1, clockwise, cclockwise);
+        E1.TangentFrom(F2, clockwise, cclockwise);
+        E2.TangentFrom(F2, clockwise, cclockwise);
+    }
+}
+
 
 
 

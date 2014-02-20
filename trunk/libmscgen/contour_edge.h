@@ -668,7 +668,25 @@ static void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last,
             //XXX ToDo: This is not perfect. We may have a bad loop still or even several!!!
             u->Chop(0, pos_one[small]);
             v->Chop(pos_two[large], 1);
-            u->end = v->start = (u->end + v->start)/2;
+            //make the two edges connect. If one is straight, use that, if both are bezier, use midpoint
+            if (u->IsStraight()) {
+                if (v->IsStraight()) {
+                    //both are straight - stive to keep horizontal & vertical edges so
+                    if (u->start.x==u->end.x) v->start.x = u->start.x;
+                    else if (v->start.x==v->end.x) u->end.x = v->start.x;
+                    else u->end.x = v->start.x = (u->end.x + v->start.x)/2;
+                    if (u->start.y==u->end.y) v->start.y = u->start.y;
+                    else if (v->start.y==v->end.y) u->end.y = v->start.y;
+                    else u->end.y = v->start.y = (u->end.y + v->start.y)/2;
+                } else
+                    // v is bezier
+                    v->start = u->end;
+            } else if (v->IsStraight())
+                // u is bezier
+                u->end = v->start;
+            else
+                //both are beziers
+                u->end = v->start = (u->end + v->start)/2;
             edges.erase(++u, v); //we modify u here, but use it no longer
             if (original) {
                 (*original)[orig_u].Chop(0, pos_one[small]);

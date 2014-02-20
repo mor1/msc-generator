@@ -32,9 +32,6 @@
 
 namespace contour {
 
-extern int expand_debug;
-extern std::map<size_t, XY> expand_debug_cps;
-
 /** A template that allows storing of state along a 1 dimensional axis.
  * @ingroup contour_internal
  *
