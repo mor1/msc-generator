@@ -403,8 +403,8 @@ public:
     Contour(const SimpleContour &p) : first(p) {boundingBox = first.GetBoundingBox();}          ///<Create a contour of a single shape with no holes by copying a SimpleContour object.
     Contour(ContourWithHoles &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();} ///<Create a contour of a single shape by moving a ContourWithHoles object. `p` will become undefined.
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}    ///<Create a contour of a single shape with no holes by moving a SimpleContour object. `p` will become undefined.
-    Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.boundingBox) {}    ///<Standard move constructor `p` will become undefined.
-    Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.boundingBox) {}                     ///<Standard copy constructor.
+    Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
+    Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
     /** @} */ //Constructors
 
     /** @name Assignment */
@@ -420,9 +420,9 @@ public:
     /** Set the Contour to a contigous shape by moving it. `a` becomes undefined.*/
     Contour &operator = (ContourWithHoles &&a) {first.operator=(std::move(a)); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
     /** Standard assignment move operation. `a` becomes undefined. */
-    Contour &operator = (Contour &&a) {first.swap(a.first); further.swap(a.further); boundingBox = a.boundingBox; return *this;}
+    Contour &operator = (Contour &&a) { first.swap(a.first); further.swap(a.further); boundingBox = a.GetBoundingBox(); return *this; }
     /** Standard assignment operation. */
-    Contour &operator = (const Contour &a) {first = a.first; further = a.further; boundingBox = a.boundingBox; return *this;}
+    Contour &operator = (const Contour &a) { first = a.first; further = a.further; boundingBox = a.GetBoundingBox(); return *this; }
 
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     void assign(const std::vector<XY> &v, bool winding=true);
@@ -800,7 +800,7 @@ inline Contour operator - (const Contour &a, Contour &&b)      {return Contour(a
 inline Contour operator ^ (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             a, std::move(b));}
 inline Contour operator + (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), b);}
 inline Contour operator * (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, std::move(a), b);}
-inline Contour operator - (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), b.CreateInverse());}
+inline Contour operator - (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), Contour(b).invert_dont_check());}
 inline Contour operator ^ (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             std::move(a), b);}
 inline Contour operator + (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), std::move(b));}
 inline Contour operator * (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, std::move(a), std::move(b));}
@@ -1177,6 +1177,13 @@ inline bool Contour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) 
     }
     return false;
 }
+
+#ifdef _DEBUG
+extern int expand_debug;
+extern std::map<size_t, XY> expand_debug_cps;
+extern std::list<std::vector<Edge>> expand_debug_contour;
+#endif
+
 
 
 } //namespace

@@ -32,10 +32,6 @@
 
 namespace contour {
 
-int expand_debug=false;
-std::map<size_t, XY> expand_debug_cps;
-
-
 ///////////////////////////// SimpleContour
 
 //Do not create degenerate triangles.
@@ -172,7 +168,7 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
                     if (edge) *edge = next(e);
                     return WI_ON_VERTEX;
                 } else {
-                    if (pos) *pos = po[1];
+                    if (pos) *pos = po[u];
                     return WI_ON_EDGE; // on an edge, but not vertex
                 }
             }
@@ -195,6 +191,14 @@ inline bool really_between04_warp (double q, double a, double b)
     return test_smaller(a,q) || test_smaller(q,b);
 }
 
+//true if q is between (a and b) modulo 4
+//if q is almost equal to a or b, we return false;
+inline bool really_between04_warp(const RayAngle &q, const RayAngle &a, const RayAngle &b)
+{
+    if (a.Smaller(b)) return q.Smaller(b) && !q.Smaller(a);
+    return a.Smaller(q) || q.Smaller(b);
+}
+
 //Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A.
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
 //clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
@@ -214,25 +218,45 @@ EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &
         case WI_ON_VERTEX:
             pos = 0; //if we are on b's vertex, this is the right pos for that edge
         case WI_ON_EDGE:
-            double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
-            double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
-            double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
-            double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
-            if (!  GetClockWise()) std::swap(one_prev, one_next); //make angles as if clockwise
-            if (!b.GetClockWise()) std::swap(two_prev, two_next); //make angles as if clockwise
+            RayAngle prev1 = at_prev(i).Angle(true, 1);
+            RayAngle next1 = at(i).Angle(false, 0);
+            RayAngle prev2 = pos == 0 ? b.at_prev(edge).Angle(true, 1) : b.at(edge).Angle(true, pos);
+            RayAngle next2 = pos == 1 ? b.at_next(edge).Angle(false, 0) : b.at(edge).Angle(false, pos);
+            if (!GetClockWise()) std::swap(prev1, next1); //make angles as if clockwise
+            if (!b.GetClockWise()) std::swap(prev2, next2); //make angles as if clockwise
 
             //if both the same, we continue: this vertex is non-decisive
-            if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
+            if (prev1.IsSimilar(prev2) && next1.IsSimilar(next2)) break; //SAME - do another edge
 
             //if values are too close it is dangerous, we look for other vertices
-            if (test_equal(one_prev, one_next)) break;
-            if (test_equal(two_prev, two_next)) break;
+            if (prev1.IsSimilar(next1)) break;
+            if (prev2.IsSimilar(next2)) break;
 
-            if (really_between04_warp(one_prev, two_next, two_prev) &&
-                really_between04_warp(one_next, two_next, two_prev)) return REL_A_INSIDE_B;
-            if (really_between04_warp(two_prev, one_next, one_prev) &&
-                really_between04_warp(two_next, one_next, one_prev)) return REL_B_INSIDE_A;
+            if (really_between04_warp(prev1, next2, prev2) &&
+                really_between04_warp(next1, next2, prev2)) return REL_A_INSIDE_B;
+            if (really_between04_warp(prev2, next1, prev1) &&
+                really_between04_warp(next2, next1, prev1)) return REL_B_INSIDE_A;
             return REL_APART;
+                
+            //double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
+            //double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
+            //double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
+            //double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
+            //if (!  GetClockWise()) std::swap(one_prev, one_next); //make angles as if clockwise
+            //if (!b.GetClockWise()) std::swap(two_prev, two_next); //make angles as if clockwise
+
+            ////if both the same, we continue: this vertex is non-decisive
+            //if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
+
+            ////if values are too close it is dangerous, we look for other vertices
+            //if (test_equal(one_prev, one_next)) break;
+            //if (test_equal(two_prev, two_next)) break;
+
+            //if (really_between04_warp(one_prev, two_next, two_prev) &&
+            //    really_between04_warp(one_next, two_next, two_prev)) return REL_A_INSIDE_B;
+            //if (really_between04_warp(two_prev, one_next, one_prev) &&
+            //    really_between04_warp(two_next, one_next, one_prev)) return REL_B_INSIDE_A;
+            //return REL_APART;
         }
     }
     //All points were on a vertex equal in one of the directions
@@ -536,7 +560,7 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
     clockwise[0] = cclockwise[0] = at(0).GetStart();
     clockwise[1] = cclockwise[1] = from.at(0).GetStart();
     for (const auto &e : edges)
-        for (const auto &f : edges)
+        for (const auto &f : from.edges)
             e.TangentFrom(f, clockwise, cclockwise);
     return true;
 }
@@ -646,7 +670,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         //the relation of the last of the generated edges with the next: 
         //mark this as a relation needed to be computed
         r.back().cross_type = Edge::CP_INVERSE;
-        r.back().original_point = at(u).GetEnd(); 
+        r.back().original_point = at(u).GetEnd();
     }
 
     //Calculate actual max miter length.
@@ -654,18 +678,20 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     const double gap_limit_sqr = fabs(miter_limit) < MaxVal(miter_limit) ? gap*gap*miter_limit*miter_limit : MaxVal(gap_limit_sqr);
 
     bool changed_from_cp_inverse;
-    
+
+#ifdef _DEBUG
     if (expand_debug==2) goto end;
+#endif
 
     do {
         changed_from_cp_inverse = false;
         //Find how and where expanded edges meet
         //do not do this for edge segments generated by expansion above or for cps where 
         //we have already sorted things in a previous run of this do-while cycle
-        for (auto i = r.begin(); i!=r.end(); i++) 
+        for (auto i = r.begin(); i!=r.end(); i++)
             if (i->cross_type==Edge::CP_INVERSE) {
-                i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point, 
-                                                       i->us_end_pos, i->next_start_pos);
+                i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
+                    i->us_end_pos, i->next_start_pos);
                 //note if we have changed the status of at least one such CP
                 //this means we may need to do another pass
                 if (i->cross_type!=Edge::CP_INVERSE)
@@ -746,7 +772,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //add straight edge before the inserted bezier for miters
                 if (IsMiter(type) && prev_i->cross_type==Edge::CP_EXTENDED)
                     r.emplace(i, new_start, i->GetStart(), !!i->visible);
-                if (prev_i->cross_type == Edge::CP_REAL && i->cross_type == Edge::CP_REAL) 
+                if (prev_i->cross_type == Edge::CP_REAL && i->cross_type == Edge::CP_REAL)
                     i->SetStartEndIgn(new_start, new_end, prev_i->next_start_pos, i->us_end_pos);
                 else if (prev_i->cross_type == Edge::CP_REAL)
                     i->SetStartIgn(new_start, prev_i->next_start_pos);
@@ -792,7 +818,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 } else if (type == EXPAND_ROUND) {
                     //Add a circle, from new_end and the next start
                     CreateRoundForExpand(i->original_point, new_end, next_i->GetStart(), gap>0,
-                                         r, next_i, i->visible && next_i->visible);
+                        r, next_i, i->visible && next_i->visible);
                 }
             }
             //We have done everything for non-parallel joins
@@ -804,10 +830,10 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
             /* Here we handle CP_PARALLEL_XXX_DIR.
              * For CP_PARALLEL_XXX_DIR we have 8 cases
-             * Both edges could change direction or not, times whether they ended up 
+             * Both edges could change direction or not, times whether they ended up
              * in the same diretion or not.
              * (We say opposite direction when the two edges meet smoothly
-             * and same direction, when the vertex is a sharp point, where the curve 
+             * and same direction, when the vertex is a sharp point, where the curve
              * changes direction 180 degrees.)
              * Cases marked TRIVIAL below, indicate that the two expanded edges still meet exactly
              * at their end/startpoint creating a CP_TRIVIAL join. These cases we do not see here
@@ -815,21 +841,21 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
              *         | prev    | prev NOT |   Case A: Two concave arcs have met in a cusp
              * SAME    | changed | changed  |   and both have been overshrunken (+ is vertex)
              * DIR     | dir     | dir      |         \               |
-             * --------+---------+----------+-         |             /      x is start/end of 
+             * --------+---------+----------+-         |             /      x is start/end of
              * next    |         |          |         /             *-x     expanded edges,
              * changed |   A     | TRIVIAL  |       +=        =>            * is a cusp in the
              * dir     |         |          |         \             *-x     expanded edges
              * --------+---------+----------+-         |             \
              * next NOT|         |          |         /               |
-             * changed | TRIVIAL |    B     |                       
-             * dir     |         |          |                       
+             * changed | TRIVIAL |    B     |
+             * dir     |         |          |
              *
              * Case B: a line/concave arc met a concave arc tangentwise and none been overshrunken.
              * (Originals are dittex, original vertex is +, expanded edges' start/end is x,
              *  expanded edges are extended with dashes.)
              *----->-x------------------
              *
-             * ..>...+                 
+             * ..>...+
              *      :
              *     :      -x----------------
              *    :      /
@@ -842,15 +868,15 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
              * --------+---------+----------+-
              * next    |         |          |        ----->-x                        o
              * changed | TRIVIAL |     C    |
-             * dir     |         |          |         ..>...+                 
+             * dir     |         |          |         ..>...+
              * --------+---------+----------+-             :   *
-             * next NOT|         |          |             : x-/|     
+             * next NOT|         |          |             : x-/|
              * changed |    C    | TRIVIAL  |            :    /
              * dir     |         |          |            :   |
              *
              *
              * In all cases we need to make sure that the added miter/round/square goes to the right
-             * direction (to the direction of the original edges). In cases of A and C we need to 
+             * direction (to the direction of the original edges). In cases of A and C we need to
              * cut away the loop (if any) that is formed by the added miter/round, because that would
              * end up as a hole in the resulting contour.
              * (That is because (e.g., for case C above) the expanded edge that changed dir starts out
@@ -885,9 +911,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             //  of the first edge (in "i")
             //Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
             //changed direction.
-            if (!i->IsStraight() && !next_i->IsStraight() && 
+            if (!i->IsStraight() && !next_i->IsStraight() &&
                 !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
-                                i->GetEnd(), i->NextTangentPoint(1.0))) 
+                i->GetEnd(), i->NextTangentPoint(1.0)))
                 //in this case flip cp to the original vertex
                 i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
 
@@ -915,7 +941,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             } else if (IsRound(type)) {
                 //Add a circle, from new_end and the next start
                 CreateRoundForExpand(i->original_point, new_end, next_i->GetStart(), gap>0,
-                                     r, next_i, i->visible && next_i->visible);
+                    r, next_i, i->visible && next_i->visible);
                 Edge::RemoveLoop(r, start_orig_us, next_i);
                 //i and next_i may be destroyed here. Search loops from start_orig_us again
                 Edge::RemoveLoop(r, start_orig_us, end_orig_next);
@@ -926,11 +952,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //Here we add 3 edges of a half-square
                 const XY &next_start = next_i->GetStart();
                 const double dist = new_end.Distance(next_start)/2;
-                const XY first_tangent = at(i->original_edge).NextTangentPoint(1.0) - 
-                                         at(i->original_edge).GetEnd();
+                const XY first_tangent = at(i->original_edge).NextTangentPoint(1.0) -
+                    at(i->original_edge).GetEnd();
                 const XY first = new_end + first_tangent*(dist/first_tangent.length());
-                const XY second_tangent = at(next_i->original_edge).PrevTangentPoint(0.0) - 
-                                          at(next_i->original_edge).GetStart();
+                const XY second_tangent = at(next_i->original_edge).PrevTangentPoint(0.0) -
+                    at(next_i->original_edge).GetStart();
                 const XY second = next_start + second_tangent*(dist/second_tangent.length());
                 r.emplace(next_i, new_end, first, i->visible && next_i->visible);
                 r.emplace(next_i, first, second, i->visible && next_i->visible);
@@ -961,12 +987,13 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     } while (changed_from_cp_inverse && r.size());
 end:
     //Insert straight segments for CP_INVERSE joins (not visible)
-    for (auto i = r.begin(); i!=r.end(); i++)
-        if (i->cross_type == Edge::CP_INVERSE) {
-            const auto next_i = r.next(i);
+    for (auto i = r.begin(); i!=r.end(); i++) {
+        const auto next_i = r.next(i);
+        if (i->cross_type == Edge::CP_INVERSE)
             r.emplace(next_i, i->GetEnd(), next_i->GetStart(), false);
-        } 
-
+        else if (i->CheckAndCombine(*next_i))
+            r.erase(next_i);
+    }
     //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
     //next one. 
     if (r.size()==0) return; //empty shape
@@ -977,16 +1004,12 @@ end:
     sp_r.clockwise_fresh = sp_r.area_fresh = sp_r.boundingBox_fresh = false;
     sp_r.Sanitize(); //remove degenerate edges
 
+#ifdef _DEBUG
     //OK, now untangle 
-    switch (expand_debug) {
-    case 2:
-    case 1:
-        res = std::move(sp_r);
-        break;
-    case 0:
-        res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
-        break;
-    }
+    if (expand_debug) 
+        expand_debug_contour.push_back(sp_r.edges);
+#endif
+    res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
 }
 
 
@@ -1016,11 +1039,11 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
             default: _ASSERT(0); break;
             }
             XY next_start = a[next].GetStart();
-            a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp));
-            a.insert(a.begin()+original_last+2, Edge(cp, next_start));
+            a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp, !!a[original_last].visible));
+            a.insert(a.begin()+original_last+2, Edge(cp, next_start, !!a[next].visible));
         } else {
             a.insert(a.begin()+original_last+1,
-                     Edge(a[original_last].GetEnd(), a[next].GetStart()));
+                Edge(a[original_last].GetEnd(), a[next].GetStart(), a[original_last].visible && a[next].visible));
         }
     }
 }
@@ -1054,7 +1077,7 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
 
     r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
     if (r2.first.outline.size()==0) return;
-    r2.boundingBox = r2.first.outline.boundingBox; //copy bb to outer
+    r2.boundingBox = r2.first.outline.GetBoundingBox(); //copy bb to outer
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
 }
 
@@ -1175,7 +1198,7 @@ void SimpleContour::Distance(const SimpleContour &o, DistanceType &ret) const
     running.MakeAllOutside();
     //both running and tmp are positive throught this call, except at the very end
     for (const auto &e : edges)
-        for (const auto &f : edges) {
+        for (const auto &f : o.edges) {
             if (e.straight && f.straight)
                 tmp = e.Distance(f);
             else if (running.ConsiderBB(fabs(e.CreateBoundingBox().Distance(f.CreateBoundingBox()))))
