@@ -98,26 +98,6 @@ Shape::Shape(const std::string &n, const FileLineCol &l,
 void Shape::Add(ShapeElement &&e)
 {
     switch (e.action) {
-    case ShapeElement::CURVE_TO:
-        max += XY(e.x1, e.y1);
-        max += XY(e.x2, e.y2);
-        //fallthrough
-    case ShapeElement::LINE_TO:
-    case ShapeElement::MOVE_TO:
-        max += XY(e.x, e.y);
-        //fallthrough
-    case ShapeElement::CLOSE_PATH:
-        GetSection().push_back(e);
-        break;
-    case ShapeElement::SECTION_BG:
-        current_section = 0;
-        break;
-    case ShapeElement::SECTION_FG_FILL:
-        current_section = 1;
-        break;
-    case ShapeElement::SECTION_FG_LINE:
-        current_section = 2;
-        break;
     case ShapeElement::HINT_AREA:
         hint_pos = Block(e.x, e.x1, e.y, e.y1);
         break;
@@ -128,6 +108,43 @@ void Shape::Add(ShapeElement &&e)
     default:
         _ASSERT(0);
         break;
+    case ShapeElement::CURVE_TO:
+        max += XY(e.x1, e.y1);
+        max += XY(e.x2, e.y2);
+        current_section_data.emplace_back(current_section_point, XY(e.x, e.y),
+                                          XY(e.x1, e.y1), XY(e.x2, e.y2));
+        current_section_point = XY(e.x, e.y);
+        break;
+    case ShapeElement::LINE_TO:
+        current_section_data.emplace_back(current_section_point, XY(e.x, e.y));
+        max += XY(e.x, e.y);
+        current_section_point = XY(e.x, e.y);
+        break;
+    case ShapeElement::MOVE_TO:
+        if (current_section_data.size())
+            current_section_data.emplace_back(current_section_point, XY(e.x, e.y), false);
+        max += XY(e.x, e.y);
+        current_section_point = XY(e.x, e.y);
+        break;
+    case ShapeElement::SECTION_BG:
+    case ShapeElement::SECTION_FG_FILL:
+    case ShapeElement::SECTION_FG_LINE:
+    case ShapeElement::CLOSE_PATH:
+        GetSection(current_section) += std::move(current_section_data);
+        current_section_data.clear();
+        switch (e.action) {
+        case ShapeElement::SECTION_BG:
+            current_section = 0;
+            break;
+        case ShapeElement::SECTION_FG_FILL:
+            current_section = 1;
+            break;
+        case ShapeElement::SECTION_FG_LINE:
+            current_section = 2;
+            //fallthrough
+        default:
+            break;
+        }
     }
 }
 
@@ -139,50 +156,16 @@ Block Shape::GetLabelPos(const Block &o) const
         Tr(label_pos.y.from, max.y, o.y), Tr(label_pos.y.till, max.y, o.y));
 }
 
-
-string Shape::Write() const
-{
-    string ret;
-    ret << "N " << name << '\n';
-    if (!label_pos.IsInvalid())
-        ret << "T " << label_pos.x.from << " " << label_pos.y.from << " "
-        << label_pos.x.till << " " << label_pos.y.till << "\n";
-    if (!hint_pos.IsInvalid())
-        ret << "H " << hint_pos.x.from << " " << hint_pos.y.from << " "
-        << hint_pos.x.till << " " << hint_pos.y.till << "\n";
-    if (bg.size()) {
-        ret.append("S 0\n");
-        for (auto &e : bg)
-            ret.append(e.Write());
-    }
-    if (fg_fill.size()) {
-        ret.append("S 1\n");
-        for (auto &e : fg_fill)
-            ret.append(e.Write());
-    }
-    if (fg_line.size()) {
-        ret.append("S 2\n");
-        for (auto &e : fg_line)
-            ret.append(e.Write());
-    }
-    return ret;
-}
-
 void Shape::Path(cairo_t *cr, unsigned section, const Block &o) const
 {
     _ASSERT(section<=2);
     if (section>2)
         return;
-    for (const auto &e : GetSection(section))
-        switch (e.action) {
-        case ShapeElement::MOVE_TO: cairo_move_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case ShapeElement::LINE_TO: cairo_line_to(cr, Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case ShapeElement::CURVE_TO: cairo_curve_to(cr, Tr(e.x1, max.x, o.x), Tr(e.y1, max.y, o.y),
-            Tr(e.x2, max.x, o.x), Tr(e.y2, max.y, o.y),
-            Tr(e.x, max.x, o.x), Tr(e.y, max.y, o.y)); break;
-        case ShapeElement::CLOSE_PATH: cairo_close_path(cr); break;
-        default: _ASSERT(0); break;
-    }
+    if (o.x.Spans()<=0 || o.y.Spans()<0)
+        return;
+    Contour c = GetSection(section).CreateScaled(XY(o.x.Spans()/max.x.Spans(), o.y.Spans()/max.y.Spans()));
+    c.Shift(XY(o.x.from - max.x.from*o.x.Spans()/max.x.Spans(), o.y.from - max.y.from*o.y.Spans()/max.y.Spans()));
+    c.Path(cr, false);
 }
 
 ShapeCollection & ShapeCollection::operator = (const ShapeCollection &o)
@@ -351,14 +334,6 @@ bool ShapeCollection::Add(const string &name, const FileLineCol &fpos,
 }
 
 
-string ShapeCollection::Write() const
-{
-    string ret;
-    for (auto &sh : shapes)
-        ret.append(sh.Write());
-    return ret;
-}
-
 /** Callback for drawing a symbol before 'yes' or 'no' in the hints popup list box.
 * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh&);
@@ -413,6 +388,23 @@ void ShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const Li
         cairo_stroke(cr);
     }
 }
+
+/** Return the coverage of the given shape or none if bad shape number
+* @param [in] sh The number of the shape
+* @param [in] o The boundaries into which the shape shall be fitted
+* @returns the Contour representing the union of bg, fg_fill and fg_line sections*/
+Contour ShapeCollection::Cover(unsigned sh, const Block &o) const
+{
+    if (sh >= shapes.size()) return Contour();
+    const Block &max = shapes[sh].GetMax();
+    Contour c = shapes[sh].GetSection(0) + shapes[sh].GetSection(1) + shapes[sh].GetSection(2);
+    c.Scale(XY(o.x.Spans()/max.x.Spans(), o.y.Spans()/max.y.Spans()));
+    c.Shift(XY(o.x.from - max.x.from*o.x.Spans()/max.x.Spans(), o.y.from - max.y.from*o.y.Spans()/max.y.Spans()));
+    return c;
+}
+
+
+
 
 bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
 {
@@ -1070,7 +1062,7 @@ Range EntityApp::Height(Area &cover, const EntityAppList &children)
         _ASSERT(children.size()==0);
         //Here outer_edge is calculated to be around x=0 and positioned at y=0
         outer_edge.x.Shift(x);
-        area = outer_edge;
+        area = chart->Shapes.Cover((*itr)->shape, outer_edge);
         if (chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge).IsInvalid()) {
             const double w = parsed_label.getTextWidthHeight().x;
             area += parsed_label.Cover(x-w/2, x+w/2, outer_edge.y.till);

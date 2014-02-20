@@ -68,6 +68,7 @@ class ContourList : protected std::list<ContourWithHoles>
 
     void Shift(const XY &xy);
     void Scale(double sc);
+    void Scale(const XY &sc);
     void SwapXY();
     void Rotate(double cos, double sin);
     void RotateAround(const XY&c, double cos, double sin);
@@ -163,8 +164,9 @@ protected:
 
     void Invert() {outline.Invert(); if (holes.size()) holes.Invert();} ///<Reverse the direction (clockwise/counterclockwise) of both `outline` and `holes`.
     void Shift(const XY &xy) {outline.Shift(xy); if (holes.size()) holes.Shift(xy);} ///<Translate the shape.
-    void Scale(double sc)  {outline.Scale(sc); if (holes.size()) holes.Scale(sc);} ///<Scale the shape.
-    void SwapXY() {outline.SwapXY(); if (holes.size()) holes.SwapXY();} ///<Transpose the shape: swap X and Y coordinates (but keep clockwisedness). 
+    void Scale(double sc) { outline.Scale(sc); if (holes.size()) holes.Scale(sc); } ///<Scale the shape.
+    void Scale(const XY& sc) { outline.Scale(sc); if (holes.size()) holes.Scale(sc); } ///<Scale the shape.
+    void SwapXY() { outline.SwapXY(); if (holes.size()) holes.SwapXY(); } ///<Transpose the shape: swap X and Y coordinates (but keep clockwisedness). 
     void Rotate(double cos, double sin)
         {outline.Rotate(cos, sin); if (holes.size()) holes.Rotate(cos, sin);} ///<Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
     void RotateAround(const XY&c, double cos, double sin)
@@ -502,7 +504,9 @@ public:
     /** Translate the contour */
     Contour &Shift(const XY &xy) {first.Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy); return *this;} 
     /** Scale the contour */
-    Contour &Scale(double sc) {first.Scale(sc); if (further.size()) further.Scale(sc); boundingBox.Scale(sc); return *this;}
+    Contour &Scale(double sc) { first.Scale(sc); if (further.size()) further.Scale(sc); boundingBox.Scale(sc); return *this; }
+    /** Scale the contour */
+    Contour &Scale(const XY &sc) { first.Scale(sc); if (further.size()) further.Scale(sc); boundingBox.Scale(sc); return *this; }
     /** Transpose the contour by swapping x and y coordinate. The contour, however, remains clockwise. */
     Contour &SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY(); return *this;}
     /** Rotate the contour around the origin by `degrees` degrees. */
@@ -513,7 +517,9 @@ public:
     /** Create a translated version of the contour. */
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
     /** Create a scaled version of the contour */
-    Contour CreateScaled(double sc) const {Contour a(*this); a.Scale(sc); return a;}
+    Contour CreateScaled(double sc) const { Contour a(*this); a.Scale(sc); return a; }
+    /** Create a scaled version of the contour */
+    Contour CreateScaled(const XY &sc) const { Contour a(*this); a.Scale(sc); return a; }
     /** Create a clockwise, transposed version of the contour by swapping x and y coordinates. */
     Contour CreateSwapXYd() const {Contour a(*this); a.SwapXY(); return a;}
     /** Create a rotated version of the contour */
@@ -914,6 +920,13 @@ inline void ContourList::Shift(const XY &xy)
 }
 
 inline void ContourList::Scale(double sc)
+{
+    for (auto i = begin(); i!=end(); i++)
+        i->Scale(sc);
+    boundingBox.Scale(sc);
+}
+
+inline void ContourList::Scale(const XY &sc)
 {
     for (auto i = begin(); i!=end(); i++)
         i->Scale(sc);
