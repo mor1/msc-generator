@@ -32,6 +32,199 @@
 
 namespace contour {
 
+
+
+/** Calculate the boundingBox of the whole shape.
+*  Assumes the bounding box of curved edges is already calculated.*/
+const Block &SimplePath::CalculateBoundingBox() const
+{
+    boundingBox.MakeInvalid();
+    for (const auto &e : edges)
+        if (e.IsStraight())
+            boundingBox += e.GetStart();
+        else
+            boundingBox += e.CreateBoundingBox();
+    boundingBox_fresh = true;
+    return boundingBox;
+}
+
+/** Fix problems in a shape (edges not joint, etc).
+*
+* @returns true if we were sane, false if changes were needed.
+*/
+bool SimplePath::Sanitize()
+{
+    bool ret = true;
+    if (size()==0) return true;
+    if (size()==1) goto clear;
+    for (size_t u = 0; u<size(); /*nope*/)
+        if (at(u).IsDot()) {
+            edges.erase(edges.begin()+u);
+            ret = false;
+        } else
+            u++;
+        switch (size()) {
+        case 0: return false;
+        case 1: goto clear;
+        case 2:
+            if (at(0).straight && at(1).straight)
+                goto clear;
+            /*fallthrough*/
+        default:
+            //ensure that edges connect
+            for (size_t u = 0; u<size()-1; u++)
+                if (!at(u).GetEnd().test_equal(at(u+1).GetStart()))
+                    goto clear;
+        }
+        if (!ret) boundingBox_fresh = false; //we think clockwiseness remains just by deleting a few edges.
+        return ret;
+    clear:
+        clear();
+        return false;
+}
+
+
+/** Create an ellipse (or ellipse slice) shape.
+ * If not a full ellipse/circle a line segment is added as _the last edge_ to close it.
+ *
+ * @param [in] c Centerpoint
+ * @param [in] radius_x Radius in the y direction. Its absolute value is used.
+ * @param [in] radius_y Radius in the y direction (same as `radius_x` if omitted = circle) Its absolute value is used.
+ * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
+ * @param [in] s_deg The startpoint of the arc.
+ * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
+ * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
+*/
+SimplePath::SimplePath(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg) :
+   boundingBox_fresh(false)
+{
+    if (radius_x==0) {
+        boundingBox_fresh = true;
+        boundingBox.MakeInvalid();
+        return;
+    }
+    Edge::GenerateEllipse(edges, c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
+    //Add a segment if not a full ellipse
+    const XY start = edges.front().start;
+    const XY end = edges.back().end;
+}
+
+void SimplePath::AddAnEdge(const Edge &edge)
+{
+
+    if (edges.size() && edge.GetStart()!=edges.back().GetEnd()) {
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, edge.GetStart(), !!edge.visible);
+    }
+    edges.push_back(edge);
+}
+
+
+/** Revert the clockwisedness of the shape by reverting, all edges and their order. */
+void SimplePath::Invert()
+{
+    for (size_t i = 0; i<size(); i++)
+        at(i).Invert();
+    for (size_t i = 0; i<size()/2; i++)
+        std::swap(at(i), at(size()-1-i));
+}
+
+
+void SimplePath::assign(const std::vector<XY> &v)
+{
+    clear();
+    if (v.size()<2) return;
+    for (size_t i = 0; i<v.size(); i++)
+        edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
+    boundingBox_fresh = false;
+    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+void SimplePath::assign(const XY v[], size_t size)
+{
+    clear();
+    if (size < 2) return;
+    for (size_t i = 0; i<size; i++)
+        edges.push_back(Edge(v[i], v[(i+1)%size]));
+    boundingBox_fresh = false;
+    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+void SimplePath::assign(const std::vector<Edge> &v)
+{
+    clear();
+    if (v.size()<2) return;
+    edges = v;
+    boundingBox_fresh = false;
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+void SimplePath::assign(std::vector<Edge> &&v)
+{
+    clear();
+    if (v.size()<2) return;
+    edges.swap(v);
+    boundingBox_fresh = false;
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+void SimplePath::assign(const Edge v[], size_t size)
+{
+    clear();
+    if (size < 2) return;
+    for (size_t i = 0; i<size; i++)
+        edges.push_back(v[i]);
+    boundingBox_fresh = false;
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+}
+
+/** Draw the path as a path to a cairo context.
+*
+* @param [in] cr The cairo context.
+* @param [in] show_hidden If false, we skip edges marked not visible.
+*/
+void SimplePath::Path(cairo_t *cr, bool show_hidden) const
+{
+    if (size()==0 || cr==NULL) return;
+    bool closed = true;
+    cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
+    for (const auto &e : edges)
+        if (show_hidden || e.visible)
+            e.PathTo(cr);
+        else {
+            cairo_move_to(cr, e.GetEnd().x, e.GetEnd().y);
+            closed = false;
+        }
+    if (closed && edges.size() && edges.front().GetStart()!=edges.back().GetEnd())
+        cairo_close_path(cr);
+}
+
+/** Draw the path in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
+*
+* We also assume cairo dash is set to continuous: we fake dash here.
+* @param [in] cr The cairo context.
+* @param [in] pattern Contains lengths of alternating on/off segments.
+* @param [in] num contains the number of elements in pattern.
+* @param [in] show_hidden If false, we skip edges marked not visible.
+*/
+
+void SimplePath::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
+{
+    if (size()==0 || cr==NULL) return;
+    if (num<2) {
+        Path(cr, show_hidden);
+        return;
+    }
+    double offset = 0;
+    int pos = 0;
+    for (size_t i = 0; i<size(); i++)
+        if (at(i).visible)
+            at(i).PathDashed(cr, pattern, num, pos, offset);
+}
+
+
+
+
 ///////////////////////////// SimpleContour
 
 //Do not create degenerate triangles.

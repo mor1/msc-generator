@@ -170,8 +170,62 @@ void DoubleMap<element>::Prune()
 }
 
 
-class Contour;
+class SimplePath
+{
+    friend void contour_test(void);
+    friend class Path;
+protected:
+    std::vector<Edge> edges; ///<An ordered list of (directed) edges.
+private:
+    mutable bool boundingBox_fresh;
+    mutable Block  boundingBox;      ///<The bounding box for the shape.
+    Edge       &at(size_t i) { return edges[i]; }          ///<Returns reference to edge at index `i`.
+    const Edge &at(size_t i) const { return edges[i]; }          ///<Returns const reference to edge at index `i`.
+    bool Sanitize();
+    const Block &CalculateBoundingBox() const;
+protected:
+    SimplePath() : boundingBox_fresh(true), boundingBox(true) {}  ///<Create an empty path with no edges.
+    SimplePath(SimplePath &&p) { swap(p); }  ///<Move content of another path. The other path gets undefined.
+    SimplePath(const SimplePath &p) : edges(p.edges), boundingBox_fresh(p.boundingBox_fresh), boundingBox(p.boundingBox){} ///<Create a copy of another path
+    SimplePath(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360);
+    SimplePath &operator =(SimplePath &&p) { if (this!=&p) swap(p);  return *this; }
+    SimplePath &operator =(const SimplePath &p) { if (this!=&p) { if (p.size()) { edges = p.edges; boundingBox = p.boundingBox; boundingBox_fresh = p.boundingBox_fresh; } else clear(); } return *this; }
+    Edge &operator[](size_t edge) { return at(edge); }  ///<Returns reference to edge at index `i`.
+    //Edge *operator[](const XY &p) { size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL; }  ///<Returns pointer to edge `p` is at, NULL if `p` is not on the contour.
+    //const Edge *operator[](const XY &p) const { size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL; } ///<Returns const pointer to edge `p` is at, NULL if `p` is not on the contour.
 
+    void AddAnEdge(const Edge &edge);
+    void Invert();
+public:
+    //bool operator < (const SimplePath &b) const;
+    //bool operator ==(const SimplePath &b) const;
+    const Edge &operator[](size_t edge) const { return at(edge); } ///<Returns const reference to edge at index `i`.
+    void swap(SimplePath &b) { edges.swap(b.edges); std::swap(boundingBox_fresh, b.boundingBox_fresh); std::swap(boundingBox, b.boundingBox); };
+    void clear() { edges.clear(); boundingBox_fresh = true;  boundingBox.MakeInvalid(); } ///<Empty the shape by deleting all edges.
+
+    void assign(const std::vector<XY> &v);      ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
+    void assign(const XY v[], size_t size);  ///<Set shape content to `v` of size `size`. Assume edges in `v` connect and do not cross.
+    template<size_t size> void assign(const XY(&v)[size]) { assign(v, size); } ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
+    void assign(const std::vector<Edge> &v);    ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
+    void assign(std::vector<Edge> &&v);       ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
+    void assign(const Edge v[], size_t size);///<Set shape content to `v` of size `size`. Assume edges in `v` connect and do not cross.
+    template<size_t size> void assign(const Edge(&v)[size]) { assign(v, size); } ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
+
+    size_t size() const { return edges.size(); }             ///<Returns the number of edges.
+    const Block &GetBoundingBox() const { if (!boundingBox_fresh) CalculateBoundingBox(); return boundingBox; } ///<Returns the bounding box.
+    bool IsEmpty() const { return edges.size()==0; }            ///<Returns if the shape is empty (no edges).
+    void Path(cairo_t *cr, bool show_hidden) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
+
+    void Shift(const XY &xy) { boundingBox.Shift(xy); for (auto &e : edges) e.Shift(xy); } ///<Translates the path.
+    void Scale(double sc) { boundingBox.Scale(sc); for (auto &e : edges) e.Scale(sc); } ///<Scale the path.
+    void Scale(const XY &sc) { boundingBox.Scale(sc); for (auto &e : edges) e.Scale(sc); } ///<Scale the path.
+    void SwapXY() { _ASSERT(IsSane()); boundingBox.SwapXY(); for (auto &e : edges) e.SwapXY(); Invert(); } ///<Transpose the path: swap XY coordinates 
+    void Rotate(double cos, double sin) { for (auto &e : edges) e.Rotate(cos, sin); boundingBox_fresh = false; } ///<Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
+    void RotateAround(const XY&c, double cos, double sin) { for (auto &e : edges) e.RotateAround(c, cos, sin); boundingBox_fresh = false; } ///<Rotate the path by `radian` around `c`. `sin` and `cos` are pre-computed values.
+};
+
+class Contour;
 
 /** Contains a single, contigous 2D shape with no holes. Essentially a list of edges.
  * @ingroup contour_internal

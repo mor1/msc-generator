@@ -130,8 +130,15 @@ void Shape::Add(ShapeElement &&e)
     case ShapeElement::SECTION_FG_FILL:
     case ShapeElement::SECTION_FG_LINE:
     case ShapeElement::CLOSE_PATH:
-        GetSection(current_section) += std::move(current_section_data);
-        current_section_data.clear();
+        if (current_section_data.size()) {
+            if (current_section_data.front().GetStart() != current_section_data.back().GetEnd())
+                //use a local object as parameter to emplace, since back() and front() may become 
+                //invalid after resize() (done as part of emplace_back())
+                current_section_data.emplace_back(current_section_point, XY(current_section_data.front().GetStart()));
+            Contour csd = std::move(current_section_data);
+            GetSection(current_section) += std::move(csd);
+            current_section_data.clear();
+        }
         switch (e.action) {
         case ShapeElement::SECTION_BG:
             current_section = 0;

@@ -70,6 +70,7 @@ FIX: Optimize Crossing() for subsequent edges
 FIX: Optimize OffsetBelow with existing offset info
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
+FIX: Refine CrossingVertical and remove forward parameter
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly

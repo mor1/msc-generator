@@ -748,41 +748,25 @@ bool Edge::HullOverlap2(const Edge &o) const
     }
 }
 
-bool Edge::HullOverlap3(const Edge &o) const
+/** Checks if the bounding box of the hull of two beziers overlap.
+ * @param [in] The other edge
+ * @param [in] If true 'o' is an edge following 'this' and we ignore if they 
+ *             connect via this->end == o.start.
+ * @returns True if there is overlap */
+bool Edge::HullOverlap3(const Edge &o, bool is_next) const
 {
-    //Assume at least one is curvy
-    _ASSERT(!straight || !o.straight);
-    if (straight) {
-        if (!Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
-            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y))).Overlaps(
-            Range(std::min(start.y, end.y), std::max(start.y, end.y))))
-            return false;
-        if (!Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
-            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x))).Overlaps(
-            Range(std::min(start.x, end.x), std::max(start.x, end.x))))
-            return false;
-    } else if (o.straight) {
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
-            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-            Range(std::min(o.start.y, o.end.y), std::max(o.start.y, o.end.y))))
-            return false;
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
-            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-            Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
-            return false;
-    } else {
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
-            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-            Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
-            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y)))))
-            return false;
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
-            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-            Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
-            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x)))))
-            return false;
-    }
-    return true;
+    const Block O = o.straight ? Block(o.start, o.end) : o.GetBezierHullBlock();
+    const Block T =   straight ? Block(  start,   end) :   GetBezierHullBlock();
+    if (!O.Overlaps(T)) return false;
+    //test if 'o' and 'this' only overlaps at their start/endpoint
+    if (!is_next || end!=o.start) return true;
+    if (O.y.from != T.y.till && O.y.till != T.y.from)
+        return true;
+    if (O.x.from != T.x.till && O.x.till != T.x.from)
+        return true;
+    //OK, now we know that the two BBs touch only at a single vertex
+    //since end==o.start, this can only be that point
+    return false;
 }
 
 /** Returns 16*flatness^2 */
@@ -798,13 +782,14 @@ double Edge::Flatness() const
 /* Returns the number of crosspoints */
 unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
                               double pos_my_mul, double pos_other_mul, 
-                              double pos_my_offset, double pos_other_offset) const
+                              double pos_my_offset, double pos_other_offset, unsigned alloc_size) const
 {
+    _ASSERT(alloc_size);
     //If both straight, we calculate and leave
     if (straight) {
         if (!A.straight)
             return A.CrossingBezier(*this, r, pos_other, pos_my, pos_other_mul, pos_my_mul,
-                                    pos_other_offset, pos_my_offset);
+                                    pos_other_offset, pos_my_offset, alloc_size);
         switch (CrossingSegments_NoSnap(A, r, pos_my, pos_other)) {
         default:
             _ASSERT(0); //fallthrough
@@ -823,32 +808,32 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return 1;
         }
     }
-    //const bool one = HullOverlap(A);
-    //const bool  two = HullOverlap2(A);
-   // _ASSERT(one==two || A.straight || straight);
-    //if (!two) return 0;
-    if (!HullOverlap3(A)) return 0;
+    if (!HullOverlap3(A, false)) return 0;
     Edge M1, M2, A1, A2;
     Split(M1, M2);
     pos_my_mul /= 2;
     unsigned num;
     if (A.straight) {
         num = M1.CrossingBezier(A, r, pos_my, pos_other, pos_my_mul, pos_other_mul,
-            pos_my_offset, pos_other_offset);
+            pos_my_offset, pos_other_offset, alloc_size);
+        if (num >= alloc_size) return num;
         num += M2.CrossingBezier(A, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul,
-            pos_my_offset+pos_my_mul, pos_other_offset);
+            pos_my_offset+pos_my_mul, pos_other_offset, alloc_size-num);
         return num;
     }
     A.Split(A1, A2);
     pos_other_mul /= 2;
     num = M1.CrossingBezier(A1, r, pos_my, pos_other, pos_my_mul, pos_other_mul, 
-        pos_my_offset, pos_other_offset);
-    num += M2.CrossingBezier(A1, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul, 
-        pos_my_offset+pos_my_mul, pos_other_offset);
-    num += M1.CrossingBezier(A2, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul, 
-        pos_my_offset, pos_other_offset+pos_other_mul);
-    num += M2.CrossingBezier(A2, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul, 
-        pos_my_offset+pos_my_mul, pos_other_offset+pos_other_mul);
+        pos_my_offset, pos_other_offset, alloc_size);
+    if (num >= alloc_size) return num;
+    num += M2.CrossingBezier(A1, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul,
+        pos_my_offset+pos_my_mul, pos_other_offset, alloc_size-num);
+    if (num >= alloc_size) return num;
+    num += M1.CrossingBezier(A2, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul,
+        pos_my_offset, pos_other_offset+pos_other_mul, alloc_size-num);
+    if (num >= alloc_size) return num;
+    num += M2.CrossingBezier(A2, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul,
+        pos_my_offset+pos_my_mul, pos_other_offset+pos_other_mul, alloc_size-num);
     return num;
 }
 
@@ -885,6 +870,8 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * This must ensure that we do not return pos values that are very close to 0 or 1
 * such values are to be rounded to 0 (or 1) in that case exatly the start point
 * of the arc shall be returned. 
+* In case the two edges overlap and have common sections, we return 2 and the two
+* endpoint of the common section.
 * The arrays shall be at least Edge::MAX_CP big.
 *
 * @param [in] o The other edge.
@@ -893,78 +880,98 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * @param [out] r The crosspoins.
 * @param [out] pos_my The pos values of the corresponding crosspoints on me.
 * @param [out] pos_other The pos values of the corresponding crosspoints on the other edge.
-* @returns The number of crosspoins found [0..4].
+* @returns The number of crosspoins found [0..MAX_CP]
 */
 unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
                         double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
+    //A quick test: if their bounding box only meets at the joint
+    //start/endpoint, we return here    
+    if (is_next && !HullOverlap3(A, is_next)) return 0;
     if (straight && A.straight) {
         unsigned num = CrossingSegments(A, r, pos_my, pos_other);
         if (num==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
             return 0;
         return num;
     }
-    //ToDo: A quick test: if their bounding box only meets at the joint
-    //start/endpoint, we return here    
-    //use int because we may substract one
-    int num = CrossingBezier(A, r, pos_my, pos_other, 1, 1, 0, 0);
-    _ASSERT(num<Edge::MAX_CP);
-    //Snap the crosspoints to the start of the curves
-    for (int i = 0; i<num; i++) {
-        if (test_zero(pos_my[i])) {
-            pos_my[i] = 0;
-            r[i] = start;
-        } else if (test_equal(1, pos_my[i])) {
-            pos_my[i] = 1;
-            r[i] = end;
+    const unsigned LOC_MAX_CP = MAX_CP*2;
+    XY loc_r[LOC_MAX_CP];
+    double loc_pos_my[LOC_MAX_CP], loc_pos_other[LOC_MAX_CP];
+    unsigned num = CrossingBezier(A, loc_r, loc_pos_my, loc_pos_other, 1, 1, 0, 0, LOC_MAX_CP);
+    //Snap the crosspounsigneds to the start of the curves
+    for (unsigned i = 0; i<num; i++) {
+        if (test_zero(loc_pos_my[i])) {
+            loc_pos_my[i] = 0;
+            loc_r[i] = start;
+        } else if (test_equal(1, loc_pos_my[i])) {
+            loc_pos_my[i] = 1;
+            loc_r[i] = end;
         }
-        if (test_equal(1, pos_other[i])) {
-            pos_other[i] = 1;
-            r[i] = A.end;
-        } else if (test_zero(pos_other[i])) {
-            pos_other[i] = 0;
-            r[i] = A.start;
+        if (test_equal(1, loc_pos_other[i])) {
+            loc_pos_other[i] = 1;
+            loc_r[i] = A.end;
+        } else if (test_zero(loc_pos_other[i])) {
+            loc_pos_other[i] = 0;
+            loc_r[i] = A.start;
         }
     }
-    //We remove crosspoints where our end meets A's start (if is_next is true)
-    if (is_next)
-        for (int i = 0; i<num; i++)
-            if (pos_my[i]==1 && pos_other[i]==0) {
-                //erase index i
-                num--;
-                for (int k = i; k<num; k++) {
-                    r[k] = r[k+1];
-                    pos_my[k] = pos_my[k+1];
-                    pos_other[k] = pos_other[k+1];
-                }
-            }
     //In case of multiple hits, we need to remove erroneously occuring ones
     //these are the ones, where both pos_my and pos_otehr are close
     //We do it pairwise
-    for (int i = 0; i<num-1; i++)
-        for (int j = i+1; j<num; j++)
-            if ((test_equal(pos_my[i], pos_my[j]) && test_equal(pos_other[i], pos_other[j]))) {
-                //erase index j
-                num--;
-                for (int k = j; k<num; k++) {
-                    r[k] = r[k+1];
-                    pos_my[k] = pos_my[k+1];
-                    pos_other[k] = pos_other[k+1];
+    unsigned ret = 0;
+    for (unsigned i = 0; i<num; i++) {
+        //We remove crosspounsigneds where our end meets A's start (if is_next is true)
+        if (is_next && loc_pos_my[i]==1 && loc_pos_other[i]==0)
+            continue;
+        //if i==num-1 the below coop will not roll
+        unsigned j = i+1;
+        for (; j<num; j++)
+            if ((test_equal(loc_pos_my[i], loc_pos_my[j]) && test_equal(loc_pos_other[i], loc_pos_other[j])))
+                break;
+        if (j==num) {
+            //index 'i' did not match any later element - we keep it
+            if (ret >= MAX_CP) {
+                //we have too many crosspoints - maybe the two beziers run parallel at a segment?
+                //Which of the endpoints are inside the other segment?
+                double d[4];
+                d[0] =   Distance(A.start, loc_r[0], loc_pos_my[0]);     loc_pos_other[0] = 0; loc_r[0] = A.start;
+                d[1] =   Distance(A.end,   loc_r[1], loc_pos_my[1]);     loc_pos_other[1] = 1; loc_r[1] = A.end;
+                d[2] = A.Distance(  start, loc_r[2], loc_pos_other[2]);  loc_pos_my[2] = 0;    loc_r[2] =   start;
+                d[3] = A.Distance(  end  , loc_r[3], loc_pos_other[3]);  loc_pos_my[3] = 1;    loc_r[3] =   end;
+                unsigned m[2] = {d[0]<d[1] ? 0 : 1, d[0]<d[1] ? 1 : 0};
+                for (unsigned u = 2; u<4; u++)
+                    if (d[u]<d[m[0]]) {
+                        m[1] = m[0]; m[0] = u;
+                    } else if (d[u]<d[m[1]])
+                        m[1] = u;
+                _ASSERT(d[m[0]]<1e-5 && d[m[1]]<1e-5);
+                for (unsigned uu = 0; uu<2; uu++) {
+                    r[uu] = loc_r[m[uu]];
+                    pos_my[uu] = loc_pos_my[m[uu]];
+                    pos_other[uu] = loc_pos_other[m[uu]];
                 }
+                return 2;
             }
+            r[ret] = loc_r[i];
+            pos_my[ret] = loc_pos_my[i];
+            pos_other[ret] = loc_pos_other[i];
+            ++ret;
+        }
+    }
+    //if we have too many p
     //if one is a horizontal/vertical straight line, we need to snap the cp to that line
     if (straight) {
         if (start.x==end.x)
-            std::for_each(r, r+num, [&](XY &a) {a.x = start.x; });
+            std::for_each(r, r+ret, [&](XY &a) {a.x = start.x; });
         else if (start.y==end.y)
-            std::for_each(r, r+num, [&](XY &a) {a.y = start.y; });
+            std::for_each(r, r+ret, [&](XY &a) {a.y = start.y; });
     } else if (A.straight) {
         if (A.start.x==A.end.x)
-            std::for_each(r, r+num, [&](XY &a) {a.x = A.start.x; });
+            std::for_each(r, r+ret, [&](XY &a) {a.x = A.start.x; });
         else if (A.start.y==A.end.y)
-            std::for_each(r, r+num, [&](XY &a) {a.y = A.start.y; });
+            std::for_each(r, r+ret, [&](XY &a) {a.y = A.start.y; });
     }
-    return num;
+    return ret;
 }
 
 unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], double pos2[Edge::MAX_CP]) const
@@ -999,7 +1006,7 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
          *         \____/         
         */
         Split(roots[0], A, B);
-        num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[0], 0, roots[0]);
+        num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[0], 0, roots[0], MAX_CP);
     } else {
         /* Two such points may happen in two ways
         *                             \
@@ -1016,7 +1023,7 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
         _ASSERT(num==2);
         Split(roots[0], A, C); //C is a dummy
         Split(roots[1], C, B);
-        num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1]);
+        num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[1], 0, roots[1], MAX_CP);
     }
     //remove degenerate values
     for (unsigned u = 0; u<num; u++)
@@ -1130,7 +1137,8 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
         else
             forward[i] = fsign(fw_x-x);
         y[i] = Split(pos[i]).y;
-        _ASSERT(test_equal(Split(pos[i]).x, x));
+        //Todo: XXX Refine position 
+        //_ASSERT(test_equal(Split(pos[i]).x, x));
     }
 
     //Below: Sanitize touching cps. 
