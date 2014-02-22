@@ -345,6 +345,7 @@ public:
 
 protected:
     friend class SimpleContour;
+    friend class SimplePath;
     friend class ContoursHelper;
     friend void contour_test_bezier(unsigned num);
     struct CrossResult
@@ -406,7 +407,7 @@ protected:
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
     bool HullOverlap(const Edge &) const;
     bool HullOverlap2(const Edge &) const;
-    bool HullOverlap3(const Edge &) const;
+    bool HullOverlap3(const Edge &, bool is_next) const;
 
     bool AreCPsOnSameSide() const { _ASSERT(!straight); return fsign((start-end).Rotate90CW().DotProduct(c1)) == fsign((start-end).Rotate90CW().DotProduct(c2)); }
 
@@ -415,7 +416,7 @@ protected:
     unsigned CrossingLine(const XY &A, const XY &B, double pos_my[], double pos_segment[]) const;
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
                             double pos_my_mul, double pos_other_mul,
-                            double pos_my_offset, double pos_other_offset) const;
+                            double pos_my_offset, double pos_other_offset, unsigned alloc_size) const;
     unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
                                     double pos_mul, double pos_offset) const;
     double HullDistance(const XY &A, const XY &B) const;

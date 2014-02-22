@@ -1116,6 +1116,16 @@ void contour_test_bezier(unsigned num)
         DrawSelfIntersection(c, s2.SwapXY());
     }
 
+    Edge B1(B, 0, 0.7), B2(B, 0.3, 1);
+    XY r[Edge::MAX_CP];
+    double p1[Edge::MAX_CP], p2[Edge::MAX_CP];
+    unsigned ret = B1.Crossing(B2, false, r, p1, p2);
+    {
+        std::vector<Edge> OK3 = {B2};
+        CairoContext ctx(num+5, Block(-10, 200, -10, 200), "bezier Intersection self");
+        DrawIntersection(ctx, B1, OK3);
+    }
+
 }
 
 
@@ -1171,6 +1181,8 @@ void contour_test_expand_edge(unsigned num)
  */
 void contour_test(void)
 {
+    contour_test_bezier(8000);
+
     generate_forms();
     using namespace generated_forms;
 

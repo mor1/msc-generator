@@ -30,6 +30,133 @@
 namespace contour {
 
 
+class Path
+{
+protected:
+    SimplePath first;
+    std::list<SimplePath> further;
+    Block boundingBox;   ///< The bounding box of the contour (combining that of `first` and `further`).
+    void Rotate(double cos, double sin) { first.Rotate(cos, sin); boundingBox = first.GetBoundingBox(); for (auto &p: further) { p.Rotate(cos, sin); boundingBox += p.GetBoundingBox(); } } ///<Helper: Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
+    void RotateAround(const XY&c, double cos, double sin) { first.RotateAround(c, cos, sin); boundingBox = first.GetBoundingBox(); for (auto &p: further) { p.RotateAround(c, cos, sin); boundingBox += p.GetBoundingBox(); } } ///<Helper: Rotate the path around `c` by `radian`. `sin` and `cos` are pre-computed values.
+
+public:
+    /** @name Constructors */
+    /** @{ */
+    Path() { boundingBox.MakeInvalid(); } ///<Creates an empty Path.
+    /** Create an ellipse (or ellipse slice) shape.
+    *
+    * @param [in] c Centerpoint
+    * @param [in] radius_x Radius in the x direction. Its absolute value is used.
+    * @param [in] radius_y Radius in the y direction (same as `radius_x` if omitted = circle) Its absolute value is used.
+    * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
+    * @param [in] s_deg The startpoint of the arc.
+    * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
+    *
+    * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle). */
+    explicit Path(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360) :
+        first(c, radius_x, radius_y, tilt_deg, s_deg, d_deg) { boundingBox = first.GetBoundingBox(); }
+    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    explicit Path(const std::vector<XY> &v) { assign(v); }
+    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    explicit Path(const XY v[], size_t size) { assign(v, size); }
+    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    template<size_t SIZE> explicit Path(const XY(&v)[SIZE]) { assign(v, SIZE); }
+    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    explicit Path(const std::vector<Edge> &v) { assign(v); }
+    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    explicit Path(const Edge v[], size_t size) { assign(v, size); }
+    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    template<size_t SIZE> explicit Path(const Edge(&v)[SIZE]) { assign(v, SIZE); }
+
+    Path(const SimplePath &p) : first(p) { boundingBox = first.GetBoundingBox(); }          ///<Create a contour of a single shape with no holes by copying a SimplePath object.
+    Path(SimplePath &&p) : first(std::move(p)) { boundingBox = first.GetBoundingBox(); }    ///<Create a contour of a single shape with no holes by moving a SimplePath object. `p` will become undefined.
+    Path(Path &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
+    Path(const Path &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
+    /** @} */ //Constructors
+
+    /** @name Assignment */
+    /** @{ */
+    /** Set the Path to a simple shape with no holes */
+    Path &operator = (const SimplePath &a) { first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this; }
+    /** Set the Path to a simple shape with no holes by moving it. `a` becomes undefined.*/
+    Path &operator = (SimplePath &&a) { first.operator=(std::move(a)); boundingBox = first.GetBoundingBox(); return *this; }
+    /** Standard assignment move operation. `a` becomes undefined. */
+    Path &operator = (Path &&a) { first.swap(a.first); further.swap(a.further); boundingBox = a.GetBoundingBox(); return *this; }
+    /** Standard assignment operation. */
+    Path &operator = (const Path &a) { first = a.first; further = a.further; boundingBox = a.GetBoundingBox(); return *this; }
+
+    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(const std::vector<XY> &v);
+    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(const XY v[], size_t size);
+    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    template<size_t SIZE> void assign(const XY(&v)[SIZE]) { assign(v, SIZE); }
+    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(const std::vector<Edge> &v);
+    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(std::vector<Edge> &&v);
+    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(const Edge v[], size_t size);
+    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    template<size_t SIZE> void assign(const Edge(&v)[SIZE]) { assign(v, SIZE); }
+    /** @} */ //assignment
+
+
+    /** @name Basic information
+    * @{ */
+    size_t size() const { if (first.size()) return further.size()+1; return 0; } ///< Returns 
+    bool IsEmpty() const { return first.IsEmpty(); }
+    const Block &GetBoundingBox(void) const { return boundingBox; }
+    bool IsSane() const;
+    //bool operator < (const Path &p) const { return first==p.first ? further < p.further : first < p.first; }
+    //bool operator ==(const Path &p) const { return first==p.first && further == p.further; }
+    /** @} */ //Basic information
+
+    /** @name Basic Operations
+    * @{ */
+    void swap(Path &a) { first.swap(a.first); further.swap(a.further); std::swap(boundingBox, a.boundingBox); }
+    void clear() { first.clear(); further.clear(); boundingBox.MakeInvalid(); }
+    /** @} */ //Basic Operations
+
+    /** @name Transformations and expansion
+    * A set of linear tranformations and two expansion operation.
+    * Members starting with 'Create...' create a new copy of the contour. The others modify the contour itself.
+    * @{ */
+    /** Translate the contour */
+    Path &Shift(const XY &xy) { first.Shift(xy); for (auto &p: further) p.Shift(xy); boundingBox.Shift(xy); return *this; }
+    /** Scale the contour */
+    Path &Scale(double sc) { first.Scale(sc); for (auto &p: further) p.Scale(sc); boundingBox.Scale(sc); return *this; }
+    /** Scale the contour */
+    Path &Scale(const XY &sc) { first.Scale(sc); for (auto &p: further) p.Scale(sc); boundingBox.Scale(sc); return *this; }
+    /** Transpose the contour by swapping x and y coordinate. The contour, however, remains clockwise. */
+    Path &SwapXY() { first.SwapXY(); for (auto &p: further) p.SwapXY(); boundingBox.SwapXY(); return *this; }
+    /** Rotate the contour around the origin by `degrees` degrees. */
+    Path &Rotate(double degrees) { if (degrees) { double r = deg2rad(degrees); Rotate(cos(r), sin(r)); } return *this; }
+    /** Rotate the contour around the `c` by `degrees` degrees. */
+    Path &RotateAround(const XY&c, double degrees) { if (degrees) { double r = deg2rad(degrees); RotateAround(c, cos(r), sin(r)); } return *this; }
+
+    /** Create a translated version of the contour. */
+    Path CreateShifted(const XY & xy) const { Path a(*this); a.Shift(xy); return a; }
+    /** Create a scaled version of the contour */
+    Path CreateScaled(double sc) const { Path a(*this); a.Scale(sc); return a; }
+    /** Create a scaled version of the contour */
+    Path CreateScaled(const XY &sc) const { Path a(*this); a.Scale(sc); return a; }
+    /** Create a clockwise, transposed version of the contour by swapping x and y coordinates. */
+    Path CreateSwapXYd() const { Path a(*this); a.SwapXY(); return a; }
+    /** Create a rotated version of the contour */
+    Path CreateRotated(double degrees) const { Path a(*this); a.Rotate(degrees); return a; }
+    /** Create a version of the contour rotated around `c`. */
+    Path CreateRotatedAround(const XY&c, double degrees) const { Path a(*this); a.RotateAround(c, degrees); return a; }
+
+    void append(const SimplePath &p) { if (p.IsEmpty()) return; if (IsEmpty()) { boundingBox = p.GetBoundingBox(); first = p; } else { boundingBox += p.GetBoundingBox(); further.push_back(p); } } ///<Append a path assuming it is disjoint.
+    void append(SimplePath &&p) { if (p.IsEmpty()) return; if (IsEmpty()) { boundingBox = p.GetBoundingBox(); first = std::move(p); } else { boundingBox += p.GetBoundingBox(); further.push_back(std::move(p)); } } ///<Append (move) a path assuming it is disjoint.
+
+    void Invert(); ///<Reverse the contour. Used internally for substraction. Untangles the resulting shape.
+
+};
+
+
+
 class ContourWithHoles;
 
 /** A list of non-overlapping ContourWithHoles 
