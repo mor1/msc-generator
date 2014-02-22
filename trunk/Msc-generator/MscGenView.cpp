@@ -356,7 +356,7 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
                     cairo_set_source(cr, pattern);
                     cairo_set_line_width(cr, 3);
                     cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
-                    pDoc->m_fallback_image_location.Path(cr, true);
+                    pDoc->m_fallback_image_location.CairoPath(cr, true);
                     cairo_stroke(cr);
                     cairo_pattern_destroy(pattern);
                     cairo_restore(cr);

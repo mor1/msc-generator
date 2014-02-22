@@ -279,8 +279,10 @@ void Edge::Split(Edge &r1, Edge &r2) const
     r1.c1 = (start+c1)/2;
     r2.c2 = (c2+end)/2;
     r1.visible = r2.visible = visible;
-    r1.straight = r1.start.test_equal(r1.end) || r1.Flatness()<flatness_tolerance*flatness_tolerance*16;
-    r2.straight = r2.start.test_equal(r2.end) || r2.Flatness()<flatness_tolerance*flatness_tolerance*16;
+    r1.straight = r1.start.test_equal(r1.end);
+    r1.MakeStraightIfNeeded(flatness_tolerance);
+    r2.straight = r2.start.test_equal(r2.end);
+    r2.MakeStraightIfNeeded(flatness_tolerance);
 }
 
 void Edge::Split(double t, Edge &r1, Edge &r2) const
@@ -291,8 +293,10 @@ void Edge::Split(double t, Edge &r1, Edge &r2) const
     r1.c1 = Mid(start, c1, t);
     r2.c2 = Mid(c2, end, t);
     r1.visible = r2.visible = visible;
-    r1.straight = r1.start.test_equal(r1.end) || r1.Flatness()<flatness_tolerance*flatness_tolerance*16;
-    r2.straight = r2.start.test_equal(r2.end) || r2.Flatness()<flatness_tolerance*flatness_tolerance*16;
+    r1.straight = r1.start.test_equal(r1.end);
+    r1.MakeStraightIfNeeded(flatness_tolerance);
+    r2.straight = r2.start.test_equal(r2.end);
+    r2.MakeStraightIfNeeded(flatness_tolerance);
 }
 
 bool Edge::Chop(double t, double s)
@@ -767,16 +771,6 @@ bool Edge::HullOverlap3(const Edge &o, bool is_next) const
     //OK, now we know that the two BBs touch only at a single vertex
     //since end==o.start, this can only be that point
     return false;
-}
-
-/** Returns 16*flatness^2 */
-double Edge::Flatness() const
-{
-    const double ux = 3.0*c1.x - 2.0*start.x - end.x; 
-    const double uy = 3.0*c1.y - 2.0*start.y - end.y; 
-    const double vx = 3.0*c2.x - 2.0*end.x - start.x; 
-    const double vy = 3.0*c2.y - 2.0*end.y - start.y; 
-    return std::max(ux*ux, vx*vx)+std::max(uy*uy, vy*vy);
 }
 
 /* Returns the number of crosspoints */

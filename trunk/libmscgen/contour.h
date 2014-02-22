@@ -30,133 +30,6 @@
 namespace contour {
 
 
-class Path
-{
-protected:
-    SimplePath first;
-    std::list<SimplePath> further;
-    Block boundingBox;   ///< The bounding box of the contour (combining that of `first` and `further`).
-    void Rotate(double cos, double sin) { first.Rotate(cos, sin); boundingBox = first.GetBoundingBox(); for (auto &p: further) { p.Rotate(cos, sin); boundingBox += p.GetBoundingBox(); } } ///<Helper: Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
-    void RotateAround(const XY&c, double cos, double sin) { first.RotateAround(c, cos, sin); boundingBox = first.GetBoundingBox(); for (auto &p: further) { p.RotateAround(c, cos, sin); boundingBox += p.GetBoundingBox(); } } ///<Helper: Rotate the path around `c` by `radian`. `sin` and `cos` are pre-computed values.
-
-public:
-    /** @name Constructors */
-    /** @{ */
-    Path() { boundingBox.MakeInvalid(); } ///<Creates an empty Path.
-    /** Create an ellipse (or ellipse slice) shape.
-    *
-    * @param [in] c Centerpoint
-    * @param [in] radius_x Radius in the x direction. Its absolute value is used.
-    * @param [in] radius_y Radius in the y direction (same as `radius_x` if omitted = circle) Its absolute value is used.
-    * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
-    * @param [in] s_deg The startpoint of the arc.
-    * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
-    *
-    * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle). */
-    explicit Path(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360) :
-        first(c, radius_x, radius_y, tilt_deg, s_deg, d_deg) { boundingBox = first.GetBoundingBox(); }
-    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    explicit Path(const std::vector<XY> &v) { assign(v); }
-    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    explicit Path(const XY v[], size_t size) { assign(v, size); }
-    /** Creates a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> explicit Path(const XY(&v)[SIZE]) { assign(v, SIZE); }
-    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    explicit Path(const std::vector<Edge> &v) { assign(v); }
-    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    explicit Path(const Edge v[], size_t size) { assign(v, size); }
-    /** Creates a shape from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> explicit Path(const Edge(&v)[SIZE]) { assign(v, SIZE); }
-
-    Path(const SimplePath &p) : first(p) { boundingBox = first.GetBoundingBox(); }          ///<Create a contour of a single shape with no holes by copying a SimplePath object.
-    Path(SimplePath &&p) : first(std::move(p)) { boundingBox = first.GetBoundingBox(); }    ///<Create a contour of a single shape with no holes by moving a SimplePath object. `p` will become undefined.
-    Path(Path &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
-    Path(const Path &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
-    /** @} */ //Constructors
-
-    /** @name Assignment */
-    /** @{ */
-    /** Set the Path to a simple shape with no holes */
-    Path &operator = (const SimplePath &a) { first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this; }
-    /** Set the Path to a simple shape with no holes by moving it. `a` becomes undefined.*/
-    Path &operator = (SimplePath &&a) { first.operator=(std::move(a)); boundingBox = first.GetBoundingBox(); return *this; }
-    /** Standard assignment move operation. `a` becomes undefined. */
-    Path &operator = (Path &&a) { first.swap(a.first); further.swap(a.further); boundingBox = a.GetBoundingBox(); return *this; }
-    /** Standard assignment operation. */
-    Path &operator = (const Path &a) { first = a.first; further = a.further; boundingBox = a.GetBoundingBox(); return *this; }
-
-    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const std::vector<XY> &v);
-    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const XY v[], size_t size);
-    /** Sets the Path to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> void assign(const XY(&v)[SIZE]) { assign(v, SIZE); }
-    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const std::vector<Edge> &v);
-    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(std::vector<Edge> &&v);
-    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const Edge v[], size_t size);
-    /** Sets the Path to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> void assign(const Edge(&v)[SIZE]) { assign(v, SIZE); }
-    /** @} */ //assignment
-
-
-    /** @name Basic information
-    * @{ */
-    size_t size() const { if (first.size()) return further.size()+1; return 0; } ///< Returns 
-    bool IsEmpty() const { return first.IsEmpty(); }
-    const Block &GetBoundingBox(void) const { return boundingBox; }
-    bool IsSane() const;
-    //bool operator < (const Path &p) const { return first==p.first ? further < p.further : first < p.first; }
-    //bool operator ==(const Path &p) const { return first==p.first && further == p.further; }
-    /** @} */ //Basic information
-
-    /** @name Basic Operations
-    * @{ */
-    void swap(Path &a) { first.swap(a.first); further.swap(a.further); std::swap(boundingBox, a.boundingBox); }
-    void clear() { first.clear(); further.clear(); boundingBox.MakeInvalid(); }
-    /** @} */ //Basic Operations
-
-    /** @name Transformations and expansion
-    * A set of linear tranformations and two expansion operation.
-    * Members starting with 'Create...' create a new copy of the contour. The others modify the contour itself.
-    * @{ */
-    /** Translate the contour */
-    Path &Shift(const XY &xy) { first.Shift(xy); for (auto &p: further) p.Shift(xy); boundingBox.Shift(xy); return *this; }
-    /** Scale the contour */
-    Path &Scale(double sc) { first.Scale(sc); for (auto &p: further) p.Scale(sc); boundingBox.Scale(sc); return *this; }
-    /** Scale the contour */
-    Path &Scale(const XY &sc) { first.Scale(sc); for (auto &p: further) p.Scale(sc); boundingBox.Scale(sc); return *this; }
-    /** Transpose the contour by swapping x and y coordinate. The contour, however, remains clockwise. */
-    Path &SwapXY() { first.SwapXY(); for (auto &p: further) p.SwapXY(); boundingBox.SwapXY(); return *this; }
-    /** Rotate the contour around the origin by `degrees` degrees. */
-    Path &Rotate(double degrees) { if (degrees) { double r = deg2rad(degrees); Rotate(cos(r), sin(r)); } return *this; }
-    /** Rotate the contour around the `c` by `degrees` degrees. */
-    Path &RotateAround(const XY&c, double degrees) { if (degrees) { double r = deg2rad(degrees); RotateAround(c, cos(r), sin(r)); } return *this; }
-
-    /** Create a translated version of the contour. */
-    Path CreateShifted(const XY & xy) const { Path a(*this); a.Shift(xy); return a; }
-    /** Create a scaled version of the contour */
-    Path CreateScaled(double sc) const { Path a(*this); a.Scale(sc); return a; }
-    /** Create a scaled version of the contour */
-    Path CreateScaled(const XY &sc) const { Path a(*this); a.Scale(sc); return a; }
-    /** Create a clockwise, transposed version of the contour by swapping x and y coordinates. */
-    Path CreateSwapXYd() const { Path a(*this); a.SwapXY(); return a; }
-    /** Create a rotated version of the contour */
-    Path CreateRotated(double degrees) const { Path a(*this); a.Rotate(degrees); return a; }
-    /** Create a version of the contour rotated around `c`. */
-    Path CreateRotatedAround(const XY&c, double degrees) const { Path a(*this); a.RotateAround(c, degrees); return a; }
-
-    void append(const SimplePath &p) { if (p.IsEmpty()) return; if (IsEmpty()) { boundingBox = p.GetBoundingBox(); first = p; } else { boundingBox += p.GetBoundingBox(); further.push_back(p); } } ///<Append a path assuming it is disjoint.
-    void append(SimplePath &&p) { if (p.IsEmpty()) return; if (IsEmpty()) { boundingBox = p.GetBoundingBox(); first = std::move(p); } else { boundingBox += p.GetBoundingBox(); further.push_back(std::move(p)); } } ///<Append (move) a path assuming it is disjoint.
-
-    void Invert(); ///<Reverse the contour. Used internally for substraction. Untangles the resulting shape.
-
-};
-
-
-
 class ContourWithHoles;
 
 /** A list of non-overlapping ContourWithHoles 
@@ -225,10 +98,10 @@ public:
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const ContourList &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
-    void Path(cairo_t *cr, bool show_hidden) const;
-    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
+    void CairoPath(cairo_t *cr, bool show_hidden) const;
+    void CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
     double Distance(const XY &o, XY &ret) const;
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
@@ -347,10 +220,10 @@ public:
      */
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const {return outline.OffsetBelow(below, touchpoint, offset);}
 
-    void Path(cairo_t *cr, bool show_hidden) const {outline.Path(cr, show_hidden); if (holes.size()) holes.Path(cr, show_hidden);} ///< Draw the shape as a path to a cairo context. If `show_hidden` is false, we skip edges marked not visible.
-    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {outline.Path(cr, show_hidden, clockwiseonly); if (holes.size()) holes.Path(cr, show_hidden, clockwiseonly);} ///<Draw the shape to the path of a cairo context, but only if `clockwiseonly` equals to the clockwisedness of this shape. If `show_hidden` is false, we skip edges marked not visible.
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {outline.PathDashed(cr, pattern, num, show_hidden); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden);} ///<Draw the shape in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {outline.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);} ///<Draw the shape in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
+    void CairoPath(cairo_t *cr, bool show_hidden) const { outline.CairoPath(cr, show_hidden); if (holes.size()) holes.CairoPath(cr, show_hidden); } ///< Draw the shape as a path to a cairo context. If `show_hidden` is false, we skip edges marked not visible.
+    void CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const { outline.CairoPath(cr, show_hidden, clockwiseonly); if (holes.size()) holes.CairoPath(cr, show_hidden, clockwiseonly); } ///<Draw the shape to the path of a cairo context, but only if `clockwiseonly` equals to the clockwisedness of this shape. If `show_hidden` is false, we skip edges marked not visible.
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const { outline.CairoPathDashed(cr, pattern, num, show_hidden); if (holes.size()) holes.CairoPathDashed(cr, pattern, num, show_hidden); } ///<Draw the shape in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const { outline.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly); } ///<Draw the shape in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
 
     double Distance(const XY &o, XY &ret) const;
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
@@ -534,6 +407,8 @@ public:
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}    ///<Create a contour of a single shape with no holes by moving a SimpleContour object. `p` will become undefined.
     Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
     Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
+    explicit Contour(const Path &p, bool close_everything = false, bool winding = true) { assign(p, close_everything, winding); }
+    explicit Contour(Path &&p, bool close_everything = false, bool winding = true) { assign(std::move(p), close_everything, winding); }
     /** @} */ //Constructors
 
     /** @name Assignment */
@@ -552,6 +427,10 @@ public:
     Contour &operator = (Contour &&a) { first.swap(a.first); further.swap(a.further); boundingBox = a.GetBoundingBox(); return *this; }
     /** Standard assignment operation. */
     Contour &operator = (const Contour &a) { first = a.first; further = a.further; boundingBox = a.GetBoundingBox(); return *this; }
+    /** Sets the Contour to the enclosed area(s) of a path. Untangles them.*/
+    Contour &operator = (const Path &p) { assign(p); return *this; }
+    /** Sets the Contour to the enclosed area(s) of a path. Untangles them.*/
+    Contour &operator = (Path &&p) { assign(std::move(p)); return *this; }
 
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     void assign(const std::vector<XY> &v, bool winding=true);
@@ -567,6 +446,10 @@ public:
     void assign(const Edge v[], size_t size, bool winding=true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     template<size_t SIZE> void assign(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+    /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(const Path &p, bool close_everything=false, bool winding = true);
+    /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
+    void assign(Path &&p, bool close_everything = false, bool winding = true);
 
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
     void assign_dont_check(const std::vector<XY> &v) {clear(); first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();}
@@ -582,6 +465,8 @@ public:
     void assign_dont_check(const Edge v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); }
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
     template<size_t SIZE> void assign_dont_check(const Edge (&v)[SIZE]) {assign_dont_check (v, SIZE);}
+    void assign_dont_check(const Path &p, bool close_everything = false) { clear(); for (auto &e : p.ConvertToClosed(close_everything)) append_dont_check(e); }
+    void assign_dont_check(Path &&p, bool close_everything = false);
 
     /** Appends polygon created from an ordered list of points. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
     void append_dont_check(const std::vector<XY> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
@@ -734,7 +619,7 @@ public:
      * omitted abd the path will contain open sub-paths.
      * @param [in] cr The cairo context.
      * @param [in] show_hidden If false, we skip edges marked not visible.*/
-    void Path(cairo_t *cr, bool show_hidden) const {first.Path(cr, show_hidden); if (further.size()) further.Path(cr, show_hidden);}
+    void CairoPath(cairo_t *cr, bool show_hidden) const { first.CairoPath(cr, show_hidden); if (further.size()) further.CairoPath(cr, show_hidden); }
     /** Establish parts of the shape as path(s) to a cairo context. 
      *
      * This operation adds a number of closed paths to the cairo context, either the clockwise
@@ -744,7 +629,7 @@ public:
      * @param [in] cr The cairo context.
      * @param [in] show_hidden If false, we skip edges marked not visible.
      * @param [in] clockwiseonly If true only the clockwise oultines are added, if false, only the hole outlines (if any).*/
-    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {first.Path(cr, show_hidden, clockwiseonly); if (further.size()) further.Path(cr, show_hidden, clockwiseonly);}
+    void CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const { first.CairoPath(cr, show_hidden, clockwiseonly); if (further.size()) further.CairoPath(cr, show_hidden, clockwiseonly); }
     /** Establish the shape as a path(s) to a cairo context using a series of sub-paths forming a dashed line. 
      *
      * This operation is useful to emulate dashed lines for backends having no such support (Windows Metafiles).
@@ -756,7 +641,7 @@ public:
                            on segments, odd indices the length of off segments.
      * @param [in] num contains the number of elements in `pattern`.
      * @param [in] show_hidden If false, we skip edges marked not visible. */
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {first.PathDashed(cr, pattern, num, show_hidden); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden);}
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const { first.CairoPathDashed(cr, pattern, num, show_hidden); if (further.size()) further.CairoPathDashed(cr, pattern, num, show_hidden); }
     /** Establish the shape as a path(s) to a cairo context using a series of sub-paths forming a dashed line. 
      *
      * This operation is useful to emulate dashed lines for backends having no such support (Windows Metafiles).
@@ -770,13 +655,13 @@ public:
      * @param [in] num contains the number of elements in `pattern`.
      * @param [in] show_hidden If false, we skip edges marked not visible. 
      * @param [in] clockwiseonly If true only the clockwise oultines are added, if false, only the hole outlines (if any).*/
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {first.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const { first.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (further.size()) further.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly); }
     /** Strokes the shape on a cairo context. Line with, color, dash, operation, transformations and mask are taken from `cr`.*/
-    void Line(cairo_t *cr) const {Contour::Path(cr, false); cairo_stroke(cr);}
+    void Line(cairo_t *cr) const { Contour::CairoPath(cr, false); cairo_stroke(cr); }
     /** Strokes the shape on a cairo context, stroking holes with a dashed line.*/
-    void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, true); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, false); cairo_stroke(cr); cairo_restore(cr);}
+    void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); CairoPath(cr, true); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); CairoPath(cr, false); cairo_stroke(cr); cairo_restore(cr);}
     /** Fills the shape on a cairo context with the source set in the context.*/
-    void Fill(cairo_t *cr) const {Contour::Path(cr, true); cairo_fill(cr);}
+    void Fill(cairo_t *cr) const { Contour::CairoPath(cr, true); cairo_fill(cr); }
     /** @} */ //name Graphics related operations
     
     /** @name Advanced information functions
@@ -991,7 +876,7 @@ inline XY ContourList::CentroidUpscaled() const
 inline void ContourList::append(const ContourWithHoles &p)
 {
     if (p.IsEmpty()) return;
-    _ASSERT(size()==0 || GetClockWise() == p.GetClockWise());
+    //_ASSERT(size()==0 || GetClockWise() == p.GetClockWise()); These trigger when a Path is converted
     boundingBox += p.GetBoundingBox();
     std::list<ContourWithHoles>::push_back(p);
 }
@@ -999,7 +884,7 @@ inline void ContourList::append(const ContourWithHoles &p)
 inline void ContourList::append(ContourWithHoles &&p)
 {
     if (p.IsEmpty()) return;
-    _ASSERT(size()==0 || GetClockWise() == p.GetClockWise());
+    //_ASSERT(size()==0 || GetClockWise() == p.GetClockWise()); These trigger when a Path is converted
     boundingBox += p.GetBoundingBox();
     std::list<ContourWithHoles>::push_back(std::move(p));
 }

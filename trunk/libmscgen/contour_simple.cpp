@@ -26,6 +26,7 @@
 #include <map>
 #include <set>
 #include <stack>
+#include <cmath>
 #include "contour.h"
 
 
@@ -36,7 +37,7 @@ namespace contour {
 
 /** Calculate the boundingBox of the whole shape.
 *  Assumes the bounding box of curved edges is already calculated.*/
-const Block &SimplePath::CalculateBoundingBox() const
+const Block &Path::CalculateBoundingBox() const
 {
     boundingBox.MakeInvalid();
     for (const auto &e : edges)
@@ -46,41 +47,6 @@ const Block &SimplePath::CalculateBoundingBox() const
             boundingBox += e.CreateBoundingBox();
     boundingBox_fresh = true;
     return boundingBox;
-}
-
-/** Fix problems in a shape (edges not joint, etc).
-*
-* @returns true if we were sane, false if changes were needed.
-*/
-bool SimplePath::Sanitize()
-{
-    bool ret = true;
-    if (size()==0) return true;
-    if (size()==1) goto clear;
-    for (size_t u = 0; u<size(); /*nope*/)
-        if (at(u).IsDot()) {
-            edges.erase(edges.begin()+u);
-            ret = false;
-        } else
-            u++;
-        switch (size()) {
-        case 0: return false;
-        case 1: goto clear;
-        case 2:
-            if (at(0).straight && at(1).straight)
-                goto clear;
-            /*fallthrough*/
-        default:
-            //ensure that edges connect
-            for (size_t u = 0; u<size()-1; u++)
-                if (!at(u).GetEnd().test_equal(at(u+1).GetStart()))
-                    goto clear;
-        }
-        if (!ret) boundingBox_fresh = false; //we think clockwiseness remains just by deleting a few edges.
-        return ret;
-    clear:
-        clear();
-        return false;
 }
 
 
@@ -95,7 +61,7 @@ bool SimplePath::Sanitize()
  * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
  * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
 */
-SimplePath::SimplePath(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg) :
+Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg) :
    boundingBox_fresh(false)
 {
     if (radius_x==0) {
@@ -109,73 +75,105 @@ SimplePath::SimplePath(const XY &c, double radius_x, double radius_y, double til
     const XY end = edges.back().end;
 }
 
-void SimplePath::AddAnEdge(const Edge &edge)
+void Path::AddAnEdge(const Edge &edge, bool ensure_connect)
 {
-
-    if (edges.size() && edge.GetStart()!=edges.back().GetEnd()) {
+    if (size()==0) boundingBox_fresh = false; //to prevent continuous update of BB
+    if (ensure_connect && edges.size() && edge.GetStart()!=edges.back().GetEnd()) {
         const XY tmp = edges.back().GetEnd();
         edges.emplace_back(tmp, edge.GetStart(), !!edge.visible);
     }
     edges.push_back(edge);
+    if (!boundingBox_fresh) return;
+    if (edge.IsStraight()) {
+        boundingBox += edge.start;
+        boundingBox += edge.end;
+    } else
+        boundingBox += edge.CreateBoundingBox();
 }
 
 
 /** Revert the clockwisedness of the shape by reverting, all edges and their order. */
-void SimplePath::Invert()
+Path &Path::Invert()
 {
     for (size_t i = 0; i<size(); i++)
         at(i).Invert();
     for (size_t i = 0; i<size()/2; i++)
         std::swap(at(i), at(size()-1-i));
+    return *this;
 }
 
 
-void SimplePath::assign(const std::vector<XY> &v)
+Path &Path::append(const std::vector<XY> &v, bool ensure_connect)
 {
-    clear();
-    if (v.size()<2) return;
-    for (size_t i = 0; i<v.size(); i++)
-        edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
+    if (ensure_connect && edges.size() && v.size() && v.front()!=edges.back().GetEnd()) {
+        edges.reserve(edges.size()+v.size()+1);
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, v.front());
+    } else
+        edges.reserve(edges.size()+v.size());
+    for (size_t i = 0; i+1<v.size(); i++)
+        if (v[i] != v[i+1])
+            edges.emplace_back(v[i], v[i+1]);
     boundingBox_fresh = false;
-    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
+    return *this;
 }
 
-void SimplePath::assign(const XY v[], size_t size)
+Path &Path::append(const XY v[], size_t size, bool ensure_connect)
 {
-    clear();
-    if (size < 2) return;
-    for (size_t i = 0; i<size; i++)
-        edges.push_back(Edge(v[i], v[(i+1)%size]));
+    if (ensure_connect && edges.size() && size && v[0]!=edges.back().GetEnd()) {
+        edges.reserve(edges.size()+size+1);
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, v[0]);
+    } else
+        edges.reserve(edges.size()+size);
+    for (size_t i = 0; i+1<size; i++)
+        if (v[i] != v[i+1])
+            edges.emplace_back(v[i], v[i+1]);
     boundingBox_fresh = false;
-    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
+    return *this;
 }
 
-void SimplePath::assign(const std::vector<Edge> &v)
+Path &Path::append(const std::vector<Edge> &v, bool ensure_connect)
 {
-    clear();
-    if (v.size()<2) return;
-    edges = v;
+    if (ensure_connect && edges.size() && v.size() && v.front().GetStart()!=edges.back().GetEnd()) {
+        edges.reserve(edges.size()+v.size()+1);
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, v.front().GetStart(), edges.back().visible && v.front().visible);
+    } else
+        edges.reserve(edges.size()+v.size());
+    edges.insert(edges.end(), v.begin(), v.end());
     boundingBox_fresh = false;
-    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+    return *this;
 }
 
-void SimplePath::assign(std::vector<Edge> &&v)
+Path &Path::append(const Edge v[], size_t size, bool ensure_connect)
 {
-    clear();
-    if (v.size()<2) return;
-    edges.swap(v);
-    boundingBox_fresh = false;
-    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
-}
-
-void SimplePath::assign(const Edge v[], size_t size)
-{
-    clear();
-    if (size < 2) return;
+    if (ensure_connect && edges.size() && size && v[0].GetStart()!=edges.back().GetEnd()) {
+        edges.reserve(edges.size()+size+1);
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, v[0].GetStart(), edges.back().visible && v[0].visible);
+    } else
+        edges.reserve(edges.size()+size);
     for (size_t i = 0; i<size; i++)
         edges.push_back(v[i]);
     boundingBox_fresh = false;
-    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
+    return *this;
+}
+
+Path &Path::append(const Path &p, bool ensure_connect)
+{
+    if (ensure_connect && edges.size() && p.size() && p[0].GetStart()!=edges.back().GetEnd()) {
+        edges.reserve(edges.size()+p.size()+1);
+        const XY tmp = edges.back().GetEnd();
+        edges.emplace_back(tmp, p[0].GetStart(), edges.back().visible && p[0].visible);
+    } else
+        edges.reserve(edges.size()+p.size());
+    edges.insert(edges.end(), p.edges.begin(), p.edges.end());
+    if (boundingBox_fresh && p.boundingBox_fresh)
+        boundingBox += p.boundingBox;
+    else
+        boundingBox_fresh = false;
+    return *this;
 }
 
 /** Draw the path as a path to a cairo context.
@@ -183,19 +181,29 @@ void SimplePath::assign(const Edge v[], size_t size)
 * @param [in] cr The cairo context.
 * @param [in] show_hidden If false, we skip edges marked not visible.
 */
-void SimplePath::Path(cairo_t *cr, bool show_hidden) const
+void Path::CairoPath(cairo_t *cr, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
-    bool closed = true;
+    XY started_at = at(0).GetStart();
     cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
-    for (const auto &e : edges)
-        if (show_hidden || e.visible)
-            e.PathTo(cr);
-        else {
-            cairo_move_to(cr, e.GetEnd().x, e.GetEnd().y);
-            closed = false;
+    for (size_t u = 0; u<edges.size(); u++) {
+        const Edge & prev = edges[(u+edges.size()-1)%edges.size()];
+        if (show_hidden || edges[u].visible) {
+            if (prev.GetEnd()!=at(u).GetStart()) {
+                cairo_new_sub_path(cr);
+                started_at = at(u).GetStart();
+                cairo_move_to(cr, started_at.x, started_at.y); 
+            }
+            edges[u].PathTo(cr);
+        } else {
+            if (prev.GetEnd()==started_at)
+                cairo_close_path(cr);
+            cairo_new_sub_path(cr);
+            cairo_move_to(cr, edges[u].GetEnd().x, edges[u].GetEnd().y);
+            started_at = edges[u].GetEnd();
         }
-    if (closed && edges.size() && edges.front().GetStart()!=edges.back().GetEnd())
+    }
+    if (edges.back().GetEnd()==started_at)
         cairo_close_path(cr);
 }
 
@@ -208,11 +216,11 @@ void SimplePath::Path(cairo_t *cr, bool show_hidden) const
 * @param [in] show_hidden If false, we skip edges marked not visible.
 */
 
-void SimplePath::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
+void Path::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
     if (num<2) {
-        Path(cr, show_hidden);
+        CairoPath(cr, show_hidden);
         return;
     }
     double offset = 0;
@@ -222,6 +230,34 @@ void SimplePath::PathDashed(cairo_t *cr, const double pattern[], unsigned num, b
             at(i).PathDashed(cr, pattern, num, pos, offset);
 }
 
+/**Take those consecuitve segments that are closed and put them to Edge vectors.
+ * No untangle is done here.
+ * @param [in] close_everything If true then open segments are also closed.*/
+std::list<std::vector<Edge>> Path::ConvertToClosed(bool close_everything) const
+{
+    std::list<std::vector<Edge>> ret;
+    if (size()==0) return ret;
+    ret.emplace_back();
+    for (auto &e: edges) {
+        if (ret.back().size() && ret.back().back().GetEnd()!=e.GetStart()) {
+            //Close last run. First see if it ended up closed
+            if (close_everything && ret.back().front().GetStart()!=ret.back().back().GetEnd()) {
+                const XY st = ret.back().back().GetEnd();
+                const XY en = ret.back().front().GetStart();
+                ret.back().emplace_back(st, en);
+            }
+            ret.emplace_back();
+        }
+        ret.back().push_back(e);
+    }
+    //check if last segment needs to be closed
+    if (close_everything && ret.back().front().GetStart()!=ret.back().back().GetEnd()) {
+        const XY st = ret.back().back().GetEnd();
+        const XY en = ret.back().front().GetStart();
+        ret.back().emplace_back(st, en);
+    }
+    return ret;
+}
 
 
 
@@ -520,7 +556,6 @@ void SimpleContour::assign_dont_check(const XY v[], size_t size)
 void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
 {
     clear();
-    if (v.size()<2) return;
     edges = v;
     clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
@@ -529,7 +564,6 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
 void SimpleContour::assign_dont_check(std::vector<Edge> &&v)
 {
     clear();
-    if (v.size()<2) return;
     edges.swap(v);
     clockwise_fresh = boundingBox_fresh = area_fresh = false;
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
@@ -538,7 +572,6 @@ void SimpleContour::assign_dont_check(std::vector<Edge> &&v)
 void SimpleContour::assign_dont_check(const Edge v[], size_t size)
 {
     clear();
-    if (size < 2) return;
     for (size_t i=0; i<size; i++)
         edges.push_back(v[i]);
     clockwise_fresh = boundingBox_fresh = area_fresh = false;
@@ -885,6 +918,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             if (i->cross_type==Edge::CP_INVERSE) {
                 i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
                     i->us_end_pos, i->next_start_pos);
+                _ASSERT(!isnan(i->cross_point.x) && !isnan(i->cross_point.y));
                 //note if we have changed the status of at least one such CP
                 //this means we may need to do another pass
                 if (i->cross_type!=Edge::CP_INVERSE)
@@ -943,6 +977,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     new_end = i->GetEnd() + (new_end-i->GetEnd()).Normalize()*gap_limit;
                 //The value of 'need_miter_limit_bevel' will also be re-used next
                 _ASSERT(fabs(new_start.length()) < 100000);
+                _ASSERT(!isnan(new_end.x) && !isnan(new_end.y));
                 _ASSERT(fabs(new_end.length()) < 100000);
             }
 
@@ -1296,7 +1331,7 @@ EContourRelationType SimpleContour::RelationTo(const SimpleContour &c) const
  * @param [in] cr The cairo context.
  * @param [in] show_hidden If false, we skip edges marked not visible.
  */
-void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
+void SimpleContour::CairoPath(cairo_t *cr, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
     bool closed = true;
@@ -1321,11 +1356,11 @@ void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
  * @param [in] show_hidden If false, we skip edges marked not visible.
  */
 
-void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
+void SimpleContour::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
     if (num<2) {
-        Path(cr, show_hidden);
+        CairoPath(cr, show_hidden);
         return;
     }
     double offset = 0;

@@ -345,7 +345,7 @@ public:
 
 protected:
     friend class SimpleContour;
-    friend class SimplePath;
+    friend class Path;
     friend class ContoursHelper;
     friend void contour_test_bezier(unsigned num);
     struct CrossResult
@@ -387,7 +387,6 @@ public:
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
 
 protected:
-    void MakeStraightIfNeeded(double flatness_tolerance = 0.001) { straight |= Flatness()<flatness_tolerance*flatness_tolerance*16; }
     XY Split(double t) const
     {
         return pow(1-t, 3) * start
@@ -401,7 +400,7 @@ protected:
     void Split(Edge &r1, Edge &r2) const;
     void Split(double t, Edge &r1, Edge &r2) const;
     bool Chop(double t, double s);
-    double Flatness() const;
+    bool MakeStraightIfNeeded(double flatness_tolerance = 0.001);
     int WhichSide(const XY &A, const XY &B) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
@@ -504,6 +503,18 @@ public:
     unsigned atX(double x, double roots[3]) const;
     unsigned atY(double y, double roots[3]) const;
 };
+
+inline bool Edge::MakeStraightIfNeeded(double flatness_tolerance) 
+{
+    //see http://antigrain.com/research/adaptive_bezier/
+    if (straight) return false;
+    const double dx = end.x-start.x;
+    const double dy = end.y-start.y;
+    const double d2 = fabs(((c1.x - end.x) * dy - (c1.y - end.y) * dx));
+    const double d3 = fabs(((c2.x - end.x) * dy - (c2.y - end.y) * dx));
+
+    return straight = (d2 + d3)*(d2 + d3) < flatness_tolerance * (dx*dx + dy*dy);
+}
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
 inline Edge& Edge::SetStart(const XY &p, double pos)

@@ -371,7 +371,7 @@ inline void Canvas::Clip(const XY &s, const XY &d, const LineAttr &line) {cairo_
 inline void Canvas::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
 //inline void Canvas::Clip(const Block &b, const LineAttr &line); not inline
 //void Clip(const EllipseData &ellipse); not inline
-inline void Canvas::Clip(const Contour &area) {cairo_save(cr); area.Path(cr, true); cairo_clip(cr);}
+inline void Canvas::Clip(const Contour &area) {cairo_save(cr); area.CairoPath(cr, true); cairo_clip(cr);}
 
 
 inline void Canvas::Fill(const XY &s, const XY &d, const FillAttr &fill) {Fill(Block(s, d), fill);}

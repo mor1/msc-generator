@@ -34,6 +34,7 @@ using contour::XY;
 using contour::Range;
 using contour::Block;
 using contour::Edge;
+using contour::Path;
 using contour::Contour;
 
 using contour::DoubleMap;

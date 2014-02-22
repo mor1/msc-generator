@@ -206,28 +206,28 @@ double ContourList::OffsetBelow(const ContourList &below, double &touchpoint, do
     return offset;
 }
 
-void ContourList::Path(cairo_t *cr, bool show_hidden) const
+void ContourList::CairoPath(cairo_t *cr, bool show_hidden) const
 {
     for (auto &c : *this)
-        c.Path(cr, show_hidden);
+        c.CairoPath(cr, show_hidden);
 }
 
-void ContourList::Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const
+void ContourList::CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const
 {
     for (auto &c : *this)
-        c.Path(cr, show_hidden, clockwiseonly);
+        c.CairoPath(cr, show_hidden, clockwiseonly);
 }
 
-void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
+void ContourList::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     for (auto &c : *this)
-        c.PathDashed(cr, pattern, num, show_hidden);
+        c.CairoPathDashed(cr, pattern, num, show_hidden);
 }
 
-void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const
+void ContourList::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const
 {
     for (auto &c : *this)
-        c.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);
+        c.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly);
 }
 
 void ContourList::Distance(const ContourWithHoles &ch, DistanceType &dist_so_far) const
@@ -2417,7 +2417,6 @@ void Contour::assign(const XY v[], size_t size, bool winding)
 void Contour::assign(const std::vector<Edge> &v, bool winding)
 {
     clear();
-    if (v.size()<2) return;
     Contour tmp;
     tmp.assign_dont_check(v);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
@@ -2426,7 +2425,6 @@ void Contour::assign(const std::vector<Edge> &v, bool winding)
 void Contour::assign(std::vector<Edge> &&v, bool winding)
 {
     clear();
-    if (v.size()<2) return;
     Contour tmp;
     tmp.assign_dont_check(std::move(v));
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
@@ -2435,10 +2433,46 @@ void Contour::assign(std::vector<Edge> &&v, bool winding)
 void Contour::assign(const Edge v[], size_t size, bool winding)
 {
     clear();
-    if (size < 2) return;
     Contour tmp;
     tmp.assign_dont_check(v, size);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+}
+
+void Contour::assign(const Path &p, bool close_everything, bool winding)
+{
+    clear();
+    Contour tmp;
+    for (auto &e: p.ConvertToClosed(close_everything))
+        tmp.append_dont_check(e);
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+}
+
+void Contour::assign(Path &&p, bool close_everything, bool winding)
+{
+    clear();
+    Contour tmp;
+    //First see if p is a single closed shape
+    for (size_t u = 0; u<p.edges.size(); u++)
+        if (p.at(u).GetEnd() != p.at((u+1)%p.edges.size()).GetStart()) {
+            //no, we need to work this through
+            for (auto &e: p.ConvertToClosed(close_everything))
+                tmp.append_dont_check(e);
+            goto untangle;
+        }
+    //OK, a single round thingy
+    tmp.first.outline.assign_dont_check(std::move(p.edges));
+untangle:
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+}
+
+void Contour::assign_dont_check(Path &&p, bool close_everything)
+{
+    //First see if p is a single closed shape
+    for (size_t u = 0; u<p.edges.size(); u++)
+        if (p.at(u).GetEnd() != p.at((u+1)%p.edges.size()).GetStart())
+            return assign_dont_check(p, close_everything); //the non-move version
+    //OK, fully closed - we can assign the edges directly
+    assign_dont_check(std::move(p.edges));
 }
 
 bool Contour::IsSane() const
