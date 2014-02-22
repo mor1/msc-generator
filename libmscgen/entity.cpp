@@ -66,6 +66,7 @@ inline double Tr(double x, const Range &source, const Range &target)
 
 Shape::Shape(const std::string &n, const FileLineCol &l, 
              const std::string &u, const std::string &i) :
+    cover_fresh(true), 
     current_section(1),
     name(n),
     definition_pos(l),
@@ -86,6 +87,8 @@ Shape::Shape(const std::string &n, const FileLineCol &l,
     bg(std::move(s.bg)),
     fg_fill(std::move(s.fg_fill)),
     fg_line(std::move(s.fg_line)),
+    cover_fresh(s.cover_fresh),
+    cover(std::move(s.cover)),
     current_section(s.current_section),
     name(n),
     definition_pos(l),
@@ -94,6 +97,14 @@ Shape::Shape(const std::string &n, const FileLineCol &l,
 {
 }
 
+const Contour &Shape::GetCover() const
+{
+    if (!cover_fresh) {
+        cover = Contour(bg, true, true) + Contour(fg_fill, true, true) + Contour(fg_line, true, true);
+        cover_fresh = true;
+    }
+    return cover;
+}
 
 void Shape::Add(ShapeElement &&e)
 {
@@ -121,8 +132,6 @@ void Shape::Add(ShapeElement &&e)
         current_section_point = XY(e.x, e.y);
         break;
     case ShapeElement::MOVE_TO:
-        if (current_section_data.size())
-            current_section_data.emplace_back(current_section_point, XY(e.x, e.y), false);
         max += XY(e.x, e.y);
         current_section_point = XY(e.x, e.y);
         break;
@@ -131,12 +140,12 @@ void Shape::Add(ShapeElement &&e)
     case ShapeElement::SECTION_FG_LINE:
     case ShapeElement::CLOSE_PATH:
         if (current_section_data.size()) {
-            if (current_section_data.front().GetStart() != current_section_data.back().GetEnd())
-                //use a local object as parameter to emplace, since back() and front() may become 
-                //invalid after resize() (done as part of emplace_back())
-                current_section_data.emplace_back(current_section_point, XY(current_section_data.front().GetStart()));
-            Contour csd = std::move(current_section_data);
-            GetSection(current_section) += std::move(csd);
+            //if (current_section_data.front().GetStart() != current_section_data.back().GetEnd())
+            //    //use a local object as parameter to emplace, since back() and front() may become 
+            //    //invalid after resize() (done as part of emplace_back())
+            //    current_section_data.emplace_back(current_section_point, XY(current_section_data.front().GetStart()));
+            GetSection(current_section).append(std::move(current_section_data));
+            cover_fresh = false;
             current_section_data.clear();
         }
         switch (e.action) {
@@ -163,16 +172,16 @@ Block Shape::GetLabelPos(const Block &o) const
         Tr(label_pos.y.from, max.y, o.y), Tr(label_pos.y.till, max.y, o.y));
 }
 
-void Shape::Path(cairo_t *cr, unsigned section, const Block &o) const
+void Shape::CairoPath(cairo_t *cr, unsigned section, const Block &o) const
 {
     _ASSERT(section<=2);
     if (section>2)
         return;
     if (o.x.Spans()<=0 || o.y.Spans()<0)
         return;
-    Contour c = GetSection(section).CreateScaled(XY(o.x.Spans()/max.x.Spans(), o.y.Spans()/max.y.Spans()));
+    Contour c(GetSection(section).CreateScaled(XY(o.x.Spans()/max.x.Spans(), o.y.Spans()/max.y.Spans())), true);
     c.Shift(XY(o.x.from - max.x.from*o.x.Spans()/max.x.Spans(), o.y.from - max.y.from*o.y.Spans()/max.y.Spans()));
-    c.Path(cr, false);
+    c.CairoPath(cr, false);
 }
 
 ShapeCollection & ShapeCollection::operator = (const ShapeCollection &o)
@@ -375,7 +384,7 @@ void ShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const Li
     if (sh >= shapes.size()) return;
     cairo_t *cr = canvas.GetContext();
     if (shapes[sh].GetSection(0).size()) {
-        shapes[sh].Path(cr, 0, o);
+        shapes[sh].CairoPath(cr, 0, o);
         cairo_save(cr);
         cairo_clip(cr);
         canvas.Fill(o, fill);
@@ -383,14 +392,14 @@ void ShapeCollection::Draw(Canvas &canvas, unsigned sh, const Block &o, const Li
     }
     if (shapes[sh].GetSection(1).size()) {
         FillAttr line(line.color.second, GRADIENT_NONE);
-        shapes[sh].Path(cr, 1, o);
+        shapes[sh].CairoPath(cr, 1, o);
         cairo_save(cr);
         cairo_clip(cr);
         canvas.Fill(o, line);
         cairo_restore(cr);
     }
     if (shapes[sh].GetSection(2).size()) {
-        shapes[sh].Path(cr, 2, o);
+        shapes[sh].CairoPath(cr, 2, o);
         canvas.SetLineAttr(line);
         cairo_stroke(cr);
     }
@@ -404,7 +413,7 @@ Contour ShapeCollection::Cover(unsigned sh, const Block &o) const
 {
     if (sh >= shapes.size()) return Contour();
     const Block &max = shapes[sh].GetMax();
-    Contour c = shapes[sh].GetSection(0) + shapes[sh].GetSection(1) + shapes[sh].GetSection(2);
+    Contour c = shapes[sh].GetCover();
     c.Scale(XY(o.x.Spans()/max.x.Spans(), o.y.Spans()/max.y.Spans()));
     c.Shift(XY(o.x.from - max.x.from*o.x.Spans()/max.x.Spans(), o.y.from - max.y.from*o.y.Spans()/max.y.Spans()));
     return c;
@@ -1151,7 +1160,7 @@ void EntityApp::AddAreaImportantWhenNotShowing()
  * create a control (for the GUI).
  * If `centerline_target` is not NULL, we do this at the
  * centerline of it, not at yPos.*/
-void EntityApp::PostPosProcess(Canvas &/*canvas*/)
+void EntityApp::PostPosProcess(Canvas &canvas)
 {
     //If we have a centerline target, we must not draw a heading
     _ASSERT((centerline_target==NULL) || !draw_heading);
@@ -1184,6 +1193,7 @@ void EntityApp::PostPosProcess(Canvas &/*canvas*/)
             chart->HideEntityLines(parsed_label.Cover(x-twh.x/2, x+twh.x/2, outer_edge.y.till));
         }
     }
+    Element::PostPosProcess(canvas);
 }
 
 /** Draw an entity heading

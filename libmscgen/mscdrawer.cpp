@@ -1192,7 +1192,7 @@ void Canvas::Clip(const Block &b, const LineAttr &line)
     _ASSERT(line.IsComplete());
     cairo_save(cr);
     if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) 
-        line.CreateRectangle_ForFill(b).Path(cr, true);  //notefill shrinks by Spacing()
+        line.CreateRectangle_ForFill(b).CairoPath(cr, true);  //notefill shrinks by Spacing()
     else
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
     cairo_clip(cr);
@@ -1206,7 +1206,7 @@ void Canvas::ClipInverse(const Contour &area)
     outer.Expand(1);
     cairo_rectangle(cr, outer.x.from, outer.y.from, outer.x.Spans(), outer.y.Spans());
     cairo_new_sub_path(cr);
-    area.Contour::Path(cr, true);
+    area.CairoPath(cr, true);
     cairo_fill_rule_t old = cairo_get_fill_rule(cr);
     cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
     cairo_clip(cr);
@@ -1416,7 +1416,7 @@ void Canvas::singleLine(const Block &b, const LineAttr &line)
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
     else {
         const double *pattern = line.DashPattern(num);
-        line.CreateRectangle_Midline(b).PathDashed(cr, pattern, num, true);
+        line.CreateRectangle_Midline(b).CairoPathDashed(cr, pattern, num, true);
     }
     cairo_stroke(cr);
 }
@@ -1426,10 +1426,10 @@ void Canvas::singleLine(const Contour&cl, const LineAttr &line)
     _ASSERT(candraw);
     unsigned num=0;
     if (line.IsContinuous() || !fake_dash) 
-        cl.Path(cr, false);
+        cl.CairoPath(cr, false);
     else {
         const double *pattern = line.DashPattern(num);
-        cl.PathDashed(cr, pattern, num, false);
+        cl.CairoPathDashed(cr, pattern, num, false);
     }
     cairo_stroke(cr);
 }
@@ -1826,7 +1826,7 @@ void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_
     const bool clip = false;
     //Clip out the actual shape we are the shadow of
     if (clip) {
-        area.Path(cr, true);
+        area.CairoPath(cr, true);
         cairo_new_sub_path(cr);
         cairo_rectangle(cr, area.GetBoundingBox().x.from-1, area.GetBoundingBox().y.from-1,
                             area.GetBoundingBox().x.Spans()+2+shadow.offset.second, area.GetBoundingBox().y.Spans()+2+shadow.offset.second);

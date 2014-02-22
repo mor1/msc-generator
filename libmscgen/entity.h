@@ -64,28 +64,31 @@ class Shape
     Block max;
     Block label_pos;
     Block hint_pos;
-    Contour bg, fg_fill, fg_line;
-    Contour  &GetSection(unsigned section) { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
+    Path bg, fg_fill, fg_line;
+    mutable bool cover_fresh;
+    mutable Contour cover;
+    Path  &GetSection(unsigned section) { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
     unsigned current_section;
     std::vector<Edge> current_section_data;
     XY current_section_point;
 public:
-    const Contour  &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
+    const Path &GetSection(unsigned section) const { return section==0 ? bg : section==1 ? fg_fill : fg_line; }
     const std::string name;
     const FileLineCol definition_pos;
     const std::string url;
     const std::string info;
-    Shape() : current_section(1), name(), definition_pos(), url(), info() { max.MakeInvalid(); label_pos.MakeInvalid(); hint_pos.MakeInvalid(); }
+    Shape() : cover_fresh(true), current_section(1), name(), definition_pos(), url(), info() { max.MakeInvalid(); label_pos.MakeInvalid(); hint_pos.MakeInvalid(); }
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i);
     Shape(const std::string &n, const FileLineCol &l, const std::string &u, const std::string &i, Shape &&s);
     bool IsEmpty() const { return bg.IsEmpty() && fg_fill.IsEmpty() && fg_line.IsEmpty(); }
+    const Contour &GetCover() const;
     void Add(ShapeElement &&e);
     Block GetLabelPos(const Block &o) const;
     Block GetHintPos() const { return hint_pos; }
     Block GetMax() const { return max; }
     const string &GetURL() const { return url; }
     const string &GetInfo() const { return info; }
-    void Path(cairo_t *cr, unsigned section, const Block &o) const;
+    void CairoPath(cairo_t *cr, unsigned section, const Block &o) const;
 };
 
 /** Describes a collection of shapes */

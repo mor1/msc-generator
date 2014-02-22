@@ -645,8 +645,8 @@ void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
         hei += (*i)->Height(entity_cover, edl); 
         if (cover) 
             *cover += GetCover4Compress(entity_cover);
-        area += (*i)->GetAreaToSearch();
-        area_to_note += (*i)->GetAreaToNote();
+        //area += (*i)->GetAreaToSearch();
+        //area_to_note += (*i)->GetAreaToNote();
         num_showing ++;
     }
     if (num_showing) {
