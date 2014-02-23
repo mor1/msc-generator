@@ -37,16 +37,15 @@ namespace contour {
 
 /** Calculate the boundingBox of the whole shape.
 *  Assumes the bounding box of curved edges is already calculated.*/
-const Block &Path::CalculateBoundingBox() const
+Block Path::CalculateBoundingBox() const
 {
-    boundingBox.MakeInvalid();
+    Block ret(true);
     for (const auto &e : edges)
         if (e.IsStraight())
-            boundingBox += e.GetStart();
+            ret += e.GetStart();
         else
-            boundingBox += e.CreateBoundingBox();
-    boundingBox_fresh = true;
-    return boundingBox;
+            ret += e.CreateBoundingBox();
+    return ret;
 }
 
 
@@ -61,14 +60,9 @@ const Block &Path::CalculateBoundingBox() const
  * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
  * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
 */
-Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg) :
-   boundingBox_fresh(false)
+Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
 {
-    if (radius_x==0) {
-        boundingBox_fresh = true;
-        boundingBox.MakeInvalid();
-        return;
-    }
+    if (radius_x==0) return;
     Edge::GenerateEllipse(edges, c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
     //Add a segment if not a full ellipse
     const XY start = edges.front().start;
@@ -77,18 +71,11 @@ Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, doubl
 
 void Path::AddAnEdge(const Edge &edge, bool ensure_connect)
 {
-    if (size()==0) boundingBox_fresh = false; //to prevent continuous update of BB
     if (ensure_connect && edges.size() && edge.GetStart()!=edges.back().GetEnd()) {
         const XY tmp = edges.back().GetEnd();
         edges.emplace_back(tmp, edge.GetStart(), !!edge.visible);
     }
     edges.push_back(edge);
-    if (!boundingBox_fresh) return;
-    if (edge.IsStraight()) {
-        boundingBox += edge.start;
-        boundingBox += edge.end;
-    } else
-        boundingBox += edge.CreateBoundingBox();
 }
 
 
@@ -114,7 +101,6 @@ Path &Path::append(const std::vector<XY> &v, bool ensure_connect)
     for (size_t i = 0; i+1<v.size(); i++)
         if (v[i] != v[i+1])
             edges.emplace_back(v[i], v[i+1]);
-    boundingBox_fresh = false;
     return *this;
 }
 
@@ -129,7 +115,6 @@ Path &Path::append(const XY v[], size_t size, bool ensure_connect)
     for (size_t i = 0; i+1<size; i++)
         if (v[i] != v[i+1])
             edges.emplace_back(v[i], v[i+1]);
-    boundingBox_fresh = false;
     return *this;
 }
 
@@ -142,7 +127,6 @@ Path &Path::append(const std::vector<Edge> &v, bool ensure_connect)
     } else
         edges.reserve(edges.size()+v.size());
     edges.insert(edges.end(), v.begin(), v.end());
-    boundingBox_fresh = false;
     return *this;
 }
 
@@ -156,7 +140,6 @@ Path &Path::append(const Edge v[], size_t size, bool ensure_connect)
         edges.reserve(edges.size()+size);
     for (size_t i = 0; i<size; i++)
         edges.push_back(v[i]);
-    boundingBox_fresh = false;
     return *this;
 }
 
@@ -169,10 +152,6 @@ Path &Path::append(const Path &p, bool ensure_connect)
     } else
         edges.reserve(edges.size()+p.size());
     edges.insert(edges.end(), p.edges.begin(), p.edges.end());
-    if (boundingBox_fresh && p.boundingBox_fresh)
-        boundingBox += p.boundingBox;
-    else
-        boundingBox_fresh = false;
     return *this;
 }
 

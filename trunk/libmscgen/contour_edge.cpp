@@ -2759,23 +2759,24 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge>
             t.push_back(s);
     }
     //prune roots outside [0,1] range or close to 0 or one
-    for (unsigned k = num; k>0; k--)
+    for (unsigned k = t.size()-1; k>0; k--)
         if (t[k] < SMALL_NUM || t[k]>1-SMALL_NUM)
             t.erase(t.begin()+k);
-    if (t.size()>1) {
-        std::sort(++t.begin(), t.end());
-        //remove duplicates (like a cusp at an X extreme)
-        for (unsigned k = t.size()-2; k>0; k--)
-            if (test_equal(t[k], t[k+1]))
-                t.erase(t.begin()+k);
-    }
+    std::sort(++t.begin(), t.end());
+    t[0] = 0;
+    t.push_back(1);
+    //remove duplicates (like a cusp at an X extreme)
+    for (int k = t.size()-2; k>=0; k--)
+        if (test_equal(t[k], t[k+1]))
+            t.erase(t.begin()+k+1);
+
     std::list<Edge> tmp;
     const size_t orig_offset = original ? original->size() : 0;
-    if (t.size()==1)
+    _ASSERT(t.size()>=2);
+    if (t.size()==2) {
+        _ASSERT(t[0]==0 && t[1]==1);
         CreateExpandOneSegment(gap, tmp, original);
-    else {
-        t[0] = 0;
-        t.push_back(1);
+    } else {
         for (unsigned k = 0; k<t.size()-1; k++) {
             Edge e(*this, t[k], t[k+1]);
             e.CreateExpandOneSegment(gap, tmp, original);

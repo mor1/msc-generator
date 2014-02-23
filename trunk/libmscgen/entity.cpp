@@ -100,7 +100,11 @@ Shape::Shape(const std::string &n, const FileLineCol &l,
 const Contour &Shape::GetCover() const
 {
     if (!cover_fresh) {
-        cover = Contour(bg, true, true) + Contour(fg_fill, true, true) + Contour(fg_line, true, true);
+
+        Contour b(bg, true, true, true);
+        Contour f1(fg_fill, true, true, true);
+        Contour f2(fg_line, true, true, true);
+        cover = std::move(b) + std::move(f1) + std::move(f2);
         cover_fresh = true;
     }
     return cover;
@@ -120,10 +124,9 @@ void Shape::Add(ShapeElement &&e)
         _ASSERT(0);
         break;
     case ShapeElement::CURVE_TO:
-        max += XY(e.x1, e.y1);
-        max += XY(e.x2, e.y2);
         current_section_data.emplace_back(current_section_point, XY(e.x, e.y),
                                           XY(e.x1, e.y1), XY(e.x2, e.y2));
+        max += current_section_data.back().CreateBoundingBox();
         current_section_point = XY(e.x, e.y);
         break;
     case ShapeElement::LINE_TO:

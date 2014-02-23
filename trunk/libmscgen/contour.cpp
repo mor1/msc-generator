@@ -2189,6 +2189,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
     }
     std::list<node> list; //this will be the root(s) of the post-processing tree (forest).
     if (Rays.size()) {
+#ifdef _DEBUG
         if (1) {
             expand_debug_cps.clear();
             size_t u = link_cps_head;
@@ -2197,6 +2198,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
                 u = Rays[u].link_cps.next;
             } while (u!=link_cps_head);
         }
+#endif
         //evaluate crosspoints
         EvaluateCrosspoints(type); // Process each cp and determine if it is relevant to us or not
         //Walk while we have eligible starting points
@@ -2438,16 +2440,18 @@ void Contour::assign(const Edge v[], size_t size, bool winding)
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
-void Contour::assign(const Path &p, bool close_everything, bool winding)
+void Contour::assign(const Path &p, bool close_everything, bool force_clockwise, bool winding)
 {
     clear();
     Contour tmp;
     for (auto &e: p.ConvertToClosed(close_everything))
         tmp.append_dont_check(e);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    if (force_clockwise && !GetClockWise())
+        invert_dont_check();
 }
 
-void Contour::assign(Path &&p, bool close_everything, bool winding)
+void Contour::assign(Path &&p, bool close_everything, bool force_clockwise, bool winding)
 {
     clear();
     Contour tmp;
@@ -2463,6 +2467,8 @@ void Contour::assign(Path &&p, bool close_everything, bool winding)
     tmp.first.outline.assign_dont_check(std::move(p.edges));
 untangle:
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    if (force_clockwise && !GetClockWise())
+        invert_dont_check();
 }
 
 void Contour::assign_dont_check(Path &&p, bool close_everything)

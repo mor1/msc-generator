@@ -506,6 +506,11 @@ public:
 
 inline bool Edge::MakeStraightIfNeeded(double flatness_tolerance) 
 {
+    _ASSERT(!isnan(start.x) && !isnan(start.y));
+    _ASSERT(!isnan(end.x) && !isnan(end.y));
+    _ASSERT(!isnan(c1.x) && !isnan(c1.y));
+    _ASSERT(!isnan(c2.x) && !isnan(c2.y));
+
     //see http://antigrain.com/research/adaptive_bezier/
     if (straight) return false;
     const double dx = end.x-start.x;

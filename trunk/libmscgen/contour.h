@@ -407,8 +407,8 @@ public:
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}    ///<Create a contour of a single shape with no holes by moving a SimpleContour object. `p` will become undefined.
     Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
     Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
-    explicit Contour(const Path &p, bool close_everything = false, bool winding = true) { assign(p, close_everything, winding); }
-    explicit Contour(Path &&p, bool close_everything = false, bool winding = true) { assign(std::move(p), close_everything, winding); }
+    explicit Contour(const Path &p, bool close_everything = false, bool force_clockwise=true, bool winding = true) { assign(p, close_everything, force_clockwise, winding); }
+    explicit Contour(Path &&p, bool close_everything = false, bool force_clockwise = true, bool winding = true) { assign(std::move(p), close_everything, force_clockwise, winding); }
     /** @} */ //Constructors
 
     /** @name Assignment */
@@ -447,9 +447,9 @@ public:
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
     template<size_t SIZE> void assign(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
     /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const Path &p, bool close_everything=false, bool winding = true);
+    void assign(const Path &p, bool close_everything = false, bool force_clockwise = true, bool winding = true);
     /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(Path &&p, bool close_everything = false, bool winding = true);
+    void assign(Path &&p, bool close_everything = false, bool force_clockwise = true, bool winding = true);
 
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
     void assign_dont_check(const std::vector<XY> &v) {clear(); first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();}
