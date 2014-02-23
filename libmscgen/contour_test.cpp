@@ -138,6 +138,7 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
         cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
         if (vertices==2) {
             cairo_set_font_size(cr, 1);
+#ifdef _DEBUG
             for (auto &c : expand_debug_contour)
                 for (unsigned u = 0; u<c.size(); u++) {
                     cairo_move_to(cr, c[u].GetStart().x+1, c[u].GetStart().y-1);
@@ -145,6 +146,7 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
                     sprintf(buff, "%u: %lg; %lg", u, c[u].GetStart().x, c[u].GetStart().y);
                     cairo_show_text(cr, buff);
                 }
+#endif
         }
         for (auto &e: cps) {
             cairo_new_sub_path(cr);
@@ -1174,6 +1176,10 @@ void contour_test_expand_edge(unsigned num)
     n = F.SelfCrossing(r, p1, p2);
 }
 
+void contour_test_path(unsigned num)
+{
+    //Add path to contour conversion routines
+}
 
 /** A set of drawing operations drawing interesting test cases.
  * @ingroup contour_internal
