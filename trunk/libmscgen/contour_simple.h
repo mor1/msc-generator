@@ -212,15 +212,15 @@ public:
     template<size_t size> Path &append(const Edge(&v)[size]) { return append(v, size, ensure_connect); } ///<Append `v` to path. 
     Path &append(const Path &p, bool ensure_connect = false);      ///<Append `p` to path. 
 
-    Path &assign(const std::vector<XY> &v) { clear(); append(v); }      ///<Set path content to `v`. 
-    Path &assign(const XY v[], size_t size) { clear(); append(v, size); } ///<Set path content to `v` of size `size`. 
-    template<size_t size> Path &assign(const XY(&v)[size]) { assign(v, size); } ///<Set path content to `v`. 
-    Path &assign(const std::vector<Edge> &v) { edges = v;};    ///<Set path content to `v`. 
-    Path &assign(std::vector<Edge> &&v) { edges.swap(v); };       ///<Set path content to `v`. 
-    Path &assign(const Edge v[], size_t size) { clear(); append(v, size); } ///<Set path content to `v` of size `size`. 
-    template<size_t size> Path &assign(const Edge(&v)[size]) { assign(v, size); } ///<Set path content to `v`. 
-    Path &assign(const Path &p) { return *this = p; }      ///<Make us equal to p 
-    Path &assign(Path &&p) { swap(p); return *this; }      ///<Make us equal to p 
+    Path &assign(const std::vector<XY> &v) { clear(); append(v); return *this; }      ///<Set path content to `v`. 
+    Path &assign(const XY v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`. 
+    template<size_t size> Path &assign(const XY(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`. 
+    Path &assign(const std::vector<Edge> &v) { edges = v; return *this; };    ///<Set path content to `v`. 
+    Path &assign(std::vector<Edge> &&v) { edges.swap(v); return *this; };       ///<Set path content to `v`. 
+    Path &assign(const Edge v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`. 
+    template<size_t size> Path &assign(const Edge(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`. 
+    Path &assign(const Path &p) { return *this = p; return *this; }      ///<Make us equal to p 
+    Path &assign(Path &&p) { swap(p); return *this; return *this; }      ///<Make us equal to p 
 
     size_t size() const { return edges.size(); }             ///<Returns the number of edges.
     Block CalculateBoundingBox() const;
@@ -351,7 +351,8 @@ protected:
     const Edge *operator[](const XY &p) const {size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;} ///<Returns const pointer to edge `p` is at, NULL if `p` is not on the contour.
 
     bool AddAnEdge(const Edge &edge);
-    void Invert();
+    SimpleContour &Invert();
+    SimpleContour CreateInvert() const { return SimpleContour(*this).Invert(); }
 
     EContourRelationType CheckContainment(const SimpleContour &b) const;
 

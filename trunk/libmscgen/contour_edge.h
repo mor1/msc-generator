@@ -70,7 +70,7 @@ struct RayAngle {
     RayAngle() {};
     explicit RayAngle(double a, double b=0) : angle(a), curve(b) {}
     bool IsSimilar(const RayAngle&o) const {return test_equal(angle, o.angle) && test_equal(curve, o.curve);}  ///<Compares two RayAngles
-    bool Smaller(const RayAngle&o) const {return test_equal(angle, o.angle) ? test_smaller(curve, o.curve) : angle < o.angle;} ///<True we are smaller than `o`, that is, `o` is clockwise after us.
+    bool Smaller(const RayAngle&o) const {return test_equal(angle, o.angle) ? test_smaller(curve, o.curve) : angle < o.angle;} ///<True we are smaller than `o`, that is, `o` is clockwise after us. We do not define operator < since this is not strict, but approximate.
 };
 
 /** @} */ //addtogroup contour_internal
@@ -528,7 +528,7 @@ inline Edge& Edge::SetStart(const XY &p, double pos)
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
-        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         //_ASSERT(fabs(t-pos)<0.001);
         Chop(pos, 1);
     } else {
@@ -549,7 +549,7 @@ inline Edge& Edge::SetEnd(const XY &p, double pos)
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
-        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
+        _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         //_ASSERT(fabs(t-pos)<0.001);
         Chop(0, pos);
     } else {
@@ -571,8 +571,8 @@ inline Edge& Edge::SetStartIgn(const XY &p, double pos)
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
-        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
-        _ASSERT(fabs(t-pos)<0.001);
+        _ASSERT(fabs(Distance(p, dummy, t))<0.1);
+        _ASSERT(fabs(t-pos)<0.01);
         Chop(pos, 1);
     }
     start = p;
@@ -587,8 +587,8 @@ inline Edge& Edge::SetEndIgn(const XY &p, double pos)
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
-        _ASSERT(fabs(Distance(p, dummy, t))<0.01);
-        _ASSERT(fabs(t-pos)<0.001);
+        _ASSERT(fabs(Distance(p, dummy, t))<0.1);
+        _ASSERT(fabs(t-pos)<0.01);
         Chop(0, pos);
     }
     end = p;
@@ -601,9 +601,9 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
         XY dummy;
         double tt, ss;
         //test that p and pos correspond - compiles to NOP in release mode
-        _ASSERT(fabs(Distance(s, dummy, tt))<0.01);
-        _ASSERT(fabs(Distance(d, dummy, ss))<0.01);
-        _ASSERT(fabs(tt-spos)<0.001);
+        _ASSERT(fabs(Distance(s, dummy, tt))<0.1);
+        _ASSERT(fabs(Distance(d, dummy, ss))<0.1);
+        _ASSERT(fabs(tt-spos)<0.01);
         _ASSERT(fabs(ss-dpos)<0.001);
         Chop(spos, dpos);
     }

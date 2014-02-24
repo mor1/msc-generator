@@ -1176,9 +1176,50 @@ void contour_test_expand_edge(unsigned num)
     n = F.SelfCrossing(r, p1, p2);
 }
 
+void DrawPath(unsigned num, const Path &p, double r=0, double g=0, double b=0)
+{
+    Block bb = p.CalculateBoundingBox().Expand(10);
+    Block cc = bb;
+    cc += bb.UpperLeft()+bb.Spans().Scale(XY(1.5, 2));  //3x2 panels, x will be doubled
+    CairoContext c(num, cc, "untangle split");
+    p.CairoPath(c.cr, false);
+    cairo_set_source_rgb(c.cr, r, g, b);
+    cairo_stroke(c.cr);
+    for (unsigned u = 0; u<4; u++) {
+        XY sh = bb.Spans().Scale(XY((u+1)%3, (u+1)/3));
+        Contour contour(p, u&1, u&2);
+        contour.Shift(sh);
+        contour.CairoPath(c.cr, false);
+        cairo_set_source_rgba(c.cr, r, g, b, 0.5);
+        cairo_fill(c.cr);
+        contour.CairoPath(c.cr, false);
+        cairo_set_source_rgb(c.cr, r, g, b);
+        cairo_stroke(c.cr);
+        sh += bb.UpperLeft();
+        cairo_move_to(c.cr, sh.x, sh.y);
+        char buff[400];
+        sprintf(buff, "%s, %s", u&1 ? "close_all" : "not close_all", u&2 ? "winding rule" : "evenodd rule");
+        cairo_set_font_size(c.cr, 10);
+        cairo_show_text(c.cr, buff);
+    }
+}
+
 void contour_test_path(unsigned num)
 {
-    //Add path to contour conversion routines
+    std::vector<XY> a = {
+        XY(10, 10), XY(200, 10), XY(200, 50), XY(180, 50), XY(180, 30),
+        XY(220, 30), XY(220, 150), XY(10,150)}; //clockwise, but open
+    std::vector<XY> b = {
+        XY(20, 20), XY(30, 20), XY(30, 30), XY(20, 30), XY(20,20)};  //clockwise inside "a" and closed
+    std::vector<XY> c = {
+        XY(20, 80), XY(30, 80), XY(30, 70), XY(20, 70)}; //counterclockwise, inside "a" and open
+    std::vector<XY> d = {
+        XY(20, 180), XY(30, 180), XY(30, 170), XY(20,170)}; //counterclockwise and open
+    std::vector<XY> e = {
+        XY(100, 80), XY(110, 80), XY(110, 70), XY(100, 70), XY(100, 80)}; //counterclockwise, inside "a" and closed
+    Path p(a);
+    p.append(b).append(c).append(d).append(e);
+    DrawPath(num, p);
 }
 
 /** A set of drawing operations drawing interesting test cases.
@@ -1187,8 +1228,7 @@ void contour_test_path(unsigned num)
  */
 void contour_test(void)
 {
-    contour_test_bezier(8000);
-
+    contour_test_path(7700);
     generate_forms();
     using namespace generated_forms;
 
@@ -1197,9 +1237,6 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
-
-    contour_test_tangent(7500);
-
 
     contour_test_basic();
     contour_test_assign(111);
@@ -1212,7 +1249,8 @@ void contour_test(void)
     contour_test_cut(7300);
     contour_test_expand2D(7400);
     contour_test_tangent(7500);
-    contour_test_bezier(8000);
+    contour_test_bezier(7600);
+    contour_test_path(7700);
 }
 
 } //namespace

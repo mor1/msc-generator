@@ -523,7 +523,9 @@ unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], d
         if (t[i]>1) t[i] = 1;
         r[num] = o.start + (o.end-o.start)*t[i];
         pos_other[num] = t[i];
-        if (fabs(start.x-end.x) > fabs(start.y-end.y))
+        if (start==end)
+            pos_my[num] = 0;
+        else if (fabs(start.x-end.x) > fabs(start.y-end.y))
             pos_my[num] = (r[num].x-start.x)/(end.x-start.x);
         else
             pos_my[num] = (r[num].y-start.y)/(end.y-start.y);
@@ -990,6 +992,11 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
         if (num==0) return 0;
         roots[0] = roots[1];
     }
+    if (roots[0]==0 || roots[0]==1) {
+        if (num==1) return 0;
+        if (roots[1]==0 || roots[1]==1) return 0;
+        roots[0] = roots[1];
+    }
     Edge A, B, C;
     if (num==1) {
         /* If we have one such point it can happen like this
@@ -1212,6 +1219,7 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
     }
 
 end:
+    return ret;
     //the code below is just for error checking - remove when done.
     double loc_pos[3], loc_y[3];
     bool loc_fw[3];
@@ -1259,9 +1267,9 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
             return 0;
         //return 0 for horizontal straight edges (now start.y==end.y must equal to xy.y)
         if (start.y == end.y) return 0;
-        //test for start and endpoints
-        if (start == xy) return start.y > end.y ? -1 : 0;
-        if (end == xy) return start.y < end.y ? +1 : 0;
+        //test for start and endpoints - anything that goes through xy is ignored
+        if (start == xy) return 0; // start.y > end.y ? -1 : 0;
+        if (end == xy) return 0; // start.y < end.y ? +1 : 0;
         //test if we cross right of xy.x
         if ((xy.y - start.y)/(end.y - start.y)*(end.x-start.x) + start.x <= xy.x)
             return 0;

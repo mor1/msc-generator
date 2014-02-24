@@ -112,6 +112,7 @@ public:
     int GetShapeNo(const string&sh_name) const;
     void  AttributeValues(Csh &csh) const;
     std::vector<const string*> ShapeNames() const;
+    std::vector<string> ShapeNames(const string &partial) const;
     void Draw(Canvas &canvas, unsigned sh, const Block &o, const LineAttr &line, const FillAttr &fill) const;
     Contour Cover(unsigned sh, const Block &o) const;
     const Shape * GetShape(unsigned shape) { if (shape>=shapes.size()) return NULL; return &shapes[shape]; }
