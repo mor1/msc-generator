@@ -325,6 +325,7 @@ protected:
     void Invert(); ///<Reverse the contour. Used internally for substraction. Untangles the resulting shape.
     Contour& invert_dont_check() {first.Invert(); if (further.size()) further.Invert(); return *this;} ///<Reverse the contour. Used internally for substraction. Does not untangle the resulting shape.
     Contour CreateInverse() const {Contour tmp(*this); tmp.Invert(); return tmp;} ///<Creates a Contour that is the invese of us.
+    Contour create_inverse_dont_check() const { Contour tmp(*this); tmp.invert_dont_check(); return tmp; } ///<Creates a Contour that is the invese of us. Used internally for substraction. Does not untangle the resulting shape.
     void Rotate(double cos, double sin) {first.Rotate(cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
     void RotateAround(const XY&c, double cos, double sin) {first.RotateAround(c, cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape around `c` by `radian`. `sin` and `cos` are pre-computed values.
 
@@ -407,8 +408,8 @@ public:
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}    ///<Create a contour of a single shape with no holes by moving a SimpleContour object. `p` will become undefined.
     Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.GetBoundingBox()) {}    ///<Standard move constructor `p` will become undefined.
     Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.GetBoundingBox()) {}                     ///<Standard copy constructor.
-    explicit Contour(const Path &p, bool close_everything = false, bool force_clockwise=true, bool winding = true) { assign(p, close_everything, force_clockwise, winding); }
-    explicit Contour(Path &&p, bool close_everything = false, bool force_clockwise = true, bool winding = true) { assign(std::move(p), close_everything, force_clockwise, winding); }
+    explicit Contour(const Path &p, bool close_everything = false, bool winding = true) { assign(p, close_everything, winding); }
+    explicit Contour(Path &&p, bool close_everything = false, bool winding = true) { assign(std::move(p), close_everything, winding); }
     /** @} */ //Constructors
 
     /** @name Assignment */
@@ -433,56 +434,56 @@ public:
     Contour &operator = (Path &&p) { assign(std::move(p)); return *this; }
 
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const std::vector<XY> &v, bool winding=true);
+    Contour &assign(const std::vector<XY> &v, bool winding=true);
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const XY v[], size_t size, bool winding=true);
+    Contour &assign(const XY v[], size_t size, bool winding=true);
     /** Sets the Contour to a polygon from an ordered list of points. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> void assign(const XY (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+    template<size_t SIZE> Contour &assign(const XY (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);return *this;}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const std::vector<Edge> &v, bool winding = true);
+    Contour &assign(const std::vector<Edge> &v, bool winding = true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(std::vector<Edge> &&v, bool winding = true);
+    Contour &assign(std::vector<Edge> &&v, bool winding = true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const Edge v[], size_t size, bool winding=true);
+    Contour &assign(const Edge v[], size_t size, bool winding=true);
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    template<size_t SIZE> void assign(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+    template<size_t SIZE> Contour &assign(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);return *this;}
     /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(const Path &p, bool close_everything = false, bool force_clockwise = true, bool winding = true);
+    Contour &assign(const Path &p, bool close_everything = false, bool winding = true);
     /** Sets the Contour to the enclosed area(s) of a path. Untangles them using the winding rule if `winding` is true, using evenodd rule otherwise. */
-    void assign(Path &&p, bool close_everything = false, bool force_clockwise = true, bool winding = true);
+    Contour &assign(Path &&p, bool close_everything = false, bool winding = true);
 
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const std::vector<XY> &v) {clear(); first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();}
+    Contour &assign_dont_check(const std::vector<XY> &v) {clear(); first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox();return *this;}
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const XY v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); }
+    Contour &assign_dont_check(const XY v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); return *this;}
     /** Sets the Contour to a polygon from an ordered list of points. Assumes the poins specify an untangled polygon. */
-    template<size_t SIZE> void assign_dont_check(const XY (&v)[SIZE]) {assign_dont_check (v, SIZE);}
+    template<size_t SIZE> Contour &assign_dont_check(const XY (&v)[SIZE]) {assign_dont_check (v, SIZE);return *this;}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const std::vector<Edge> &v) {clear();  first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox(); }
+    Contour &assign_dont_check(const std::vector<Edge> &v) {clear();  first.outline.assign_dont_check(v); boundingBox = first.GetBoundingBox(); return *this;}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(std::vector<Edge> &&v) {clear();  first.outline.assign_dont_check(std::move(v)); boundingBox = first.GetBoundingBox(); }
+    Contour &assign_dont_check(std::vector<Edge> &&v) {clear();  first.outline.assign_dont_check(std::move(v)); boundingBox = first.GetBoundingBox(); return *this;}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    void assign_dont_check(const Edge v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); }
+    Contour &assign_dont_check(const Edge v[], size_t size) {clear(); first.outline.assign_dont_check(v, size); boundingBox = first.GetBoundingBox(); return *this;}
     /** Sets the Contour to a shape with no holes from an ordered list of edges. Assumes the poins specify an untangled polygon. */
-    template<size_t SIZE> void assign_dont_check(const Edge (&v)[SIZE]) {assign_dont_check (v, SIZE);}
-    void assign_dont_check(const Path &p, bool close_everything = false) { clear(); for (auto &e : p.ConvertToClosed(close_everything)) append_dont_check(e); }
-    void assign_dont_check(Path &&p, bool close_everything = false);
+    template<size_t SIZE> Contour &assign_dont_check(const Edge (&v)[SIZE]) {assign_dont_check (v, SIZE);return *this;}
+    Contour &assign_dont_check(const Path &p, bool close_everything = false) { clear(); for (auto &e : p.ConvertToClosed(close_everything)) append_dont_check(e); return *this;}
+    Contour &assign_dont_check(Path &&p, bool close_everything = false);
 
     /** Appends polygon created from an ordered list of points. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    void append_dont_check(const std::vector<XY> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    Contour &append_dont_check(const std::vector<XY> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));return *this;}
     /** Appends polygon created from an ordered list of points. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    void append_dont_check(const XY v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    Contour &append_dont_check(const XY v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));return *this;}
     /** Appends polygon created from an ordered list of points. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    template<size_t SIZE> void append_dont_check(const XY (&v)[SIZE]) {append_dont_check (v, SIZE);}
+    template<size_t SIZE> Contour &append_dont_check(const XY (&v)[SIZE]) {append_dont_check (v, SIZE);return *this;}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    void append_dont_check(const std::vector<Edge> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    Contour &append_dont_check(const std::vector<Edge> &v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));return *this;}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    void append_dont_check(std::vector<Edge> &&v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(std::move(v)); if (!tmp.IsEmpty()) append(std::move(tmp)); }
+    Contour &append_dont_check(std::vector<Edge> &&v) {ContourWithHoles tmp; tmp.outline.assign_dont_check(std::move(v)); if (!tmp.IsEmpty()) append(std::move(tmp)); return *this;}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    void append_dont_check(const Edge v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    Contour &append_dont_check(const Edge v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));return *this;}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
-    template<size_t SIZE> void append_dont_check(const Edge (&v)[SIZE]) {append_dont_check (v, SIZE);}
-    /** @} */ //assignment
+    template<size_t SIZE> Contour &append_dont_check(const Edge (&v)[SIZE]) {append_dont_check (v, SIZE);return *this;}
+    /** @return *this;} */ //assignment
 
 
     /** @name Basic information 
@@ -600,9 +601,9 @@ public:
     /** Take the intersection with `a`.*/
     Contour &operator *= (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, std::move(*this), std::move(a)); return *this;}
     /** Substract `a` from us, that is keep only areas of us not covered by `a`.*/
-    Contour &operator -= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), a.CreateInverse()); return *this;}
+    Contour &operator -= (const Contour &a) { Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), a.create_inverse_dont_check()); return *this; }
     /** Substract `a` from us, that is keep only areas of us not covered by `a`.*/
-    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(GetClockWise() || !a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), std::move(a)); return *this;}
+    Contour &operator -= (Contour &&a)      {a.invert_dont_check(); Operation(GetClockWise() || !a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), std::move(a)); return *this;}
     /** Take `a` xor us, that is keep areas covered by strictly one of `a` or us.*/
     Contour &operator ^= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_XOR : NEGATIVE_XOR, std::move(*this), a); return *this;}
     /** Take `a` xor us, that is keep areas covered by strictly one of `a` or us.*/
@@ -810,7 +811,7 @@ public:
 
 inline Contour operator + (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, b);}
 inline Contour operator * (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, a, b);}
-inline Contour operator - (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, b.CreateInverse());}
+inline Contour operator - (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, b.create_inverse_dont_check());}
 inline Contour operator ^ (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             a, b);}
 inline Contour operator + (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, std::move(b));}
 inline Contour operator * (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, a, std::move(b));}

@@ -253,14 +253,14 @@ SimpleContour::SimpleContour(XY a, XY b, XY c) :
         boundingBox.MakeInvalid();
         return;
     case CLOCKWISE:
-        edges.push_back(Edge(a, b));
-        edges.push_back(Edge(b, c));
-        edges.push_back(Edge(c, a));
+        edges.emplace_back(a, b);
+        edges.emplace_back(b, c);
+        edges.emplace_back(c, a);
         break;
     case COUNTERCLOCKWISE:
-        edges.push_back(Edge(a, c));
-        edges.push_back(Edge(c, b));
-        edges.push_back(Edge(b, a));
+        edges.emplace_back(a, c);
+        edges.emplace_back(c, b);
+        edges.emplace_back(b, a);
         break;
     }
     boundingBox += c;
@@ -311,7 +311,7 @@ SimpleContour &SimpleContour::operator =(const Block &b)
 }
 
 /** Revert the clockwisedness of the shape by reverting, all edges and their order. */
-void SimpleContour::Invert()
+SimpleContour &SimpleContour::Invert()
 {
     for (size_t i=0; i<size(); i++)
         at(i).Invert();
@@ -319,6 +319,7 @@ void SimpleContour::Invert()
         std::swap(at(i), at(size()-1-i));
     area *= -1;
     clockwise = !clockwise;
+    return *this;
 }
 
 /** Calculate the relation of a point and the shape.

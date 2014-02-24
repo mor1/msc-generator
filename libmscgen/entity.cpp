@@ -100,10 +100,9 @@ Shape::Shape(const std::string &n, const FileLineCol &l,
 const Contour &Shape::GetCover() const
 {
     if (!cover_fresh) {
-
-        Contour b(bg, true, true, true);
-        Contour f1(fg_fill, true, true, true);
-        Contour f2(fg_line, true, true, true);
+        Contour b(bg, true, true);
+        Contour f1(fg_fill, true, true);
+        Contour f2(fg_line, true, true);
         cover = std::move(b) + std::move(f1) + std::move(f2);
         cover_fresh = true;
     }
@@ -375,6 +374,41 @@ std::vector<const string*> ShapeCollection::ShapeNames() const
     return ret;
 }
 
+/**Return the list of shapes, but collapse ones that are similar and too different
+ * from the (nonexistent) name specified by the user. */
+std::vector<string> ShapeCollection::ShapeNames(const string &partial) const
+{
+    //Copy all shape
+    std::vector<string> ret;
+    std::vector<const string*> tmp = ShapeNames();
+    if (tmp.size()<7) { //in case of a few elements only, use them verbatim
+        for (auto &n : tmp)
+            ret.push_back(*n);
+        return ret;
+    }
+    std::sort(tmp.begin(), tmp.end(), [](const string *p1, const string *p2) {return *p1<*p2; });
+    for (auto &n : tmp) {
+        unsigned len_user = CaseInsensitiveCommonPrefixLen(partial.c_str(), n->c_str());
+        while (len_user && (*n)[len_user-1]!='.')
+            len_user--;
+        unsigned len_prev = ret.size() ? CaseInsensitiveCommonPrefixLen(ret.back().c_str(), n->c_str()) : 0;
+        while (len_prev && (*n)[len_prev-1]!='.')
+            len_prev--;
+        if (ret.size()==0 || len_user>=len_prev)
+            ret.push_back(*n);
+        else {
+            //merge with previous
+            ret.back().erase(len_prev);
+            ret.back().append("*");
+        }
+    }
+    //remove duplicates
+    std::sort(ret.begin(), ret.end());
+    ret.erase(std::unique(ret.begin(), ret.end()), ret.end());
+    return ret;
+}
+
+
 int ShapeCollection::GetShapeNo(const string&sh_name) const
 {
     for (unsigned u = 0; u < shapes.size(); u++)
@@ -617,11 +651,13 @@ bool EntityApp::AddAttribute(const Attribute& a)
         int sh = chart->Shapes.GetShapeNo(a.value);
         if (sh==-1) {
             string msg("Use one of '");
-            const auto v = chart->Shapes.ShapeNames();
-            for (auto p : v)
-                msg.append(*p).append("', '");
-            msg.erase(msg.size()-3);
-            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + "'.");
+            const auto v = chart->Shapes.ShapeNames(a.value);
+            for (size_t u = 0; u<v.size()-1; u++)
+                if (u+2==v.size())
+                    msg.append(v[u]).append("' or '");
+                else
+                    msg.append(v[u]).append("', '");
+            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + ".");
         } else
             attr_shape = sh;
         attr_shape_pos = a.linenum_attr.start;

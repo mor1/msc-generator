@@ -367,8 +367,8 @@ struct node
 {
     SimpleContour contour;    ///<This is part of the result.
     std::list<node> children; ///<These SimpleContours are inside the above member.
-    node(SimpleContour &&c) : contour(std::move(c)) {}  ///<Move a SimpleContour
-    node(const SimpleContour &c) : contour(c) {}        ///<Copy a Simplecontour
+    explicit node(SimpleContour &&c, bool invert=false) : contour(invert ? std::move(c.Invert()) : std::move(c)) {}  ///<Move a SimpleContour
+    explicit node(const SimpleContour &c, bool invert=false) : contour(invert ? c.CreateInvert() : c) {}        ///<Copy a Simplecontour
 };
 
 
@@ -1336,14 +1336,14 @@ int ContoursHelper::CalcCoverageHelper(const SimpleContour *sc) const
 {
     const XY &xy = sc->at(0).GetStart();
     int ret =  CalcCoverageHelper2(xy, link_info::no_link, &C1->first);
-    const XY next = sc->NextTangentPoint(0, 0);
-    const XY prev = sc->PrevTangentPoint(0, 0);
-    const double a_next = angle(xy, XY(xy.x+100, xy.y), next);
-    const double a_prev = angle(xy, XY(xy.x+100, xy.y), prev);
+    for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
+        ret += CalcCoverageHelper2(xy, link_info::no_link, &*i);
+    const RayAngle prev = sc->at(sc->size()-1).Angle(true, 1);
+    const RayAngle next = sc->at(0).Angle(false, 0);
     //if the clockwise order is next->0->prev, then the horizontal line is inside
     //if sc is clockwise, then we are OK. Also vice versa.
     //Otherwise we need to add sc's coverage
-    if ((a_next>a_prev) != sc->GetClockWise()) {
+    if ((prev.Smaller(next)) != sc->GetClockWise()) {
         if (sc->GetClockWise()) ret ++;
         else ret--;
     }
@@ -2070,13 +2070,15 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
             IsCoverageToInclude(coverage_outside_c, type)) {
             //place into the tree
             //If the contour is not const, we can destroy it.
-            //The below move does only destroy the outline of c, not the holes
-            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<SimpleContour&&>(c->outline))));
+            //The below move does only destroy the outline of c, not the holes.
+            node *n = InsertContour(list, const_c ? 
+                                           node(c->outline) :
+                                           node(std::move(const_cast<SimpleContour&&>(c->outline))));
             _ASSERT(n);
-            //use its children list for any holes it may have
+            //use its children list to insert any holes it may have (fallthrough to the below 'for' cycle)
             list = &n->children;
         }
-    } //else we do not insert the contour "c" and use the original list for holes
+    } //else we do not insert the contour "c" (already taken into account with Walk()s) and use the original list for holes
     for (const auto &h : c->holes)
         InsertIfNotInRays(list, &h, const_c, C_other, type);
 }
@@ -2398,60 +2400,64 @@ void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType &dist_so
 
 /////////////////////////////////////////  Contour implementation
 
-void Contour::assign(const std::vector<XY> &v, bool winding)
+Contour &Contour::assign(const std::vector<XY> &v, bool winding)
 {
     clear();
-    if (v.size()<2) return;
+    if (v.size()<2) return *this;
     Contour tmp;
     tmp.assign_dont_check(v);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    return *this;
 }
 
-void Contour::assign(const XY v[], size_t size, bool winding)
+Contour &Contour::assign(const XY v[], size_t size, bool winding)
 {
     clear();
-    if (size < 2) return;
+    if (size < 2) return *this;
     Contour tmp;
     tmp.assign_dont_check(v, size);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    return *this;
 }
 
-void Contour::assign(const std::vector<Edge> &v, bool winding)
+Contour &Contour::assign(const std::vector<Edge> &v, bool winding)
 {
     clear();
     Contour tmp;
     tmp.assign_dont_check(v);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    return *this;
 }
 
-void Contour::assign(std::vector<Edge> &&v, bool winding)
+Contour &Contour::assign(std::vector<Edge> &&v, bool winding)
 {
     clear();
     Contour tmp;
     tmp.assign_dont_check(std::move(v));
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    return *this;
 }
 
-void Contour::assign(const Edge v[], size_t size, bool winding)
+Contour &Contour::assign(const Edge v[], size_t size, bool winding)
 {
     clear();
     Contour tmp;
     tmp.assign_dont_check(v, size);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
+    return *this;
 }
 
-void Contour::assign(const Path &p, bool close_everything, bool force_clockwise, bool winding)
+Contour &Contour::assign(const Path &p, bool close_everything, bool winding)
 {
     clear();
     Contour tmp;
     for (auto &e: p.ConvertToClosed(close_everything))
         tmp.append_dont_check(e);
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
-    if (force_clockwise && !GetClockWise())
-        invert_dont_check();
+    return *this;
 }
 
-void Contour::assign(Path &&p, bool close_everything, bool force_clockwise, bool winding)
+Contour &Contour::assign(Path &&p, bool close_everything, bool winding)
 {
     clear();
     Contour tmp;
@@ -2467,18 +2473,17 @@ void Contour::assign(Path &&p, bool close_everything, bool force_clockwise, bool
     tmp.first.outline.assign_dont_check(std::move(p.edges));
 untangle:
     Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
-    if (force_clockwise && !GetClockWise())
-        invert_dont_check();
+    return *this;
 }
 
-void Contour::assign_dont_check(Path &&p, bool close_everything)
+Contour &Contour::assign_dont_check(Path &&p, bool close_everything)
 {
     //First see if p is a single closed shape
     for (size_t u = 0; u<p.edges.size(); u++)
         if (p.at(u).GetEnd() != p.at((u+1)%p.edges.size()).GetStart())
             return assign_dont_check(p, close_everything); //the non-move version
     //OK, fully closed - we can assign the edges directly
-    assign_dont_check(std::move(p.edges));
+    return assign_dont_check(std::move(p.edges));
 }
 
 bool Contour::IsSane() const
