@@ -281,6 +281,8 @@ class SimpleContour
         Edge::EExpandCPType cross_type; //The type of crossing between edge #i and #i+1 (wrapped around)
         XY                  original_point; // The original end vertex (for creating the round circle)
         XY                  cross_point;//The cp between edge #i and #i+1 (wrapped around)
+        XY                  prev_tangent; //A point along the linear continuation of this edge's start. Used only for CP_PARALLEL and CP_EXTENDED
+        XY                  next_tangent; //A point along the linear continuation of this edge's end. Used only for CP_PARALLEL and CP_EXTENDED
         double              us_end_pos;
         double              next_start_pos;
 

@@ -1445,7 +1445,8 @@ void Canvas::Line(const Edge& edge, const LineAttr &line)
     const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
         std::list<Edge> edges;
-        edge.CreateExpand(spacing, edges);
+        XY d1, d2;
+        edge.CreateExpand(spacing, edges,d1,d2);
         if (edges.size()) {
             cairo_move_to(cr, edges.front().GetStart().x, edges.front().GetStart().y);
             for (const auto &e: edges)
@@ -1453,7 +1454,7 @@ void Canvas::Line(const Edge& edge, const LineAttr &line)
             cairo_stroke(cr);
             edges.clear(); 
         }
-        edge.CreateExpand(-spacing, edges);
+        edge.CreateExpand(-spacing, edges,d1,d2);
         if (edges.size()) {
             cairo_move_to(cr, edges.front().GetStart().x, edges.front().GetStart().y);
             for (const auto &e: edges)

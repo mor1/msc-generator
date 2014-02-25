@@ -2039,6 +2039,11 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
     //They are not parallel (and none of them are degenerate)
     const double t = (B-A).PerpProduct(A-M) / perp;
     r = M + (N-M)*t;
+    //in case of horizontal or vertical lines, ensure that cp lies *exactly* on them
+    if (A.x==B.x) r.x = A.x;
+    else if (M.x==N.x) r.x = M.x;
+    if (A.y==B.y) r.y = A.y;
+    else if (M.y==N.y) r.y = M.y;
     const bool t_in = between01_approximate_inclusive(t);
     if (!t_in && t>0.5) return LINE_CROSSING_OUTSIDE_BK;
     const double s = (N-M).PerpProduct(M-A) / -perp;
@@ -2072,11 +2077,17 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
 *
 * @param [in] M The other expanded edge.
 * @param [out] newcp Returns their new crosspoint.
+* @param [in] my_next tangent The ideal next tangent of *this. 
+*                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
+* @oaram [in] Ms_prev_tangent The ideal previous tangent of M.
+*                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
 * @param [out] my_pos In case of CP_REAL returns the position of the cp on 'this', if it is a bezier.
 * @param [out[ M_pos In case of CP_REAL returns the position of the cp on M, if that is a bezier.
 * @returns The relation of the two expanded edges.
 */
-Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &my_pos, double &M_pos) const
+Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, 
+                                              const XY &my_next_tangent, const XY &Ms_prev_tangent, 
+                                              double &my_pos, double &M_pos) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return CP_DEGENERATE;
     if (end.test_equal(M.start)) {
@@ -2100,9 +2111,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
             double pos_us[8], pos_M[8];
             int num = Crossing(Edge(M.start, M.end), false, r, pos_us, pos_M);
             if (!num) {
-                const XY tangent = NextTangentPoint(1.0);
                 //if not parallel, we cross at an extension
-                switch (crossing_line_line(end, tangent, M.start, M.end, newcp)) {
+                switch (crossing_line_line(end, my_next_tangent, M.start, M.end, newcp)) {
                 case LINE_CROSSING_INSIDE:
                 case LINE_CROSSING_OUTSIDE_FW:
                     return CP_EXTENDED;
@@ -2115,7 +2125,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
                     const double mlen = M.end.Distance(M.start);
                     newcp = M.start + (M.start-M.end)/mlen*dist;
-                    return Edge::IsSameDir(end, tangent, M.end, M.start) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
+                    return Edge::IsSameDir(end, my_next_tangent, M.end, M.start) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             } else {
                 //several crosspoints: use the one closest to the end of the bezier
@@ -2135,8 +2145,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
             double pos_us[8], pos_M[8];
             int num = M.Crossing(*this, false, r, pos_M, pos_us);
             if (!num) {
-                const XY tangent = M.PrevTangentPoint(0.0);
-                switch (crossing_line_line(start, end, tangent, M.start, newcp)) {
+                switch (crossing_line_line(start, end, Ms_prev_tangent, M.start, newcp)) {
                 case LINE_CROSSING_INSIDE:
                 case LINE_CROSSING_OUTSIDE_FW:
                     return CP_EXTENDED;
@@ -2149,7 +2158,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
                     const double len = end.Distance(start);
                     newcp = end + (end-start)/len*dist;
-                    return Edge::IsSameDir(start, end, M.start, tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
+                    return Edge::IsSameDir(start, end, M.start, Ms_prev_tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             }
             //several crosspoints: use the one closest to the start of the bezier
@@ -2165,9 +2174,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
             double pos_us[8], pos_M[8];
             int num = Crossing(M, false, r, pos_us, pos_M);
             if (!num) {
-                const XY tangent1 = NextTangentPoint(1.0);
-                const XY tangent2 = M.PrevTangentPoint(0.0);
-                switch (crossing_line_line(end, tangent1, tangent2, M.start, newcp)) {
+                switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
                 case LINE_CROSSING_INSIDE:
                 case LINE_CROSSING_OUTSIDE_FW:
                     return CP_EXTENDED;
@@ -2178,9 +2185,9 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, double &m
                 case LINE_CROSSING_PARALLEL:
                     //if we are parallel, calculate a conv point
                     const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                    const double len = end.Distance(tangent1);
-                    newcp = (end+M.start)/2 - (end-tangent1)/len*dist;
-                    return Edge::IsSameDir(end, tangent1, M.start, tangent2) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
+                    const double len = end.Distance(my_next_tangent);
+                    newcp = (end+M.start)/2 - (end-my_next_tangent)/len*dist;
+                    return Edge::IsSameDir(end, my_next_tangent, M.start, Ms_prev_tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
                 }
             }
             //several crosspoints: use the one closest to the end of us
@@ -2710,22 +2717,35 @@ unsigned Edge::atY(double y, double roots[3]) const
 *
 * This takes the direction of the edge to determine the 'outside' side of the
 * edge to expand towards (or away from in case of a negative `gap`).
+* We also return a previous and next tangent points of the expanded curve.
+* This is because a bezier might have been converted to a servies of sub-curves at
+* expansion and the last/first one of them may have degenerated to a line.
+* In this case some of the Expand() algorithms fail.
+* The points returned represent the 'ideal' tangents as if the lines did not
+* degenerate. We return them even if nothing degenerated even for straight edges.
 * @param [in] gap The amount to expand (or shrink if <0)
 * @param [out] expanded Append the expanded edges to this. The elements of this container
 *                       must have a constructor (XY,XY,XY,XY,bool) for beziers and one
 *                       (XY,XY,bool) for straight lines.
+* @param [out] prev_tangent A point that is a previous tangent for the expanded edge.
+* @param [out] next_tangent A point that is a next tangent for the expanded edge.
 * @param [out] original Append the original edge to this. If the expansion
 *                       requires to split the edge to several pieces append
 *                       the split chunks of the original here.
 */
-bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const
+bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent, 
+                        std::vector<Edge> *original) const
 {
+    _ASSERT(!IsDot());
+    if (IsDot()) return false;
     if (straight) {
         const double length = start.Distance(end);
         const XY wh = (end-start).Rotate90CCW()/length*gap;
         expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
         if (original)
             original->push_back(*this);
+        prev_tangent = 2*start-end + wh;
+        next_tangent = 2*end-start + wh;
         return true;
     }
     //calculate X and Y extremes and inflection points
@@ -2798,8 +2818,26 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge>
     //Make sure connecting edges really connect
     for (auto i = tmp.begin(), j = ++tmp.begin(); j!=tmp.end(); i++, j++)
         i->end = j->start = (i->end + j->start)/2;
+    //See if the start/end has changed dir
+    prev_tangent = tmp.front().PrevTangentPoint(0);
+    next_tangent = tmp.back().NextTangentPoint(1);
+    if (tmp.front().IsStraight()) {
+        //Our start has degenerated to a line, use the tangent of the original edge
+        //but see if we have changed direction.
+        if ((tmp.front().start - prev_tangent).DotProduct(c1-start)<0)
+            prev_tangent = tmp.front().start - (start-c1);
+        else 
+            prev_tangent = tmp.front().start + (start-c1);
+    }
+    if (tmp.back().IsStraight()) {
+        //Our start has degenerated to a line, use the tangent of the original edge
+        //but see if we have changed direction.
+        if ((tmp.back().end - next_tangent).DotProduct(c2-end)<0)
+            next_tangent = tmp.back().end - (end-c2);
+        else
+            next_tangent = tmp.back().end + (end-c2);
+    }
     expanded.splice(expanded.end(), tmp);
-
     return true;
 }
 
