@@ -66,6 +66,7 @@ CairoContext::CairoContext(unsigned i, const Block &pl, const char *text, bool t
         sprintf(fileName, "test%u_%03u.png", i, sub);
     else
         sprintf(fileName, "test%u.png", i);
+    printf(fileName);
     outFile=NULL;
     surface=NULL;
     cr=NULL;
@@ -101,6 +102,7 @@ error:
 
 CairoContext::~CairoContext() 
 {
+    printf("\n");
     if (cr) cairo_destroy(cr);
     if (outFile && surface) 
         cairo_surface_write_to_png_stream (surface, write_func4test, outFile);
@@ -1001,7 +1003,7 @@ void DrawBezier(CairoContext &c, const Edge &A, bool cp=false)
     A.PathTo(c.cr);
     cairo_set_line_width(c.cr, 1);
     cairo_stroke(c.cr);
-    if (!cp)
+    if (!cp || A.IsStraight())
         return;
     cairo_set_line_width(c.cr, 0.1);
     cairo_move_to(c.cr, A.GetStart().x, A.GetStart().y);
@@ -1142,7 +1144,8 @@ void DrawExpandedEdge(unsigned num, const Edge &B, double from, double to, doubl
             continue;
         }
         std::list<Edge> expanded;
-        B.CreateExpand(u, expanded);
+        XY t1, t2;
+        B.CreateExpand(u, expanded, t1, t2);
         for (auto &e: expanded) {
             DrawBezier(c, e);
             cairo_arc(c.cr, e.GetStart().x, e.GetStart().y, 1.5, 0, 2*M_PI);
@@ -1228,7 +1231,6 @@ void contour_test_path(unsigned num)
  */
 void contour_test(void)
 {
-    contour_test_path(7700);
     generate_forms();
     using namespace generated_forms;
 
@@ -1237,6 +1239,11 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
+    form5.first.outline.Expand(EXPAND_MITER, 20, cc, CONTOUR_INFINITY);
+    DrawExpand(184, EXPAND_ROUND, CONTOUR_INFINITY, form5, 2, "two inverse circles with miter");
+#ifdef _DEBUG
+    expand_debug = 0;
+#endif
 
     contour_test_basic();
     contour_test_assign(111);

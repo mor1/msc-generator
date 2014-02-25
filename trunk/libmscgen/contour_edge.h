@@ -400,7 +400,7 @@ protected:
     void Split(Edge &r1, Edge &r2) const;
     void Split(double t, Edge &r1, Edge &r2) const;
     bool Chop(double t, double s);
-    bool MakeStraightIfNeeded(double flatness_tolerance = 0.001);
+    bool MakeStraightIfNeeded(double maximum_distance_sqr = 0.001);
     int WhichSide(const XY &A, const XY &B) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
@@ -438,7 +438,7 @@ protected:
     Edge& SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos);
 
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, double &my_pos, double &M_pos) const;
+    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, const XY &my_next_tangent, const XY &Ms_prev_tangent, double &my_pos, double &M_pos) const;
     template <typename E, typename Iterator>
     static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
                                  std::vector<Edge>*original = NULL, size_t orig_offset = 0);
@@ -497,14 +497,14 @@ public:
 
     static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y = 0,
         double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
-    bool CreateExpand(double gap, std::list<Edge> &expanded, std::vector<Edge> *original = NULL) const;
+    bool CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent, std::vector<Edge> *original = NULL) const;
     bool CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const;
 
     unsigned atX(double x, double roots[3]) const;
     unsigned atY(double y, double roots[3]) const;
 };
 
-inline bool Edge::MakeStraightIfNeeded(double flatness_tolerance) 
+inline bool Edge::MakeStraightIfNeeded(double maximum_distance_sqr) 
 {
     _ASSERT(!isnan(start.x) && !isnan(start.y));
     _ASSERT(!isnan(end.x) && !isnan(end.y));
@@ -518,7 +518,7 @@ inline bool Edge::MakeStraightIfNeeded(double flatness_tolerance)
     const double d2 = fabs(((c1.x - end.x) * dy - (c1.y - end.y) * dx));
     const double d3 = fabs(((c2.x - end.x) * dy - (c2.y - end.y) * dx));
 
-    return straight = (d2 + d3)*(d2 + d3) < flatness_tolerance * (dx*dx + dy*dy);
+    return straight = (d2 + d3)*(d2 + d3) < maximum_distance_sqr * (dx*dx + dy*dy);
 }
 
 //this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
@@ -604,7 +604,7 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
         _ASSERT(fabs(Distance(s, dummy, tt))<0.1);
         _ASSERT(fabs(Distance(d, dummy, ss))<0.1);
         _ASSERT(fabs(tt-spos)<0.01);
-        _ASSERT(fabs(ss-dpos)<0.001);
+        _ASSERT(fabs(ss-dpos)<0.01);
         Chop(spos, dpos);
     }
     start = s;

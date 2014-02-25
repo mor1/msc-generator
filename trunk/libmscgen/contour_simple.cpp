@@ -867,11 +867,17 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     std::list<Edge> tmp;
     for (size_t u = 0; u<size(); u++) {
         tmp.clear();
-        if (!at(u).CreateExpand(gap, tmp))
+        XY prev_tangent, next_tangent;
+        if (!at(u).CreateExpand(gap, tmp, prev_tangent, next_tangent))
             //false is returned if a bezier degenerates - replace with a line
-            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, tmp);
-        for (auto t: tmp)
+            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, tmp, prev_tangent, next_tangent);
+        _ASSERT(tmp.size());
+        for (auto t: tmp) {
             r.emplace_back(t, u);
+            if (&t==&tmp.front())
+                r.back().prev_tangent = prev_tangent;
+        }
+        r.back().next_tangent = next_tangent;
         //all edges are marked as trivially connecting
         //the relation of the last of the generated edges with the next: 
         //mark this as a relation needed to be computed
@@ -897,6 +903,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         for (auto i = r.begin(); i!=r.end(); i++)
             if (i->cross_type==Edge::CP_INVERSE) {
                 i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
+                    i->next_tangent, r.next(i)->prev_tangent,
                     i->us_end_pos, i->next_start_pos);
                 _ASSERT(!isnan(i->cross_point.x) && !isnan(i->cross_point.y));
                 //note if we have changed the status of at least one such CP
@@ -1121,7 +1128,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             //changed direction.
             if (!i->IsStraight() && !next_i->IsStraight() &&
                 !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
-                i->GetEnd(), i->NextTangentPoint(1.0)))
+                i->GetEnd(), i->next_tangent))
                 //in this case flip cp to the original vertex
                 i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
 
@@ -1226,9 +1233,9 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
                                    unsigned original_last, unsigned next, unsigned my_index,
                                    int last_type, int stype) const
 {
-    XY cp;
+    XY cp, prev_tangent, next_tangent;
     double pos_a, pos_b;
-    switch (a[original_last].FindExpandedEdgesCP(a[next], cp, pos_a, pos_b)) {
+    switch (a[original_last].FindExpandedEdgesCP(a[next], cp, prev_tangent, next_tangent, pos_a, pos_b)) {
     case Edge::CP_REAL:
         a[original_last].SetEndIgn(cp, pos_a); 
         a[next].SetStartIgn(cp, pos_b);
