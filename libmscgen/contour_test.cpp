@@ -198,7 +198,7 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, u
     while(shrinking || gap>=0) {
         Contour a = area1.CreateExpand(gap, et, et, limit, limit);
         if (gap<-40 && shrinking) {
-            max_gap = gap *= -1;
+            max_gap = gap = 100;
             shrinking = false;
             continue;
         }
@@ -1239,15 +1239,19 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
-    form5.first.outline.Expand(EXPAND_MITER, 20, cc, CONTOUR_INFINITY);
-    DrawExpand(184, EXPAND_ROUND, CONTOUR_INFINITY, form5, 2, "two inverse circles with miter");
+    //form1.first.outline.Expand(EXPAND_MITER, 52, cc, CONTOUR_INFINITY);
+    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
+    DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, 0, "reverse pipe with miter");
+    DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, 0, "pipe with bigger circle with miter");
+    DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 0, "reverse pipe with bigger circle with miter");
 #ifdef _DEBUG
     expand_debug = 0;
 #endif
 
+    contour_test_expand();
     contour_test_basic();
     contour_test_assign(111);
-    contour_test_expand();
+//    contour_test_expand();
     contour_test_lohere();
     contour_test_expand_edge(370);
     contour_test_area(400);
