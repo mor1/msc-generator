@@ -266,7 +266,7 @@ public:
                 :   |
            @endverbatim */
           CP_EXTENDED,
-          /** They are parallel, point the same direction and hence have no crosspoints.
+          /** They are parallel and hence have no crosspoints.
            *
            * In this case there is no crosspoint not even if linearly extrapolated.
            * The main example is below. A straight edge meets a half-circle.
@@ -286,30 +286,7 @@ public:
                 :      /
                 :      |
            @endverbatim */
-           NO_CP_PARALLEL_SAME_DIR,
-          /** They are parallel, point the opposite direction and hence have no crosspoints.
-           *
-           * In this case there is no crosspoint not even if linearly extrapolated.
-           * The main example is below. A straight edge meets a half-circle.
-           * (The straight edge being a tangent of the half circle.) However, in contrast to 
-           * NO_CP_PARALLEL_SAME_DIR, the half circle was overshrunken and the direction
-           * of its connecting edge changed (has the same tangent, but reversed 180 degrees).
-           * (In these cases the shrunken edge has a cusp, which is difficult to show in ascii.)
-           * No potential crosspoint can be identified here, so what we return is 
-           * the same as for NO_CP_PARALLEL_SAME_DIR, that is a
-           * point in between the two edges, currently 5 times further than the distance
-           * between the two `x`s. See `o` below. * `x` shows the end of the expanded edges 
-           * and solid lines show linear extensions.
-           * @verbatim
-            ----->-x------------------
-
-             ..>...+                 o
-                  :        /-
-                 :   ----x- /               
-                :          /
-                :         |  
-           @endverbatim */
-           NO_CP_PARALLEL_OPPOSITE_DIR,
+           NO_CP_PARALLEL,
            /** The two edges do not meet, but their extension do - but at the opposite end
             * This may usually happen either at expanding a concave vertex or shrinking a convex one.
             *
@@ -339,7 +316,6 @@ public:
     ///<True if two expanded edges or their extrension has crosspoints.
     static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==CP_TRIVIAL; }
     ///<True if two expanded edges or their extrension has crosspoints.
-    static bool IsParallel(EExpandCPType t) { return t==NO_CP_PARALLEL_SAME_DIR || t==NO_CP_PARALLEL_OPPOSITE_DIR; }
 
     enum { MAX_CP = 9 };
 
@@ -438,7 +414,10 @@ protected:
     Edge& SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos);
 
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, const XY &my_next_tangent, const XY &Ms_prev_tangent, double &my_pos, double &M_pos) const;
+    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, 
+                                      const XY &my_next_tangent, const XY &Ms_prev_tangent, 
+                                      bool is_my_origin_bezier, bool is_Ms_origin_bezier, 
+                                      double &my_pos, double &M_pos) const;
     template <typename E, typename Iterator>
     static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
                                  std::vector<Edge>*original = NULL, size_t orig_offset = 0);

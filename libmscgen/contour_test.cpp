@@ -111,6 +111,18 @@ CairoContext::~CairoContext()
         fclose(outFile);
 };
 
+void PaintPath(cairo_t *cr, const Path &p)
+{
+    p.CairoPath(cr, false);
+    cairo_stroke(cr);
+    cairo_set_source_rgb(cr, 0, 1, 0);
+    for (unsigned u = 0; u<p.size(); u++) {
+        cairo_move_to(cr, p[u].GetStart().x+1, p[u].GetStart().y-1);
+        char buff[100];
+        sprintf(buff, "%u: %lg; %lg", u, p[u].GetStart().x, p[u].GetStart().y);
+        cairo_show_text(cr, buff);
+    }
+}
 
 void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, 
                         double center, int vertices, const std::map<size_t, XY> &cps)
@@ -141,13 +153,7 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
         if (vertices==2) {
             cairo_set_font_size(cr, 1);
 #ifdef _DEBUG
-            for (auto &c : expand_debug_contour)
-                for (unsigned u = 0; u<c.size(); u++) {
-                    cairo_move_to(cr, c[u].GetStart().x+1, c[u].GetStart().y-1);
-                    char buff[100];
-                    sprintf(buff, "%u: %lg; %lg", u, c[u].GetStart().x, c[u].GetStart().y);
-                    cairo_show_text(cr, buff);
-                }
+        PaintPath(cr, expand_debug_contour);
 #endif
         }
         for (auto &e: cps) {
@@ -182,8 +188,10 @@ void Draw(unsigned i, const Contour area1, const char *text=NULL) {Draw(i, Conto
 void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, unsigned method=0, const char *text=NULL)
 {
     CairoContext *context=NULL;
+    Block size = area1.GetBoundingBox().CreateExpand(100);
+    size.x.till += 000;
     if (method == 0) 
-        context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(100), text, false);
+        context = new CairoContext(i, size, text, false);
     const unsigned NUM=3;
     const double r[NUM] = {1,0,0};
     const double g[NUM] = {0,1,0};
@@ -218,7 +226,7 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, u
         for (gap = -max_gap; gap<=max_gap; gap+=step) {
             char buff[4000];
             sprintf(buff, "Inner expanded by %g %s", gap, text ? text : "");
-            CairoContext context2(i, area1.GetBoundingBox().CreateExpand(40), buff, false, int(num2));
+            CairoContext context2(i, size, buff, false, int(num2));
             context2.Draw(area1.CreateExpand(gap+step, et, et, limit, limit), false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true, 0);
 #ifdef _DEBUG
             expand_debug = 1;
@@ -606,7 +614,6 @@ void contour_test_basic(void)
     huhu *= Contour(XY(130, 101), 30, 20);
     DrawIsinside(1161, huhu, 2);
     DrawIsinside(1162, huhu.CreateSwapXYd(), 2);
-
     DrawIsinside(1163, (boxhole2 - Contour(XY(130, 101), 30, 20)).CreateSwapXYd(), 2);
 
     Contour cooomplex3 = cooomplex2;
@@ -1225,6 +1232,31 @@ void contour_test_path(unsigned num)
     DrawPath(num, p);
 }
 
+void DebugSnapshot(const Path &path, const std::map<size_t, XY> &cps)
+{
+    static unsigned counter = 0;
+    Block a = path.CalculateBoundingBox();
+    if (a.IsInvalid())
+        a += XY(20, 20);
+    CairoContext c(counter++, a.Expand(20), NULL, false);
+    cairo_set_source_rgb(c.cr, 0, 0, 0);
+    cairo_set_font_size(c.cr, 3);
+    PaintPath(c.cr, path);
+    
+    cairo_set_source_rgba(c.cr, 1, 0, 0, 0.5);
+    for (auto &e: cps) {
+        cairo_new_sub_path(c.cr);
+        cairo_arc(c.cr, e.second.x, e.second.y, 1, 0, 2*M_PI);
+        cairo_close_path(c.cr);
+        cairo_stroke(c.cr);
+        cairo_move_to(c.cr, e.second.x+1, e.second.y+1);
+        char buff[100];
+        sprintf(buff, "(%u): %lg; %lg", e.first, e.second.x, e.second.y);
+        cairo_show_text(c.cr, buff);
+    }
+}
+
+
 /** A set of drawing operations drawing interesting test cases.
  * @ingroup contour_internal
  * Not very sophisticated, I admit.
@@ -1239,19 +1271,20 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
-    //form1.first.outline.Expand(EXPAND_MITER, 52, cc, CONTOUR_INFINITY);
-    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 0, "pipe with miter");
-    DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, 0, "reverse pipe with miter");
-    DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, 0, "pipe with bigger circle with miter");
-    DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 0, "reverse pipe with bigger circle with miter");
+    form2.first.outline.Expand(EXPAND_MITER_SQUARE, 84, cc, CONTOUR_INFINITY);
+    //DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
+    //DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, 0, "reverse pipe with miter");
+    //DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, 2, "pipe with bigger circle with miter");
+    //DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 0, "reverse pipe with bigger circle with miter");
+    DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, 2, "reverse pipe with miter");
+
 #ifdef _DEBUG
     expand_debug = 0;
 #endif
 
-    contour_test_expand();
     contour_test_basic();
     contour_test_assign(111);
-//    contour_test_expand();
+    contour_test_expand();
     contour_test_lohere();
     contour_test_expand_edge(370);
     contour_test_area(400);
@@ -1264,4 +1297,5 @@ void contour_test(void)
     contour_test_path(7700);
 }
 
-} //namespace
+
+} //namespace%

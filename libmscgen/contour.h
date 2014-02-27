@@ -84,7 +84,10 @@ public:
     size_type size() const {return std::list<ContourWithHoles>::size();} ///<Return the number of elements in the list
     bool operator < (const ContourList &p) const;
     bool operator ==(const ContourList &p) const;
-    bool IsEmpty() const {return size()==0;} ///<True if the list is empty
+    operator Path() const { Path p; AppendToPath(p); return p; }
+    void AppendToPath(Path &p) const;
+
+    bool IsEmpty() const { return size()==0; } ///<True if the list is empty
     const Block &GetBoundingBox(void) const {return boundingBox;} ///<Return the bounding box of the list. Invalid if the list is empty.
     bool GetClockWise() const;
     double GetArea(bool consider_holes=true) const;
@@ -193,6 +196,8 @@ public:
     ContourWithHoles &operator = (SimpleContour &&a) {outline.swap(a); holes.clear(); return *this;} ///<Moves a shape with no holes. `a` becomes undefined.
     ContourWithHoles &operator = (const ContourWithHoles &a) {if (this!=&a) outline = a.outline; holes=a.holes; return *this;} ///<Copy a shape.
     ContourWithHoles &operator = (ContourWithHoles &&a) {if (this!=&a) swap(a); return *this;} ///<Move a shape, `a` becomes undefined.
+    operator Path() const { Path p; AppendToPath(p); return p; }
+    void AppendToPath(Path &p) const { outline.AppendToPath(p); holes.AppendToPath(p); }
 
     bool IsSane(bool shouldbehole=false) const;
     bool IsEmpty() const {return outline.IsEmpty();} ///<True if shape has no outline (and holes).
@@ -508,6 +513,8 @@ public:
     void swap(Contour &a) {first.swap(a.first); further.swap(a.further); std::swap(boundingBox, a.boundingBox);}
     void clear() {first.clear(); further.clear(); boundingBox.MakeInvalid();}
     Contour &ClearHoles() {first.holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear(); return *this;}
+    operator Path() const { Path p; AppendToPath(p); return p; }
+    void AppendToPath(Path &p) const { first.AppendToPath(p); further.AppendToPath(p); }
     /** @} */ //Basic Operations
 
     /** @name Transformations and expansion
@@ -842,6 +849,12 @@ template <typename LT> void Distance(const LT &list, const Contour &c, DistanceT
     }
 }
 
+
+inline void ContourList::AppendToPath(Path &p) const
+{
+    for (auto &cwh : *this)
+        cwh.AppendToPath(p);
+}
 
 
 inline bool ContourList::GetClockWise() const
@@ -1204,10 +1217,25 @@ inline bool Contour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) 
     return false;
 }
 
+inline Path &Path::assign(const Contour &p)
+{
+    clear();
+    p.AppendToPath(*this);
+    return *this;
+}
+
+inline Path &Path::append(const Contour &p)
+{
+    p.AppendToPath(*this);
+    return *this;
+}
+
+
+
 #ifdef _DEBUG
 extern int expand_debug;
 extern std::map<size_t, XY> expand_debug_cps;
-extern std::list<std::vector<Edge>> expand_debug_contour;
+extern Path expand_debug_contour;
 #endif
 
 

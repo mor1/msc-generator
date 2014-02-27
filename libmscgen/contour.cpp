@@ -1524,7 +1524,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                         uu = Rays[uu].link_in_cp.next;
                     };
                     //uu now points to the cp head
-                    if (Rays[uu].coverage_at_0_minus_inf==std::numeric_limits<int>::max() &&
+                    if (Rays[uu].coverage_at_0_minus_inf!=std::numeric_limits<int>::max() &&
                             Rays[uu].coverage_at_0_minus_inf!=loc_cov) {
                         //if we have calculated this before, they should equal.
                         //Since they dont we must have missed finding a crosspoint.
@@ -1607,12 +1607,15 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                 if (Rays[ray_no].incoming) {//for incoming edges the previous in link_cont
                     size_t outgoing = Rays[ray_no].link_in_contour.next;  //the outgoing pair of the incoming link
                     //if incoming ray is smaller angle than outgoing, then the
-                    //dir before <0, -inf> is included in a clockwise surface
-                    //For overall clockwise Contours in this case coverage is +1
-                    //For overall ccl Contours coverage is -1 exactly in the other case
-                    if (Rays[ray_no].angle.Smaller(Rays[outgoing].angle) ==
-                        Rays[ray_no].contour->GetClockWise())
-                        coverage_before_r += Rays[ray_no].contour->GetClockWise() ? +1 : -1;
+                    //dir before <0, -inf> is included in a clockwise simplecontour 
+                    //(and not included in a cclockwise one).
+                    //Coverage is +1 there if the above relation is TRUE, the main contour is clockwise  
+                    // (irrespective of the clockwiseness of this simplecontour
+                    //Coverage is -1 there if the above relation is FALSE, the main contour is cclockwise  
+                    // (irrespective of the clockwiseness of this simplecontour)
+                    if (Rays[ray_no].angle.Smaller(Rays[outgoing].angle) == 
+                        Rays[ray_no].main_clockwise)
+                        coverage_before_r += Rays[ray_no].main_clockwise ? +1 : -1;
                 }
                 ray_no = Rays[ray_no].link_in_cp.next;
             } while (ray_no != cp_head);
@@ -2307,14 +2310,17 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
     std::list<node> list; //this will be the root(s) of the post-processing tree (forest).
     if (Rays.size()) {
 #ifdef _DEBUG
-        if (1) {
-            expand_debug_cps.clear();
-            size_t u = link_cps_head;
-            do {
-                expand_debug_cps[u] = Rays[u].xy;
-                u = Rays[u].link_cps.next;
-            } while (u!=link_cps_head);
-        }
+        expand_debug_cps.clear();
+        size_t u = link_cps_head;
+        do {
+            expand_debug_cps[u] = Rays[u].xy;
+            u = Rays[u].link_cps.next;
+        } while (u!=link_cps_head);
+        Path tmp(*C1);
+        if (C2)
+            tmp.append(*C2);
+        if (0)
+            DebugSnapshot(tmp, expand_debug_cps);
 #endif
         //evaluate crosspoints
         EvaluateCrosspoints(type); // Process each cp and determine if it is relevant to us or not
@@ -2812,7 +2818,7 @@ Range Contour::CutWithTangent(const XY &A, const XY &B, std::pair<XY, XY> &from,
 #ifdef _DEBUG
 int expand_debug = false;
 std::map<size_t, XY> expand_debug_cps;
-std::list<std::vector<Edge>> expand_debug_contour;
+Path expand_debug_contour;
 #endif
 
 

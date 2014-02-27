@@ -155,6 +155,7 @@ Path &Path::append(const Path &p, bool ensure_connect)
     return *this;
 }
 
+
 /** Draw the path as a path to a cairo context.
 *
 * @param [in] cr The cairo context.
@@ -913,6 +914,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 else if (i->cross_type==Edge::CP_INVERSE) {
                     i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
                         i->next_tangent, r.next(i)->prev_tangent,
+                        !at(i->original_edge).IsStraight(), !at(r.next(i)->original_edge).IsStraight(),
                         i->us_end_pos, i->next_start_pos);
                     _ASSERT(!isnan(i->cross_point.x) && !isnan(i->cross_point.y));
                     //note if we have changed the status of at least one such CP
@@ -1046,7 +1048,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         }
                     }
                     //We have done everything for non-parallel joins
-                    if (!Edge::IsParallel(i->cross_type)) {
+                    if (i->cross_type != Edge::NO_CP_PARALLEL) {
                         i = next_i;
                         if (done) break;
                         else continue;
@@ -1182,11 +1184,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         r.emplace(next_i, new_end, first, i->visible && next_i->visible);
                         r.emplace(next_i, first, second, i->visible && next_i->visible);
                         r.emplace(next_i, second, next_start, i->visible && next_i->visible);
-                        if (Edge::IsParallel(i->cross_type)) {
-                            Edge::RemoveLoop(r, start_orig_us, next_i);
-                            //i and next_i may be destroyed here. Search loops from start_orig_us again
-                            Edge::RemoveLoop(r, start_orig_us, end_orig_next);
-                        }
+                        Edge::RemoveLoop(r, start_orig_us, next_i);
+                        //i and next_i may be destroyed here. Search loops from start_orig_us again
+                        Edge::RemoveLoop(r, start_orig_us, end_orig_next);
                     }
 
                     i = --end_orig_next; //step the cycle 
@@ -1237,7 +1237,7 @@ end:
 #ifdef _DEBUG
         //OK, now untangle 
         if (expand_debug) 
-            expand_debug_contour.push_back(sp_r.edges);
+            expand_debug_contour.append(sp_r);
 #endif
         res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
     } while (0);
@@ -1251,7 +1251,9 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
 {
     XY cp, prev_tangent, next_tangent;
     double pos_a, pos_b;
-    switch (a[original_last].FindExpandedEdgesCP(a[next], cp, prev_tangent, next_tangent, pos_a, pos_b)) {
+    //We provide dummy values for "is_my_origin_bezier" and "is_Ms_origin_bezier" as they only 
+    //impact the returned cp in case of a parallel join and we do not use it in that case
+    switch (a[original_last].FindExpandedEdgesCP(a[next], cp, prev_tangent, next_tangent, true, true, pos_a, pos_b)) {
     case Edge::CP_REAL:
         a[original_last].SetEndIgn(cp, pos_a); 
         a[next].SetStartIgn(cp, pos_b);
