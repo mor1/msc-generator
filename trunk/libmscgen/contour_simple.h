@@ -190,7 +190,9 @@ public:
     Path(std::vector<Edge> &&v) : edges(std::move(v)) {}  
     Path(const Edge v[], size_t size) { assign(v, size); } 
     template<size_t size> Path(const Edge(&v)[size]) { assign(v, size); } ///<Set path content to `v`. 
-
+    Path(const SimpleContour &p) { assign(p); }
+    Path(const Contour &p) { assign(p); }
+    
     Path &operator =(Path &&p) { if (this!=&p) swap(p);  return *this; }
     Path &operator =(const Path &p) { if (this!=&p) edges = p.edges; return *this; }
     Edge &operator[](size_t edge) { return at(edge); }  ///<Returns reference to edge at index `i`.
@@ -211,6 +213,8 @@ public:
     Path &append(const Edge v[], size_t size, bool ensure_connect = false);///<Append `v` of size `size` to path. 
     template<size_t size> Path &append(const Edge(&v)[size]) { return append(v, size, ensure_connect); } ///<Append `v` to path. 
     Path &append(const Path &p, bool ensure_connect = false);      ///<Append `p` to path. 
+    Path &append(const SimpleContour &);                        ///<Append `p` to path. 
+    Path &append(const Contour &);                               ///<Append `p` to path. Defined in contour.h
 
     Path &assign(const std::vector<XY> &v) { clear(); append(v); return *this; }      ///<Set path content to `v`. 
     Path &assign(const XY v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`. 
@@ -221,6 +225,8 @@ public:
     template<size_t size> Path &assign(const Edge(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`. 
     Path &assign(const Path &p) { return *this = p; return *this; }      ///<Make us equal to p 
     Path &assign(Path &&p) { swap(p); return *this; return *this; }      ///<Make us equal to p 
+    Path &assign(const SimpleContour &);  ///<Make us equal to p
+    Path &assign(const Contour &);          ///<Make us equal to p. Defined in contour.h
 
     size_t size() const { return edges.size(); }             ///<Returns the number of edges.
     Block CalculateBoundingBox() const;
@@ -252,8 +258,6 @@ public:
 
     void AddAnEdge(const Edge &edge, bool ensure_connect = false);
 };
-
-class Contour;
 
 /** Contains a single, contigous 2D shape with no holes. Essentially a list of edges.
  * @ingroup contour_internal
@@ -372,6 +376,8 @@ public:
     const Edge &operator[](size_t edge) const {return at(edge);} ///<Returns const reference to edge at index `i`.
     void swap(SimpleContour &b);
     void clear() { edges.clear(); clockwise_fresh=true; area_fresh = true; boundingBox_fresh = true;  boundingBox.MakeInvalid(); area = 0.; clockwise = true; } ///<Empty the shape by deleting all edges.
+    operator Path() const { return Path(edges); }
+    void AppendToPath(Path &p) const { p.append(edges); }
 
     void assign_dont_check(const std::vector<XY> &v);      ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
     void assign_dont_check(const XY v[], size_t size);  ///<Set shape content to `v` of size `size`. Assume edges in `v` connect and do not cross.
@@ -451,6 +457,20 @@ inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &tou
     return do_offsetbelow(below, touchpoint, offset);
 }
 
+
+inline Path &Path::assign(const SimpleContour &p)
+{
+    clear();
+    p.AppendToPath(*this);
+    return *this;
+}
+
+
+inline Path &Path::append(const SimpleContour &p)
+{
+    p.AppendToPath(*this);
+    return *this;
+}
 
 } //namespace contour
 

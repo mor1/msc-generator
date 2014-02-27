@@ -842,8 +842,10 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 {
     if (straight!=next.straight) return false;
     if (straight) {
-        const double a = angle(start, end, next.end);
-        if (test_zero(a) || test_equal(a, 2)) {
+        //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+        const double m = fabs((start.x-next.end.x)*(end.x-start.x)-(end.y-start.y)*(start.y-next.end.y))/start.DistanceSqr(end);
+        const double dist_sqr = next.end.Distance(start + (end-start)*m);
+        if (dist_sqr<0.0001) {
             if (pos)
                 *pos = (fabs(start.x-end.x)<fabs(start.y-end.y)) ? (next.start.y-start.y)/(next.end.y-start.y) : (next.start.x-start.x)/(next.end.x-start.x);
             //OK, next.end is on the start->end line. Test if next.start is also in-between start and end
@@ -884,11 +886,12 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
     //A quick test: if their bounding box only meets at the joint
     //start/endpoint, we return here    
     if (is_next && !HullOverlap3(A, is_next)) return 0;
+    unsigned ret = 0;
     if (straight && A.straight) {
-        unsigned num = CrossingSegments(A, r, pos_my, pos_other);
-        if (num==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
+        ret = CrossingSegments(A, r, pos_my, pos_other);
+        if (ret==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
             return 0;
-        return num;
+        goto snap_ends;
     }
     const unsigned LOC_MAX_CP = MAX_CP*2;
     XY loc_r[LOC_MAX_CP];
@@ -914,7 +917,6 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
     //In case of multiple hits, we need to remove erroneously occuring ones
     //these are the ones, where both pos_my and pos_otehr are close
     //We do it pairwise
-    unsigned ret = 0;
     for (unsigned i = 0; i<num; i++) {
         //We remove crosspounsigneds where our end meets A's start (if is_next is true)
         if (is_next && loc_pos_my[i]==1 && loc_pos_other[i]==0)
@@ -954,7 +956,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
             ++ret;
         }
     }
-    //if we have too many p
+snap_ends:
     //if one is a horizontal/vertical straight line, we need to snap the cp to that line
     if (straight) {
         if (start.x==end.x)
@@ -2081,12 +2083,17 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
 *                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
 * @oaram [in] Ms_prev_tangent The ideal previous tangent of M.
 *                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
+* @param [in] is_my_origin_bezier True, if the original edge of *this was a bezier. Used when calculating
+*                                 'newcp' for parallel joins.
+* @param [in] is_Ms_origin_bezier True, if the original edge of M was a bezier. Used when calculating
+*                                 'newcp' for parallel joins.
 * @param [out] my_pos In case of CP_REAL returns the position of the cp on 'this', if it is a bezier.
 * @param [out[ M_pos In case of CP_REAL returns the position of the cp on M, if that is a bezier.
 * @returns The relation of the two expanded edges.
 */
 Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, 
-                                              const XY &my_next_tangent, const XY &Ms_prev_tangent, 
+                                              const XY &my_next_tangent, const XY &Ms_prev_tangent,
+                                              bool is_my_origin_bezier, bool is_Ms_origin_bezier,
                                               double &my_pos, double &M_pos) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return CP_DEGENERATE;
@@ -2097,48 +2104,16 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
     const double parallel_join_multipiler = 5;
     if (M.straight) {
         if (straight) {
-            switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
-            default: _ASSERT(0);
-            case LINE_CROSSING_PARALLEL:
-                return Edge::IsSameDir(end, start, M.start, M.end) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
-            case LINE_CROSSING_INSIDE: return CP_REAL;
-            case LINE_CROSSING_OUTSIDE_FW: 
-            case LINE_CROSSING_OUTSIDE_BK: 
-                switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
-                default: _ASSERT(0);
-                case LINE_CROSSING_PARALLEL:
-                    return Edge::IsSameDir(end, my_next_tangent, Ms_prev_tangent, M.start) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
-                case LINE_CROSSING_INSIDE:
-                case LINE_CROSSING_OUTSIDE_FW:
-                    return CP_EXTENDED;
-                case LINE_CROSSING_OUTSIDE_BK:
-                    return CP_INVERSE;
-                }
-            }
+            if (LINE_CROSSING_INSIDE == crossing_line_line(start, end, M.start, M.end, newcp)) 
+                return CP_REAL;
+            //fallthrough to very end if no real crosspoints
         } else {
             //we are bezier, but M is straight
             XY r[8];
             double pos_us[8], pos_M[8];
             int num = Crossing(Edge(M.start, M.end), false, r, pos_us, pos_M);
-            if (!num) {
-                //if not parallel, we cross at an extension
-                switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
-                case LINE_CROSSING_INSIDE:
-                case LINE_CROSSING_OUTSIDE_FW:
-                    return CP_EXTENDED;
-                default:
-                    _ASSERT(0); //fallthrough
-                case LINE_CROSSING_OUTSIDE_BK:
-                    return CP_INVERSE;
-                case LINE_CROSSING_PARALLEL:
-                    //if we are parallel, calculate a conv point
-                    const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                    const double mlen = M.start.Distance(Ms_prev_tangent);
-                    newcp = M.start + (Ms_prev_tangent-M.start)/mlen*dist;
-                    return Edge::IsSameDir(end, my_next_tangent, M.start, Ms_prev_tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
-                }
-            } else {
-                //several crosspoints: use the one closest to the end of the bezier
+            if (num) {
+                //if several crosspoints: use the one closest to the end of the bezier
                 unsigned pos = 0;
                 for (unsigned u = 1; u<num; u++)
                     if (pos_us[u]> pos_us[pos])
@@ -2147,6 +2122,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
                 my_pos = pos_us[pos];
                 return CP_REAL;
             }
+            //fallthrough to very end if no real crosspoints
         }
     } else {
         XY r[8];
@@ -2154,62 +2130,63 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
             //we are a straight, but M is bezier
             double pos_us[8], pos_M[8];
             int num = M.Crossing(*this, false, r, pos_M, pos_us);
-            if (!num) {
-                switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
-                case LINE_CROSSING_INSIDE:
-                case LINE_CROSSING_OUTSIDE_FW:
-                    return CP_EXTENDED;
-                default:
-                    _ASSERT(0); //fallthrough
-                case LINE_CROSSING_OUTSIDE_BK:
-                    return CP_INVERSE;
-                case LINE_CROSSING_PARALLEL:
-                    //if we are parallel, calculate a conv point
-                    const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                    const double len = end.Distance(my_next_tangent);
-                    newcp = end + (my_next_tangent-end)/len*dist;
-                    return Edge::IsSameDir(end, my_next_tangent, M.start, Ms_prev_tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
-                }
+            if (num) {
+                //if several crosspoints: use the one closest to the start of the bezier
+                unsigned pos = 0;
+                for (unsigned u = 1; u<num; u++)
+                    if (pos_M[u] < pos_M[pos])
+                        pos = u;
+                newcp = r[pos];
+                M_pos = pos_M[pos];
+                return CP_REAL;
             }
-            //several crosspoints: use the one closest to the start of the bezier
-            unsigned pos = 0;
-            for (unsigned u = 1; u<num; u++)
-            if (pos_M[u] < pos_M[pos])
-                pos = u;
-            newcp = r[pos];
-            M_pos = pos_M[pos];
-            return CP_REAL;
+            //fallthrough to very end if no real crosspoints
         } else {
             //both are beziers
             double pos_us[8], pos_M[8];
             int num = Crossing(M, false, r, pos_us, pos_M);
-            if (!num) {
-                switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
-                case LINE_CROSSING_INSIDE:
-                case LINE_CROSSING_OUTSIDE_FW:
-                    return CP_EXTENDED;
-                default:
-                    _ASSERT(0); //fallthrough
-                case LINE_CROSSING_OUTSIDE_BK:
-                    return CP_INVERSE;
-                case LINE_CROSSING_PARALLEL:
-                    //if we are parallel, calculate a conv point
-                    const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                    const double len = end.Distance(my_next_tangent);
-                    newcp = (end+M.start)/2 - (end-my_next_tangent)/len*dist;
-                    return Edge::IsSameDir(end, my_next_tangent, M.start, Ms_prev_tangent) ? NO_CP_PARALLEL_SAME_DIR : NO_CP_PARALLEL_OPPOSITE_DIR;
-                }
+            if (num) {
+                //several crosspoints: use the one closest to the end of us
+                unsigned pos = 0;
+                for (unsigned u = 1; u<num; u++)
+                    if (pos_us[u]> pos_us[pos])
+                        pos = u;
+                newcp = r[pos];
+                my_pos = pos_us[pos];
+                M_pos = pos_M[pos];
+                return CP_REAL;
             }
-            //several crosspoints: use the one closest to the end of us
-            unsigned pos = 0;
-            for (unsigned u = 1; u<num; u++)
-            if (pos_us[u]> pos_us[pos])
-                pos = u;
-            newcp = r[pos];
-            my_pos = pos_us[pos];
-            M_pos = pos_M[pos];
-            return CP_REAL;
+            //fallthrough to very end if no real crosspoints
         }
+    }
+
+    //We fall through here from all branches if the two edges do not actually cross themselves
+    //We test if their linear extension meet
+    switch (crossing_line_line(end, my_next_tangent, Ms_prev_tangent, M.start, newcp)) {
+    case LINE_CROSSING_INSIDE:
+    case LINE_CROSSING_OUTSIDE_FW:
+        //They meet, no problem, we have an extended CP
+        return CP_EXTENDED;
+    default:
+        _ASSERT(0); //fallthrough
+    case LINE_CROSSING_OUTSIDE_BK:
+        //They meet but on the wrong side: an inverse join situ
+        return CP_INVERSE;
+    case LINE_CROSSING_PARALLEL:
+        //if we are parallel, calculate a convergence point
+        const double dist = end.Distance(M.start) * parallel_join_multipiler;
+        if (is_Ms_origin_bezier) {
+            const double len = end.Distance(my_next_tangent);
+            if (is_my_origin_bezier)
+                newcp = (end+M.start)/2 - (end-my_next_tangent)/len*dist;
+            else 
+                newcp = end + (my_next_tangent-end)/len*dist;
+        } else {
+            _ASSERT(is_my_origin_bezier); //two originally straight edges should not join parallel
+            const double mlen = M.start.Distance(Ms_prev_tangent);
+            newcp = M.start + (Ms_prev_tangent-M.start)/mlen*dist;
+        }
+        return NO_CP_PARALLEL;
     }
 }
 
@@ -2818,6 +2795,12 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent,
         for (unsigned k = 0; k<t.size()-1; k++) {
             Edge e(*this, t[k], t[k+1]);
             e.CreateExpandOneSegment(gap, tmp, original);
+            //If e degenerated to a line, we need to adjust the endpoints to
+            //expand along the original tangents.
+            if (e.IsStraight() && k==0) 
+                tmp.front().start = start + (c1-start).Rotate90CCW().Normalize()*gap;
+            if (e.IsStraight() && k==t.size()-1)
+                tmp.back().end = end + (end-c2).Rotate90CCW().Normalize()*gap;
         }
     }
 
@@ -2900,8 +2883,14 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
         expanded.pop_back();
         Edge E1, E2;
         Split(E1, E2);
-        E1.CreateExpandOneSegment(gap, expanded, original);
-        E2.CreateExpandOneSegment(gap, expanded, original);
+        std::list<Edge> tmp;
+        E1.CreateExpandOneSegment(gap, tmp, original);
+        E2.CreateExpandOneSegment(gap, tmp, original);
+        //Set the endpoints as we have calculated here. These are to prevent
+        //mis-aligned expansion if E1 or E2 became straight by the split above
+        tmp.front().start = new_start;
+        tmp.back().end = new_end;
+        expanded.splice(expanded.end(), tmp);
     } else 
         //else we are OK with the emplaced offset curve
         if (original)

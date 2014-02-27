@@ -30,6 +30,8 @@ void Draw(unsigned i, const Contour area1, const Contour area2, const Contour ar
 void Draw(unsigned i, const Contour area1, const Contour area2, const char *text=NULL);
 void Draw(unsigned i, const Contour area1, const char *text=NULL);
 
+void DebugSnapshot(const Path &path, const std::map<size_t, XY> &cps);
+
 void contour_test(void);
 
 } //namespace
