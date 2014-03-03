@@ -565,61 +565,6 @@ unsigned Edge::CrossingLine(const XY &A, const XY &B, double pos_my[], double po
 }
 
 
-bool Edge::HullOverlap(const Edge &o) const
-{
-    //Assume at least one is curvy
-    _ASSERT(!straight || !o.straight);
-    if (straight) return o.HullOverlap(*this);
-    //Now we are curvy, o may or may not be.
-    //First check if a bounding box signals no crossing
-    if (o.straight) {
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)), 
-                   std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-             Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
-            return false;
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)), 
-                   std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-             Range(std::min(o.start.y, o.end.y), std::max(o.start.y, o.end.y))))
-            return false;
-    } else {
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)), 
-                   std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-             Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)), 
-                   std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x)))))
-            return false;
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)), 
-                   std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-             Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)), 
-                   std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y)))))
-            return false;
-    }
-    //Two convex hulls intersect if any of A->B, A->C and A->D in one of them
-    //crosses any of A->B, B->C, C->D D->A on the other. Now since we do not know
-    //which order the four points give us a convex hull, we also check A->C and B->D.
-    double t, s;
-    if (Cross(o.start, o.end, start, end, t, s)) return true;
-    if (Cross(o.start, o.end, start, c1, t, s)) return true;
-    if (Cross(o.start, o.end, start, c2, t, s)) return true;
-    if (Cross(o.start, o.end, end, c1, t, s)) return true;
-    if (Cross(o.start, o.end, end, c2, t, s)) return true;
-    if (Cross(o.start, o.end, c1, c2, t, s)) return true;
-    if (o.straight) return false;
-    if (Cross(o.start, o.c1, start, end, t, s)) return true;
-    if (Cross(o.start, o.c1, start, c1, t, s)) return true;
-    if (Cross(o.start, o.c1, start, c2, t, s)) return true;
-    if (Cross(o.start, o.c1, end, c1, t, s)) return true;
-    if (Cross(o.start, o.c1, end, c2, t, s)) return true;
-    if (Cross(o.start, o.c1, c1, c2, t, s)) return true;
-    if (Cross(o.start, o.c2, start, end, t, s)) return true;
-    if (Cross(o.start, o.c2, start, c1, t, s)) return true;
-    if (Cross(o.start, o.c2, start, c2, t, s)) return true;
-    if (Cross(o.start, o.c2, end, c1, t, s)) return true;
-    if (Cross(o.start, o.c2, end, c2, t, s)) return true;
-    if (Cross(o.start, o.c2, c1, c2, t, s)) return true;
-    return false;
-}
-
-
 /** Determines which side of a line four points are.
  * Returns +1 or -1 if all points are on one or the other side.
  * Returns 0 if some points are on one and others on the other side;
@@ -679,87 +624,12 @@ bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C) const
 
 
 
-bool Edge::HullOverlap2(const Edge &o) const
-{
-    //Assume at least one is curvy
-    _ASSERT(!straight || !o.straight);
-    if (straight) return o.HullOverlap2(*this);
-    //Now we are curvy, o may or may not be.
-    //First check if a bounding box signals no crossing
-    if (o.straight) {
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
-            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-            Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
-            return false;
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
-            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-            Range(std::min(o.start.y, o.end.y), std::max(o.start.y, o.end.y))))
-            return false;
-    } else {
-        if (!Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
-            std::max(std::max(start.x, end.x), std::max(c1.x, c2.x))).Overlaps(
-            Range(std::min(std::min(o.start.x, o.end.x), std::min(o.c1.x, o.c2.x)),
-            std::max(std::max(o.start.x, o.end.x), std::max(o.c1.x, o.c2.x)))))
-            return false;
-        if (!Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
-            std::max(std::max(start.y, end.y), std::max(c1.y, c2.y))).Overlaps(
-            Range(std::min(std::min(o.start.y, o.end.y), std::min(o.c1.y, o.c2.y)),
-            std::max(std::max(o.start.y, o.end.y), std::max(o.c1.y, o.c2.y)))))
-            return false;
-    }
-    //Determine our convex hull by checking which diagonals cross
-    double t, s;
-    if (Cross(start, c2, end, c1, t, s))
-        //diagonals are start->c2 and end->c1
-        //hull is start->c1->c2->end
-        return o.OverlapConvexHull(start, c1, c2, end);
-    if (Cross(start, c1, end, c2, t, s))
-        //diagonals are start->c1 and end->c2
-        //hull is start->end->c1->c2
-        return o.OverlapConvexHull(start, end, c1, c2);
-    if (Cross(start, end, c1, c2, t, s))
-        //diagonals are start->end and c1->c2
-        //hull is start->c2->end->c1
-        return o.OverlapConvexHull(start, c2, end, c1);
-    //OK, the hull is a triangle, with one of the points inside it
-
-    //Ok, now test how start->end crosses c1->c2
-    const double denom = ((c2.y-c1.y)*(end.x-start.x) - (c2.x-c1.x)*(end.y-start.y));
-    _ASSERT(!test_zero(denom)); //they should not be are parallel 
-    s = ((c1.x-start.x)*(end.y-start.y) - (c1.y-start.y)*(end.x-start.x)) / denom;
-    t = fabs(end.x-start.x) > fabs(end.y-start.y) ?
-        (s*(c2.x-c1.x) + c1.x-start.x)/(end.x-start.x) :
-        (s*(c2.y-c1.y) + c1.y-start.y)/(end.y-start.y);
-    if (s>=0 && s<=1) {
-        //OK, start->end crosses c1->c2 somewhere inside c1->c2
-        _ASSERT(t<0 || t>1);
-        if (t<0)
-            //the point inside is "start"
-            return o.OverlapConvexHull(end, c1, c2);
-        else
-            //the point inside is "end"
-            return o.OverlapConvexHull(start, c1, c2);
-    } else {
-        //OK, start->end is crossed by c1->c2 somewhere inside start->end 
-        //(or else they just cross outside both sections and one of the Cross() calls 
-        //above should have fired)
-        _ASSERT(s<0 || s>1);
-        _ASSERT(t<=0 || t<=1);
-        if (s<0)
-            //the point inside is "c1"
-            return o.OverlapConvexHull(end, start, c2);
-        else
-            //the point inside is "c2"
-            return o.OverlapConvexHull(start, c1, end);
-    }
-}
-
 /** Checks if the bounding box of the hull of two beziers overlap.
  * @param [in] The other edge
  * @param [in] If true 'o' is an edge following 'this' and we ignore if they 
  *             connect via this->end == o.start.
  * @returns True if there is overlap */
-bool Edge::HullOverlap3(const Edge &o, bool is_next) const
+bool Edge::HullOverlap(const Edge &o, bool is_next) const
 {
     const Block O = o.straight ? Block(o.start, o.end) : o.GetBezierHullBlock();
     const Block T =   straight ? Block(  start,   end) :   GetBezierHullBlock();
@@ -804,7 +674,7 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
             return 1;
         }
     }
-    if (!HullOverlap3(A, false)) return 0;
+    if (!HullOverlap(A, false)) return 0;
     Edge M1, M2, A1, A2;
     Split(M1, M2);
     pos_my_mul /= 2;
@@ -858,7 +728,7 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
         return false;
     }
     if (end != next.start) return false;
-    //XXX FIXME do this for bezier curver
+    //XXX ToDo: do this for bezier curves
     return false;
 }
 
@@ -885,7 +755,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
 {
     //A quick test: if their bounding box only meets at the joint
     //start/endpoint, we return here    
-    if (is_next && !HullOverlap3(A, is_next)) return 0;
+    if (is_next && !HullOverlap(A, is_next)) return 0;
     unsigned ret = 0;
     if (straight && A.straight) {
         ret = CrossingSegments(A, r, pos_my, pos_other);
@@ -1377,8 +1247,8 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     _ASSERT(!incoming || pos>0); //shoud not ask for an incoming angle at pos==0
     _ASSERT(incoming  || pos<1); //shoud not ask for an outgoing angle at pos==0
     if (straight)
-        return RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : 
-                                   angle(start, XY(start.x+100, start.y), end));
+        return RayAngle(incoming ? angle_to_horizontal(end, start) : 
+                                   angle_to_horizontal(start, end));
 
     //bezier curve radius calc, see http://blog.avangardo.com/2010/10/c-implementation-of-bezier-curvature-calculation/
 
@@ -1405,13 +1275,13 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     const double invRadius = r2 / r1; //the inverse of the (signed) radius
 
     if (pos==0) //must be outgoing
-        return RayAngle(angle(start, XY(start.x+100, start.y), c1), invRadius);
+        return RayAngle(angle_to_horizontal(start, c1), invRadius);
     if (pos==1) //must be incoming
-        return RayAngle(angle(end, XY(end.x+100, end.y), c2), -invRadius);
+        return RayAngle(angle_to_horizontal(end, c2), -invRadius);
     XY A, B;
     const XY C = Split(pos, A, B);
-    return incoming ? RayAngle(angle(C, XY(C.x+100, C.y), A), -invRadius) :
-                      RayAngle(angle(C, XY(C.x+100, C.y), B), invRadius);
+    return incoming ? RayAngle(angle_to_horizontal(C, A), -invRadius) :
+                      RayAngle(angle_to_horizontal(C, B), invRadius);
 }
 
 inline double COORD(const XY &p, unsigned i) { return i ? p.y : p.x; }
@@ -2552,7 +2422,7 @@ unsigned FindRoots(XY w[6], double t[5], unsigned depth)
 
 
 /** Return a series of parameter values potentially closest to 'p'*/
-unsigned Edge::SolveForDistance1(const XY &p, double pos[5]) const
+unsigned Edge::SolveForDistance(const XY &p, double pos[5]) const
 {
     /*  Convert problem to 5th-degree Bezier form	*/
     static const double z[3][4] = {	/* Precomputed "z" for cubics	*/
@@ -2591,69 +2461,6 @@ unsigned Edge::SolveForDistance1(const XY &p, double pos[5]) const
 
     /* Find all possible roots of 5th-degree equation */
     return FindRoots(w, pos, 0);
-}
-
-/** Return a series of parameter values potentially closest to 'p'*/
-unsigned Edge::SolveForDistance2(const XY &p, double pos[5]) const
-{
-    //A==start, B==c1, C==c2, D==end
-    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
-    //M-to-curve vector is: curve-M
-    //substitutes:     P * t^3  +      Q *  t^2 +     R * t + S
-    //dervivative is: (-3A+9B-9C+3D)t^2 + (6A-12B+6C)t + (-3A+3B)
-    //substitutes            3*P  * t^2 +    2*Q   * t +    R
-    // curve-M is orthogonal to curve derivative where their dot product is zero
-    //Dot product in general is: W.Z = Wx*Zx + Wy*Zy
-    //(curve-M).(derivative) is: 
-    // (P.3P)t^5 + (P.2Q + Q.3P)t^4 + (P.R + Q.2Q + R.3P)t^3 + 
-    // (Q.R + R.2Q + S.3P)t^2 + (R.R + S.2Q)t + S.R
-    //so we need to search for roots
-
-    const XY P = -start+3*(c1-c2)+end;
-    const XY Q = (3*(start+c2)-6*c1);
-    const XY R = 3*(c1-start);
-    const XY S = start-p;
-
-    double coeff[6] = {
-        R.DotProduct(R) + 2*S.DotProduct(Q),
-        6*(Q.DotProduct(R) + S.DotProduct(P)),
-        6*(2*P.DotProduct(R) + Q.DotProduct(Q)),
-        20*P.DotProduct(Q),
-        15*P.DotProduct(P)
-    };
-
-    return  solve_degree4(coeff, pos);
-}
-
-/**
-* Refine a point projection's [t] value.
-*/
-double Edge::refineProjection(const XY &p, double t, double distancesqr, double precision) const
-{
-    if (precision < 0.0001) return t;
-    // refinement
-    const double prev_t = t-precision;
-    const double next_t = t+precision;
-    const XY prev = Split(prev_t);
-    const XY next = Split(next_t);
-    const double prev_distance = p.DistanceSqr(prev);
-    const double next_distance = p.DistanceSqr(next);
-    // smaller distances?
-    if (prev_t >= 0 && prev_distance < distancesqr) { return refineProjection(p, prev_t, prev_distance, precision); }
-    if (next_t <= 1 && next_distance < distancesqr) { return refineProjection(p, next_t, next_distance, precision); }
-    // larger distances
-    return refineProjection(p, t, distancesqr, precision/2.0);
-}
-
-
-unsigned Edge::SolveForDistance(const XY &p, double ret[5]) const
-{
-    Edge a(XY(0, 0), XY(1, 2), XY(3, 3), XY(4, 2));
-    XY pp(3.5, 2.0);
-    double pos[5];
-    unsigned u = a.SolveForDistance1(XY(0,0), pos);
-
-    return SolveForDistance1(p, ret);
 }
 
 /** Return a series of parameter values where the x coordinate of the curve is 'x'*/

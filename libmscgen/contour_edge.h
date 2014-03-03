@@ -380,11 +380,12 @@ protected:
     int WhichSide(const XY &A, const XY &B) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
     bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
-    bool HullOverlap(const Edge &) const;
-    bool HullOverlap2(const Edge &) const;
-    bool HullOverlap3(const Edge &, bool is_next) const;
-
-    bool AreCPsOnSameSide() const { _ASSERT(!straight); return fsign((start-end).Rotate90CW().DotProduct(c1)) == fsign((start-end).Rotate90CW().DotProduct(c2)); }
+    bool HullOverlap(const Edge &, bool is_next) const;
+    double HullDistance(const XY &A, const XY &B) const;
+    double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
+    unsigned SolveForDistance(const XY &p, double ret[5]) const;
+    double FindBezierParam(const XY &p) const;
+    Block GetBezierHullBlock() const;
 
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
@@ -394,18 +395,6 @@ protected:
                             double pos_my_offset, double pos_other_offset, unsigned alloc_size) const;
     unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
                                     double pos_mul, double pos_offset) const;
-    double HullDistance(const XY &A, const XY &B) const;
-    double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
-
-    unsigned SolveForDistance(const XY &p, double ret[5]) const;
-    unsigned SolveForDistance1(const XY &p, double[5]) const;
-    unsigned SolveForDistance2(const XY &p, double[5]) const;
-    unsigned SolveForDistance3(const XY &p, double[5]) const;
-    double refineProjection(const XY &p, double t, double distancesqr, double precision) const;
-
-    double FindBezierParam(const XY &p) const;
-
-    Block GetBezierHullBlock() const;
 
     Edge& SetStart(const XY &p, double pos);
     Edge& SetEnd(const XY &p, double pos);
@@ -421,7 +410,6 @@ protected:
     template <typename E, typename Iterator>
     static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
                                  std::vector<Edge>*original = NULL, size_t orig_offset = 0);
-    static bool IsSameDir(const XY &A, const XY&B, const XY&M, const XY &N);
 
 public:
     Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
@@ -661,7 +649,8 @@ static void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last,
                 return;
             }
             //Loop found. Chop these edges and remove all edges in-between
-            //XXX ToDo: This is not perfect. We may have a bad loop still or even several!!!
+            //Note that This is not perfect. We may have a bad loop still or even several
+            //But I give up coding here.
             u->Chop(0, pos_one[small]);
             v->Chop(pos_two[large], 1);
             //make the two edges connect. If one is straight, use that, if both are bezier, use midpoint
@@ -692,17 +681,6 @@ static void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last,
             return;
         }
     }
-}
-
-/** Assuming A->B is parallel to M->N returns if they point to the same direction 
- * (and false if opposite) */
-inline bool Edge::IsSameDir(const XY &A, const XY&B, const XY&M, const XY &N)
-{
-    _ASSERT(A!=B && M!=N && test_zero((A-B).Rotate90CW().DotProduct(M-N)));
-    if (fabs(A.x-B.x)>fabs(A.y-B.y))
-        return fsign(A.x-B.x)==fsign(M.x-N.x);
-    else
-        return fsign(A.y-B.y)==fsign(M.y-N.y);
 }
 
 } //namespace contour bezier

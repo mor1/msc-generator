@@ -253,7 +253,7 @@ public:
     bool             yes;            ///<If the type is MSC_ATTR_BOOL, this contains the value
     FileLineColRange linenum_attr;   ///<The location of the attribute name in the source file
     FileLineColRange linenum_value;  ///<The location of the attribute value in the source file
-    mutable bool     error;          ///<True if the attribute specification had an error.XXX
+    mutable bool     error;          ///<True if the attribute specification had an error.
 
     /** Creates a string attribute or one with no value (MSC_ATTR_CLEAR) */
     Attribute(const char*a, const char *s, FileLineColRange l, FileLineColRange v) :

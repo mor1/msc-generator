@@ -45,7 +45,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
  
-/** @file contour_ellipse.cpp Defines EllipseData and
+/** @file contour_distance.cpp Various auxiliary functions
  * non-inline functions from contour_basics.h.
  * @ingroup contour_files
  */
@@ -142,7 +142,7 @@ ETriangleDirType triangle_dir(XY a, XY b, XY c)
 * between [1..2] to radians [PI/2..PI], etc.
 *
 * We return an angle that follows clockwise and can be larger than 180 degrees.
-* So if `B` is just a bit cunterclockwise from `A`, we get a value close to 360
+* So if `B` is just a bit counterclockwise from `A`, we get a value close to 360
 * degree (that is the fake value 4).
 * @param base The base of the angle.
 * @param A one end
@@ -169,6 +169,35 @@ double angle(XY base, XY A, XY B)
     cos = std::min(cos, 1.);
     cos = std::max(cos, -1.);
     if (clockwise)
+        return 1-cos; //gives [0..2]
+    else
+        return cos+3; //gives (2..4)
+}
+
+/** Returns the (clockwise) *fake angle* of the `base`->`A` compared to a horizontal line.
+* @ingroup contour_internal
+*
+* In order to save computation we do not use the angles in radian
+* merely its sine, since we only do comparison with these values, no summation
+* or other arithmetics. We call this *fake angle*.
+* Values between [0..1] thus correspond to radians [0..PI/2], values
+* between [1..2] to radians [PI/2..PI], etc.
+*
+* We return an angle that follows clockwise and can be larger than 180 degrees.
+* @param base The base of the angle.
+* @param A The point of which we calculate the angle for.
+* @returns The fake angle of 'base'->'A' from a horizontal line going through 'base'. 
+*          -1 on error ('base'=='A')
+*/
+double angle_to_horizontal(XY base, XY A)
+{
+    if (base.test_equal(A))
+        return -1;
+    double cos = XY(100,0).DotProduct(A-base) / 100 / base.Distance(A);
+    //normalize to avoid errors from imprecision above
+    cos = std::min(cos, 1.);
+    cos = std::max(cos, -1.);
+    if (A.y>=base.y)
         return 1-cos; //gives [0..2]
     else
         return cos+3; //gives (2..4)
