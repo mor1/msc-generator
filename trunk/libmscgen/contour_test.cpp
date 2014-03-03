@@ -1271,19 +1271,22 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
-    form2.first.outline.Expand(EXPAND_MITER_SQUARE, 84, cc, CONTOUR_INFINITY);
+    form5.first.outline.Expand(EXPAND_MITER_SQUARE, 28, cc, CONTOUR_INFINITY);
     //DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
     //DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, 0, "reverse pipe with miter");
     //DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, 2, "pipe with bigger circle with miter");
-    //DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 0, "reverse pipe with bigger circle with miter");
-    DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, 2, "reverse pipe with miter");
+    //DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 2, "reverse pipe with bigger circle with miter");
+    //DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, 2, "reverse pipe with miter");
+    DrawExpand(199, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form5, 2, "two inverse circles with miter");
+    //DrawExpand(170, EXPAND_BEVEL, CONTOUR_INFINITY, form1, 2, "pipe with miter");
 
 #ifdef _DEBUG
     expand_debug = 0;
 #endif
 
-    contour_test_basic();
-    contour_test_assign(111);
+
+    //contour_test_basic();
+    //contour_test_assign(111);
     contour_test_expand();
     contour_test_lohere();
     contour_test_expand_edge(370);

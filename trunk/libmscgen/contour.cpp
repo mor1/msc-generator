@@ -297,7 +297,7 @@ struct Ray
 {
     /** @name Members for Identification
      * @{ */
-    bool                 main_clockwise;///<True if the original Contour this edge is part of is clockwise. Unspecified for untangle operations (where the original Contour has no clockwiseness).
+    const Contour *      main_contour;  ///<The original Contour this edge is part of. NULL for single contour (~untangle) operations.
     const SimpleContour *contour;       ///<The SimpleContour the edge of the ray belongs to.
     size_t               vertex;        ///<The number of the vertex staring the edge the crosspoint is on
     double               pos;           ///<The `pos` of the crosspoint on the edge between [0..1). (-1 if it is a vertex and not a crosspoint.)
@@ -329,8 +329,8 @@ struct Ray
     mutable size_t switch_to; ///<Index of another ray for this cp, where the walk shoud be continued if arriving on this ray. `no_link` on error.
     mutable int    coverage_at_0_minus_inf; ///<Only at cp heads at untle operation: it holds the coverage at the RayAngle<0, -inf> direction from the cp. If very large, we do not know
     /** @} */
-    Ray(const XY &point, bool m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a) :
-        main_clockwise(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a),
+    Ray(const XY &point, const Contour *m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a) :
+        main_contour(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a),
         xy(point), valid(true), switch_to(link_info::no_link), coverage_at_0_minus_inf(std::numeric_limits<int>::max()) {_ASSERT(c); }
     void Reset() const { valid = true; switch_to = link_info::no_link; } //keep coverage_at_0_minus_inf intact - that is the same for all operations
 };
@@ -635,8 +635,8 @@ protected:
     size_t FindCPHead(size_t r) const;
     /**Returns true if `c` has any crosspoints (any ray having it as contour)*/
     bool IsContourInRays(const SimpleContour *c) const;
-    bool AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a);
-    void AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour *c1, size_t v1, double p1, bool m_c2, const SimpleContour *c2, size_t v2, double p2);
+    bool AddCrosspointHelper(const XY &point, const Contour *m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a);
+    void AddCrosspoint(const XY &xy, const Contour *m_c1, const SimpleContour *c1, size_t v1, double p1, const Contour *m_c2, const SimpleContour *c2, size_t v2, double p2);
     /**Find the crosspoints between the edges of `i`, adds them to 'Rays' and returns the number of crosspoints found.*/
     unsigned FindCrosspointsHelper(const SimpleContour *i);
     /**Find the crosspoints between the edges of `i`, adds them to 'Rays' and returns the number of crosspoints found.*/
@@ -650,17 +650,17 @@ protected:
      * just pairwise touch between the ContourWithHoles this Contour consists of.*/
     unsigned FindCrosspointsHelper(const Contour *c, bool cwh_included);
     /**Finds the crosspoints between `c1` and `c2`, adds them to 'Rays' and returns the number of crosspoints.
-     * `m_c1` and `m_c2` are true if the main Contour of them is clockwise, respectively. */
-    unsigned FindCrosspointsHelper(bool m_c1, const SimpleContour *c1, bool m_c2, const SimpleContour *c2);
+     * `m_c1` and `m_c2` are the main Contour of them, respectively. */
+    unsigned FindCrosspointsHelper(const Contour *m_c1, const SimpleContour *c1, const Contour *m_c2, const SimpleContour *c2);
     /**Finds the crosspoints between `c1` and `c2`, adds them to 'Rays' and returns the number of crosspoints.
-     * `m_c1` and `m_c2` are true if the main Contour of them is clockwise, respectively. */
-    unsigned FindCrosspointsHelper(bool m_c1, const ContourWithHoles *c1, bool m_c2, const ContourWithHoles *c2);
+     * `m_c1` and `m_c2` are the main Contour of them, respectively. */
+    unsigned FindCrosspointsHelper(const Contour *m_c1, const ContourWithHoles *c1, const Contour *m_c2, const ContourWithHoles *c2);
     /**Finds the crosspoints between `cwh` and `cs`, adds them to 'Rays' and returns the number of crosspoints.
-     * `m_c1` and `m_c2` are true if the main Contour of them is clockwise, respectively. */
-    unsigned FindCrosspointsHelper(bool m_c1, const ContourWithHoles *cwh, bool m_c2, const ContourList *cs);
+     * `m_c1` and `m_c2` are the main Contour of them, respectively. */
+    unsigned FindCrosspointsHelper(const Contour *m_c1, const ContourWithHoles *cwh, const Contour *m_c2, const ContourList *cs);
     /**Finds the crosspoints between `c1` and `c2`, adds them to 'Rays' and returns the number of crosspoints.
-     * `m_c1` and `m_c2` are true if the main Contour of them is clockwise, respectively. */
-    unsigned FindCrosspointsHelper(bool m_c1, const ContourList *c1, bool m_c2, const ContourList *c2);
+     * `m_c1` and `m_c2` are the main Contour of them, respectively. */
+    unsigned FindCrosspointsHelper(const Contour *m_c1, const ContourList *c1, const Contour *m_c2, const ContourList *c2);
     /**Finds the crosspoints between C1 and C2 or just in C1. Adds them to 'Rays' & return their number.*/
     unsigned FindCrosspoints();  
     bool OperationWithAnEmpty(Contour::EOperationType type, bool clockwise) const;
@@ -817,7 +817,7 @@ size_t ContoursHelper::FindCPHead(size_t r) const
         return r;
     }
     while (Rays[r].link_cps.next != link_info::no_link)
-        r = Rays[r].link_cps.next;
+        r = Rays[r].link_in_cp.next;
     return r;
 }
 
@@ -844,7 +844,7 @@ bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
  * @param [in] i True if the ray is incoming into the cp.
  * @param [in] a The angle of the ray (as if it were outgoing).
  * @returns true if a ray already exists with the same <contour, vertex, pos, incoming>.*/
-bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a)
+bool ContoursHelper::AddCrosspointHelper(const XY &point, const Contour *m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a)
 {
     //_ASSERT(c->at(v).Pos2Point(p).test_equal(point));
     Rays.push_back(Ray(point, m_c, c, v, p, i, a));
@@ -878,8 +878,8 @@ bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const Simple
  * @param [in] c2 The other of the SimpleContour the cp belongs to (can be the same as c1 at untangle).
  * @param [in] v2 The index of the edge of c2 the cp is on.
  * @param [in] p2 The pos of the crosspoint on edge v2.*/
-void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour *c1, size_t v1, double p1,
-                                                 bool m_c2, const SimpleContour *c2, size_t v2, double p2)
+void ContoursHelper::AddCrosspoint(const XY &xy, const Contour *m_c1, const SimpleContour *c1, size_t v1, double p1,
+                                                 const Contour *m_c2, const SimpleContour *c2, size_t v2, double p2)
 {
     _ASSERT(p1<1 && p2<1 && p1>=0 && p2>=0);
     //In allrays even indexed positions are incoming edges, odd positions are outgoing ones
@@ -929,10 +929,10 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
                 //following edge.
                 //This is to avoid a vertex cp to be added twice (in case it is detected
                 //again for the following edge).
-                AddCrosspoint(r[k], bool(), &*i, one_pos[k]==1 ? i->next(u1) : u1,
-                                                 one_pos[k]==1 ? 0 : one_pos[k], 
-                                    bool(), &*i, two_pos[k]==1 ? i->next(u2) : u2,
-                                                 two_pos[k]==1 ? 0 : two_pos[k]);
+                AddCrosspoint(r[k], NULL, &*i, one_pos[k]==1 ? i->next(u1) : u1,
+                                               one_pos[k]==1 ? 0 : one_pos[k], 
+                                    NULL, &*i, two_pos[k]==1 ? i->next(u2) : u2,
+                                               two_pos[k]==1 ? 0 : two_pos[k]);
             }
             ret += n;
         }
@@ -956,7 +956,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const ContourWithHoles *i)
     //Now see where the main contour meets its holes
     for (const auto &h : i->holes)
         //main_clockwise values are dummy
-        ret += FindCrosspointsHelper(bool(), &i->outline, bool(), &h.outline);
+        ret += FindCrosspointsHelper(NULL, &i->outline, NULL, &h.outline);
     return ret + FindCrosspointsHelper(&i->holes, true);
 }
 
@@ -977,7 +977,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const ContourList *c, bool cwh_in
             if (i->GetBoundingBox().Overlaps(j->GetBoundingBox()))
                 //main_clockwise values are dummy if we do a single contour operation
                 //but if we do multi-contour, we shall use the clockwiseness of these
-                ret += FindCrosspointsHelper(i->GetClockWise(), &*i, j->GetClockWise(), &*j);
+                ret += FindCrosspointsHelper(NULL, &*i, NULL, &*j);
         }
     }
     return ret;
@@ -992,7 +992,7 @@ inline unsigned ContoursHelper::FindCrosspointsHelper(const Contour *c, bool cwh
     if (cwh_included)
         ret = FindCrosspointsHelper(&c->first);
     if (c->further.size()) {
-        ret += FindCrosspointsHelper(c->GetClockWise(), &c->first, c->GetClockWise(), &c->further);
+        ret += FindCrosspointsHelper(NULL, &c->first, NULL, &c->further);
         ret += FindCrosspointsHelper(&c->further, cwh_included);
     }
     return ret;
@@ -1000,8 +1000,8 @@ inline unsigned ContoursHelper::FindCrosspointsHelper(const Contour *c, bool cwh
 
 
 //finds all crosspoints between the two arguments, considering holes, too
-unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const SimpleContour *i1,
-                                               bool m_c2, const SimpleContour *i2)
+unsigned ContoursHelper::FindCrosspointsHelper(const Contour *m_c1, const SimpleContour *i1,
+                                               const Contour *m_c2, const SimpleContour *i2)
 {
     unsigned ret=0;
     XY r[Edge::MAX_CP];
@@ -1025,8 +1025,8 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const SimpleContour *i
 }
 
 //finds all crosspoints between the two arguments, considering holes, too
-unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourWithHoles *i1,
-                                               bool m_c2, const ContourWithHoles *i2)
+unsigned ContoursHelper::FindCrosspointsHelper(const Contour *m_c1, const ContourWithHoles *i1,
+                                               const Contour *m_c2, const ContourWithHoles *i2)
 {
     //see where the two main covers meet
     unsigned ret = FindCrosspointsHelper(m_c1, &i1->outline,
@@ -1045,8 +1045,8 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourWithHoles
 }
 
 //finds all crosspoints between the two arguments, considering holes, too
-unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourWithHoles *cwh,
-                                               bool m_c2, const ContourList *cs)
+unsigned ContoursHelper::FindCrosspointsHelper(const Contour *m_c1, const ContourWithHoles *cwh,
+                                               const Contour *m_c2, const ContourList *cs)
 {
     unsigned ret=0;
     for (auto i = cs->begin(); i!=cs->end(); i++)
@@ -1055,8 +1055,8 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourWithHoles
 }
 
 
-unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourList *c1,
-                                               bool m_c2, const ContourList *c2)
+unsigned ContoursHelper::FindCrosspointsHelper(const Contour *m_c1, const ContourList *c1,
+                                               const Contour *m_c2, const ContourList *c2)
 {
     unsigned ret=0;
     for (auto i1 = c1->begin(); i1 != c1->end(); i1++)
@@ -1078,17 +1078,13 @@ unsigned ContoursHelper::FindCrosspoints()
     if (C2==NULL) {
         ret = FindCrosspointsHelper(C1, true);
     } else if (C1->GetBoundingBox().Overlaps(C2->GetBoundingBox())) {
-        ret = FindCrosspointsHelper(C1->GetClockWise(), &C1->first,
-                                    C2->GetClockWise(), &C2->first);
+        ret = FindCrosspointsHelper(C1, &C1->first, C2, &C2->first);
         if (C2->further.GetBoundingBox().Overlaps(C1->GetBoundingBox()))
-            ret += FindCrosspointsHelper(C1->GetClockWise(), &C1->first,
-                                         C2->GetClockWise(), &C2->further);
+            ret += FindCrosspointsHelper(C1, &C1->first, C2, &C2->further);
         if (C1->further.GetBoundingBox().Overlaps(C2->GetBoundingBox()))
-            ret += FindCrosspointsHelper(C2->GetClockWise(), &C2->first,
-                                         C1->GetClockWise(), &C1->further);
+            ret += FindCrosspointsHelper(C2, &C2->first, C1, &C1->further);
         if (C2->further.GetBoundingBox().Overlaps(C1->further.GetBoundingBox()))
-            ret += FindCrosspointsHelper(C1->GetClockWise(), &C1->further,
-                                         C2->GetClockWise(), &C2->further);
+            ret += FindCrosspointsHelper(C1, &C1->further, C2, &C2->further);
         //Here we also need to test if there are ContourWithHoles:s inside C1 and C2 that touch
         //ret += FindCrosspointsHelper(C1, false);
         //ret += FindCrosspointsHelper(C2, false);
@@ -1459,14 +1455,21 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
         //Start from the leftmost point of the contour.
         const SimpleContour *c = Rays[link_contours_head].contour;
         unsigned edge = 0;
-        double pos, x = c->at(0).XMaxExtreme(pos).x;
+        double pos;
+        XY xy = c->at(0).XMaxExtreme(pos);
         for (size_t e = 1; e<c->size(); e++) {
-            double pos2, x2 = c->at(e).XMaxExtreme(pos2).x;
-            if (x < x2) {
+            double pos2;
+            XY xy2 = c->at(e).XMaxExtreme(pos2);
+            if (xy.x < xy2.x) {
                 edge = e;
                 pos = pos2;
-                x = x2;
+                xy = xy2;
             }
+        }
+        //eliminate pos == 1
+        if (pos==1) {
+            pos = 0;
+            edge = c->next(edge);
         }
         //Walk around the contour to the extreme found above.
         //There we know that rightwards there is coverage zero.
@@ -1505,11 +1508,36 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
             //counterclockwise enclosure and we need to start with -1. If it goes down, 
             //then the "outside" is really to the right (where there is nothing) and we need
             //to start from zero.
-            const RayAngle prev = pos==0 ? c->at_prev(edge).Angle(true, 1) : c->at(edge).Angle(true, pos);
-            const RayAngle next = pos==1 ? c->at_next(edge).Angle(false, 0) : c->at(edge).Angle(false, pos);
+            RayAngle prev = pos==0 ? c->at_prev(edge).Angle(true, 1) : c->at(edge).Angle(true, pos);
+            RayAngle next = c->at(edge).Angle(false, pos); //pos is never 1
             //If the two angles equal, we have a spike and cannot determine the clockwiseness.
             //In this case we give up this way of calculating the coverage.
             if (!prev.IsSimilar(next)) {
+                if (test_equal(prev.angle, next.angle)) {
+                    //This is a cusp. In this case the 'curve' member of 'prev' and 'next' may be imprecise
+                    //and we cannot rely on them. 
+                    
+                    XY r[Edge::MAX_CP];
+                    double p_pos[Edge::MAX_CP], n_pos[Edge::MAX_CP];
+                    unsigned num;
+                    if (pos==0) num = c->at_prev(edge).Crossing(c->at(edge), true, r, p_pos, n_pos);
+                    else num = c->at(edge).SelfCrossing(r, p_pos, n_pos);
+                    //If the two edges do not cross, just compare the angle between their endpoint...
+                    if (num==0) {
+                        prev.angle = angle_to_horizontal(xy, (pos==0 ? c->at_prev(edge) : c->at(edge)).GetStart());
+                        next.angle = angle_to_horizontal(xy, c->at(edge).GetEnd());
+                    } else {
+                        //else find the closest crosspoint and compare the angle halfway there
+                        _ASSERT(pos==0); //should not be a self-crossing edge on a well-behaving contour
+                        unsigned l = std::min_element(n_pos, n_pos+num) - n_pos;
+                        _ASSERT(l == std::max_element(p_pos, p_pos+num) - p_pos);
+                        const XY p_xy = c->at_prev(edge).Split((1+p_pos[l])/2);
+                        const XY n_xy = c->at(edge).Split((0+n_pos[l])/2);
+                        prev.angle = angle_to_horizontal(xy, p_xy);
+                        next.angle = angle_to_horizontal(xy, n_xy);
+                    }
+                }
+                //This is now two (hoperfully well) comparable angles
                 int coverage = prev.Smaller(next) ? -1 : 0;
                 do {
                     _ASSERT(Rays[u].incoming);
@@ -1596,31 +1624,38 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
 //                _ASSERT(coverage_before_r == CalcCoverageHelper(cp_head));
             }
         } else {
-            //here we have
-            //1. well-formed contours
-            //2. CPs that are between two edges of _different_ contours
-            //thus all cps lie at the edge (outside have coverage 0)
-            //We calcualte how many contours include the (0,inf) angle inside them.
+            //Here we have simplecontours of one or more contours touch or cross.
+            //Simplecontours of the same contour cannot cross, since contours are well-formed.
+            //Below we calculate the combined coverage at <0, -inf> direction from the
+            //crosspoint. Each contour contributes with +1, 0 or -1 to this coverage,
+            //irrespective of how many of its simplecontours are present at this crosspoint.
+            //The contribution of each contour to the coverage can be determined from the
+            //leftmost edge-pair of each contour.
+            //We start going around the cp clockwise, find the first ray for each contour
+            //and determine the contribution of that contour to the coverage.
+            //We build on the fact that we do operation between max two contours.
             coverage_before_r = 0;
             size_t ray_no = cp_head;
+            const Contour *had_contour = NULL;
             do {
-                if (Rays[ray_no].incoming) {//for incoming edges the previous in link_cont
-                    size_t outgoing = Rays[ray_no].link_in_contour.next;  //the outgoing pair of the incoming link
-                    //if incoming ray is smaller angle than outgoing, then the
-                    //dir before <0, -inf> is included in a clockwise simplecontour 
-                    //(and not included in a cclockwise one).
-                    //Coverage is +1 there if the above relation is TRUE, the main contour is clockwise  
-                    // (irrespective of the clockwiseness of this simplecontour
-                    //Coverage is -1 there if the above relation is FALSE, the main contour is cclockwise  
-                    // (irrespective of the clockwiseness of this simplecontour)
-                    if (Rays[ray_no].angle.Smaller(Rays[outgoing].angle) == 
-                        Rays[ray_no].main_clockwise)
-                        coverage_before_r += Rays[ray_no].main_clockwise ? +1 : -1;
+                //If an edge's incoming ray has smaller angle than the outgoing, then the
+                //dir before <0, -inf> is included in a clockwise simplecontour.
+                //This happens if we find an incoming ray for the contour first.
+                //Coverage is +1 there if the above is TRUE and the main contour is clockwise  
+                // (irrespective of the clockwiseness of the simplecontour of the edge)
+                //Coverage is -1 there if the above is FALSE, the main contour is cclockwise  
+                // (irrespective of the clockwiseness of the simplecontour of the edge)
+                //Else coverage by this contour is zero (either outside of it or in a hole).
+                _ASSERT(Rays[ray_no].main_contour);
+                if (Rays[ray_no].main_contour != had_contour) {
+                    if (Rays[ray_no].incoming == Rays[ray_no].main_contour->GetClockWise())
+                        coverage_before_r += Rays[ray_no].incoming ? +1 : -1;
+                    if (had_contour) break; //done with both contours
+                    had_contour = Rays[ray_no].main_contour;
                 }
                 ray_no = Rays[ray_no].link_in_cp.next;
             } while (ray_no != cp_head);
         }
-
 
         size_t r = cp_head;
         size_t tmp = r;
@@ -1840,7 +1875,6 @@ void ContoursHelper::RevalidateAllAfter(std::vector<size_t> &ray_array, size_t f
 void AppendDuringWalk(std::vector<Edge> &edges, std::vector<std::pair<double, double>>&endpoints, 
                       const Edge &edge, double endpos, double startpos)
 {
-    //XXX FIXME looping edges.
     _ASSERT(endpoints.size() == edges.size());
     //if the endpos == 0 this means the crosspoint is at a vertex
     //use 1 instead
@@ -1923,7 +1957,6 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     // already got all position values for all crosspoints anyway in FindCrosspoints(), we might
     // as well use them to speed up.
 
-    //XXX FIXME looping edges.
     std::vector<size_t> ray_array; //should allocate these as thread local
     std::vector<walk_data> wdata;  //should allocate these as thread local
     std::vector<std::pair<double, double>> endpoints;

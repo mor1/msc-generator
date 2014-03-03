@@ -72,9 +72,6 @@
     <ClCompile Include="contour_edge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_ellipse.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="contour_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -94,6 +91,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="progress.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="contour_distance.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -162,9 +162,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="contour_edge.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="contour_ellipse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="contour_test.h">

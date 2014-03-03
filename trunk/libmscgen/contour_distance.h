@@ -99,7 +99,8 @@ enum ETriangleDirType
 
 ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
-double angle(XY base, XY A, XY B);  //expanded in contour_ellipse.cpp
+double angle(XY base, XY A, XY B);  //defined in contour_ellipse.cpp
+double angle_to_horizontal(XY base, XY A); //defined in contour_ellipse.cpp
 
 /** Convert from a fake angle to degrees.
  */

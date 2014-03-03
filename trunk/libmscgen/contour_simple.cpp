@@ -1054,63 +1054,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         else continue;
                     }
 
-                    /* Here we handle CP_PARALLEL_XXX_DIR.
-                     * For CP_PARALLEL_XXX_DIR we have 8 cases
-                     * Both edges could change direction or not, times whether they ended up
-                     * in the same diretion or not.
-                     * (We say opposite direction when the two edges meet smoothly
-                     * and same direction, when the vertex is a sharp point, where the curve
-                     * changes direction 180 degrees.)
-                     * Cases marked TRIVIAL below, indicate that the two expanded edges still meet exactly
-                     * at their end/startpoint creating a CP_TRIVIAL join. These cases we do not see here
-                     * and I presume we do not need to take any special action.
-                     *         | prev    | prev NOT |   Case A: Two concave arcs have met in a cusp
-                     * SAME    | changed | changed  |   and both have been overshrunken (+ is vertex)
-                     * DIR     | dir     | dir      |         \               |
-                     * --------+---------+----------+-         |             /      x is start/end of
-                     * next    |         |          |         /             *-x     expanded edges,
-                     * changed |   A     | TRIVIAL  |       +=        =>            * is a cusp in the
-                     * dir     |         |          |         \             *-x     expanded edges
-                     * --------+---------+----------+-         |             \
-                     * next NOT|         |          |         /               |
-                     * changed | TRIVIAL |    B     |
-                     * dir     |         |          |
-                     *
-                     * Case B: a line/concave arc met a concave arc tangentwise and none been overshrunken.
-                     * (Originals are dittex, original vertex is +, expanded edges' start/end is x,
-                     *  expanded edges are extended with dashes.)
-                     *----->-x------------------
-                     *
-                     * ..>...+
-                     *      :
-                     *     :      -x----------------
-                     *    :      /
-                     *    :      |
-
-                     *===============================================================================================
-                     *         | prev    | prev NOT |
-                     * OPPOSITE| changed | changed  |   Case C is like case B, but (one of) the concave arc
-                     * DIR     | dir     | dir      |   have overshrunken. (o is a cusp in the expanded edge)
-                     * --------+---------+----------+-
-                     * next    |         |          |        ----->-x                        o
-                     * changed | TRIVIAL |     C    |
-                     * dir     |         |          |         ..>...+
-                     * --------+---------+----------+-             :   *
-                     * next NOT|         |          |             : x-/|
-                     * changed |    C    | TRIVIAL  |            :    /
-                     * dir     |         |          |            :   |
-                     *
-                     *
-                     * In all cases we need to make sure that the added miter/round/square goes to the right
-                     * direction (to the direction of the original edges). In cases of A and C we need to
-                     * cut away the loop (if any) that is formed by the added miter/round, because that would
-                     * end up as a hole in the resulting contour.
-                     * (That is because (e.g., for case C above) the expanded edge that changed dir starts out
-                     *  with an exactly horizontal tangent from the x. Yet, we add a miter (line) towards the 'o'
-                     * This will create a very small hole just right of the x, before the miter line crosses the
-                     * expanded edge (first time) as it goes towards the o. Such small holes shall be removed.)
-                     */
-
+                    /* Here we handle CP_PARALLEL. */
                     //Find where the expanded version of this edge begins and where does the next one end.
                     //This is so that we can remove loops
                     auto start_orig_us = i;
@@ -1127,18 +1071,24 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     //Now determine which direction the round/bevel/miter needs to be added.
                     //This is done by updating i->cross_point.
                     //Note that FindExpandedEdgesCP() calculates a CP as below
-                    //- if both of the edges are straight, the cp is undefined. This should not happen by the way.
                     //- if one is straight, the cp is on the straight line. This is the right
                     //  (original) direction as ends of straight edges do not change direction when expanded.
                     //- if both are bezier, the calculated cp is calcualted based on the direction 
                     //  of the first edge (in "i")
-                    //Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
-                    //changed direction.
-                    if (!i->IsStraight() && !next_i->IsStraight() &&
-                        !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
-                        i->GetEnd(), i->next_tangent))
-                        //in this case flip cp to the original vertex
-                        i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
+                    //- if both of the edges are straight, the cp is as for the two bezier cases. 
+                    //  This can happen if the last segment of a bezier has turned to a line during expansion.
+                    //NOTE that FindExpandedEdgesCP() uses the tangens of the *original* edge, thus the cp 
+                    //is in the direction of the origial edge ends even if a bezier edge changed direction
+                    //during expansion.
+
+
+                    ////Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
+                    ////changed direction.
+                    //if (!i->IsStraight() && !next_i->IsStraight() &&
+                    //    !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
+                    //    i->GetEnd(), i->next_tangent))
+                    //    //in this case flip cp to the original vertex
+                    //    i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
 
                     //If we are at the end of the list (and next_i & end_orig_next
                     //are at the beginning, we copy them to the end, so RemoveLoop
@@ -1170,20 +1120,24 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         Edge::RemoveLoop(r, start_orig_us, end_orig_next);
                     } else if (IsBevel(type)) {
                         //Add a bevel from new_end and the next start
-                        r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
+                        //r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
+                        const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
+                                           at(i->original_edge).GetEnd()).Normalize();
+                        const XY cp = (new_end + next_i->GetStart())/2 + 
+                                      tangent * (new_end - next_i->GetStart()).length()/2;
+                        r.emplace(next_i, new_end, cp, i->visible && next_i->visible);
+                        auto ii = r.emplace(next_i, cp, next_i->GetStart(), i->visible && next_i->visible);
+                        Edge::RemoveLoop(r, start_orig_us, ii);
+                        Edge::RemoveLoop(r, ii, end_orig_next);
                     } else if (type == EXPAND_MITER_SQUARE) {
                         //Here we add 3 edges of a half-square
                         const XY &next_start = next_i->GetStart();
                         const double dist = new_end.Distance(next_start)/2;
-                        const XY first_tangent = at(i->original_edge).NextTangentPoint(1.0) -
-                            at(i->original_edge).GetEnd();
-                        const XY first = new_end + first_tangent*(dist/first_tangent.length());
-                        const XY second_tangent = at(next_i->original_edge).PrevTangentPoint(0.0) -
-                            at(next_i->original_edge).GetStart();
-                        const XY second = next_start + second_tangent*(dist/second_tangent.length());
-                        r.emplace(next_i, new_end, first, i->visible && next_i->visible);
-                        r.emplace(next_i, first, second, i->visible && next_i->visible);
-                        r.emplace(next_i, second, next_start, i->visible && next_i->visible);
+                        const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
+                                            at(i->original_edge).GetEnd()).Normalize()*dist;
+                        r.emplace(next_i, new_end, new_end+tangent, i->visible && next_i->visible);
+                        r.emplace(next_i, new_end+tangent, next_start+tangent, i->visible && next_i->visible);
+                        r.emplace(next_i, next_start+tangent, next_start, i->visible && next_i->visible);
                         Edge::RemoveLoop(r, start_orig_us, next_i);
                         //i and next_i may be destroyed here. Search loops from start_orig_us again
                         Edge::RemoveLoop(r, start_orig_us, end_orig_next);

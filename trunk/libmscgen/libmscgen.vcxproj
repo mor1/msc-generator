@@ -255,8 +255,8 @@
     <ClCompile Include="area.cpp" />
     <ClCompile Include="commands.cpp" />
     <ClCompile Include="contour.cpp" />
+    <ClCompile Include="contour_distance.cpp" />
     <ClCompile Include="contour_edge.cpp" />
-    <ClCompile Include="contour_ellipse.cpp" />
     <ClCompile Include="contour_simple.cpp" />
     <ClCompile Include="csh.cpp" />
     <ClCompile Include="element.cpp" />
@@ -291,7 +291,6 @@
     <ClInclude Include="contour_basics.h" />
     <ClInclude Include="contour_distance.h" />
     <ClInclude Include="contour_edge.h" />
-    <ClInclude Include="contour_ellipse.h" />
     <ClInclude Include="contour_simple.h" />
     <ClInclude Include="csh.h" />
     <ClInclude Include="element.h" />
