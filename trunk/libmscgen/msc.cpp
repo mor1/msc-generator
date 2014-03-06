@@ -1583,7 +1583,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
         } else {
             //normal or parallel
             if (cover)
-                *cover += arc_cover;
+                *cover += std::move(arc_cover);
             //update bottom and move there for the next arc
             y = y_bottom = std::max(y_bottom, y+h);
         }

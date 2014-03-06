@@ -233,12 +233,74 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, u
             expand_debug_contour.clear();
             expand_debug_cps.clear();
 #endif
-            context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, r[num2%2], g[num2%2], b[num2%2], true, 0);
+            context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, r[num2%2], g[num2%2], b[num2%2], true, 0, method);
 #ifdef _DEBUG
             expand_debug = 0;
             if (method==2) {
                 cairo_set_line_width(context2.cr, 0.5);
                 context2.Draw(area1.CreateExpand(gap, et, et, limit, limit), false, 0, 0, 0, false, 0, 2, expand_debug_cps);
+                cairo_set_line_width(context2.cr, 2);
+            }
+#endif
+            num2++;
+        }
+    }
+}
+
+void DrawExpand2DBig(unsigned i, const XY &start_gap, const Contour area1, unsigned method = 0, const char *text = NULL)
+{
+    CairoContext *context = NULL;
+    Block size = area1.GetBoundingBox().CreateExpand(100);
+    size.x.till += 000;
+    if (method == 0)
+        context = new CairoContext(i, size, text, false);
+    const unsigned NUM = 3;
+    const double r[NUM] = {1, 0, 0};
+    const double g[NUM] = {0, 1, 0};
+    const double b[NUM] = {0, 0, 1};
+    unsigned num = 0;
+    const double step = 4;
+    double gap = -step;
+    bool shrinking = true;
+    double max_gap = 100;
+    //first we find how small we can shrink it (until it disappears),
+    //then we do an expand phase to the same extent
+    while (shrinking || gap>=0) {
+        Contour a = gap==0 ? area1 : area1.CreateExpand2D(XY(gap, gap) + (gap>0 ? start_gap : -start_gap));
+        if (gap<-40 && shrinking) {
+            max_gap = gap = 100;
+            shrinking = false;
+            continue;
+        }
+        if (method == 0) {
+            if (gap==0)
+                context->Draw(a, false, 0, 0, 0, false);
+            else
+                context->Draw(a, false, r[num%NUM], g[num%NUM], b[num%NUM], false);
+        }
+        num++;
+        gap -= step;
+    }
+    if (method == 0)
+        delete context;
+    else {
+        unsigned num2 = 0;
+        for (gap = -max_gap; gap<=max_gap; gap += step) {
+            char buff[4000];
+            sprintf(buff, "Inner expanded by %g %s", gap, text ? text : "");
+            CairoContext context2(i, size, buff, false, int(num2));
+            context2.Draw(area1.CreateExpand2D(XY(gap+step, gap+step) + (gap>0 ? start_gap : -start_gap)), false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true, 0);
+#ifdef _DEBUG
+            expand_debug = 1;
+            expand_debug_contour.clear();
+            expand_debug_cps.clear();
+#endif
+            context2.Draw(area1.CreateExpand2D(XY(gap, gap) + (gap>0 ? start_gap : -start_gap)), false, r[num2%2], g[num2%2], b[num2%2], true, 0, method);
+#ifdef _DEBUG
+            expand_debug = 0;
+            if (method==2) {
+                cairo_set_line_width(context2.cr, 0.5);
+                context2.Draw(area1.CreateExpand2D(XY(gap, gap) + (gap>0 ? start_gap : -start_gap)), false, 0, 0, 0, false, 0, 2, expand_debug_cps);
                 cairo_set_line_width(context2.cr, 2);
             }
 #endif
@@ -363,6 +425,7 @@ void DrawExpand2D(unsigned i, const Contour &c1, const XY &gap, const char *text
     const Contour c2 = c1.CreateExpand2D(gap);
     Block b = c1.GetBoundingBox();
     b += c2.GetBoundingBox();
+    if (b.IsInvalid()) return;
     b.Expand(10);
     CairoContext c(i, b, text, false);
     c.Draw(c1, false, 1, 0, 0, true, 0);
@@ -986,6 +1049,32 @@ void contour_test_expand2D(unsigned num)
     DrawExpand2D(num++, generated_forms::cooomplex2[0], XY(30,10));
     DrawExpand2D(num++, generated_forms::cooomplex2[1], XY(30,10));
     DrawExpand2D(num++, generated_forms::cooomplex2, XY(30,10));
+
+    num = (num+9)/10;
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::ChoppedBox, 0);
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::forexpbevel, 0);
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::box_circle, 0, "box with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::variable_clear, 0, "boxhole with miter");
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::later, 0, "later with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::cooomplex, 0, "complex with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::huhu, 0, "huhu with miter");
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::part, 0, "part with miter");
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::spart, 0, "spart with round");
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::cooomplex3, 0, "complex3 with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::cooomplex2, 0, "rounded complex3 with miter");
+
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::form1, 0, "pipe with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::form2, 0, "reverse pipe with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::form3, 0, "pipe with bigger circle with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::form4, 0, "reverse pipe with bigger circle with miter");
+    DrawExpand2DBig(num++, XY(4, 12), generated_forms::form5, 0, "two inverse circles with miter");
 }
 
 void contour_test_tangent(unsigned num)
@@ -1271,22 +1360,19 @@ void contour_test(void)
     expand_debug_contour.clear();
 #endif
     Contour cc;
-    form5.first.outline.Expand(EXPAND_MITER_SQUARE, 28, cc, CONTOUR_INFINITY);
-    //DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, 2, "pipe with miter");
-    //DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, 0, "reverse pipe with miter");
-    //DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, 2, "pipe with bigger circle with miter");
-    //DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, 2, "reverse pipe with bigger circle with miter");
-    //DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, 2, "reverse pipe with miter");
-    DrawExpand(199, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form5, 2, "two inverse circles with miter");
-    //DrawExpand(170, EXPAND_BEVEL, CONTOUR_INFINITY, form1, 2, "pipe with miter");
+    //generated_forms::box_circle.first.outline.Expand2D(XY(4, 12), cc);
+    //DrawExpand2DBig(0, XY(4, 12), generated_forms::ChoppedBox, 1);
+    //DrawExpand2DBig(0, XY(4, 12), generated_forms::cooomplex2, 0, "rounded complex3 with miter");
+    //DrawExpand2DBig(0, XY(4, 12), generated_forms::box_circle, 0, "box with miter");
 
 #ifdef _DEBUG
     expand_debug = 0;
 #endif
 
+    contour_test_expand2D(7700);
 
-    //contour_test_basic();
-    //contour_test_assign(111);
+    contour_test_basic();
+    contour_test_assign(111);
     contour_test_expand();
     contour_test_lohere();
     contour_test_expand_edge(370);
@@ -1294,10 +1380,10 @@ void contour_test(void)
     contour_test_relations(7000);
     contour_test_distance(7100);
     contour_test_cut(7300);
-    contour_test_expand2D(7400);
-    contour_test_tangent(7500);
-    contour_test_bezier(7600);
-    contour_test_path(7700);
+    //contour_test_expand2D(7700);
+    contour_test_tangent(7400);
+    contour_test_bezier(7500);
+    contour_test_path(7600);
 }
 
 
