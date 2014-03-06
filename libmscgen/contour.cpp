@@ -675,6 +675,7 @@ protected:
     void ResetCrosspoints() const;    //make them valid and set switch_action to ERROR
     void EvaluateCrosspoints(Contour::EOperationType type) const; //Fills in switch actions and StartRays
     //helpers for walking
+    static void AppendDuringWalk(std::vector<Edge> &edges, const Edge &edge, double prev_endpos=1);
     void Advance(RayPointer &p, bool forward) const;
     void MarkAllInRayGroupOf(size_t ray, bool valid) const;
     void RevalidateAllAfter(std::vector<size_t> &ray_array, size_t from) const;
@@ -690,8 +691,9 @@ protected:
 
 public:
     //external interface
-    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true), clockwise_C1(c.GetClockWise()), clockwise_C2(false) {FindCrosspoints();}
-    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
+    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true), clockwise_C1(c.GetClockWise()), clockwise_C2(false) { FindCrosspoints(); }
+    ContoursHelper(Contour &&c) : C1(&c), C2(NULL), const_C1(false), const_C2(true), clockwise_C1(c.GetClockWise()), clockwise_C2(false) { FindCrosspoints(); }
+    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) { FindCrosspoints(); }
     ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
     ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
     ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
@@ -1867,32 +1869,26 @@ void ContoursHelper::RevalidateAllAfter(std::vector<size_t> &ray_array, size_t f
 * Checks that we do not append a degenerate (start==end) edge.
 * Checks if the edge to append is a direct continuation of the last edge, in which case
 * we merge the two.
-* 
-* endpoints[i] contain the positions of the crosspoint represented by the startpoint of edge [i].
-* first is the position of the endpoint of edge i-1, second is the position of startpoint of edge i on 
-* the original edge of them.
+*
+* prev_endpos contains the position where we shall cut the last edge. This shall correspond
+* to edge.GetStart().
 */
-void AppendDuringWalk(std::vector<Edge> &edges, std::vector<std::pair<double, double>>&endpoints, 
-                      const Edge &edge, double endpos, double startpos)
+void ContoursHelper::AppendDuringWalk(std::vector<Edge> &edges, const Edge &edge, double prev_endpos)
 {
-    _ASSERT(endpoints.size() == edges.size());
-    //if the endpos == 0 this means the crosspoint is at a vertex
-    //use 1 instead
-    if (endpos==0) endpos = 1;
-
     //if the last point equals to the startpoint of edge, skip the last edge added
-    if (edges.size()>0 && edge.GetStart().test_equal(edges.back().GetStart())) {
-        endpos = endpoints.back().first; //use the endpoint calculated for that edge
-        edges.pop_back();
-        endpoints.pop_back();
+    if (edges.size()) {
+        if (edge.GetStart().test_equal(edges.back().GetStart()) && edges.back().IsStraight())
+            edges.pop_back();
+        else {
+            edges.back().SetEnd(edge.GetStart(), prev_endpos);
+            if (edges.back().IsDot())
+                edges.pop_back();
+        }
+
     }
-
     edges.push_back(edge);
-    endpoints.emplace_back(endpos, startpos);
 };
-
-
-
+                           
 
 /** Perform a walk operation on evaluated crosspoints.
  *
@@ -1959,37 +1955,40 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
 
     std::vector<size_t> ray_array; //should allocate these as thread local
     std::vector<walk_data> wdata;  //should allocate these as thread local
-    std::vector<std::pair<double, double>> endpoints;
     std::vector<Edge> edges;
     ray_array.reserve(200);
     wdata.reserve(200);
-    endpoints.reserve(200);
     edges.reserve(200);
 
-    //"current" will point to an incoming ray at a crosspoint
+    //"current" will point to a valid incoming ray at a crosspoint
     _ASSERT(start.index<Rays.size() && !start.at_vertex && Rays[start.index].valid);
     RayPointer current = start;
 
     //do a walk from the current crosspoint, until we get back here
     const size_t sn_finish = Rays[current.index].seq_num; //we shall finish at this sequence number.
     bool forward = Rays[current.index].incoming;
+    double prev_startpos=0;
     do {
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
             if (forward) 
-                AppendDuringWalk(edges, endpoints, Rays[current.index].contour->at(current.vertex), 1, 0); //just append the whole edge
+                AppendDuringWalk(edges, Rays[current.index].contour->at(current.vertex)); //just append the whole edge
             else {
                 //Append the inverse of the edge
                 Edge edge(Rays[current.index].contour->at_prev(current.vertex));
                 edge.Invert();
-                AppendDuringWalk(edges, endpoints, edge, 1, 0);
+                AppendDuringWalk(edges, edge);
             }
+            prev_startpos = 0;
             //no need to modify "current" here. A vertex is treated as both an incoming and outgoing ray
         } else { //we are at a crosspoint, not a vertex
             const Ray &ray = Rays[current.index];  //ray on which we arrive
             _ASSERT(forward == ray.incoming);
             //The position to use as ending position for the previous ray
             double terminating_pos = ray.incoming ? ray.pos : 1-ray.pos;
+            //If the cp is in a vertex (denoted always by pos==0), use the prev edge to its original end
+            if (terminating_pos==0)
+                terminating_pos = 1;
             //Mark the incoming ray (and all incoming rays its entire ray group) as invalid (=done).
             MarkAllInRayGroupOf(current.index, false);
             ray_array.push_back(current.index); //store our decision to the backtracking stack.
@@ -2000,32 +1999,23 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                 do {
                     if (wdata.size()==0) {
                         //cannot backtrace: give up
-                        //if (edges.size()==0)
+                        if (edges.size()==0)
                             return SimpleContour();
-                        edges.emplace_back(ray.xy, edges[0].GetStart());
-                        endpoints.emplace_back(terminating_pos, 0);
-                        for (size_t i = 0; i<edges.size()-1; /*nope*/) {
-                            const size_t next = i+1;
-                            if (edges[i].GetStart() == edges[next].GetStart() && edges[i].IsStraight()) {
+                        AppendDuringWalk(edges, Edge(ray.xy, edges[0].GetStart()), 1-(1-terminating_pos)/(1-prev_startpos));
+                        for (size_t i = 0; i<edges.size()-1; /*nope*/) 
+                            if (edges[i].GetStart() == edges[i+1].GetStart() && edges[i].IsStraight()) 
                                 //the next edge starts at the same location as the current one 
                                 //and the current edge is straight (no chance of a looping edge)
                                 //we shall delete the current edge.
-                                endpoints[next].first = endpoints[i].first; //save the end position of the previous edge
                                 edges.erase(edges.begin()+i);
-                                endpoints.erase(endpoints.begin()+i);
-                                continue;
-                            }
-                            //Set edge endpoint. The position is updated as described at the beginning of the function
-                            edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
-                            i++;
-                        }
+                            else
+                                i++;
                         goto endend;
                     }
                     _ASSERT(ray_array.size()>=wdata.back().rays_size);
                     _ASSERT(edges.size()>=wdata.back().result_size);
                     RevalidateAllAfter(ray_array, wdata.back().rays_size); //Make rays on discarded part valid again
                     edges.resize(wdata.back().result_size);  //Discard parts.
-                    endpoints.resize(wdata.back().result_size);
                     last_chosen = wdata.back().chosen_outgoing;
                     terminating_pos = wdata.back().terminating_pos;
                     wdata.pop_back(); //pop the backtracking stack
@@ -2048,16 +2038,18 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                 wdata.emplace_back(ray_array.size(), edges.size(), switch_to, terminating_pos);
             forward = !next_ray.incoming;  //fw may change if we need to walk on an incoming ray
             //Append a point
-            if (forward) {
-                Edge edge(next_ray.contour->at(next_ray.vertex));
-                edge.SetStart(next_ray.xy, next_ray.pos);
-                AppendDuringWalk(edges, endpoints, edge, terminating_pos, next_ray.pos);
-            } else {
-                Edge edge(next_ray.contour->at(next_ray.vertex));
+            double my_startpos;
+            Edge edge(next_ray.contour->at(next_ray.vertex));
+            if (forward) 
+                my_startpos = next_ray.pos;
+             else {
                 edge.Invert();
-                edge.SetStart(next_ray.xy, 1-next_ray.pos);
-                AppendDuringWalk(edges, endpoints, edge, terminating_pos, 1-next_ray.pos);
-            }
+                my_startpos = 1 - next_ray.pos;
+             }
+            edge.SetStart(next_ray.xy, my_startpos);
+            const bool started = edges.size()==0;
+            AppendDuringWalk(edges, edge, 1-(1-terminating_pos)/(1-prev_startpos));
+            prev_startpos = my_startpos;
         }
         //Now find the next cp and corresponding incoming ray
         Advance(current, forward);
@@ -2065,21 +2057,21 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
 
     //Now set end and startpoint of edges and cleanup
     //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-    if (edges.size()>1 && edges[0].GetStart().test_equal(edges.back().GetStart())) {
-        endpoints[0].first = endpoints.back().first;
-        edges.pop_back();
-        endpoints.pop_back();
+    if (edges.size()>1) {
+        if (edges[0].GetStart().test_equal(edges.back().GetStart()))
+            edges.pop_back();
+        else if (edges.front().GetStart()!=edges.back().GetEnd()) {
+            double terminating_pos = Rays[start.index].incoming ? Rays[start.index].pos : 1- Rays[start.index].pos;
+            if (terminating_pos)
+                edges.back().SetEnd(edges.front().GetStart(), 1-(1-terminating_pos)/(1-prev_startpos));
+            if (edges.back().IsDot())
+                edges.pop_back();
+        }
     }
-
     if (edges.size()==0) return SimpleContour();
-    if (edges.size()==1 && edges.front().IsStraight()) return SimpleContour();
+    if (edges.size()==1 && (edges.front().IsStraight() || edges.front().IsDot())) return SimpleContour();
     if (edges.size()==2 && edges.front().IsStraight() && edges.back().IsStraight()) return SimpleContour();
-    //set "end" values. Not known previously
-    for (size_t i = 0; i<edges.size(); i++) {
-        const size_t next = (i+1)%edges.size();
-        //Set edge endpoint. The position is updated as described at the beginning of the function
-        edges[i].SetEnd(edges[next].GetStart(), 1-(1-endpoints[next].first)/(1-endpoints[i].second));
-    }
+
 endend:
     //Remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
     //and we do not use the edge.
@@ -2205,7 +2197,12 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
                 const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
                 coverage_in_c = cov_from_us + cov_from_other;
             } else {
-                const EPointRelationType is_within_other = C_other->IsWithin(c->outline[0].GetStart());
+                EPointRelationType is_within_other;
+                for (unsigned u = 0; u<c->outline.size(); u++) {
+                    is_within_other = C_other->IsWithin(c->outline[u].GetStart());
+                    if (is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX)
+                        break;
+                }
                 _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
                 //if we are outside the other, coverage from that is zero
                 //if we are inside, then coverage is either +1 or -1 depending on dir
@@ -2313,7 +2310,6 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         if (C1->further.size()==0 && C1->first.holes.size()==0 && Rays.size()==0) {
             if (const_C1) result = *C1;
             else result = std::move(*C1);
-            result.first.outline.CalculateClockwise();
             //If the result is not to be included in this operation, delete
             if (!IsCoverageToInclude(result.GetClockWise() ? 1 : -1, type))
                 result.clear();
@@ -2341,9 +2337,11 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         _ASSERT(C1->IsSane() && C2->IsSane());
     }
     std::list<node> list; //this will be the root(s) of the post-processing tree (forest).
+#ifdef _DEBUG
+    expand_debug_cps.clear();
+#endif 
     if (Rays.size()) {
 #ifdef _DEBUG
-        expand_debug_cps.clear();
         size_t u = link_cps_head;
         do {
             expand_debug_cps[u] = Rays[u].xy;
@@ -2364,6 +2362,14 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         ResetCrosspoints(); //A subsequent call to "Do" can work OK, again
         //result of the walk(s) are in "list"
     }
+#ifdef _DEBUG
+    bool doit = false;
+    if (doit) {
+        DebugSnapshot(Path(*C1), expand_debug_cps);
+        if (C2)
+            DebugSnapshot(Path(*C2), expand_debug_cps);
+    }
+#endif 
     //Now we need to consider those contours from the original set
     //for which we found no crosspoints (may be all of them, none of them or in between)
     //We shall always demand a positive surface, except if both input are hole
@@ -2381,6 +2387,11 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
     //we do a binary operation on holes
     ConvertNode(type, std::move(list), result, Contour::is_positive(type));
     _ASSERT(result.IsSane());
+
+#ifdef _DEBUG
+    if (doit) 
+        DebugSnapshot(Path(result), expand_debug_cps);
+#endif 
 }
 
 double ContourList::Distance(const XY &o, XY &ret) const

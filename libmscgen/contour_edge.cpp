@@ -1710,20 +1710,20 @@ void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int
 {
     if (straight) {
         const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
-            Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
+                     Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
         ret.emplace_back(start+off, end+off, !!visible);
         Edge &e = ret.back();
         //expand for horizontal and vertical edges
         if (start.x == end.x) {
-            e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
-            e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
+            e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, fabs(gap.y));
+            e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, fabs(gap.y));
         }
         if (start.y == end.y) {
-            e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
-            e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
+            e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, fabs(gap.x));
+            e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, fabs(gap.x));
         }
         etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
-            Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
+                        Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
         return;
     }
     //see extreme points
@@ -2070,7 +2070,13 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
     s_deg = fmod_negative_safe(s_deg, 360.)/90;
     d_deg = fmod_negative_safe(d_deg, 360.)/90;
     if (d_deg<=s_deg) d_deg += 4;
-    if (radius_y==0) radius_y = radius_x;
+    _ASSERT(radius_x>0 && radius_y>=0);
+    if (radius_x<=0)
+        return;
+    if (radius_y==0)
+        radius_y = radius_x;
+    else if (radius_y<0)
+        return;
     //first define the unit circle
     //http://hansmuller-flex.blogspot.hu/2011/04/approximating-circular-arc-with-cubic.html
     const double magic_number = 0.5522847498; //4/3 * (sqrt(2)-1)
@@ -2482,7 +2488,7 @@ unsigned Edge::atX(double x, double roots[3]) const
             ret--;
         } else
             i++;
-        return ret;
+    return std::unique(roots, roots+ret) - roots;  //remove duplicate solutions
 }
 
 /** Return a series of parameter values where the x coordinate of the curve is 'x'*/
@@ -2504,7 +2510,7 @@ unsigned Edge::atY(double y, double roots[3]) const
             ret--;
         } else
             i++;
-        return ret;
+    return std::unique(roots, roots+ret) - roots;  //remove duplicate solutions
 }
 
 /** Expands the edge.

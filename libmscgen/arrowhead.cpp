@@ -665,7 +665,7 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-        area = Contour(total) - Contour(xy, wh.x, wh.y);
+        area = Contour(total) - Contour(xy, fabs(wh.x), fabs(wh.y));
         r = total.x;
         break;
     }
@@ -758,7 +758,7 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, EArro
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-        area = Contour(xy, wh.x, wh.y);
+        area = Contour(xy, fabs(wh.x), fabs(wh.y));
         break;
     default:
         _ASSERT(0);
@@ -936,21 +936,56 @@ XY ArrowHead::getBigWidthHeight(EArrowType type, const LineAttr &ltype) const
 /** The full width of the arrowhead (on both sides of the entity line). 
  * The values returned here are used to determine spacing between entities
  * in for ArcBigArrow::Width().
- * @param [in] type The type of the arrowhead
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir True if the arrow is bi-directional, that is like a<->b and not a->b.
+ * @param [in] which Tells us which end are we interested in (or middle).
  * @param [in] act_size The (half) width of the entity line due to entity activation.
  * @param [in] ltype The line style that will be used to draw the block arrow.
  * @returns The size of the arrowhead from the middle of the entity line towards the 
- *          middle on the arrow. */
-double ArrowHead::getBigWidthsForSpace(bool /*bidir*/, EArrowType type, EArrowEnd /*which*/, 
-                                       double /*body_height*/, double act_size, const LineAttr &ltype) const
+ *          middle on the arrow. 'first' returns the size on the left side, 
+ *          'second' returns the space on the right side.*/
+DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, EArrowEnd which,
+                                           double /*body_height*/, double act_size, const LineAttr &ltype) const
 {
+    DoublePair ret(0, 0);
+    EArrowType type = GetType(bidir, which);
     switch(type) {
+    case MSC_ARROW_DIAMOND_EMPTY: /* Half diamond at ends nothing in the middle.*/
+    case MSC_ARROW_DOT_EMPTY:     /* Half circle at ends nothing in the middle.*/
+        if (which!=MSC_ARROW_MIDDLE) {
+            ret.first = act_size+getBigWidthHeight(type, ltype).x;
+            if ((which==MSC_ARROW_END) == forward) //only on the right side if (-> and END) or (<- and START)
+                ret.swap();
+        }
+        //fallthrough
+    case MSC_ARROW_NONE:
+    default:
+        break;
+
+    case MSC_ARROW_DOT:          /* Full diamond at ends and at middle. Independent of act_size*/
+    case MSC_ARROW_DIAMOND:
+        ret.first = ret.second = getBigWidthHeight(type, ltype).x;
+        break;
+
     case MSC_ARROW_STRIPES:
     case MSC_ARROW_TRIANGLE_STRIPES:
-        return act_size+getBigWidthHeight(type, ltype).x + ltype.LineWidth();
-    default:
-        return act_size+getBigWidthHeight(type, ltype).x;
+        ret.first = ltype.LineWidth();
+        //fallthrough
+    case MSC_ARROW_SOLID: /* Normal triangle */
+    case MSC_ARROW_LINE: /* Normal Triangle */
+    case MSC_ARROW_SHARP: /* Sharp triangle */
+    case MSC_ARROW_SHARP_EMPTY: /* Small triangle, no "serifs" */
+    case MSC_ARROW_EMPTY: /* Small triangle, no "serifs" */
+    case MSC_ARROW_EMPTY_INV: /* Inverse small triangle */
+    case MSC_ARROW_HALF: /* Half triangle */
+        ret.first += act_size+getBigWidthHeight(type, ltype).x;
+        if (bidir && which==MSC_ARROW_MIDDLE)
+            ret.second = ret.first;
+        else if ((which==MSC_ARROW_START && forward) || //only on the left side if (-> and END) or (<- and START)
+                 (which==MSC_ARROW_END && !forward))
+            ret.swap();
     }
+    return ret;
 }
 
 /** Determines how much margin is needed for a text with a given cover.
@@ -1097,8 +1132,8 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
     case MSC_ARROW_EMPTY_INV:
         area  = Contour(x+x_act+x_off, mid_y, x+x_act+x_off, sy, x+x_act, sy);
         area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, dy, x+x_act, dy);
-        if (which == MSC_ARROW_MIDDLE && !bidir) 
-            area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
+        //if (which == MSC_ARROW_MIDDLE && !bidir) 
+        //    area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
         ret_body_margin = act_size + wh.x;
         break;
 
@@ -1196,7 +1231,7 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
 
     //draw leftmost arrowhead
     double from_x;
-    area_segment = BigContourOneEntity(xPos[0], act_size[0], sy, dy, bidir, 
+    area_segment = BigContourOneEntity(xPos.front(), act_size.front(), sy, dy, bidir, 
                                        t_left_end, e_left, *ltype_current, false, &from_x);
     from_x = xPos[0] + from_x;
 
@@ -1233,9 +1268,9 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
     const EArrowEnd e_right = forward ? MSC_ARROW_END : MSC_ARROW_START;
     const EArrowType t_right_end = GetType(bidir, e_right);
     double right_margin;
-    area_segment += BigContourOneEntity(*xPos.rbegin(), *act_size.rbegin(), sy, dy, bidir, 
+    area_segment += BigContourOneEntity(xPos.back(), act_size.back(), sy, dy, bidir, 
                                         t_right_end, e_right, *ltype_current, true, &right_margin);
-    area_segment += Block(from_x, *xPos.rbegin() - right_margin, sy, dy);
+    area_segment += Block(from_x, xPos.back() - right_margin, sy, dy);
     area_overall += area_segment;
     if (segment) 
         result.push_back(std::move(area_segment));

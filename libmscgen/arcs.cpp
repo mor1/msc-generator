@@ -2086,39 +2086,31 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     sy = chart->arcVGapAbove + aH;
     dy = ceil(sy + twh.y + chart->boxVGapInside*2 + 2*segment_lines[stext].LineWidth());
 
-    const EArrowEnd e_left  = fw ? MSC_ARROW_START : MSC_ARROW_END;
-    const EArrowType t_left_end  = style.read().arrow.GetType(isBidir(), e_left);
-    const EArrowEnd e_right = fw ? MSC_ARROW_END : MSC_ARROW_START;
-    const EArrowType t_right_end = style.read().arrow.GetType(isBidir(), e_right);
+    const DoublePair sp_left_end = style.read().arrow.getBigWidthsForSpace(
+            fw, isBidir(), fw ? MSC_ARROW_START : MSC_ARROW_END, 
+            dy-sy, act_size.front(), segment_lines.front());
+    const DoublePair sp_right_end = style.read().arrow.getBigWidthsForSpace(
+            fw, isBidir(), fw ? MSC_ARROW_END : MSC_ARROW_START,
+            dy-sy, act_size.front(), segment_lines.front());
 
-    const double sp_left_end = style.read().arrow.getBigWidthsForSpace(
-                                    isBidir(), t_left_end, e_left, dy-sy, 
-                                    *act_size.begin(), *segment_lines.begin());
-    const double sp_right_end = style.read().arrow.getBigWidthsForSpace(
-                                    isBidir(), t_right_end, e_right, dy-sy, 
-                                    *act_size.rbegin(), *segment_lines.rbegin());
+    //add the distance requirement to the left and right side of src and dst
+    distances.Insert(indexes.front(), DISTANCE_LEFT,  sp_left_end.first  *cos_slant);
+    distances.Insert(indexes.front(), DISTANCE_RIGHT, sp_left_end.second *cos_slant);
+    distances.Insert(indexes.back(),  DISTANCE_LEFT,  sp_right_end.first *cos_slant);
+    distances.Insert(indexes.back(),  DISTANCE_RIGHT, sp_right_end.second*cos_slant);
 
-    distances.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end*cos_slant);
-    distances.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end*cos_slant);
-    vdist.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end*cos_slant);
-    vdist.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end*cos_slant);
+    //add the distances to keep for verticals only on the outer side of src and dst
+    vdist.Insert(indexes.front(), DISTANCE_LEFT,  sp_left_end.first *cos_slant);
+    vdist.Insert(indexes.back(),  DISTANCE_RIGHT, sp_right_end.first*cos_slant);
 
     //Collect iterators and distances into arrays
     margins.reserve(2+middle.size()); margins.clear();
-    margins.push_back(DoublePair(0, sp_left_end));
-    for (unsigned i=0; i<middle.size(); i++) {
-        DoublePair mid;
-        const EArrowType t_left  = style.read().arrow.GetType(fw, isBidir(), MSC_ARROW_MIDDLE, true);
-        const EArrowType t_right = style.read().arrow.GetType(fw, isBidir(), MSC_ARROW_MIDDLE, false);
-        mid.first = style.read().arrow.getBigWidthsForSpace(
-                                    isBidir(), t_left, MSC_ARROW_MIDDLE, dy-sy, 
-                                    act_size[i+1], segment_lines[i]);
-        mid.second = style.read().arrow.getBigWidthsForSpace(
-                                    isBidir(), t_right, MSC_ARROW_MIDDLE, dy-sy, 
-                                    act_size[i+1], segment_lines[i+1]);
-        margins.push_back(mid);
-    }
-    margins.push_back(DoublePair(sp_right_end, 0));
+    margins.push_back(sp_left_end);
+    for (unsigned i=0; i<middle.size(); i++) 
+        margins.push_back(style.read().arrow.getBigWidthsForSpace(
+                             fw, isBidir(), MSC_ARROW_MIDDLE, 
+                             dy-sy, act_size[i+1], segment_lines[i]));
+    margins.push_back(sp_right_end);
 
     for (unsigned i=0; i<indexes.size()-1; i++) {
         //if neighbours
@@ -2958,10 +2950,12 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
         _ASSERT(0); //fallthrough
     case ARROW_OR_BOX: 
         {
-            const double ss = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.startType.second, MSC_ARROW_START,
-                                                               twh.y+2*lw, 0, style.read().line);
-            const double ds = style.read().arrow.getBigWidthsForSpace(isBidir(), style.read().arrow.endType.second, MSC_ARROW_END, 
-                                                               twh.y+2*lw, 0, style.read().line);
+            const double ss = style.read().arrow.getBigWidthsForSpace(
+                                  forward, isBidir(), forward ? MSC_ARROW_START : MSC_ARROW_END,
+                                  twh.y+2*lw, 0, style.read().line).first;
+            const double ds = style.read().arrow.getBigWidthsForSpace(
+                                  forward, isBidir(), forward ? MSC_ARROW_END: MSC_ARROW_START,
+                                  twh.y+2*lw, 0, style.read().line).second;
             if (ss+ds+chart->compressGap > ypos[1]-ypos[0]) {
                 chart->Error.Warning(file_pos.start, "Size of vertical element is too small to draw arrowheads. Ignoring it.");
                 valid = false;

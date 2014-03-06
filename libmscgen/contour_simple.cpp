@@ -282,7 +282,7 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
    clockwise_fresh(true), area_fresh(false), boundingBox_fresh(false),
    clockwise(true)
 {
-    if (radius_x==0) {
+    if (radius_x<=0 || radius_y<0) {
         area_fresh = true;
         boundingBox_fresh = true;
         area = 0;
@@ -893,8 +893,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         }
 
         //Calculate actual max miter length.
-        const double gap_limit = fabs(miter_limit) < MaxVal(miter_limit) ? gap*miter_limit : MaxVal(gap_limit);
-        const double gap_limit_sqr = fabs(miter_limit) < MaxVal(miter_limit) ? gap*gap*miter_limit*miter_limit : MaxVal(gap_limit_sqr);
+        const double gap_limit_to_use = fabs(miter_limit) < MaxVal(miter_limit) ? gap*miter_limit : MaxVal(gap_limit_to_use);
+        //Calculate the square of it to test on a DistanceSqr() - to avoid sqrt() calls.
+        //Make it a bit bigger (2 pixels) - apply miter only if miter would be somewhat larger than 
+        //limit. This is to avoid very small chopped miters.
+        const double gap_limit_sqr_to_test = fabs(miter_limit) < MaxVal(miter_limit) ? gap*gap*miter_limit*miter_limit + 2: MaxVal(gap_limit_sqr_to_test);
 
         bool need_to_process, has_remaining_cp_inverse;
 
@@ -933,7 +936,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             //Calculate if we start with a miter limited in length
             bool need_miter_limit_bevel = IsMiter(type) &&
                 r.back().cross_type == Edge::CP_EXTENDED &&
-                r.back().cross_point.DistanceSqr(r.back().GetEnd()) > gap_limit_sqr;
+                r.back().cross_point.DistanceSqr(r.back().GetEnd()) > gap_limit_sqr_to_test;
+            XY prev_miter_limit_bevel_point;
+            if (need_miter_limit_bevel)
+                prev_miter_limit_bevel_point = r.front().GetStart() +
+                     (r.back().cross_point-r.front().GetStart()).Normalize()*gap_limit_to_use;
 
             //cycle through the edges if we have any connections that is not CP_TRIVIAL or CP_INVERSE
             if (need_to_process) {
@@ -966,13 +973,13 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         //If we connected to previous edge via a too long miter, we limit its length
                         //The bevel needed in this case was added when we processed the previous 
                         if (need_miter_limit_bevel)
-                            new_start = i->GetStart() + (new_start-i->GetStart()).Normalize()*gap_limit;
+                            new_start = prev_miter_limit_bevel_point;
                         //Check if we connect to the next edge via a too long miter.
                         need_miter_limit_bevel = i->cross_type == Edge::CP_EXTENDED &&
-                            new_end.DistanceSqr(i->GetEnd()) > gap_limit_sqr;
+                            new_end.DistanceSqr(i->GetEnd()) > gap_limit_sqr_to_test;
                         //Adjust the endpoint of us to where the miter shall end.
                         if (need_miter_limit_bevel)
-                            new_end = i->GetEnd() + (new_end-i->GetEnd()).Normalize()*gap_limit;
+                            new_end = i->GetEnd() + (new_end-i->GetEnd()).Normalize()*gap_limit_to_use;
                         //The value of 'need_miter_limit_bevel' will also be re-used next
                         _ASSERT(fabs(new_start.length()) < 100000);
                         _ASSERT(!isnan(new_end.x) && !isnan(new_end.y));
@@ -1016,13 +1023,18 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     //For miters Add bevel if the miter would be too long. (can be true only for miters)
                     if (need_miter_limit_bevel) {
                         _ASSERT(IsMiter(type));
-                        const XY bevel_end = next_i->GetStart() +
-                            (i->cross_point-next_i->GetStart()).Normalize()*gap_limit;
+                        //If we are last, we cannot use next_i->GetStart in claculating the miter
+                        //end, since that has been already modified. In fact it is already the
+                        //right miter end, so we can just re-use it.
+                        XY bevel_end = next_i->GetStart();
+                        if (i != --r.end())
+                            bevel_end += (i->cross_point-next_i->GetStart()).Normalize()*gap_limit_to_use;
                         _ASSERT(bevel_end.length() < 100000);
-                        if (!bevel_end.test_equal(new_end))
+                        if (bevel_end != new_end)
                             //make sure we copy the metadata, as well ('cross_type' and afterwards)
                             //beacuse the next iteration will rely on these, when adding
                             r.emplace(next_i, new_end, bevel_end, i->visible && next_i->visible, i->cross_type, i->cross_point, double(), i->next_start_pos);
+                        prev_miter_limit_bevel_point = bevel_end;
                     }
 
                     //What we did so far:
@@ -1205,34 +1217,35 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
 {
     XY cp, prev_tangent, next_tangent;
     double pos_a, pos_b;
-    //We provide dummy values for "is_my_origin_bezier" and "is_Ms_origin_bezier" as they only 
-    //impact the returned cp in case of a parallel join and we do not use it in that case
-    switch (a[original_last].FindExpandedEdgesCP(a[next], cp, prev_tangent, next_tangent, true, true, pos_a, pos_b)) {
-    case Edge::CP_REAL:
+    //dummy prev and next tangents provided - they are only used on NO_CP_PARALLEL,
+    //and CP_EXPANDED to calculate cp, which we ignore then.
+    if (Edge::CP_REAL == a[original_last].FindExpandedEdgesCP(a[next], cp, 
+                         prev_tangent, next_tangent, true, true, pos_a, pos_b)) {
         a[original_last].SetEndIgn(cp, pos_a); 
         a[next].SetStartIgn(cp, pos_b);
-        break;
-    default:
-        if (last_type && !(last_type & 1) && stype == -last_type &&
-            //insert an extra point only if we have a sharp convex vertex
-            CLOCKWISE == triangle_dir(PrevTangentPoint(my_index, 0), at(my_index).GetStart(),
-                                      NextTangentPoint(my_index, 0))) {
-            cp = a[original_last].GetEnd();
-            switch (last_type) {
-            case +2: cp.x += 2*gap.x; break;
-            case -2: cp.x -= 2*gap.x; break;
-            case +4: cp.y -= 2*gap.y; break;
-            case -4: cp.y += 2*gap.y; break;
-            default: _ASSERT(0); break;
-            }
-            XY next_start = a[next].GetStart();
-            a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp, !!a[original_last].visible));
-            a.insert(a.begin()+original_last+2, Edge(cp, next_start, !!a[next].visible));
-        } else {
-            a.insert(a.begin()+original_last+1,
-                Edge(a[original_last].GetEnd(), a[next].GetStart(), a[original_last].visible && a[next].visible));
-        }
+        return;
     }
+    const bool turn_clwise = CLOCKWISE == triangle_dir(PrevTangentPoint(my_index, 0),
+                                                       at(my_index).GetStart(), 
+                                                       NextTangentPoint(my_index, 0));
+    if (last_type && !(last_type & 1) && stype == -last_type && turn_clwise) {
+        cp = a[original_last].GetEnd();
+        //insert an extra point only if we have a sharp convex vertex
+        switch (last_type) {
+        case +2: cp.x += 2*gap.x; break;
+        case -2: cp.x -= 2*gap.x; break;
+        case +4: cp.y -= 2*gap.y; break;
+        case -4: cp.y += 2*gap.y; break;
+        default: _ASSERT(0); break;
+        }
+        const Edge A(a[original_last].GetEnd(), cp, !!a[original_last].visible);
+        const Edge B(cp, a[next].GetStart(), !!a[next].visible);
+        a.insert(a.begin()+original_last+1, A);
+        a.insert(a.begin()+original_last+2, B);
+        return;
+    }
+    const Edge C(a[original_last].GetEnd(), a[next].GetStart(), a[original_last].visible && a[next].visible);
+    a.insert(a.begin()+original_last+1, C);
 }
 
 /** Expand2D the shape.
@@ -1244,10 +1257,21 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
  */
 void SimpleContour::Expand2D(const XY &gap, Contour &res) const
 {
+    //if we do nothing, we return us
     if (gap.x==0 && gap.y==0) {
         res = *this;
         return;
     }
+    //if we srink too much we return empty
+    if ((GetBoundingBox().x.Spans()<-2*gap.x && GetClockWise()) ||
+        (GetBoundingBox().y.Spans()<-2*gap.y && GetClockWise()) ||
+        (GetBoundingBox().x.Spans()<2*gap.x && !GetClockWise()) ||
+        (GetBoundingBox().y.Spans()<2*gap.y && !GetClockWise()) ||
+        size()==0) {
+        res.clear();
+        return;
+    }
+
     Contour r2;
     if (IsEmpty()) return;
     int first_type, last_type;
@@ -1262,10 +1286,25 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
     //Now meld last and first
     Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, 0, last_type, first_type);
 
+    r2.first.outline.clockwise_fresh = r2.first.outline.area_fresh = r2.first.outline.boundingBox_fresh = false;
     r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
     if (r2.first.outline.size()==0) return;
     r2.boundingBox = r2.first.outline.GetBoundingBox(); //copy bb to outer
-    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
+#ifdef _DEBUG
+    //OK, now untangle 
+    if (expand_debug)
+        expand_debug_contour.append(r2.first.outline);
+#endif
+    res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
+    //XXX Fix this better:
+    if ((gap.x<0) == GetClockWise()) {
+        //Kill those cwh's which are not entirely inside the original
+        Contour tmp;
+        for (unsigned u = 0; u<res.size(); u++)
+            if (RelationTo(res[u].outline) == REL_B_INSIDE_A ) 
+                tmp.append(std::move(res[u]));
+        res.swap(tmp);
+    }
 }
 
 

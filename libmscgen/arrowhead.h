@@ -165,8 +165,8 @@ public:
      * @{ */
     /** The characteristic size of arrowhead. Internal.*/
     XY getBigWidthHeight(EArrowType type, const LineAttr &ltype) const;
-    double getBigWidthsForSpace(bool /*bidir*/, EArrowType type, EArrowEnd /*which*/, 
-                                double /*body_height*/, double act_size, const LineAttr &ltype) const;
+    DoublePair getBigWidthsForSpace(bool forward, bool bidir, EArrowEnd which,
+                                    double /*body_height*/, double act_size, const LineAttr &ltype) const;
     double getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
                         bool bidir, EArrowType type, const LineAttr &ltype) const;
     double bigYExtent(bool bidir, bool forward=true, const std::vector<LineAttr> *lines=NULL) const;
