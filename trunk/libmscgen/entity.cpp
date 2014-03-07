@@ -657,7 +657,8 @@ bool EntityApp::AddAttribute(const Attribute& a)
                     msg.append(v[u]).append("' or '");
                 else
                     msg.append(v[u]).append("', '");
-            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + ".");
+            msg.append(v.back());
+            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + "'.");
         } else
             attr_shape = sh;
         attr_shape_pos = a.linenum_attr.start;

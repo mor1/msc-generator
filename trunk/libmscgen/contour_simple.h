@@ -388,6 +388,9 @@ public:
     template<size_t size> void assign_dont_check(const Edge (&v)[size]) {assign_dont_check (v, size);} ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
 
     size_t size() const {return edges.size();}             ///<Returns the number of edges.
+    const Edge& front() const { return edges.front(); }    ///<Returns const reference to the first edge
+    const Edge& back() const { return edges.back(); }      ///<Returns const reference to the last edge
+    const std::vector<Edge> &GetEdges() const { return edges; } ///<Returns const reference to the edges
     const Block &GetBoundingBox() const { if (!boundingBox_fresh) CalculateBoundingBox(); return boundingBox; } ///<Returns the bounding box.
     bool GetClockWise() const { if (!clockwise_fresh) CalculateClockwise(); return clockwise; }              ///<Returns if the shape is clockwise.
     bool IsEmpty() const {return edges.size()==0;}            ///<Returns if the shape is empty (no edges).

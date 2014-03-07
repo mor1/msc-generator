@@ -1286,6 +1286,8 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
     //Now meld last and first
     Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, 0, last_type, first_type);
 
+    _ASSERT(r2.first.outline.edges.size()==0 || r2.first.outline.edges.front().GetStart()==r2.first.outline.edges.back().GetEnd());
+
     r2.first.outline.clockwise_fresh = r2.first.outline.area_fresh = r2.first.outline.boundingBox_fresh = false;
     r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
     if (r2.first.outline.size()==0) return;
