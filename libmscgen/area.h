@@ -38,9 +38,9 @@ public:
     contour::Contour          mainline;
 
     explicit Area(Element *a=NULL) : arc(a) {}
-    Area(const Contour &cl, Element *a=NULL) : Contour(cl), arc(a) {}
-    Area(Contour &&cl, Element *a=NULL) : Contour(std::move(cl)), arc(a) {}
-    Area(const contour::Block &b, Element *a=NULL) : Contour(b), arc(a) {}
+    explicit Area(const Contour &cl, Element *a=NULL) : Contour(cl), arc(a) {}
+    explicit Area(Contour &&cl, Element *a = NULL) : Contour(std::move(cl)), arc(a) {}
+    explicit Area(const contour::Block &b, Element *a = NULL) : Contour(b), arc(a) {}
 
     void clear() {Contour::clear(); mainline.clear();}
     void swap(Area &a);
@@ -66,6 +66,15 @@ public:
     Area &operator -= (Area &&b) {Contour::operator-=(std::move(b)); mainline-=std::move(b.mainline); if (arc==NULL) arc = b.arc; return *this;}
     Area &operator ^= (Area &&b) {Contour::operator^=(std::move(b));                                  if (arc==NULL) arc = b.arc; return *this;}
 
+    Area &operator += (const Contour &b) { Contour::operator+=(b); return *this; }
+    Area &operator *= (const Contour &b) { Contour::operator*=(b); return *this; }
+    Area &operator -= (const Contour &b) { Contour::operator-=(b); return *this; }
+    Area &operator ^= (const Contour &b) { Contour::operator^=(b); return *this; }
+    Area &operator += (Contour &&b) { Contour::operator+=(std::move(b)); return *this; }
+    Area &operator *= (Contour &&b) { Contour::operator*=(std::move(b)); return *this; }
+    Area &operator -= (Contour &&b) { Contour::operator-=(std::move(b)); return *this; }
+    Area &operator ^= (Contour &&b) { Contour::operator^=(std::move(b)); return *this; }
+
     Area operator + (const Area &p) const {return Area(*this)+=p;}
     Area operator * (const Area &p) const {return Area(*this)*=p;}
     Area operator - (const Area &p) const {return Area(*this)-=p;}
@@ -75,7 +84,16 @@ public:
     Area operator - (Area &&p) const {return Area(*this)-=std::move(p);}
     Area operator ^ (Area &&p) const {return Area(*this)^=std::move(p);}
 
-    Area& Shift(contour::XY xy) {Contour::Shift(xy); mainline.Shift(xy); return *this;}
+    Area operator + (const Contour &p) const { return Area(*this) += p; }
+    Area operator * (const Contour &p) const { return Area(*this) *= p; }
+    Area operator - (const Contour &p) const { return Area(*this) -= p; }
+    Area operator ^ (const Contour &p) const { return Area(*this) ^= p; }
+    Area operator + (Contour &&p) const { return Area(*this) += std::move(p); }
+    Area operator * (Contour &&p) const { return Area(*this) *= std::move(p); }
+    Area operator - (Contour &&p) const { return Area(*this) -= std::move(p); }
+    Area operator ^ (Contour &&p) const { return Area(*this) ^= std::move(p); }
+
+    Area& Shift(contour::XY xy) { Contour::Shift(xy); mainline.Shift(xy); return *this; }
     Area CreateShifted(const contour::XY & xy) const {Area a(*this); a.Shift(xy); return std::move(a);}
     Area& Rotate(double degrees) {Contour::Rotate(degrees); return *this;}
     Area& RotateAround(const contour::XY&c, double degrees) {Contour::RotateAround(c, degrees); return *this;}
@@ -88,7 +106,8 @@ public:
          {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
-    double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset = CONTOUR_INFINITY) const;
+    double OffsetBelow(const Area &below, double &touchpoint, double offset = CONTOUR_INFINITY, bool bMainline = true) const;
 };
 
 /** A list of Area objects.
@@ -129,7 +148,8 @@ public:
     AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
                           double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
 
-    double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
+    double OffsetBelow(const contour::Contour &below, double &touchpoint, double offset = CONTOUR_INFINITY) const;
+    double OffsetBelow(const Area &below, double &touchpoint, double offset = CONTOUR_INFINITY, bool bMainline = true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
 
     template <typename T> void sort(T t) {cover.sort(t);}

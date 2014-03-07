@@ -43,6 +43,13 @@ void Area::swap(Area &a)
     Contour::swap(a);
 }
 
+double Area::OffsetBelow(const Contour &below, double &touchpoint, double offset) const
+{
+    if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
+    if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
+    return Contour::OffsetBelow(below, touchpoint, offset);
+}
+
 double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
@@ -58,9 +65,18 @@ AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour
 {
     if (!gap) return *this;
     AreaList al;
-    for (auto i=cover.begin(); i!=cover.end(); i++)
-        al += i->CreateExpand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative);
+    for (auto &c : cover)
+        al += c.CreateExpand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative);
     return al;
+}
+
+double AreaList::OffsetBelow(const contour::Contour &below, double &touchpoint, double offset) const
+{
+    if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
+    if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
+    for (auto &c : cover)
+        offset = c.OffsetBelow(below, touchpoint, offset);
+    return offset;
 }
 
 double AreaList::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
@@ -80,8 +96,8 @@ double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double o
     if (bMainline && !mainline.IsEmpty() && mainline.GetBoundingBox().x.Overlaps(below.mainline.GetBoundingBox().x))
         offset = mainline.OffsetBelow(below.mainline, touchpoint, offset);
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
-    for (auto i = cover.begin(); i!=cover.end(); i++)
-        for (auto j = below.cover.begin(); j!=below.cover.end(); j++)
-            offset = i->OffsetBelow(*j, touchpoint, offset, bMainline);
+    for (auto &i : cover)
+        for (auto j : below.cover)
+            offset = i.OffsetBelow(j, touchpoint, offset, bMainline);
     return offset;
 }

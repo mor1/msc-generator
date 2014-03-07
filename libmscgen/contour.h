@@ -190,7 +190,9 @@ public:
     bool operator < (const ContourWithHoles &p) const {return outline==p.outline ? holes < p.holes : outline<p.outline;} ///<Comparision operator for container ordering.
     bool operator ==(const ContourWithHoles &p) const {return outline==p.outline && holes == p.holes;} ///<Tests equality. Returns true only if even the order of vertices and holes is identical.
     size_t size() const {return outline.size();} ///<Returns the number of edges in `outline`
-    const Edge &operator[](size_t edge) const {return outline[edge];} ///<Returns edge number `edge`. Throws exception if out-of range.
+    const Edge& front() const { return outline.front(); }    ///<Returns const reference to the first edge of the outline
+    const Edge& back() const { return outline.back(); }      ///<Returns const reference to the last edge of the outline
+    const Edge &operator[](size_t edge) const { return outline[edge]; } ///<Returns edge number `edge`. Throws exception if out-of range.
     ContourWithHoles &operator = (const Block &a) {outline = a; holes.clear(); return *this;} ///<Assigns a rectangular shape with no holes.
     ContourWithHoles &operator = (const SimpleContour &a) {outline=a; holes.clear(); return *this;} ///<Assigns a shape with no holes.
     ContourWithHoles &operator = (SimpleContour &&a) {outline.swap(a); holes.clear(); return *this;} ///<Moves a shape with no holes. `a` becomes undefined.

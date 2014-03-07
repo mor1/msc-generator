@@ -355,9 +355,8 @@ struct walk_data {
     size_t rays_size;       ///<What was the size of the rays array before chosing
     size_t result_size;     ///<What was the size of the resulting contour before choosing
     size_t chosen_outgoing; ///<Which ray did we choose last time
-    double terminating_pos; ///<Position-to-apply to the end of the previous edge
-    walk_data(size_t s, size_t s2, size_t c, double p) :
-        rays_size(s), result_size(s2), chosen_outgoing(c), terminating_pos(p) {}
+    walk_data(size_t s, size_t s2, size_t c) :
+        rays_size(s), result_size(s2), chosen_outgoing(c) {}
 };
 
 /** Node of a tree holding SimpleContours.
@@ -2017,7 +2016,10 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                     RevalidateAllAfter(ray_array, wdata.back().rays_size); //Make rays on discarded part valid again
                     edges.resize(wdata.back().result_size);  //Discard parts.
                     last_chosen = wdata.back().chosen_outgoing;
-                    terminating_pos = wdata.back().terminating_pos;
+                    //Since we have already appended an edge after the one in edges.back()
+                    //its endpoint has been correctly set. No need to chop it again.
+                    terminating_pos = 1;  
+                    prev_startpos = 0;
                     wdata.pop_back(); //pop the backtracking stack
                     switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
                     //if next to pick is another ray group, we need to backtrace one more
@@ -2035,7 +2037,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
             const Ray &next_ray = Rays[current.index];
             //check if this was the only choice (exclude case when we did a backtrace)
             if (next_ray.angle.IsSimilar(Rays[next_ray.link_in_cp.next].angle))
-                wdata.emplace_back(ray_array.size(), edges.size(), switch_to, terminating_pos);
+                wdata.emplace_back(ray_array.size(), edges.size(), switch_to);
             forward = !next_ray.incoming;  //fw may change if we need to walk on an incoming ray
             //Append a point
             double my_startpos;
@@ -2061,7 +2063,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
         if (edges[0].GetStart().test_equal(edges.back().GetStart()))
             edges.pop_back();
         else if (edges.front().GetStart()!=edges.back().GetEnd()) {
-            double terminating_pos = Rays[start.index].incoming ? Rays[start.index].pos : 1- Rays[start.index].pos;
+            double terminating_pos = Rays[current.index].incoming ? Rays[current.index].pos : 1- Rays[current.index].pos;
             if (terminating_pos)
                 edges.back().SetEnd(edges.front().GetStart(), 1-(1-terminating_pos)/(1-prev_startpos));
             if (edges.back().IsDot())

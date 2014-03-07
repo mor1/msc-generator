@@ -764,8 +764,8 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
         goto snap_ends;
     }
     const unsigned LOC_MAX_CP = MAX_CP*2;
-    XY loc_r[LOC_MAX_CP];
-    double loc_pos_my[LOC_MAX_CP], loc_pos_other[LOC_MAX_CP];
+    XY loc_r[LOC_MAX_CP+1];
+    double loc_pos_my[LOC_MAX_CP+1], loc_pos_other[LOC_MAX_CP+1];
     unsigned num = CrossingBezier(A, loc_r, loc_pos_my, loc_pos_other, 1, 1, 0, 0, LOC_MAX_CP);
     //Snap the crosspounsigneds to the start of the curves
     for (unsigned i = 0; i<num; i++) {
@@ -801,22 +801,26 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
             if (ret >= MAX_CP) {
                 //we have too many crosspoints - maybe the two beziers run parallel at a segment?
                 //Which of the endpoints are inside the other segment?
-                double d[4];
-                d[0] =   Distance(A.start, loc_r[0], loc_pos_my[0]);     loc_pos_other[0] = 0; loc_r[0] = A.start;
-                d[1] =   Distance(A.end,   loc_r[1], loc_pos_my[1]);     loc_pos_other[1] = 1; loc_r[1] = A.end;
-                d[2] = A.Distance(  start, loc_r[2], loc_pos_other[2]);  loc_pos_my[2] = 0;    loc_r[2] =   start;
-                d[3] = A.Distance(  end  , loc_r[3], loc_pos_other[3]);  loc_pos_my[3] = 1;    loc_r[3] =   end;
-                unsigned m[2] = {d[0]<d[1] ? 0 : 1, d[0]<d[1] ? 1 : 0};
-                for (unsigned u = 2; u<4; u++)
-                    if (d[u]<d[m[0]]) {
-                        m[1] = m[0]; m[0] = u;
-                    } else if (d[u]<d[m[1]])
-                        m[1] = u;
-                _ASSERT(d[m[0]]<1e-5 && d[m[1]]<1e-5);
+                struct data {
+                    double d;
+                    XY r;
+                    double pos_my;
+                    double pos_other;
+                    bool operator <(const struct data &o) const { return d<o.d; }
+                } d[4];
+                d[0].d =   Distance(A.start, d[0].r, d[0].pos_my);     d[0].pos_other = 0; d[0].r = A.start;
+                d[1].d =   Distance(A.end,   d[1].r, d[1].pos_my);     d[1].pos_other = 1; d[1].r = A.end;
+                d[2].d = A.Distance(  start, d[2].r, d[2].pos_other);  d[2].pos_my = 0;    d[2].r = start;
+                d[3].d = A.Distance(  end  , d[3].r, d[3].pos_other);  d[3].pos_my = 1;    d[3].r = end;
+                std::sort(d, d+4);
+                num = std::unique(d, d+4,   [&](const data &a, const data &b) {return test_equal(a.pos_my, b.pos_my); }) - d;
+                num = std::unique(d, d+num, [&](const data &a, const data &b) {return test_equal(a.pos_other, b.pos_other); }) - d;
+                _ASSERT(num>=2);
+                _ASSERT(d[1].d<0.1);
                 for (unsigned uu = 0; uu<2; uu++) {
-                    r[uu] = loc_r[m[uu]];
-                    pos_my[uu] = loc_pos_my[m[uu]];
-                    pos_other[uu] = loc_pos_other[m[uu]];
+                    r[uu] = d[uu].r;
+                    pos_my[uu] = d[uu].pos_my;
+                    pos_other[uu] = d[uu].pos_other;
                 }
                 return 2;
             }

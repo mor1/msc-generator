@@ -1369,7 +1369,6 @@ void contour_test(void)
     expand_debug = 0;
 #endif
 
-    contour_test_expand2D(7700);
 
     contour_test_basic();
     contour_test_assign(111);
@@ -1380,7 +1379,7 @@ void contour_test(void)
     contour_test_relations(7000);
     contour_test_distance(7100);
     contour_test_cut(7300);
-    //contour_test_expand2D(7700);
+    contour_test_expand2D(7700);
     contour_test_tangent(7400);
     contour_test_bezier(7500);
     contour_test_path(7600);
