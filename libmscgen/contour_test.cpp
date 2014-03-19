@@ -1147,6 +1147,38 @@ void DrawSelfIntersection(CairoContext &c, Edge &A)
         DrawDot(c, r[u]);
 }
 
+void DrawAngle(unsigned num, const Edge &a, double from, double step)
+{
+    Block bbb(-10, 200, -10, 220);
+    bbb += a.CreateBoundingBox().Expand(10);
+    CairoContext ctx(num, bbb);
+    cairo_set_source_rgb(ctx.cr, 0, 0, 0);
+    //cairo_arc(ctx.cr, a.GetStart().x, a.GetStart().y, 2, 0, 2*M_PI);
+    //cairo_fill(ctx.cr);
+    cairo_move_to(ctx.cr, a.GetStart().x, a.GetStart().y);
+    a.PathTo(ctx.cr);
+    cairo_stroke(ctx.cr);
+    for (unsigned u = 0; u<=10; u++) {
+        double pos = from+step*u;
+        if (pos==0) continue; //no incoming at pos==0
+        cairo_move_to(ctx.cr, 100, u*10);
+        char buff[400];
+        RayAngle angle = a.Angle(true, pos);
+        sprintf(buff, "pos: %g, in, angle: (%g, %g)", pos, angle.angle, angle.curve);
+        cairo_show_text(ctx.cr, buff);
+    }
+    for (unsigned u = 0; u<=10; u++) {
+        double pos = from+step*u;
+        if (pos==1) continue;
+        cairo_move_to(ctx.cr, 100, 110+u*10);
+        char buff[400];
+        RayAngle angle = a.Angle(false, pos);
+        sprintf(buff, "pos: %g, out, angle: (%g, %g)", pos, angle.angle, angle.curve);
+        cairo_show_text(ctx.cr, buff);
+    }
+
+}
+
 void contour_test_bezier(unsigned num)
 {
     Edge A(XY(10, 100), XY(110, 100));
@@ -1226,6 +1258,22 @@ void contour_test_bezier(unsigned num)
         DrawIntersection(ctx, B1, OK3);
     }
 
+    std::vector<Edge> a;
+    Edge::GenerateEllipse(a, XY(10, 100), 10, 50, 0, 270, 360);
+    DrawAngle(num+6, a.back(), 0, 0.1);
+    Edge::GenerateEllipse(a, XY(10, 100), 10, 50, 0,360, 270, false);
+    DrawAngle(num+7, a.back(), 0, 0.1);
+    Edge::GenerateEllipse(a, XY(285, 20), 10, 18, 0, 270, 360);
+    DrawAngle(num+8, a.back(), 0, 0.1);
+    Edge::GenerateEllipse(a, XY(285, 20), 10, 18, 0, 180, 270);
+    DrawAngle(num+9, a.back(), 0, 0.1);
+
+    Edge e1(XY(283.83345408981000, 6.9949537647505968), XY(285, 6.5),
+        XY(284.51611207506727, 6.4752218017438317), XY(284.45140398179484, 6.5));
+    DrawAngle(num + 10, e1, 0.9, 0.01);
+    Edge e2(XY(286, 6.5), XY(286.16654591019000, 6.99495376475059680),
+        XY(285.54859601820516, 6.5), XY(285.48388792493273, 6.4752218017438317));
+    DrawAngle(num + 11, e2, 0, 0.01);
 }
 
 
@@ -1352,6 +1400,21 @@ void DebugSnapshot(const Path &path, const std::map<size_t, XY> &cps)
  */
 void contour_test(void)
 {
+
+    //Edge e1(XY(283.83345408981000, 6.9949537647505968), XY(285, 6.5),
+    //    XY(284.51611207506727, 6.4752218017438317), XY(284.45140398179484, 6.5));
+    //DrawAngle(0, e1, 0.9, 0.01);
+    //Edge e2(XY(286, 6.5), XY(286.16654591019000, 6.99495376475059680),
+    //    XY(285.54859601820516, 6.5), XY(285.48388792493273, 6.4752218017438317));
+    //DrawAngle(1, e2, 0, 0.01);
+
+    //Edge ee1 = e1.CreateScaled(100).Shift(e1.GetStart()*-99);
+    //DrawAngle(2, ee1, 0.9, 0.01);
+
+
+
+
+
     generate_forms();
     using namespace generated_forms;
 
@@ -1368,7 +1431,6 @@ void contour_test(void)
 #ifdef _DEBUG
     expand_debug = 0;
 #endif
-
 
     contour_test_basic();
     contour_test_assign(111);
