@@ -883,6 +883,8 @@ void ContoursHelper::AddCrosspoint(const XY &xy, const Contour *m_c1, const Simp
                                                  const Contour *m_c2, const SimpleContour *c2, size_t v2, double p2)
 {
     _ASSERT(p1<1 && p2<1 && p1>=0 && p2>=0);
+    _ASSERT(NULL != &Edge(c1->at(v1)).SetStart(xy, p1)); //SetStart _ASSERTS if xy does not match p1
+    _ASSERT(NULL != &Edge(c2->at(v2)).SetStart(xy, p2)); //SetStart _ASSERTS if xy does not match p2
     //In allrays even indexed positions are incoming edges, odd positions are outgoing ones
     if (p1==0)  //avoid pos==0 and incoming
         AddCrosspointHelper(xy, m_c1, c1, v1, p1, true,  c1->at_prev(v1).Angle(true, 1));
@@ -2097,7 +2099,10 @@ endend:
     SimpleContour ret;
     ret.edges.swap(edges);
     ret.clockwise_fresh = ret.area_fresh = ret.boundingBox_fresh = false;
-    _ASSERT(ret.IsSane());
+    if (!ret.IsSane()) {
+        _ASSERT(0);
+        return SimpleContour();
+    }
     return ret;
 }
 

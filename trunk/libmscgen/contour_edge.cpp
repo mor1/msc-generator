@@ -535,32 +535,53 @@ unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], d
     return num;
 }
 
+const double CP_PRECISION = 1e-8;
+
 /** Returns the crossing of a bezier with an infinite line.
- * We do not filter the result by position values falling outside [0,1]*/
+ * We do not filter the result by position values falling outside [0,1]
+ * Those that fall out in pos_my contains invalid values for pos_other - should be
+ * completely ignored by the caller.*/
 unsigned Edge::CrossingLine(const XY &A, const XY &B, double pos_my[], double pos_segment[]) const
 {
     _ASSERT(!straight);
     _ASSERT(!B.test_equal(A));
     //rotate and shift the bezier so that the line we cross becomes the X axis
     const double l = A.Distance(B);
-    const double sin_r = (B.y-A.y)/l;
-    const double cos_r = (A.x-B.x)/l;
-    const Edge e = CreateShifted(-B).Rotate(cos_r, sin_r);
+    const double sin_r = (A.y-B.y)/l;
+    const double cos_r = (B.x-A.x)/l;
+    const Edge e = CreateShifted(-A).Rotate(cos_r, sin_r);
     //Now find the parameter values of crossing x, (where y=0)
     //A==start, B==c1, C==c2, D==end
     //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
-    double coeff[4] = {e.start.y,
-                       3*(e.c1.y-e.start.y),
-                       3*(e.start.y-2*e.c1.y+e.c2.y),
-                       -e.start.y+3*(e.c1.y-e.c2.y)+e.end.y};
-    unsigned num = solve_degree3(coeff, pos_my);
+    const double coeff[4] = {e.start.y,
+                             3*(e.c1.y-e.start.y),
+                             3*(e.start.y-2*e.c1.y+e.c2.y),
+                             -e.start.y+3*(e.c1.y-e.c2.y)+e.end.y};
+    double cc[4] = {coeff[0], coeff[1], coeff[2], coeff[3]};
+    if (fabs(cc[3])<1e-5)
+        cc[3] = 0;
+    unsigned num = solve_degree3(cc, pos_my);
     //x coordinates of the crosspoints divided by segment length serve as positions of the segment
-    for (unsigned u = 0; u<num; u++) {
-        between01_adjust(pos_my[u]);
-        const XY xy = e.Split(pos_my[u]);
-//        _ASSERT(test_zero(fabs(xy.y)));
-        pos_segment[u] = xy.x/l;
-    }
+    for (unsigned u = 0; u<num; u++) 
+        if (between01_adjust(pos_my[u])) {
+            //refine position found
+            while(1) {
+                double y = ((coeff[3]*pos_my[u] + coeff[2])*pos_my[u] + coeff[1])*pos_my[u] + coeff[0];
+                _ASSERT(!isnan(y));
+                if (fabs(y)<CP_PRECISION) break; //done. y is in pixel space (just rotated) so this means a precision of CP_PRECISION pixels
+                //approximate with the derivative
+                //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
+                const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
+                const double dy_per_dpos = (derive[2]*pos_my[u] +derive[1])*pos_my[u] + derive[0];
+                //protect against horizontal tangent
+                if (fabs(dy_per_dpos)<1e-10)
+                    break;
+                pos_my[u] -= y/dy_per_dpos;
+            }
+            const XY xy = e.Split(pos_my[u]);
+            _ASSERT(test_zero(fabs(xy.y)));
+            pos_segment[u] = xy.x/l;
+        }
     return num;
 }
 
@@ -751,21 +772,48 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * @returns The number of crosspoins found [0..MAX_CP]
 */
 unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
-                        double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
+    double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
     //A quick test: if their bounding box only meets at the joint
     //start/endpoint, we return here    
     if (is_next && !HullOverlap(A, is_next)) return 0;
-    unsigned ret = 0;
-    if (straight && A.straight) {
-        ret = CrossingSegments(A, r, pos_my, pos_other);
-        if (ret==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
-            return 0;
-        goto snap_ends;
-    }
     const unsigned LOC_MAX_CP = MAX_CP*2;
     XY loc_r[LOC_MAX_CP+1];
     double loc_pos_my[LOC_MAX_CP+1], loc_pos_other[LOC_MAX_CP+1];
+    unsigned ret = 0;
+    if (straight) {
+        if (A.straight) {
+            ret = CrossingSegments(A, r, pos_my, pos_other);
+            if (ret==1 && is_next && pos_my[0]==1 && pos_other[0]==1)
+                return 0;
+            goto snap_ends;
+        } else { //A is curvy
+            unsigned num = A.CrossingLine(start, end, loc_pos_other, loc_pos_my);
+            for (unsigned u = 0; u<num; u++)
+                if (between01_adjust(loc_pos_my[u]) && between01_adjust(loc_pos_other[u]))
+                    if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
+                        pos_my[ret] = loc_pos_my[u];
+                        pos_other[ret] = loc_pos_other[u];
+                        r[ret++] = A.Split(loc_pos_other[u]);
+                    }
+            if (ret==0) return 0;
+            goto snap_ends;
+        }
+    }
+    if (A.straight) {
+        //'this' is curvy
+        unsigned num = CrossingLine(A.start, A.end, loc_pos_my, loc_pos_other);
+        for (unsigned u = 0; u<num; u++)
+            if (between01_adjust(loc_pos_other[u]) && between01_adjust(loc_pos_my[u])) 
+                if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
+                    pos_my[ret] = loc_pos_my[u];
+                    pos_other[ret] = loc_pos_other[u];
+                    r[ret++] = Split(loc_pos_my[u]);
+                }
+        if (ret==0) return 0;
+        goto snap_ends;
+    }
+    //Now both are curvy
     unsigned num = CrossingBezier(A, loc_r, loc_pos_my, loc_pos_other, 1, 1, 0, 0, LOC_MAX_CP);
     //Snap the crosspounsigneds to the start of the curves
     for (unsigned i = 0; i<num; i++) {
@@ -1008,14 +1056,30 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
         goto end;
     std::sort(pos, pos+ret);
     for (unsigned i = 0; i<ret; i++) {
+        //refine cp
+        const double coeff[4] = {start.x,
+                                 3*(c1.x-start.x),
+                                 3*(start.x-2*c1.x+c2.x),
+                                 -start.x+3*(c1.x-c2.x)+end.x};
+        while (1) {
+            const double xx = ((coeff[3]*pos[i] + coeff[2])*pos[i] + coeff[1])*pos[i] + coeff[0];
+            if (fabs(xx-x)<CP_PRECISION) break; //done. This means a precision of CP_PRECISION pixels
+            //approximate with the derivative
+            //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
+            const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
+            const double dx_per_dpos = (derive[2]*pos[i] +derive[1])*pos[i] + derive[0];
+            //protect against vertical tangent
+            if (fabs(dx_per_dpos)<1e-10)
+                break;
+            pos[i] += (x-xx)/dx_per_dpos;
+        }
         const double fw_x = NextTangentPoint(pos[i]).x;
         if (test_equal(x, fw_x))
             forward[i] = 0;
         else
             forward[i] = fsign(fw_x-x);
         y[i] = Split(pos[i]).y;
-        //Todo: XXX Refine position 
-        //_ASSERT(test_equal(Split(pos[i]).x, x));
+        _ASSERT(test_equal(Split(pos[i]).x, x));
     }
 
     //Below: Sanitize touching cps. 
@@ -1181,8 +1245,25 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
         for (unsigned i = 0; i<num; i++) {
             if (x[i]+threshold < xy.x) continue;
             if (x[i]-threshold > xy.x) continue;
-            if (fabs(Split(pos[i]).y - xy.y)<0.00001) continue;
-            _ASSERT(0);
+            //refine this cp
+            //A==start, B==c1, C==c2, D==end
+            //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+            const double coeff[4] = {start.y,
+                                     3*(c1.y-start.y),
+                                     3*(start.y-2*c1.y+c2.y),
+                                     -start.y+3*(c1.y-c2.y)+end.y};
+            while (1) {
+                double yy = ((coeff[3]*pos[i] + coeff[2])*pos[i] + coeff[1])*pos[i] + coeff[0];
+                if (fabs(xy.y-yy)<CP_PRECISION) break; //done. y is in pixel space (just rotated) so this means a precision of CP_PRECISION pixels
+                //approximate with the derivative
+                //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
+                const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
+                const double dy_per_dpos = (derive[2]*pos[i] +derive[1])*pos[i] + derive[0];
+                //protect against horizontal tangent
+                if (fabs(dy_per_dpos)<1e-10)
+                    break;
+                pos[i] += (xy.y-yy)/dy_per_dpos;
+            }
         }
     } else if (self && close==1) {
         //if only one cp and we know it is on us, use exact value.
@@ -1256,27 +1337,29 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
 
     //bezier curve radius calc, see http://blog.avangardo.com/2010/10/c-implementation-of-bezier-curvature-calculation/
 
+    typedef long double real;
+
     //first get the derivative
-    const double pos2 = pos * pos;
-    const double s0 = -3 + 6 * pos - 3 * pos2;
-    const double s1 = 3 - 12 * pos + 9 * pos2;
-    const double s2 = 6 * pos - 9 * pos2;
-    const double s3 = 3 * pos2;
-    const double d1x = start.x * s0 + c1.x * s1 + c2.x * s2 + end.x * s3;
-    const double d1y = start.y * s0 + c1.y * s1 + c2.y * s2 + end.y * s3;
+    const real pos2 = pos * pos;
+    const real s0 = -3 + 6 * pos - 3 * pos2;
+    const real s1 = 3 - 12 * pos + 9 * pos2;
+    const real s2 = 6 * pos - 9 * pos2;
+    const real s3 = 3 * pos2;
+    const real d1x = start.x * s0 + c1.x * s1 + c2.x * s2 + end.x * s3;
+    const real d1y = start.y * s0 + c1.y * s1 + c2.y * s2 + end.y * s3;
 
     //then get second derivative
-    const double ss0 = 6 - 6 * pos;
-    const double ss1 = -12 + 18 * pos;
-    const double ss2 = 6 - 18 * pos;
-    const double ss3 = 6 * pos;
-    const double d2x = start.x * ss0 + c1.x * ss1 + c2.x * ss2 + end.x * ss3;
-    const double d2y = start.y * ss0 + c1.y * ss1 + c2.y * ss2 + end.y * ss3;
+    const real ss0 = 6 - 6 * pos;
+    const real ss1 = -12 + 18 * pos;
+    const real ss2 = 6 - 18 * pos;
+    const real ss3 = 6 * pos;
+    const real d2x = start.x * ss0 + c1.x * ss1 + c2.x * ss2 + end.x * ss3;
+    const real d2y = start.y * ss0 + c1.y * ss1 + c2.y * ss2 + end.y * ss3;
 
     //then the radius
-    const double r1 = sqrt(pow(d1x * d1x + d1y * d1y, 3));
-    const double r2 = d1x * d2y - d2x * d1y;
-    const double invRadius = r2 / r1; //the inverse of the (signed) radius
+    const real r1 = sqrt(pow(d1x * d1x + d1y * d1y, 3));
+    const real r2 = d1x * d2y - d2x * d1y;
+    const real invRadius = r2 / r1; //the inverse of the (signed) radius
 
     if (pos==0) //must be outgoing
         return RayAngle(angle_to_horizontal(start, c1), invRadius);

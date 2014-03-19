@@ -4573,9 +4573,17 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
                 //(*i)->pipe_hole_curve.assign_dont_check(hole_line);
                 ////this is only half of the hole ellipsos
                 //(*i)->pipe_hole_curve[0][side == ESide::RIGHT ? 0 : 1].visible = false;
-                (*i)->pipe_hole_curve = Contour(cd, rad.x+gap_for_line, rad.y+gap_for_line,
+                std::vector<Edge> tmp;
+                tmp.reserve(5);
+                Edge::GenerateEllipse(tmp, cd, rad.x+gap_for_line, rad.y+gap_for_line,
                                                 side == ESide::RIGHT ? 0 : 180, 270, 90);
-                (*i)->pipe_hole_curve[0].back().visible = false;
+                const XY s = tmp.front().GetStart();
+                const XY e = tmp.back().GetEnd();
+                const XY off(side == ESide::RIGHT ? -rad.x : rad.x, 0);
+                tmp.emplace_back(e, e + off, false);
+                tmp.emplace_back(e + off, s + off, false);
+                tmp.emplace_back(s + off, s, false);
+                (*i)->pipe_hole_curve.assign_dont_check(tmp);
             } else {
                 //just chop off from fill and line
                 (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
@@ -4885,8 +4893,8 @@ void ArcPipe::DrawPipe(Canvas &canvas, bool topSideFill, bool topSideLine, bool 
             //here variant 1 and 2 result in the same
             canvas.singleLine(pipe_whole_line.CreateExpand(spacing), style.read().line);  //outer
             canvas.SetLineJoin(CAIRO_LINE_JOIN_MITER);
-            canvas.singleLine(pipe_body_line.CreateExpand(-spacing) -
-                                pipe_hole_line.CreateExpand(spacing), style.read().line);  //inner body
+            canvas.singleLine(pipe_body_line.CreateExpand(-spacing), style.read().line);  //inner body  
+                                //pipe_hole_line.CreateExpand(spacing), style.read().line);  //inner body
             canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
             canvas.singleLine(pipe_hole_line.CreateExpand(-spacing), style.read().line);   //inner hole
             cairo_set_line_width(canvas.GetContext(), style.read().line.TripleMiddleWidth());
