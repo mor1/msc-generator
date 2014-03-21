@@ -72,6 +72,7 @@ FIXED: Optimize OffsetBelow with existing offset info
 FIXED: More precise CrossingVertical - refine result
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
+FIX: Fix shape lib on linux
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
