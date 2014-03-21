@@ -21,7 +21,6 @@
  */
 #include <string>
 #include "contour.h"
-#include "contour_bezier.h"
 
 namespace contour {
 
