@@ -668,7 +668,7 @@ bool Edge::HullOverlap(const Edge &o, bool is_next) const
 
 /* Returns the number of crosspoints */
 unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
-                              double pos_my_mul, double pos_other_mul, 
+                              double pos_my_mul, double pos_other_mul,
                               double pos_my_offset, double pos_other_offset, unsigned alloc_size) const
 {
     _ASSERT(alloc_size);
@@ -680,10 +680,10 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
         switch (CrossingSegments_NoSnap(A, r, pos_my, pos_other)) {
         default:
             _ASSERT(0); //fallthrough
-        case 0: 
+        case 0:
             return 0;
         case 2:
-            //parallel segments: take midpoint 
+            //parallel segments: take midpoint
             //(this is clearly a parallel segment due to numeric precision issues)
             pos_my[0] = (pos_my[0]+pos_my[1])/2*pos_my_mul+pos_my_offset;
             pos_other[0] = (pos_other[0]+pos_other[1])/2*pos_other_mul+pos_other_offset;
@@ -710,7 +710,7 @@ unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos
     }
     A.Split(A1, A2);
     pos_other_mul /= 2;
-    num = M1.CrossingBezier(A1, r, pos_my, pos_other, pos_my_mul, pos_other_mul, 
+    num = M1.CrossingBezier(A1, r, pos_my, pos_other, pos_my_mul, pos_other_mul,
         pos_my_offset, pos_other_offset, alloc_size);
     if (num >= alloc_size) return num;
     num += M2.CrossingBezier(A1, r+num, pos_my+num, pos_other+num, pos_my_mul, pos_other_mul,
@@ -775,12 +775,13 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
     double pos_my[Edge::MAX_CP], double pos_other[Edge::MAX_CP]) const
 {
     //A quick test: if their bounding box only meets at the joint
-    //start/endpoint, we return here    
+    //start/endpoint, we return here
     if (is_next && !HullOverlap(A, is_next)) return 0;
     const unsigned LOC_MAX_CP = MAX_CP*2;
     XY loc_r[LOC_MAX_CP+1];
     double loc_pos_my[LOC_MAX_CP+1], loc_pos_other[LOC_MAX_CP+1];
     unsigned ret = 0;
+    unsigned num;
     if (straight) {
         if (A.straight) {
             ret = CrossingSegments(A, r, pos_my, pos_other);
@@ -788,7 +789,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
                 return 0;
             goto snap_ends;
         } else { //A is curvy
-            unsigned num = A.CrossingLine(start, end, loc_pos_other, loc_pos_my);
+            num = A.CrossingLine(start, end, loc_pos_other, loc_pos_my);
             for (unsigned u = 0; u<num; u++)
                 if (between01_adjust(loc_pos_my[u]) && between01_adjust(loc_pos_other[u]))
                     if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
@@ -802,9 +803,9 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
     }
     if (A.straight) {
         //'this' is curvy
-        unsigned num = CrossingLine(A.start, A.end, loc_pos_my, loc_pos_other);
+        num = CrossingLine(A.start, A.end, loc_pos_my, loc_pos_other);
         for (unsigned u = 0; u<num; u++)
-            if (between01_adjust(loc_pos_other[u]) && between01_adjust(loc_pos_my[u])) 
+            if (between01_adjust(loc_pos_other[u]) && between01_adjust(loc_pos_my[u]))
                 if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
                     pos_my[ret] = loc_pos_my[u];
                     pos_other[ret] = loc_pos_other[u];
@@ -814,7 +815,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
         goto snap_ends;
     }
     //Now both are curvy
-    unsigned num = CrossingBezier(A, loc_r, loc_pos_my, loc_pos_other, 1, 1, 0, 0, LOC_MAX_CP);
+    num = CrossingBezier(A, loc_r, loc_pos_my, loc_pos_other, 1, 1, 0, 0, LOC_MAX_CP);
     //Snap the crosspounsigneds to the start of the curves
     for (unsigned i = 0; i<num; i++) {
         if (test_zero(loc_pos_my[i])) {
@@ -928,7 +929,7 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
          *          --  -- /      The asterisk is the point where the
          *         /      X       tangent is vertical. X is the crosspoint
          *        *      / \
-         *         \____/         
+         *         \____/
         */
         Split(roots[0], A, B);
         num = A.CrossingBezier(B, r, pos1, pos2, roots[0], 1-roots[0], 0, roots[0], MAX_CP);
@@ -959,8 +960,8 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
             num--;
         }
     //remove duplicates
-    for (unsigned u = 0; u+1<num; u++) 
-        for (unsigned uu = u+1; uu<num; uu++) 
+    for (unsigned u = 0; u+1<num; u++)
+        for (unsigned uu = u+1; uu<num; uu++)
             if (fabs(pos1[u]-pos1[uu])<1e-10 || fabs(pos2[u]-pos2[uu])<1e-10) {
                 std::copy(pos1+uu+1, pos1+num, pos1+uu);
                 std::copy(pos2+uu+1, pos2+num, pos2+uu);
@@ -968,8 +969,8 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
                 num--;
             }
     if (num<=1) return num;
-    //We can have a lot of crosspoints here, due to numerical problems, 
-    //e.g., when a 
+    //We can have a lot of crosspoints here, due to numerical problems,
+    //e.g., when a
     //pick the widest -if possible
     unsigned min = std::min_element(pos1, pos1+num) - pos1;
     //_ASSERT(min == std::max_element(pos2, pos2+num) - pos2);
@@ -1053,7 +1054,7 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
 
     unsigned ret = atX(x, pos);
     if (ret==0)
-        goto end;
+        return 0;
     std::sort(pos, pos+ret);
     for (unsigned i = 0; i<ret; i++) {
         //refine cp
@@ -1134,7 +1135,7 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
         case -1:
             //if the endpoint is right-to left, we ignore it
             if (--ret==0)
-                goto end;
+                return 0;
     }
     if (pos[0]==0)
         switch (forward[0]) {
@@ -1150,26 +1151,13 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
         case 1:
             //if the start point is left to right, we ignore it
             if (--ret==0)
-                goto end;
+                return 0;
             for (unsigned u = 0; u<ret; u++) {
                 forward[u] = forward[u+1];
                 y[u] = y[u+1];
                 pos[u] = pos[u+1];
             }
     }
-
-end:
-    return ret;
-    //the code below is just for error checking - remove when done.
-    double loc_pos[3], loc_y[3];
-    bool loc_fw[3];
-    unsigned a = CrossingVerticalBezier(x, loc_y, loc_pos, loc_fw, 1, 0);
-    std::sort(loc_pos, loc_pos+a);
-    if (!test_equal(x, start.x) && !test_equal(x, end.x))
-        _ASSERT(a==ret && ((a==0) || (a==1 && 0.01>fabs(loc_pos[0] - pos[0])) ||
-            (a==2 && 0.01>fabs(loc_pos[0] - pos[0]) && 0.01>fabs(loc_pos[1] - pos[1])) ||
-            (a==3 && 0.01>fabs(loc_pos[0] - pos[0]) && 0.01>fabs(loc_pos[1] - pos[1]) && 0.01>fabs(loc_pos[2] - pos[2]))));
-
     return ret;
 }
 
@@ -1332,7 +1320,7 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
     _ASSERT(!incoming || pos>0); //shoud not ask for an incoming angle at pos==0
     _ASSERT(incoming  || pos<1); //shoud not ask for an outgoing angle at pos==0
     if (straight)
-        return RayAngle(incoming ? angle_to_horizontal(end, start) : 
+        return RayAngle(incoming ? angle_to_horizontal(end, start) :
                                    angle_to_horizontal(start, end));
 
     //bezier curve radius calc, see http://blog.avangardo.com/2010/10/c-implementation-of-bezier-curvature-calculation/
@@ -1420,7 +1408,7 @@ XY Edge::XMaxExtreme(double &p) const
     if (straight) {
         p = start.x>end.x ? 0. : 1.;
         return start.x>end.x ? start : end;
-    } 
+    }
 
     //from: http://stackoverflow.com/questions/2587751/an-algorithm-to-find-bounding-box-of-closed-bezier-curves
     std::vector<double> pos;
@@ -1433,31 +1421,28 @@ XY Edge::XMaxExtreme(double &p) const
     double a = -3 * start.x + 9 * c1.x - 9 * c2.x + 3 * end.x;
     double c = 3 * c1.x - 3 * start.x;
     if (a == 0) {
-        if (b == 0) {
-            goto end;
+        if (b != 0) {
+            double t = -c / b;
+            if (0 < t && t < 1) {
+                pos.push_back(t);
+                xy.push_back(Split(t));
+            }
         }
-        double t = -c / b;
-        if (0 < t && t < 1) {
-            pos.push_back(t);
-            xy.push_back(Split(t));
+    } else {
+        double b2ac = pow(b, 2) - 4 * c * a;
+        if (b2ac >= 0) {
+            double  t1 = (-b + sqrt(b2ac))/(2 * a);
+            if (0 < t1 && t1 < 1) {
+                pos.push_back(t1);
+                xy.push_back(Split(t1));
+            }
+            double  t2 = (-b - sqrt(b2ac))/(2 * a);
+            if (0 < t2 && t2 < 1) {
+                pos.push_back(t2);
+                xy.push_back(Split(t2));
+            }
         }
-        goto end;
     }
-    double b2ac = pow(b, 2) - 4 * c * a;
-    if (b2ac < 0) {
-        goto end;
-    }
-    double  t1 = (-b + sqrt(b2ac))/(2 * a);
-    if (0 < t1 && t1 < 1) {
-        pos.push_back(t1);
-        xy.push_back(Split(t1));
-    }
-    double  t2 = (-b - sqrt(b2ac))/(2 * a);
-    if (0 < t2 && t2 < 1) {
-        pos.push_back(t2);
-        xy.push_back(Split(t2));
-    }
-end:
     const auto X = std::max_element(xy.begin(), xy.end(),
                    [](const XY &a, const XY &b) {return a.x<b.x; });
     p = pos[X - xy.begin()];
@@ -1493,7 +1478,7 @@ int solveCubic(double a, double b, double c, float* r)
     return 3;
 }
 
-double SectionPointDistance(const XY&A, const XY&B, const XY &M, XY &point, double &pos) 
+double SectionPointDistance(const XY&A, const XY&B, const XY &M, XY &point, double &pos)
 {
     if (test_equal(A.x, B.x)) {
         point.x = A.x;
@@ -1540,7 +1525,7 @@ double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonneg
 {
     if (straight)
         return SectionPointDistance(start, end, M, point, pos);
-   
+
     double result[5];
     const unsigned num = SolveForDistance(M, result);
     double d = std::min(start.DistanceSqr(M), end.DistanceSqr(M));
@@ -1621,7 +1606,7 @@ double Edge::HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) co
 /** Assuming 'p' is on the bezier, return the corresponding parameter */
 double Edge::FindBezierParam(const XY &p) const
 {
-    if (straight) 
+    if (straight)
         return point2pos_straight(start, end, p);
     double result[4];
     const unsigned num = SolveForDistance(p, result);
@@ -1798,7 +1783,7 @@ void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int
     if (straight) {
         const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
                      Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
-        ret.emplace_back(start+off, end+off, !!visible);
+        ret.emplace_back(start+off, end+off, bool(!!visible));
         Edge &e = ret.back();
         //expand for horizontal and vertical edges
         if (start.x == end.x) {
@@ -1844,10 +1829,13 @@ void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int
         if (0 < t2 && t2 < 1)
             bounds.push_back(t2);
     }
+    for (double &v : bounds)
+        if (test_zero(v))
+            v = 0;
+        else if (test_equal(1, v))
+            v = 1;
     std::sort(bounds.begin(), bounds.end());
-    for (unsigned u = 1; u<bounds.size(); u++)
-        if (bounds[u-1]==bounds[u])
-            bounds.erase(bounds.begin()+u);
+    bounds.erase(std::unique(bounds.begin(), bounds.end(), [](double a, double b) {return test_equal(a, b); }), bounds.end());
     //now bounds contain a sorted list of extreme points
     //and all values are distinct
 
@@ -2072,7 +2060,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
             if (num) {
                 //if several crosspoints: use the one closest to the end of the bezier
                 unsigned pos = 0;
-                for (unsigned u = 1; u<num; u++)
+                for (int u = 1; u<num; u++)
                     if (pos_us[u]> pos_us[pos])
                         pos = u;
                 newcp = r[pos];
@@ -2090,7 +2078,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
             if (num) {
                 //if several crosspoints: use the one closest to the start of the bezier
                 unsigned pos = 0;
-                for (unsigned u = 1; u<num; u++)
+                for (int u = 1; u<num; u++)
                     if (pos_M[u] < pos_M[pos])
                         pos = u;
                 newcp = r[pos];
@@ -2105,7 +2093,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
             if (num) {
                 //several crosspoints: use the one closest to the end of us
                 unsigned pos = 0;
-                for (unsigned u = 1; u<num; u++)
+                for (int u = 1; u<num; u++)
                     if (pos_us[u]> pos_us[pos])
                         pos = u;
                 newcp = r[pos];
@@ -2188,7 +2176,7 @@ void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double rad
             append_to.back().Chop(0, d_deg-floor(d_deg));
         }
     }
-    //Now we have (part of) a unit circle. 
+    //Now we have (part of) a unit circle.
     for (size_t i = original_size; i<append_to.size(); i++) {
         //Distort to make an ellipse
         append_to[i].Scale(XY(radius_x, radius_y));
@@ -2289,141 +2277,96 @@ left_intercept = 0.0 and right_intercept = 0.9.
 
 bool ControlPolygonFlatEnough(const XY V[6]) 
 {
-    int     i;        /* Index variable        */
-    double  value;
-    double  max_distance_above;
-    double  max_distance_below;
-    double  error;        /* Precision of root        */
-    double  intercept_1,
-        intercept_2,
-        left_intercept,
-        right_intercept;
-    double  det, dInv;
-    double  a2, b2, c2;
-
-    /* Coefficients of implicit    */
-    /* eqn for line from V[0]-V[deg]*/
-    /* Derive the implicit equation for line connecting first *'
-    /*  and last control points */
+    /* Coefficients of implicit
+     * eqn for line from V[0]-V[deg]
+     * Derive the implicit equation for line connecting first
+     *  and last control points */
     const double a = V[0].y - V[5].y;
     const double b = V[5].x - V[0].x;
     const double c = V[0].x * V[5].y - V[5].x * V[0].y;
 
-    max_distance_above = max_distance_below = 0.0;
+    double  max_distance_above = 0;
+    double  max_distance_below = 0;
 
-    for (i = 1; i < 5; i++) {
-        value = a * V[i].x + b * V[i].y + c;
-
+    for (unsigned i = 1; i < 5; i++) {
+        const double value = a * V[i].x + b * V[i].y + c;
         if (value > max_distance_above) {
             max_distance_above = value;
         } else if (value < max_distance_below) {
             max_distance_below = value;
         }
     }
-
-    /*  Implicit equation for zero line */
-    const double a1 = 0.0;
-    const double b1 = 1.0;
-    const double c1 = 0.0;
-
-    /*  Implicit equation for "above" line */
-    a2 = a;
-    b2 = b;
-    c2 = c - max_distance_above;
-
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
-
-    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
-
-    /*  Implicit equation for "below" line */
-    a2 = a;
-    b2 = b;
-    c2 = c - max_distance_below;
-
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
-
-    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
-
-    /* Compute intercepts of bounding box    */
-    left_intercept = std::min(intercept_1, intercept_2);
-    right_intercept = std::max(intercept_1, intercept_2);
-
-    error = right_intercept - left_intercept;
     const double error_better = fabs((max_distance_below-max_distance_above)/a);
-
-    return (error_better < EPSILON) ? 1 : 0;
+    return error_better < EPSILON;
 }
 
 
-bool ControlPolygonFlatEnough_Original(const XY V[6])
-{
-    int     i;        /* Index variable        */
-    double  value;
-    double  max_distance_above = 0;
-    double  max_distance_below = 0;
-    double  error;        /* Precision of root        */
-    double  intercept_1,
-        intercept_2,
-        left_intercept,
-        right_intercept;
-    double  det, dInv;
-    double  a2, b2, c2;
-
-    /* Coefficients of implicit    */
-    /* eqn for line from V[0]-V[deg]*/
-    /* Derive the implicit equation for line connecting first *'
-    /*  and last control points */
-    const double a = V[0].y - V[5].y;
-    const double b = V[5].x - V[0].x;
-    const double c = V[0].x * V[5].y - V[5].x * V[0].y;
-
-
-    const double abSquared = (a * a) + (b * b);
-
-    for (i = 1; i < 5; i++) {
-        /* Compute distance from each of the points to that line    */
-        const double distance = a * V[i].x + b * V[i].y + c;
-        if (distance > 0.0)
-            max_distance_above = std::max((distance * distance) / abSquared, max_distance_above);
-        else if (distance < 0.0)
-            max_distance_below = std::min(-(distance * distance) / abSquared, max_distance_below);
-    }
-    /*  Implicit equation for zero line */
-    const double a1 = 0.0;
-    const double b1 = 1.0;
-    const double c1 = 0.0;
-
-    /*  Implicit equation for "above" line */
-    a2 = a;
-    b2 = b;
-    c2 = c + max_distance_above;
-
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
-
-    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
-
-    /*  Implicit equation for "below" line */
-    a2 = a;
-    b2 = b;
-    c2 = c + max_distance_below;
-
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
-
-    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
-
-    /* Compute intercepts of bounding box    */
-    left_intercept = std::min(intercept_1, intercept_2);
-    right_intercept = std::max(intercept_1, intercept_2);
-
-    error = 0.5 * (right_intercept-left_intercept);
-    const double error_better = fabs((max_distance_below-max_distance_above)/a)/2;
-
-    return (error_better < EPSILON) ? 1 : 0;
-}
+//bool ControlPolygonFlatEnough_Original(const XY V[6])
+//{
+//    int     i;        /* Index variable        */
+//    double  max_distance_above = 0;
+//    double  max_distance_below = 0;
+//    double  error;        /* Precision of root        */
+//    double  intercept_1,
+//            intercept_2,
+//            left_intercept,
+//            right_intercept;
+//    double  det, dInv;
+//    double  a2, b2, c2;
+//
+//    /* Coefficients of implicit
+//     * eqn for line from V[0]-V[deg]
+//     * Derive the implicit equation for line connecting first
+//     *  and last control points */
+//    const double a = V[0].y - V[5].y;
+//    const double b = V[5].x - V[0].x;
+//    const double c = V[0].x * V[5].y - V[5].x * V[0].y;
+//
+//
+//    const double abSquared = (a * a) + (b * b);
+//
+//    for (i = 1; i < 5; i++) {
+//        /* Compute distance from each of the points to that line    */
+//        const double distance = a * V[i].x + b * V[i].y + c;
+//        if (distance > 0.0)
+//            max_distance_above = std::max((distance * distance) / abSquared, max_distance_above);
+//        else if (distance < 0.0)
+//            max_distance_below = std::min(-(distance * distance) / abSquared, max_distance_below);
+//    }
+//    /*  Implicit equation for zero line */
+//    const double a1 = 0.0;
+//    const double b1 = 1.0;
+//    const double c1 = 0.0;
+//
+//    /*  Implicit equation for "above" line */
+//    a2 = a;
+//    b2 = b;
+//    c2 = c + max_distance_above;
+//
+//    det = a1 * b2 - a2 * b1;
+//    dInv = 1.0/det;
+//
+//    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+//
+//    /*  Implicit equation for "below" line */
+//    a2 = a;
+//    b2 = b;
+//    c2 = c + max_distance_below;
+//
+//    det = a1 * b2 - a2 * b1;
+//    dInv = 1.0/det;
+//
+//    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+//
+//    /* Compute intercepts of bounding box    */
+//    left_intercept = std::min(intercept_1, intercept_2);
+//    right_intercept = std::max(intercept_1, intercept_2);
+//
+//    error = 0.5 * (right_intercept-left_intercept);
+//    const double error_better = fabs((max_distance_below-max_distance_above)/a)/2;
+//
+//    return (error_better < EPSILON) ? 1 : 0;
+//}
 
 /*
 *  ComputeXIntercept :
@@ -2482,7 +2425,6 @@ void Bezier(const XY V[6], double t, XY Left[6], XY Right[6])
 */
 unsigned FindRoots(XY w[6], double t[5], unsigned depth)
 {
-    int 	i;
     XY 	Left[6],	/* New left and right 		*/
         Right[6];	/* control polygons		*/
 
@@ -2497,7 +2439,7 @@ unsigned FindRoots(XY w[6], double t[5], unsigned depth)
             t[0] = (w[0].x + w[5].x) / 2.0;
             return 1;
         }
-        if (ControlPolygonFlatEnough_Original(w)) {
+        if (ControlPolygonFlatEnough(w)) {
             t[0] = ComputeXIntercept(w);
             return 1;
         }
@@ -2620,7 +2562,7 @@ unsigned Edge::atY(double y, double roots[3]) const
 *                       requires to split the edge to several pieces append
 *                       the split chunks of the original here.
 */
-bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent, 
+bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent,
                         std::vector<Edge> *original) const
 {
     _ASSERT(!IsDot());
@@ -2628,7 +2570,7 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent,
     if (straight) {
         const double length = start.Distance(end);
         const XY wh = (end-start).Rotate90CCW()/length*gap;
-        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
+        expanded.emplace_back(start+wh, end+wh, bool(!!visible)); //Visual Studio complains for bitfields in such templates
         if (original)
             original->push_back(*this);
         prev_tangent = 2*start-end + wh;
@@ -2697,7 +2639,7 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent,
             e.CreateExpandOneSegment(gap, tmp, original);
             //If e degenerated to a line, we need to adjust the endpoints to
             //expand along the original tangents.
-            if (e.IsStraight() && k==0) 
+            if (e.IsStraight() && k==0)
                 tmp.front().start = start + (c1-start).Rotate90CCW().Normalize()*gap;
             if (e.IsStraight() && k==t.size()-1)
                 tmp.back().end = end + (end-c2).Rotate90CCW().Normalize()*gap;
@@ -2724,7 +2666,7 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
     if (straight) {
         const double length = start.Distance(end);
         const XY wh = (end-start).Rotate90CCW()/length*gap;
-        expanded.emplace_back(start+wh, end+wh, !!visible); //Visual Studio complains for bitfields in such templates
+        expanded.emplace_back(start+wh, end+wh, bool(!!visible)); //Visual Studio complains for bitfields in such templates
         if (original)
             original->push_back(*this);
         return true;
@@ -2758,14 +2700,13 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
         new_c1 = c1+wh1;
         new_c2 = c2+wh2;
     }
-    expanded.emplace_back(new_start, new_end, new_c1, new_c2, !!visible);
+    expanded.emplace_back(new_start, new_end, new_c1, new_c2, bool(!!visible));
 
     //Test error of the resulting offset curve
     const double EPSILON = 0.1;
     //offset the middle point of the result along the normal of the result back onto the original
     const XY Mid = expanded.back().Split();
     const XY Normal = (expanded.back().NextTangentPoint(0.5)-Mid).Rotate90CW()+Mid;
-    XY r[9];
     double pos_me[9], pos_seg[9];
     unsigned num = CrossingLine(Mid, Normal, pos_me, pos_seg);
     _ASSERT(num);
@@ -2800,74 +2741,94 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
 }
 
 //helpers for offsetbelow
-double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
+double Edge::OffsetBelow(const Edge &o, double &touchpoint, double min_so_far) const
 {
+    const Range AB = GetHullXRange();
+    const Range MN = o.GetHullXRange();
+    if (!AB.Overlaps(MN)) return min_so_far;
+    if (GetHullYRange().till+min_so_far <= o.GetHullYRange().from)
+        return min_so_far;
+
     if (straight && o.straight) {
         //calc for two straight edges
-        const double minAB = std::min(start.x, end.x);
-        const double maxAB = std::max(start.x, end.x);
-        const double minMN = std::min(o.GetStart().x, o.GetEnd().x);
-        const double maxMN = std::max(o.GetStart().x, o.GetEnd().x);
-        if (minAB > maxMN || minMN > maxAB) return CONTOUR_INFINITY;
-        const double x1 = std::max(minAB, minMN);
-        const double x2 = std::min(maxAB, maxMN);
+        const double x1 = std::max(AB.from, MN.from);
+        const double x2 = std::min(AB.till, MN.till);
         if (start.x == end.x) {
-            touchpoint = std::max(start.y, end.y);
+            double off;
             if (o.GetStart().x == o.GetEnd().x)
-                return std::min(o.GetStart().y, o.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
-            return (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(start.x-o.GetStart().x) + o.GetStart().y -
-                std::max(start.y, end.y);
+                off = std::min(o.GetStart().y, o.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
+            else 
+                off = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(start.x-o.GetStart().x) + o.GetStart().y -
+                      std::max(start.y, end.y);
+            if (off<min_so_far) {
+                touchpoint = std::max(start.y, end.y);
+                return off;
+            }
+            return min_so_far;
         }
         if (o.GetStart().x == o.GetEnd().x) {
-            touchpoint = (start.y-end.y)/(start.x-end.x)*(o.GetStart().x-start.x) + start.y;
-            return std::min(o.GetStart().y, o.GetEnd().y) - touchpoint;
+            double tp = (start.y-end.y)/(start.x-end.x)*(o.GetStart().x-start.x) + start.y;
+            double off = std::min(o.GetStart().y, o.GetEnd().y) - tp;
+            if (off<min_so_far) {
+                touchpoint = tp;
+                return off;
+            }
+            return min_so_far;
         }
         const double y1 = ((start.y-end.y)/(start.x-end.x)*(x1-start.x) + start.y);
         const double y2 = ((start.y-end.y)/(start.x-end.x)*(x2-start.x) + start.y);
         const double diff1 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x1-o.GetStart().x) + o.GetStart().y - y1;
         const double diff2 = (o.GetEnd().y-o.GetStart().y)/(o.GetEnd().x-o.GetStart().x)*(x2-o.GetStart().x) + o.GetStart().y - y2;
-        if (diff1<diff2) {
-            touchpoint = y1;
-            return diff1;
+        if (std::min(diff1, diff2)<min_so_far) {
+            touchpoint = diff1<diff2 ? y1 : y2;
+            return std::min(diff1, diff2);
         }
-        touchpoint = y2;
-        return diff2;
+        return min_so_far;
     }
     if (straight) {
         if (!o.CreateBoundingBox().x.Overlaps(Range(std::min(start.x, end.x), std::max(start.x, end.x))))
-            return CONTOUR_INFINITY;
+            return min_so_far;
         Edge E1, E2;
         o.Split(E1, E2);
-        double t1, t2;
-        const double o1 = OffsetBelow(E1, t1);
-        const double o2 = OffsetBelow(E1, t2);
-        touchpoint = o1<o2 ? t1 : t2;
-        return std::min(o1, o2);
+        min_so_far = OffsetBelow(E1, touchpoint, min_so_far);
+        min_so_far = OffsetBelow(E1, touchpoint, min_so_far);
+        return min_so_far;
     }
     if (o.straight) {
         if (!CreateBoundingBox().x.Overlaps(Range(std::min(o.start.x, o.end.x), std::max(o.start.x, o.end.x))))
-            return CONTOUR_INFINITY;
+            return min_so_far;
         Edge E1, E2;
         Split(E1, E2);
-        double t1, t2;
-        const double o1 = E1.OffsetBelow(o, t1);
-        const double o2 = E2.OffsetBelow(o, t2);
-        touchpoint = o1<o2 ? t1 : t2;
-        return std::min(o1, o2);
+        min_so_far = E1.OffsetBelow(o, touchpoint, min_so_far);
+        min_so_far = E2.OffsetBelow(o, touchpoint, min_so_far);
+        return min_so_far;
     }
     if (!CreateBoundingBox().x.Overlaps(o.CreateBoundingBox().x))
-        return CONTOUR_INFINITY;
+        return min_so_far;
     Edge E1, E2, F1, F2;
     Split(E1, E2);
     o.Split(F1, F2);
-    double t[4], ob[4];
-    ob[0] = E1.OffsetBelow(F1, t[0]);
-    ob[1] = E2.OffsetBelow(F1, t[1]);
-    ob[2] = E1.OffsetBelow(F2, t[2]);
-    ob[3] = E2.OffsetBelow(F2, t[3]);
-    const unsigned u = std::min_element(ob+0, ob+3) - ob;
-    touchpoint = t[u];
-    return ob[u];
+    min_so_far = E1.OffsetBelow(F1, touchpoint, min_so_far);
+    min_so_far = E2.OffsetBelow(F1, touchpoint, min_so_far);
+    min_so_far = E1.OffsetBelow(F2, touchpoint, min_so_far);
+    min_so_far = E2.OffsetBelow(F2, touchpoint, min_so_far);
+    return min_so_far;
+}
+
+/** Helper to TangentFrom */
+void Edge::TangentFromRecursive(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    if (straight) {
+        if (CLOCKWISE == triangle_dir(from, clockwise, start))
+            clockwise = start;
+        if (COUNTERCLOCKWISE == triangle_dir(from, cclockwise, start))
+            clockwise = start;
+    } else {
+        Edge E1, E2;
+        Split(E1, E2);
+        E1.TangentFromRecursive(from, clockwise, cclockwise);
+        E2.TangentFromRecursive(from, clockwise, cclockwise);
+    }
 }
 
 /** Calculates the touchpoint of tangents drawn from a given point.
@@ -2887,15 +2848,15 @@ double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
 */
 void Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
+    clockwise = cclockwise = start;
     if (straight)
-        clockwise = cclockwise = start;
-    else {
-        Edge E1, E2;
-        Split(E1, E2);
-        E1.TangentFrom(from, clockwise, cclockwise);
-        E2.TangentFrom(from, clockwise, cclockwise);
-    }
+        return;
+    Edge E1, E2;
+    Split(E1, E2);
+    E1.TangentFromRecursive(from, clockwise, cclockwise);
+    E2.TangentFromRecursive(from, clockwise, cclockwise);
 }
+
 
 /** Calculates the touchpoint of tangents drawn to touch two edges.
 *
@@ -2921,7 +2882,6 @@ void Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
     clockwise[0] = minmax_clockwise(clockwise[1], start, clockwise[0], false);
     cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
 
-    XY cw[2], ccw[2];
     if (straight) {
         if (!o.straight) {
             Edge E1, E2;

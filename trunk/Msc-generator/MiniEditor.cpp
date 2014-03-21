@@ -857,7 +857,7 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, UpdateCSHType updateCSH)
                 last_change.start = last_change.head ? last_change.pos : last_change.pos - last_change.del;
             } else {
                 //here we deleted less than the selection (some insertion was going on)
-                last_change.ins = length_now + last_change.sel_length_before - last_change.length_before;
+                last_change.ins = length_now + last_change.sel_length_before + last_change.cr_in_sel - last_change.length_before;
                 last_change.del = last_change.sel_length_before;
                 last_change.start = last_change.pos;
                 _ASSERT(last_change.head);

@@ -169,6 +169,8 @@ void DoubleMap<element>::Prune()
     }
 }
 
+class SimpleContour;
+class Contour;
 
 class Path
 {
@@ -180,19 +182,19 @@ private:
     Edge       &at(size_t i) { return edges[i]; }          ///<Returns reference to edge at index `i`.
 public:
     Path() = default;  ///<Create an empty path with no edges.
-    Path(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360);
+    Path(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360, bool add_closing_line=true);
     Path(const Path &p) = default; ///<Create a copy of another path
     Path(Path &&p) { swap(p); }  ///<Move content of another path. The other path gets undefined.
-    Path(const std::vector<XY> &v) { assign(v); }      
+    Path(const std::vector<XY> &v) { assign(v); }
     Path(const XY v[], size_t size) { assign(v, size); }
-    template<size_t size> Path(const XY(&v)[size]) { assign(v, size); } 
-    Path(const std::vector<Edge> &v) : edges(v) {}    
-    Path(std::vector<Edge> &&v) : edges(std::move(v)) {}  
-    Path(const Edge v[], size_t size) { assign(v, size); } 
-    template<size_t size> Path(const Edge(&v)[size]) { assign(v, size); } ///<Set path content to `v`. 
+    template<size_t size> Path(const XY(&v)[size]) { assign(v, size); }
+    Path(const std::vector<Edge> &v) : edges(v) {}
+    Path(std::vector<Edge> &&v) : edges(std::move(v)) {}
+    Path(const Edge v[], size_t size) { assign(v, size); }
+    template<size_t size> Path(const Edge(&v)[size]) { assign(v, size); } ///<Set path content to `v`.
     Path(const SimpleContour &p) { assign(p); }
     Path(const Contour &p) { assign(p); }
-    
+
     Path &operator =(Path &&p) { if (this!=&p) swap(p);  return *this; }
     Path &operator =(const Path &p) { if (this!=&p) edges = p.edges; return *this; }
     Edge &operator[](size_t edge) { return at(edge); }  ///<Returns reference to edge at index `i`.
@@ -206,25 +208,25 @@ public:
     void swap(Path &b) { edges.swap(b.edges); };
     void clear() { edges.clear(); } ///<Empty the shape by deleting all edges.
 
-    Path &append(const std::vector<XY> &v, bool ensure_connect = false);      ///<Append `v` to path. 
-    Path &append(const XY v[], size_t size, bool ensure_connect = false);  ///<Append `v` of size `size` to path. 
-    template<size_t size> Path &append(const XY(&v)[size]) { return append(v, size, ensure_connect); } ///<Append `v` to path. 
-    Path &append(const std::vector<Edge> &v, bool ensure_connect = false);    ///<Append `v` to path. 
-    Path &append(const Edge v[], size_t size, bool ensure_connect = false);///<Append `v` of size `size` to path. 
-    template<size_t size> Path &append(const Edge(&v)[size]) { return append(v, size, ensure_connect); } ///<Append `v` to path. 
-    Path &append(const Path &p, bool ensure_connect = false);      ///<Append `p` to path. 
-    Path &append(const SimpleContour &);                        ///<Append `p` to path. 
+    Path &append(const std::vector<XY> &v, bool ensure_connect = false);      ///<Append `v` to path.
+    Path &append(const XY v[], size_t size, bool ensure_connect = false);  ///<Append `v` of size `size` to path.
+    template<size_t size> Path &append(const XY(&v)[size], bool ensure_connect = false) { return append(v, size, ensure_connect); } ///<Append `v` to path.
+    Path &append(const std::vector<Edge> &v, bool ensure_connect = false);    ///<Append `v` to path.
+    Path &append(const Edge v[], size_t size, bool ensure_connect = false);///<Append `v` of size `size` to path.
+    template<size_t size> Path &append(const Edge(&v)[size], bool ensure_connect = false) { return append(v, size, ensure_connect); } ///<Append `v` to path.
+    Path &append(const Path &p, bool ensure_connect = false);      ///<Append `p` to path.
+    Path &append(const SimpleContour &);                        ///<Append `p` to path.
     Path &append(const Contour &);                               ///<Append `p` to path. Defined in contour.h
 
-    Path &assign(const std::vector<XY> &v) { clear(); append(v); return *this; }      ///<Set path content to `v`. 
-    Path &assign(const XY v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`. 
-    template<size_t size> Path &assign(const XY(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`. 
-    Path &assign(const std::vector<Edge> &v) { edges = v; return *this; };    ///<Set path content to `v`. 
-    Path &assign(std::vector<Edge> &&v) { edges.swap(v); return *this; };       ///<Set path content to `v`. 
-    Path &assign(const Edge v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`. 
-    template<size_t size> Path &assign(const Edge(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`. 
-    Path &assign(const Path &p) { return *this = p; return *this; }      ///<Make us equal to p 
-    Path &assign(Path &&p) { swap(p); return *this; return *this; }      ///<Make us equal to p 
+    Path &assign(const std::vector<XY> &v) { clear(); append(v); return *this; }      ///<Set path content to `v`.
+    Path &assign(const XY v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`.
+    template<size_t size> Path &assign(const XY(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`.
+    Path &assign(const std::vector<Edge> &v) { edges = v; return *this; };    ///<Set path content to `v`.
+    Path &assign(std::vector<Edge> &&v) { edges.swap(v); return *this; };       ///<Set path content to `v`.
+    Path &assign(const Edge v[], size_t size) { clear(); append(v, size); return *this; } ///<Set path content to `v` of size `size`.
+    template<size_t size> Path &assign(const Edge(&v)[size]) { assign(v, size); return *this; } ///<Set path content to `v`.
+    Path &assign(const Path &p) { return *this = p; return *this; }      ///<Make us equal to p
+    Path &assign(Path &&p) { swap(p); return *this; return *this; }      ///<Make us equal to p
     Path &assign(const SimpleContour &);  ///<Make us equal to p
     Path &assign(const Contour &);          ///<Make us equal to p. Defined in contour.h
 
@@ -240,7 +242,7 @@ public:
     Path &Shift(const XY &xy) { for (auto &e : edges) e.Shift(xy); return *this; } ///<Translates the path.
     Path &Scale(double sc) { for (auto &e : edges) e.Scale(sc); return *this;} ///<Scale the path.
     Path &Scale(const XY &sc) { for (auto &e : edges) e.Scale(sc); return *this;} ///<Scale the path.
-    Path &SwapXY() { for (auto &e : edges) e.SwapXY(); return *this;} ///<Transpose the path: swap XY coordinates 
+    Path &SwapXY() { for (auto &e : edges) e.SwapXY(); return *this;} ///<Transpose the path: swap XY coordinates
     Path &Rotate(double degree) { return Rotate(cos(degree/180*M_PI), sin(degree/180*M_PI)); }
     Path &Rotate(double cos, double sin) { for (auto &e : edges) e.Rotate(cos, sin); return *this;} ///<Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
     Path &RotateAround(const XY&c, double degree) { return RotateAround(c, cos(degree/180*M_PI), sin(degree/180*M_PI)); }
@@ -250,7 +252,7 @@ public:
     Path CreateShifted(const XY &xy) const { Path tmp(*this); return tmp.Shift(xy); } ///<Translates the path.
     Path CreateScaled(double sc) const { Path tmp(*this); return tmp.Scale(sc); } ///<Scale the path.
     Path CreateScaled(const XY &sc) const { Path tmp(*this); return tmp.Scale(sc); } ///<Scale the path.
-    Path CreateSwapXYd() const { Path tmp(*this); return tmp.SwapXY(); } ///<Transpose the path: swap XY coordinates 
+    Path CreateSwapXYd() const { Path tmp(*this); return tmp.SwapXY(); } ///<Transpose the path: swap XY coordinates
     Path CreateRotated(double degree) const { Path tmp(*this); return tmp.Rotate(degree); } ///<Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
     Path CreateRotated(double cos, double sin) const { Path tmp(*this); return tmp.Rotate(cos, sin); } ///<Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
     Path CreateRotatedAround(const XY&c, double degree) const { Path tmp(*this); return tmp.RotateAround(c, degree); } ///<Rotate the path by `radian` around `c`. `sin` and `cos` are pre-computed values.
