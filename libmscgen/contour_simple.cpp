@@ -60,20 +60,23 @@ Block Path::CalculateBoundingBox() const
  * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
  * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
 */
-Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
+Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg, bool add_closing_line)
 {
     if (radius_x==0) return;
     Edge::GenerateEllipse(edges, c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
-    //Add a segment if not a full ellipse
-    const XY start = edges.front().start;
-    const XY end = edges.back().end;
+    if (add_closing_line) {
+        //Add a segment if not a full ellipse
+        const XY start = edges.front().start;
+        const XY end = edges.back().end;
+        edges.emplace_back(end, start);
+    }
 }
 
 void Path::AddAnEdge(const Edge &edge, bool ensure_connect)
 {
     if (ensure_connect && edges.size() && edge.GetStart()!=edges.back().GetEnd()) {
         const XY tmp = edges.back().GetEnd();
-        edges.emplace_back(tmp, edge.GetStart(), !!edge.visible);
+        edges.emplace_back(tmp, edge.GetStart(), bool(!!edge.visible));
     }
     edges.push_back(edge);
 }
@@ -172,7 +175,7 @@ void Path::CairoPath(cairo_t *cr, bool show_hidden) const
             if (prev.GetEnd()!=at(u).GetStart()) {
                 cairo_new_sub_path(cr);
                 started_at = at(u).GetStart();
-                cairo_move_to(cr, started_at.x, started_at.y); 
+                cairo_move_to(cr, started_at.x, started_at.y);
             }
             edges[u].PathTo(cr);
         } else {
@@ -246,7 +249,7 @@ std::list<std::vector<Edge>> Path::ConvertToClosed(bool close_everything) const
 //Do not create degenerate triangles.
 //Always create clockwise.
 SimpleContour::SimpleContour(XY a, XY b, XY c) :
-    clockwise_fresh(true), area_fresh(false), boundingBox_fresh(true),
+    clockwise_fresh(true), boundingBox_fresh(true), area_fresh(false),
     clockwise(true), boundingBox(a, b)
 {
     switch (triangle_dir(a,b,c)) {
@@ -279,7 +282,7 @@ SimpleContour::SimpleContour(XY a, XY b, XY c) :
  * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
 */
 SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg) :
-   clockwise_fresh(true), area_fresh(false), boundingBox_fresh(false),
+   clockwise_fresh(true), boundingBox_fresh(false), area_fresh(false),
    clockwise(true)
 {
     if (radius_x<=0 || radius_y<0) {
@@ -348,7 +351,7 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
     size_t e;
     for (e = 0; e<size(); e++) {
         if (edge) *edge = e;      //return value
-        if (at(e).GetStart().test_equal(p)) 
+        if (at(e).GetStart().test_equal(p))
             return WI_ON_VERTEX;
         double y[3], po[3];
         int forward[3];
@@ -360,7 +363,7 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
                 return WI_ON_VERTEX; //on vertex
             }
             //Equality to at(e).GetStart is already tested above
-            //now test if we are in-between 
+            //now test if we are in-between
             if ((p.y < at(e).GetStart().y && at(e).GetEnd().y < p.y) ||
                 (at(e).GetStart().y < p.y && p.y < at(e).GetEnd().y)) {
                 if (pos) *pos = (p.y-at(e).GetStart().y)/(at(e).GetEnd().y-at(e).GetStart().y);
@@ -370,7 +373,7 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
             continue;
         }
 
-        for (unsigned u = 0; u<num; u++) {
+        for (int u = 0; u<num; u++) {
             if ((strict && y[u] == p.y) ||  //on an edge, we are _not_ approximate here
                 (!strict&& test_equal(y[u], p.y))) {  //on an edge, we are approximate here
                 //we have tested that at(e).start is not equal to p, so no need to test for that here
@@ -382,7 +385,7 @@ EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool
                     return WI_ON_EDGE; // on an edge, but not vertex
                 }
             }
-            if (forward[u]!=0 && y[u] > p.y) 
+            if (forward[u]!=0 && y[u] > p.y)
                 count++;
         }
     }
@@ -447,7 +450,7 @@ EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &
             if (really_between04_warp(prev2, next1, prev1) &&
                 really_between04_warp(next2, next1, prev1)) return REL_B_INSIDE_A;
             return REL_APART;
-                
+
             //double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
             //double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
             //double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
@@ -500,18 +503,18 @@ EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other)
 
 
 /** Swap data with `b`. */
-void SimpleContour::swap(SimpleContour &b) 
+void SimpleContour::swap(SimpleContour &b)
 {
-    edges.swap(b.edges); 
-    std::swap(boundingBox, b.boundingBox); 
-    std::swap(area, b.area); 
+    edges.swap(b.edges);
+    std::swap(boundingBox, b.boundingBox);
+    std::swap(area, b.area);
     //std::swap() does not work on bitfields, so we do it as below.
     bool B;
     B = clockwise; clockwise = b.clockwise; b.clockwise = B;
     B = clockwise_fresh; clockwise_fresh = b.clockwise_fresh; b.clockwise_fresh = B;
     B = area_fresh; area_fresh = b.area_fresh; b.area_fresh = B;
     B = boundingBox_fresh; boundingBox_fresh = b.boundingBox_fresh; b.boundingBox_fresh = B;
-} 
+}
 
 
 void SimpleContour::assign_dont_check(const std::vector<XY> &v)
@@ -611,12 +614,12 @@ clear:
     return false;
 }
 
-/** Calculate the boundingBox of the whole shape. 
+/** Calculate the boundingBox of the whole shape.
  *  Assumes the bounding box of curved edges is already calculated.*/
 const Block &SimpleContour::CalculateBoundingBox() const
 {
     boundingBox.MakeInvalid();
-    for(const auto &e : edges) 
+    for(const auto &e : edges)
         if (e.straight)
             boundingBox += e.GetStart();
         else
@@ -805,7 +808,7 @@ void SimpleContour::CreateRoundForExpand(const XY &center, const XY &start, cons
     //delete the straight edge
     if (round.edges.back().straight)
         round.edges.pop_back();
-    if (!clockwise) 
+    if (!clockwise)
         round.Invert();
     //Make sure the construct starts *exactly* at 'start' and 'end'
     //The result is not precise, we simply set the star/endpoint (keeping control points)
@@ -855,358 +858,358 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         return; //empty "res" assumed
 
     bool replace_cp_inverse_to_extended = false;
-    //try first without handling CP_INVERSE
-    do {
 
-        class MetaDataList : public std::list<ExpandMetaData>
-        {
-        public:
-            iterator next(iterator i) { if (++i == end()) return begin(); return i; }
-            iterator prev(iterator i) { if (i == begin()) return --end(); return --i; }
-            const_iterator next(const_iterator i) const { if (++i == end()) return begin(); return i; }
-            const_iterator prev(const_iterator i) const { if (i == begin()) return --end(); return --i; }
-        } r;
+    class MetaDataList : public std::list<ExpandMetaData>
+    {
+    public:
+        iterator next(iterator i) { if (++i == end()) return begin(); return i; }
+        iterator prev(iterator i) { if (i == begin()) return --end(); return --i; }
+        const_iterator next(const_iterator i) const { if (++i == end()) return begin(); return i; }
+        const_iterator prev(const_iterator i) const { if (i == begin()) return --end(); return --i; }
+    } r;
 
-
-        //Expand all the edges
-        std::list<Edge> tmp;
-        for (size_t u = 0; u<size(); u++) {
-            tmp.clear();
-            XY prev_tangent, next_tangent;
-            if (!at(u).CreateExpand(gap, tmp, prev_tangent, next_tangent))
-                //false is returned if a bezier degenerates - replace with a line
-                Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, tmp, prev_tangent, next_tangent);
-            _ASSERT(tmp.size());
-            bool first = true;
-            for (auto t: tmp) {
-                r.emplace_back(t, u);
-                if (first) {
-                    r.back().prev_tangent = prev_tangent;
-                    first = false;
-                }
+    //Expand all the edges
+    std::list<Edge> tmp;
+    for (size_t u = 0; u<size(); u++) {
+        tmp.clear();
+        XY prev_tangent, next_tangent;
+        if (!at(u).CreateExpand(gap, tmp, prev_tangent, next_tangent))
+            //false is returned if a bezier degenerates - replace with a line
+            Edge(at(u).GetStart(), at(u).GetEnd(), at(u).visible).CreateExpand(gap, tmp, prev_tangent, next_tangent);
+        _ASSERT(tmp.size());
+        bool first = true;
+        for (auto t: tmp) {
+            r.emplace_back(t, u);
+            if (first) {
+                r.back().prev_tangent = prev_tangent;
+                first = false;
             }
-            r.back().next_tangent = next_tangent;
-            //all edges are marked as trivially connecting
-            //the relation of the last of the generated edges with the next: 
-            //mark this as a relation needed to be computed
-            r.back().cross_type = Edge::CP_INVERSE;
         }
+        r.back().next_tangent = next_tangent;
+        //all edges are marked as trivially connecting
+        //the relation of the last of the generated edges with the next:
+        //mark this as a relation needed to be computed
+        r.back().cross_type = Edge::CP_INVERSE;
+    }
 
-        //Calculate actual max miter length.
-        const double gap_limit_to_use = fabs(miter_limit) < MaxVal(miter_limit) ? gap*miter_limit : MaxVal(gap_limit_to_use);
-        //Calculate the square of it to test on a DistanceSqr() - to avoid sqrt() calls.
-        //Make it a bit bigger (2 pixels) - apply miter only if miter would be somewhat larger than 
-        //limit. This is to avoid very small chopped miters.
-        const double gap_limit_sqr_to_test = fabs(miter_limit) < MaxVal(miter_limit) ? gap*gap*miter_limit*miter_limit + 2: MaxVal(gap_limit_sqr_to_test);
+    //Calculate actual max miter length.
+    const double gap_limit_to_use = fabs(miter_limit) < MaxVal(miter_limit) ? gap*miter_limit : MaxVal(gap_limit_to_use);
+    //Calculate the square of it to test on a DistanceSqr() - to avoid sqrt() calls.
+    //Make it a bit bigger (2 pixels) - apply miter only if miter would be somewhat larger than
+    //limit. This is to avoid very small chopped miters.
+    const double gap_limit_sqr_to_test = fabs(miter_limit) < MaxVal(miter_limit) ? gap*gap*miter_limit*miter_limit + 2: MaxVal(gap_limit_sqr_to_test);
 
-        bool need_to_process, has_remaining_cp_inverse;
+    bool need_to_process, has_remaining_cp_inverse;
 
 #ifdef _DEBUG
-        if (expand_debug==2) goto end;
+    if (expand_debug==2) goto end;
 #endif
 
-        do {
-            need_to_process = false;
-            has_remaining_cp_inverse = false;
-            //Find how and where expanded edges meet
-            //do not do this for edge segments generated by expansion above or for cps where 
-            //we have already sorted things in a previous run of this do-while cycle
-            for (auto i = r.begin(); i!=r.end(); i++)
-                if (i->cross_type==Edge::CP_TRIVIAL) 
+    do {
+        need_to_process = false;
+        has_remaining_cp_inverse = false;
+        //Find how and where expanded edges meet
+        //do not do this for edge segments generated by expansion above or for cps where
+        //we have already sorted things in a previous run of this do-while cycle
+        for (auto i = r.begin(); i!=r.end(); i++)
+            if (i->cross_type==Edge::CP_TRIVIAL)
+                continue;
+            else if (i->cross_type==Edge::CP_INVERSE) {
+                i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
+                    i->next_tangent, r.next(i)->prev_tangent,
+                    !at(i->original_edge).IsStraight(), !at(r.next(i)->original_edge).IsStraight(),
+                    i->us_end_pos, i->next_start_pos);
+                _ASSERT(!isnan(i->cross_point.x) && !isnan(i->cross_point.y));
+                //note if we have changed the status of at least one such CP
+                //this means we may need to do another pass
+                if (i->cross_type!=Edge::CP_INVERSE)
+                    need_to_process = true;
+                else
+                    has_remaining_cp_inverse = true;
+            } else
+                need_to_process = true; //any join that is not CP_TRIVIAL or CP_INVERSE
+
+        //Adjust the start and end of the edges to the crosspoints
+        //and insert additional edges, if needed
+        //Ignore&keep CP_INVERSE edge joins for now
+
+        //Calculate if we start with a miter limited in length
+        bool need_miter_limit_bevel = IsMiter(type) &&
+            r.back().cross_type == Edge::CP_EXTENDED &&
+            r.back().cross_point.DistanceSqr(r.back().GetEnd()) > gap_limit_sqr_to_test;
+        XY prev_miter_limit_bevel_point;
+        if (need_miter_limit_bevel)
+            prev_miter_limit_bevel_point = r.front().GetStart() +
+                    (r.back().cross_point-r.front().GetStart()).Normalize()*gap_limit_to_use;
+
+        //cycle through the edges if we have any connections that is not CP_TRIVIAL or CP_INVERSE
+        if (need_to_process) {
+            for (auto i = r.begin(); i!=r.end(); /*nope*/) {
+                const auto prev_i = r.prev(i);
+                //fast path: both ends either trivial or inverse
+                if ((prev_i->cross_type == Edge::CP_TRIVIAL || prev_i->cross_type == Edge::CP_INVERSE) &&
+                    (i->cross_type==Edge::CP_TRIVIAL || i->cross_type==Edge::CP_INVERSE)) {
+                    i++;
                     continue;
-                else if (i->cross_type==Edge::CP_INVERSE) {
-                    i->cross_type = i->FindExpandedEdgesCP(*r.next(i), i->cross_point,
-                        i->next_tangent, r.next(i)->prev_tangent,
-                        !at(i->original_edge).IsStraight(), !at(r.next(i)->original_edge).IsStraight(),
-                        i->us_end_pos, i->next_start_pos);
-                    _ASSERT(!isnan(i->cross_point.x) && !isnan(i->cross_point.y));
-                    //note if we have changed the status of at least one such CP
-                    //this means we may need to do another pass
-                    if (i->cross_type!=Edge::CP_INVERSE)
-                        need_to_process = true;
-                    else
-                        has_remaining_cp_inverse = true;
-                } else
-                    need_to_process = true; //any join that is not CP_TRIVIAL or CP_INVERSE
+                }
 
-            //Adjust the start and end of the edges to the crosspoints
-            //and insert additional edges, if needed
-            //Ignore&keep CP_INVERSE edge joins for now
+                //The new start and endpoint for us (edge #i)
+                XY new_start, new_end;
+                if (prev_i->cross_type==Edge::CP_REAL)
+                    new_start = prev_i->cross_point;
+                else if (prev_i->cross_type==Edge::CP_EXTENDED && IsMiter(type))
+                    new_start = prev_i->cross_point;
+                else
+                    new_start = i->GetStart();
 
-            //Calculate if we start with a miter limited in length
-            bool need_miter_limit_bevel = IsMiter(type) &&
-                r.back().cross_type == Edge::CP_EXTENDED &&
-                r.back().cross_point.DistanceSqr(r.back().GetEnd()) > gap_limit_sqr_to_test;
-            XY prev_miter_limit_bevel_point;
-            if (need_miter_limit_bevel)
-                prev_miter_limit_bevel_point = r.front().GetStart() +
-                     (r.back().cross_point-r.front().GetStart()).Normalize()*gap_limit_to_use;
+                if (i->cross_type==Edge::CP_REAL)
+                    new_end = i->cross_point;
+                else if (i->cross_type==Edge::CP_EXTENDED && IsMiter(type))
+                    new_end = i->cross_point;
+                else
+                    new_end = i->GetEnd();
 
-            //cycle through the edges if we have any connections that is not CP_TRIVIAL or CP_INVERSE
-            if (need_to_process) {
-                for (auto i = r.begin(); i!=r.end(); /*nope*/) {
-                    const auto prev_i = r.prev(i);
-                    //fast path: both ends either trivial or inverse
-                    if ((prev_i->cross_type == Edge::CP_TRIVIAL || prev_i->cross_type == Edge::CP_INVERSE) && 
-                        (i->cross_type==Edge::CP_TRIVIAL || i->cross_type==Edge::CP_INVERSE)) {
-                        i++;
-                        continue;
-                    }
+                if (IsMiter(type) && (need_miter_limit_bevel || i->cross_type == Edge::CP_EXTENDED)) {
+                    //If we connected to previous edge via a too long miter, we limit its length
+                    //The bevel needed in this case was added when we processed the previous
+                    if (need_miter_limit_bevel)
+                        new_start = prev_miter_limit_bevel_point;
+                    //Check if we connect to the next edge via a too long miter.
+                    need_miter_limit_bevel = i->cross_type == Edge::CP_EXTENDED &&
+                        new_end.DistanceSqr(i->GetEnd()) > gap_limit_sqr_to_test;
+                    //Adjust the endpoint of us to where the miter shall end.
+                    if (need_miter_limit_bevel)
+                        new_end = i->GetEnd() + (new_end-i->GetEnd()).Normalize()*gap_limit_to_use;
+                    //The value of 'need_miter_limit_bevel' will also be re-used next
+                    _ASSERT(fabs(new_start.length()) < 100000);
+                    _ASSERT(!isnan(new_end.x) && !isnan(new_end.y));
+                    _ASSERT(fabs(new_end.length()) < 100000);
+                }
 
-                    //The new start and endpoint for us (edge #i)
-                    XY new_start, new_end;
-                    if (prev_i->cross_type==Edge::CP_REAL)
-                        new_start = prev_i->cross_point;
-                    else if (prev_i->cross_type==Edge::CP_EXTENDED && IsMiter(type))
-                        new_start = prev_i->cross_point;
-                    else
-                        new_start = i->GetStart();
+                //if (new_start.test_equal(new_end)) {
+                //    //We got degenerate, remove
+                //    prev_i->cross_point = new_end = new_start; //Use this from now on.
+                //    r.erase(i++);
+                //    continue;
+                //}
 
-                    if (i->cross_type==Edge::CP_REAL)
-                        new_end = i->cross_point;
-                    else if (i->cross_type==Edge::CP_EXTENDED && IsMiter(type))
-                        new_end = i->cross_point;
-                    else
-                        new_end = i->GetEnd();
+                const auto next_i = r.next(i);
+                const bool done = next_i == r.begin();
 
-                    if (IsMiter(type) && (need_miter_limit_bevel || i->cross_type == Edge::CP_EXTENDED)) {
-                        //If we connected to previous edge via a too long miter, we limit its length
-                        //The bevel needed in this case was added when we processed the previous 
-                        if (need_miter_limit_bevel)
-                            new_start = prev_miter_limit_bevel_point;
-                        //Check if we connect to the next edge via a too long miter.
-                        need_miter_limit_bevel = i->cross_type == Edge::CP_EXTENDED &&
-                            new_end.DistanceSqr(i->GetEnd()) > gap_limit_sqr_to_test;
-                        //Adjust the endpoint of us to where the miter shall end.
-                        if (need_miter_limit_bevel)
-                            new_end = i->GetEnd() + (new_end-i->GetEnd()).Normalize()*gap_limit_to_use;
-                        //The value of 'need_miter_limit_bevel' will also be re-used next
-                        _ASSERT(fabs(new_start.length()) < 100000);
-                        _ASSERT(!isnan(new_end.x) && !isnan(new_end.y));
-                        _ASSERT(fabs(new_end.length()) < 100000);
-                    }
+                //If we did not degenerate to a point, adjust start/end points
+                //for beziers we may have to add straight lines as continuation.
+                if (i->straight) {
+                    i->start = new_start;
+                    i->end = new_end;
+                } else {
+                    //add straight edge before the inserted bezier for miters
+                    if (IsMiter(type) && prev_i->cross_type==Edge::CP_EXTENDED)
+                        r.emplace(i, new_start, i->GetStart(), bool(!!i->visible));
+                    if (prev_i->cross_type == Edge::CP_REAL && i->cross_type == Edge::CP_REAL)
+                        i->SetStartEndIgn(new_start, new_end, prev_i->next_start_pos, i->us_end_pos);
+                    else if (prev_i->cross_type == Edge::CP_REAL)
+                        i->SetStartIgn(new_start, prev_i->next_start_pos);
+                    else if (i->cross_type == Edge::CP_REAL)
+                        i->SetEndIgn(new_end, i->us_end_pos);
 
-                    //if (new_start.test_equal(new_end)) {
-                    //    //We got degenerate, remove
-                    //    prev_i->cross_point = new_end = new_start; //Use this from now on.
-                    //    r.erase(i++);
-                    //    continue;
-                    //}
+                    //add straight edge after the bezier for miters
+                    //insert _after_ i (before next_i)
+                    if (IsMiter(type) && i->cross_type ==Edge::CP_EXTENDED)
+                        //make sure we copy the metadata, as well ('cross_type' and afterwards)
+                        //beacuse the next iteration will rely on these, when adding
+                        r.emplace(next_i, i->GetEnd(), new_end, bool(!!i->visible), i->cross_type, i->cross_point, double(), i->next_start_pos);
+                }
 
-                    const auto next_i = r.next(i);
-                    const bool done = next_i == r.begin();
+                //For miters Add bevel if the miter would be too long. (can be true only for miters)
+                if (need_miter_limit_bevel) {
+                    _ASSERT(IsMiter(type));
+                    //If we are last, we cannot use next_i->GetStart in claculating the miter
+                    //end, since that has been already modified. In fact it is already the
+                    //right miter end, so we can just re-use it.
+                    XY bevel_end = next_i->GetStart();
+                    if (i != --r.end())
+                        bevel_end += (i->cross_point-next_i->GetStart()).Normalize()*gap_limit_to_use;
+                    _ASSERT(bevel_end.length() < 100000);
+                    if (bevel_end != new_end)
+                        //make sure we copy the metadata, as well ('cross_type' and afterwards)
+                        //beacuse the next iteration will rely on these, when adding
+                        r.emplace(next_i, new_end, bevel_end, i->visible && next_i->visible, i->cross_type, i->cross_point, double(), i->next_start_pos);
+                    prev_miter_limit_bevel_point = bevel_end;
+                }
 
-                    //If we did not degenerate to a point, adjust start/end points 
-                    //for beziers we may have to add straight lines as continuation.
-                    if (i->straight) {
-                        i->start = new_start;
-                        i->end = new_end;
-                    } else {
-                        //add straight edge before the inserted bezier for miters
-                        if (IsMiter(type) && prev_i->cross_type==Edge::CP_EXTENDED)
-                            r.emplace(i, new_start, i->GetStart(), !!i->visible);
-                        if (prev_i->cross_type == Edge::CP_REAL && i->cross_type == Edge::CP_REAL)
-                            i->SetStartEndIgn(new_start, new_end, prev_i->next_start_pos, i->us_end_pos);
-                        else if (prev_i->cross_type == Edge::CP_REAL)
-                            i->SetStartIgn(new_start, prev_i->next_start_pos);
-                        else if (i->cross_type == Edge::CP_REAL)
-                            i->SetEndIgn(new_end, i->us_end_pos);
+                //What we did so far:
+                //- We have adjusted the start/endpoint of the edge and handled everything around
+                //  the start of the edge.
+                //- for miters we have 1) added the straight line needed for beziers and CP_EXTENDED;
+                //  2) added the bevel if the miter would have been too long; basically we handled
+                //  everything, except the parallel case
+                //- for round/bevel expand types we just added the edge, no join specifics
+                //Below we add whatever line join is needed.
+                //Note that we do nothing for CP_REAL, TRIVIAL or CP_INVERSE, as for the first two
+                //nothing needs to be done, for the latter we do not know what to do.
+                //Now even if we have inserted 'i' still points to the original edge.
 
-                        //add straight edge after the bezier for miters
-                        //insert _after_ i (before next_i)
-                        if (IsMiter(type) && i->cross_type ==Edge::CP_EXTENDED)
-                            //make sure we copy the metadata, as well ('cross_type' and afterwards)
-                            //beacuse the next iteration will rely on these, when adding
-                            r.emplace(next_i, i->GetEnd(), new_end, !!i->visible, i->cross_type, i->cross_point, double(), i->next_start_pos);
-                    }
-
-                    //For miters Add bevel if the miter would be too long. (can be true only for miters)
-                    if (need_miter_limit_bevel) {
-                        _ASSERT(IsMiter(type));
-                        //If we are last, we cannot use next_i->GetStart in claculating the miter
-                        //end, since that has been already modified. In fact it is already the
-                        //right miter end, so we can just re-use it.
-                        XY bevel_end = next_i->GetStart();
-                        if (i != --r.end())
-                            bevel_end += (i->cross_point-next_i->GetStart()).Normalize()*gap_limit_to_use;
-                        _ASSERT(bevel_end.length() < 100000);
-                        if (bevel_end != new_end)
-                            //make sure we copy the metadata, as well ('cross_type' and afterwards)
-                            //beacuse the next iteration will rely on these, when adding
-                            r.emplace(next_i, new_end, bevel_end, i->visible && next_i->visible, i->cross_type, i->cross_point, double(), i->next_start_pos);
-                        prev_miter_limit_bevel_point = bevel_end;
-                    }
-
-                    //What we did so far:
-                    //- We have adjusted the start/endpoint of the edge and handled everything around
-                    //  the start of the edge.
-                    //- for miters we have 1) added the straight line needed for beziers and CP_EXTENDED;
-                    //  2) added the bevel if the miter would have been too long; basically we handled
-                    //  everything, except the parallel case
-                    //- for round/bevel expand types we just added the edge, no join specifics
-                    //Below we add whatever line join is needed.
-                    //Note that we do nothing for CP_REAL, TRIVIAL or CP_INVERSE, as for the first two
-                    //nothing needs to be done, for the latter we do not know what to do.
-                    //Now even if we have inserted 'i' still points to the original edge.
-
-                    if (i->cross_type == Edge::CP_EXTENDED) {
-                        if (type == EXPAND_BEVEL) {
-                            //Add a bevel from new_end and the next start
-                            r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
-                        } else if (type == EXPAND_ROUND) {
-                            //Add a circle, from new_end and the next start
-                            CreateRoundForExpand(at(i->original_edge).GetEnd(), new_end, next_i->GetStart(), gap>0,
-                                r, next_i, i->visible && next_i->visible);
-                        }
-                    }
-                    //We have done everything for non-parallel joins
-                    if (i->cross_type != Edge::NO_CP_PARALLEL) {
-                        i = next_i;
-                        if (done) break;
-                        else continue;
-                    }
-
-                    /* Here we handle CP_PARALLEL. */
-                    //Find where the expanded version of this edge begins and where does the next one end.
-                    //This is so that we can remove loops
-                    auto start_orig_us = i;
-                    auto end_orig_next = next_i;
-                    while (start_orig_us!=r.begin() && start_orig_us->original_edge==i->original_edge)
-                        start_orig_us--;
-                    //step back to the first element
-                    if (start_orig_us->original_edge!=i->original_edge)
-                        start_orig_us++;
-                    while (end_orig_next!=r.end() && end_orig_next->original_edge==next_i->original_edge)
-                        end_orig_next++;
-                    //leave to point beyond the last element
-
-                    //Now determine which direction the round/bevel/miter needs to be added.
-                    //This is done by updating i->cross_point.
-                    //Note that FindExpandedEdgesCP() calculates a CP as below
-                    //- if one is straight, the cp is on the straight line. This is the right
-                    //  (original) direction as ends of straight edges do not change direction when expanded.
-                    //- if both are bezier, the calculated cp is calcualted based on the direction 
-                    //  of the first edge (in "i")
-                    //- if both of the edges are straight, the cp is as for the two bezier cases. 
-                    //  This can happen if the last segment of a bezier has turned to a line during expansion.
-                    //NOTE that FindExpandedEdgesCP() uses the tangens of the *original* edge, thus the cp 
-                    //is in the direction of the origial edge ends even if a bezier edge changed direction
-                    //during expansion.
-
-
-                    ////Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
-                    ////changed direction.
-                    //if (!i->IsStraight() && !next_i->IsStraight() &&
-                    //    !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
-                    //    i->GetEnd(), i->next_tangent))
-                    //    //in this case flip cp to the original vertex
-                    //    i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
-
-                    //If we are at the end of the list (and next_i & end_orig_next
-                    //are at the beginning, we copy them to the end, so RemoveLoop
-                    //can operate on a contigous series of edges.
-                    //(RemoveLoop does not do circular iterator increments/decrements)
-                    if (done) {
-                        r.splice(r.end(), r, next_i, end_orig_next);
-                        end_orig_next = r.end();
-                    }
-
-                    //Below we add the line joins. 
-                    //We do not copy metadata, all new edges will have CP_TRIVIAL joins to their 
-                    //following edge. This is just as well, since we add edges such that the last
-                    //edge ends exactly in next_i->GetStart() - so we form a trivial join.
-                    if (type == EXPAND_MITER) {
-                        //We add two lines (two miters)
-                        //Remember, i->cross_point contains the point in between the two lines.
-                        //We do not limit these miters, even if miter_limit is not infinite.
-                        r.emplace(next_i, new_end, i->cross_point, !!i->visible);
-                        auto ii = r.emplace(next_i, i->cross_point, next_i->GetStart(), !!next_i->visible);
-                        Edge::RemoveLoop(r, start_orig_us, ii);
-                        Edge::RemoveLoop(r, ii, end_orig_next);
-                    } else if (IsRound(type)) {
+                if (i->cross_type == Edge::CP_EXTENDED) {
+                    if (type == EXPAND_BEVEL) {
+                        //Add a bevel from new_end and the next start
+                        r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
+                    } else if (type == EXPAND_ROUND) {
                         //Add a circle, from new_end and the next start
                         CreateRoundForExpand(at(i->original_edge).GetEnd(), new_end, next_i->GetStart(), gap>0,
                             r, next_i, i->visible && next_i->visible);
-                        Edge::RemoveLoop(r, start_orig_us, next_i);
-                        //i and next_i may be destroyed here. Search loops from start_orig_us again
-                        Edge::RemoveLoop(r, start_orig_us, end_orig_next);
-                    } else if (IsBevel(type)) {
-                        //Add a bevel from new_end and the next start
-                        //r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
-                        const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
-                                           at(i->original_edge).GetEnd()).Normalize();
-                        const XY cp = (new_end + next_i->GetStart())/2 + 
-                                      tangent * (new_end - next_i->GetStart()).length()/2;
-                        r.emplace(next_i, new_end, cp, i->visible && next_i->visible);
-                        auto ii = r.emplace(next_i, cp, next_i->GetStart(), i->visible && next_i->visible);
-                        Edge::RemoveLoop(r, start_orig_us, ii);
-                        Edge::RemoveLoop(r, ii, end_orig_next);
-                    } else if (type == EXPAND_MITER_SQUARE) {
-                        //Here we add 3 edges of a half-square
-                        const XY &next_start = next_i->GetStart();
-                        const double dist = new_end.Distance(next_start)/2;
-                        const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
-                                            at(i->original_edge).GetEnd()).Normalize()*dist;
-                        r.emplace(next_i, new_end, new_end+tangent, i->visible && next_i->visible);
-                        r.emplace(next_i, new_end+tangent, next_start+tangent, i->visible && next_i->visible);
-                        r.emplace(next_i, next_start+tangent, next_start, i->visible && next_i->visible);
-                        Edge::RemoveLoop(r, start_orig_us, next_i);
-                        //i and next_i may be destroyed here. Search loops from start_orig_us again
-                        Edge::RemoveLoop(r, start_orig_us, end_orig_next);
                     }
+                }
+                //We have done everything for non-parallel joins
+                if (i->cross_type != Edge::NO_CP_PARALLEL) {
+                    i = next_i;
+                    if (done) break;
+                    else continue;
+                }
 
-                    i = --end_orig_next; //step the cycle 
-                    if (done)
-                        break;
-                } //for cycle through edges
+                /* Here we handle CP_PARALLEL. */
+                //Find where the expanded version of this edge begins and where does the next one end.
+                //This is so that we can remove loops
+                auto start_orig_us = i;
+                auto end_orig_next = next_i;
+                while (start_orig_us!=r.begin() && start_orig_us->original_edge==i->original_edge)
+                    start_orig_us--;
+                //step back to the first element
+                if (start_orig_us->original_edge!=i->original_edge)
+                    start_orig_us++;
+                while (end_orig_next!=r.end() && end_orig_next->original_edge==next_i->original_edge)
+                    end_orig_next++;
+                //leave to point beyond the last element
 
-                //mark all non-inverse edges as trivial
-                for (auto &e : r)
-                    if (e.cross_type != Edge::CP_INVERSE)
-                        e.cross_type = Edge::CP_TRIVIAL;
-            } else if (replace_cp_inverse_to_extended && has_remaining_cp_inverse) {
-                //this branch is called if need_to_process is false (so we did not
-                //resolve any CP_INVERSE since the last run) but we do have CP_INVERSE joins left
-                //This means we cannot resolve these, so we try doing them as if they were CP_EXPAND
-                for (auto &e : r)
-                    if (e.cross_type == Edge::CP_INVERSE)
-                        e.cross_type = Edge::CP_EXTENDED;
-                need_to_process = true;
-            }
+                //Now determine which direction the round/bevel/miter needs to be added.
+                //This is done by updating i->cross_point.
+                //Note that FindExpandedEdgesCP() calculates a CP as below
+                //- if one is straight, the cp is on the straight line. This is the right
+                //  (original) direction as ends of straight edges do not change direction when expanded.
+                //- if both are bezier, the calculated cp is calcualted based on the direction
+                //  of the first edge (in "i")
+                //- if both of the edges are straight, the cp is as for the two bezier cases.
+                //  This can happen if the last segment of a bezier has turned to a line during expansion.
+                //NOTE that FindExpandedEdgesCP() uses the tangens of the *original* edge, thus the cp
+                //is in the direction of the origial edge ends even if a bezier edge changed direction
+                //during expansion.
 
-            ////avoid round in subsequent rounds, as metadata values are no longer valid
-            ////and cannot be used during CreateRoundForExpand(). If this does not work,
-            ////the we will need to compute a suitable center for such rounded edges by re-Expanding
-            ////the edges in question and finding their crosspoints (if any), but that is probably expensive.
-            //if (type == EExpandType::EXPAND_MITER_ROUND) type = EExpandType::EXPAND_MITER_BEVEL;
-            //else if (type == EExpandType::EXPAND_ROUND) type = EExpandType::EXPAND_BEVEL;
-        } while (need_to_process && r.size());
-end:
-        //Insert straight segments for CP_INVERSE joins (not visible) & try to combine edges
-        for (auto i = r.begin(); i!=r.end(); i++) {
-            const auto next_i = r.next(i);
-            if (i->cross_type == Edge::CP_INVERSE)
-                r.emplace(next_i, i->GetEnd(), next_i->GetStart(), false);
-            else if (i->CheckAndCombine(*next_i))
-                r.erase(next_i);
+
+                ////Thus, we need to alter the cp, if 1) neither of them is straight and 2) the edge "i"
+                ////changed direction.
+                //if (!i->IsStraight() && !next_i->IsStraight() &&
+                //    !Edge::IsSameDir(at(i->original_edge).GetEnd(), at(i->original_edge).NextTangentPoint(1.0),
+                //    i->GetEnd(), i->next_tangent))
+                //    //in this case flip cp to the original vertex
+                //    i->cross_point = 2*at(i->original_edge).GetEnd() - i->cross_point;
+
+                //If we are at the end of the list (and next_i & end_orig_next
+                //are at the beginning, we copy them to the end, so RemoveLoop
+                //can operate on a contigous series of edges.
+                //(RemoveLoop does not do circular iterator increments/decrements)
+                if (done) {
+                    r.splice(r.end(), r, next_i, end_orig_next);
+                    end_orig_next = r.end();
+                }
+
+                //Below we add the line joins.
+                //We do not copy metadata, all new edges will have CP_TRIVIAL joins to their
+                //following edge. This is just as well, since we add edges such that the last
+                //edge ends exactly in next_i->GetStart() - so we form a trivial join.
+                if (type == EXPAND_MITER) {
+                    //We add two lines (two miters)
+                    //Remember, i->cross_point contains the point in between the two lines.
+                    //We do not limit these miters, even if miter_limit is not infinite.
+                    r.emplace(next_i, new_end, i->cross_point, bool(!!i->visible));
+                    auto ii = r.emplace(next_i, i->cross_point, next_i->GetStart(), bool(!!next_i->visible));
+                    Edge::RemoveLoop(r, start_orig_us, ii);
+                    Edge::RemoveLoop(r, ii, end_orig_next);
+                } else if (IsRound(type)) {
+                    //Add a circle, from new_end and the next start
+                    CreateRoundForExpand(at(i->original_edge).GetEnd(), new_end, next_i->GetStart(), gap>0,
+                        r, next_i, i->visible && next_i->visible);
+                    Edge::RemoveLoop(r, start_orig_us, next_i);
+                    //i and next_i may be destroyed here. Search loops from start_orig_us again
+                    Edge::RemoveLoop(r, start_orig_us, end_orig_next);
+                } else if (IsBevel(type)) {
+                    //Add a bevel from new_end and the next start
+                    //r.emplace(next_i, new_end, next_i->GetStart(), i->visible && next_i->visible);
+                    const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
+                                        at(i->original_edge).GetEnd()).Normalize();
+                    const XY cp = (new_end + next_i->GetStart())/2 +
+                                    tangent * (new_end - next_i->GetStart()).length()/2;
+                    r.emplace(next_i, new_end, cp, i->visible && next_i->visible);
+                    auto ii = r.emplace(next_i, cp, next_i->GetStart(), i->visible && next_i->visible);
+                    Edge::RemoveLoop(r, start_orig_us, ii);
+                    Edge::RemoveLoop(r, ii, end_orig_next);
+                } else if (type == EXPAND_MITER_SQUARE) {
+                    //Here we add 3 edges of a half-square
+                    const XY &next_start = next_i->GetStart();
+                    const double dist = new_end.Distance(next_start)/2;
+                    const XY tangent = (at(i->original_edge).NextTangentPoint(1.0) -
+                                        at(i->original_edge).GetEnd()).Normalize()*dist;
+                    r.emplace(next_i, new_end, new_end+tangent, i->visible && next_i->visible);
+                    r.emplace(next_i, new_end+tangent, next_start+tangent, i->visible && next_i->visible);
+                    r.emplace(next_i, next_start+tangent, next_start, i->visible && next_i->visible);
+                    Edge::RemoveLoop(r, start_orig_us, next_i);
+                    //i and next_i may be destroyed here. Search loops from start_orig_us again
+                    Edge::RemoveLoop(r, start_orig_us, end_orig_next);
+                }
+
+                i = --end_orig_next; //step the cycle
+                if (done)
+                    break;
+            } //for cycle through edges
+
+            //mark all non-inverse edges as trivial
+            for (auto &e : r)
+                if (e.cross_type != Edge::CP_INVERSE)
+                    e.cross_type = Edge::CP_TRIVIAL;
+        } else if (replace_cp_inverse_to_extended && has_remaining_cp_inverse) {
+            //this branch is called if need_to_process is false (so we did not
+            //resolve any CP_INVERSE since the last run) but we do have CP_INVERSE joins left
+            //This means we cannot resolve these, so we try doing them as if they were CP_EXPAND
+            for (auto &e : r)
+                if (e.cross_type == Edge::CP_INVERSE)
+                    e.cross_type = Edge::CP_EXTENDED;
+            need_to_process = true;
         }
-        //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
-        //next one. 
-        if (r.size()==0) return; //empty shape
-        SimpleContour sp_r;
-        sp_r.edges.reserve(r.size());
-        for (auto &e : r)
-            sp_r.edges.push_back(e);
-        sp_r.clockwise_fresh = sp_r.area_fresh = sp_r.boundingBox_fresh = false;
-        sp_r.Sanitize(); //remove degenerate edges
+
+        ////avoid round in subsequent rounds, as metadata values are no longer valid
+        ////and cannot be used during CreateRoundForExpand(). If this does not work,
+        ////the we will need to compute a suitable center for such rounded edges by re-Expanding
+        ////the edges in question and finding their crosspoints (if any), but that is probably expensive.
+        //if (type == EExpandType::EXPAND_MITER_ROUND) type = EExpandType::EXPAND_MITER_BEVEL;
+        //else if (type == EExpandType::EXPAND_ROUND) type = EExpandType::EXPAND_BEVEL;
+    } while (need_to_process && r.size());
+
+    //Insert straight segments for CP_INVERSE joins (not visible) & try to combine edges
+    for (auto i = r.begin(); i!=r.end(); i++) {
+        const auto next_i = r.next(i);
+        if (i->cross_type == Edge::CP_INVERSE)
+            r.emplace(next_i, i->GetEnd(), next_i->GetStart(), false);
+        else if (i->CheckAndCombine(*next_i))
+            r.erase(next_i);
+    }
+    //Ok, now we have the expanded contour in 'r', hopefully all its edges connected to the
+    //next one.
+#ifdef _DEBUG
+end:
+#endif
+
+    if (r.size()==0) return; //empty shape
+    SimpleContour sp_r;
+    sp_r.edges.reserve(r.size());
+    for (auto &e : r)
+        sp_r.edges.push_back(e);
+    sp_r.clockwise_fresh = sp_r.area_fresh = sp_r.boundingBox_fresh = false;
+    sp_r.Sanitize(); //remove degenerate edges
 
 #ifdef _DEBUG
-        //OK, now untangle 
-        if (expand_debug) 
-            expand_debug_contour.append(sp_r);
+    //OK, now untangle
+    if (expand_debug)
+        expand_debug_contour.append(sp_r);
 #endif
-        res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
-    } while (0);
+    res.Operation(GetClockWise() ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, Contour(std::move(sp_r)));
 }
 
 
@@ -1219,14 +1222,14 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
     double pos_a, pos_b;
     //dummy prev and next tangents provided - they are only used on NO_CP_PARALLEL,
     //and CP_EXPANDED to calculate cp, which we ignore then.
-    if (Edge::CP_REAL == a[original_last].FindExpandedEdgesCP(a[next], cp, 
+    if (Edge::CP_REAL == a[original_last].FindExpandedEdgesCP(a[next], cp,
                          prev_tangent, next_tangent, true, true, pos_a, pos_b)) {
-        a[original_last].SetEndIgn(cp, pos_a); 
+        a[original_last].SetEndIgn(cp, pos_a);
         a[next].SetStartIgn(cp, pos_b);
         return;
     }
     const bool turn_clwise = CLOCKWISE == triangle_dir(PrevTangentPoint(my_index, 0),
-                                                       at(my_index).GetStart(), 
+                                                       at(my_index).GetStart(),
                                                        NextTangentPoint(my_index, 0));
     if (last_type && !(last_type & 1) && stype == -last_type && turn_clwise) {
         cp = a[original_last].GetEnd();
@@ -1293,7 +1296,7 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
     if (r2.first.outline.size()==0) return;
     r2.boundingBox = r2.first.outline.GetBoundingBox(); //copy bb to outer
 #ifdef _DEBUG
-    //OK, now untangle 
+    //OK, now untangle
     if (expand_debug)
         expand_debug_contour.append(r2.first.outline);
 #endif
@@ -1303,7 +1306,7 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
         //Kill those cwh's which are not entirely inside the original
         Contour tmp;
         for (unsigned u = 0; u<res.size(); u++)
-            if (RelationTo(res[u].outline) == REL_B_INSIDE_A ) 
+            if (RelationTo(res[u].outline) == REL_B_INSIDE_A )
                 tmp.append(std::move(res[u]));
         res.swap(tmp);
     }
@@ -1377,16 +1380,11 @@ void SimpleContour::CairoPathDashed(cairo_t *cr, const double pattern[], unsigne
  */
 double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
-    double tp = 0;
-    for (size_t i = 0; i<size(); i++)
-        for (size_t j = 0; j<below.size(); j++)
-            if (at(i).CreateBoundingBox().x.Overlaps(below.at(j).CreateBoundingBox().x)) {
-                double off = at(i).OffsetBelow(below.at(j), tp);
-                if (off < offset) {
-                    offset = off;
-                    touchpoint = tp;
-                }
-            }
+    if (GetBoundingBox().x.Overlaps(below.GetBoundingBox().x) &&
+              GetBoundingBox().y.till+offset > below.GetBoundingBox().y.from)
+        for (size_t i = 0; i<size(); i++)
+            for (size_t j = 0; j<below.size(); j++)
+                offset = at(i).OffsetBelow(below.at(j), touchpoint, offset);
     return offset;
 }
 

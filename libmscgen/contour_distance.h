@@ -52,7 +52,7 @@ inline bool between01_approximate_inclusive(double r)
     return !(test_smaller(r, 0) || test_smaller(1, r));
 }
 
-/** Returns true if `n` is not significantly outside [0,1] (by max SMALL_NUM). 
+/** Returns true if `n` is not significantly outside [0,1] (by max SMALL_NUM).
   If n is close to 0 or 1 we return exactly 0 or 1.
  */
 inline bool between01_adjust(double &n)
@@ -99,8 +99,8 @@ enum ETriangleDirType
 
 ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
-double angle(XY base, XY A, XY B);  //defined in contour_ellipse.cpp
-double angle_to_horizontal(XY base, XY A); //defined in contour_ellipse.cpp
+double angle(const XY &base, const XY &A, const XY &B);
+double angle_to_horizontal(const XY &base, const XY &A);
 
 /** Convert from a fake angle to degrees.
  */
@@ -118,7 +118,7 @@ inline double degree2angle(double degree) {
     const double rad = fmod_negative_safe(degree, 360.)/(180./M_PI);
     return (rad>=M_PI) ? 3 + cos(2*M_PI-rad) : 1 - cos(rad);
 }
-/** Convert from radians to fake angle. 
+/** Convert from radians to fake angle.
  */
 inline double radian2angle(double rad) {
     rad = fmod_negative_safe(rad, 2*M_PI);
@@ -139,7 +139,7 @@ inline int WhichSectionSide(const XY&A, const XY&B, const XY&P)
 
 
 /** Helper class to collect data during distance calculation.
- * 
+ *
  * We distinguish between case when an element is inside a contour or outside.
  * The former is represented by a negative distance.
  * We use this class to store the smallest distance so far during a pairwise comparison
@@ -179,7 +179,7 @@ public:
     void SwapInOut() {std::swap(was_inside, was_outside); distance *= -1;}  ///<Change in/outside history.
 };
 
-/** @} */ //addtogroup contour_internal 
+/** @} */ //addtogroup contour_internal
 
 inline void DistanceType::Merge(double d, const XY &p_on_me, const XY &p_on_other)
 {

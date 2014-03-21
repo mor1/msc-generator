@@ -275,7 +275,7 @@ public:
            * straight edge.
            * No potential crosspoint can be identified here, so what we return is a
            * point in between the two edges, currently 5 times further than the distance
-           * between the two `x`s. See `o` below. * `x` shows the end of the expanded edges 
+           * between the two `x`s. See `o` below. * `x` shows the end of the expanded edges
            * and solid lines show linear extensions.
            * @verbatim
             ----->-x------------------
@@ -386,6 +386,8 @@ protected:
     unsigned SolveForDistance(const XY &p, double ret[5]) const;
     double FindBezierParam(const XY &p) const;
     Block GetBezierHullBlock() const;
+    Range GetHullXRange() const;
+    Range GetHullYRange() const;
 
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
@@ -403,13 +405,14 @@ protected:
     Edge& SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos);
 
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp, 
-                                      const XY &my_next_tangent, const XY &Ms_prev_tangent, 
-                                      bool is_my_origin_bezier, bool is_Ms_origin_bezier, 
+    EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp,
+                                      const XY &my_next_tangent, const XY &Ms_prev_tangent,
+                                      bool is_my_origin_bezier, bool is_Ms_origin_bezier,
                                       double &my_pos, double &M_pos) const;
     template <typename E, typename Iterator>
     static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
                                  std::vector<Edge>*original = NULL, size_t orig_offset = 0);
+    void TangentFromRecursive(const XY &from, XY &clockwise, XY &cclockwise) const;
 
 public:
     Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
@@ -439,7 +442,7 @@ public:
     int CrossingHorizontalCPEvaluate(const XY &xy, bool self) const;
     RayAngle Angle(bool incoming, double pos) const;
     Block CreateBoundingBox() const; ///<Returns a copy of the bounding box of the edge
-    XY Edge::XMaxExtreme(double &pos) const;
+    XY XMaxExtreme(double &pos) const;
 
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
     DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; }    //always nonnegative
@@ -453,10 +456,11 @@ public:
     void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
     //helpers for offsetbelow
-    double OffsetBelow(const Edge &M, double &touchpoint) const;
+    double OffsetBelow(const Edge &M, double &touchpoint, double min_so_far) const;
 
     //tangential toucher from a point
     void TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    void TangentFrom2(const XY &from, XY &clockwise, XY &cclockwise) const;
     void TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
 
     void   PathTo(cairo_t *cr) const { if (straight) cairo_line_to(cr, end.x, end.y); else cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y); } ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
@@ -492,18 +496,21 @@ inline bool Edge::MakeStraightIfNeeded(double maximum_distance_sqr)
 inline Edge& Edge::SetStart(const XY &p, double pos)
 {
     if (!straight) {
+#ifdef _DEBUG
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         //_ASSERT(fabs(t-pos)<0.001);
+#endif
         Chop(pos, 1);
     } else {
         //test that p and pos correspond - compiles to NOP in release mode
         if (fabs(start.x-end.x)<fabs(start.y-end.y))
             _ASSERT(fabs((p.y-start.y)/(end.y-start.y) - pos)<0.0001);
-        else
+        else {
             _ASSERT(fabs((p.x-start.x)/(end.x-start.x) - pos)<0.0001);
+        }
     }
     start = p;
     return *this;
@@ -513,18 +520,21 @@ inline Edge& Edge::SetStart(const XY &p, double pos)
 inline Edge& Edge::SetEnd(const XY &p, double pos)
 {
     if (!straight) {
+#ifdef _DEBUG
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         //_ASSERT(fabs(t-pos)<0.001);
+#endif
         Chop(0, pos);
     } else {
         //test that p and pos correspond - compiles to NOP in release mode
         if (fabs(start.x-end.x)<fabs(start.y-end.y))
             _ASSERT(fabs((p.y-start.y)/(end.y-start.y) - pos)<0.0001);
-        else
+        else {
             _ASSERT(fabs((p.x-start.x)/(end.x-start.x) - pos)<0.0001);
+        }
     }
     end = p;
     return *this;
@@ -535,11 +545,13 @@ inline Edge& Edge::SetEnd(const XY &p, double pos)
 inline Edge& Edge::SetStartIgn(const XY &p, double pos)
 {
     if (!straight) {
+#ifdef _DEBUG
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         _ASSERT(fabs(t-pos)<0.01);
+#endif
         Chop(pos, 1);
     }
     start = p;
@@ -551,11 +563,13 @@ inline Edge& Edge::SetStartIgn(const XY &p, double pos)
 inline Edge& Edge::SetEndIgn(const XY &p, double pos)
 {
     if (!straight) {
+#ifdef _DEBUG
         XY dummy;
         double t;
         //test that p and pos correspond - compiles to NOP in release mode
         _ASSERT(fabs(Distance(p, dummy, t))<0.1);
         _ASSERT(fabs(t-pos)<0.01);
+#endif
         Chop(0, pos);
     }
     end = p;
@@ -565,6 +579,7 @@ inline Edge& Edge::SetEndIgn(const XY &p, double pos)
 inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos)
 {
     if (!straight) {
+#ifdef _DEBUG
         XY dummy;
         double tt, ss;
         //test that p and pos correspond - compiles to NOP in release mode
@@ -572,6 +587,7 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
         _ASSERT(fabs(Distance(d, dummy, ss))<0.1);
         _ASSERT(fabs(tt-spos)<0.01);
         _ASSERT(fabs(ss-dpos)<0.01);
+#endif
         Chop(spos, dpos);
     }
     start = s;
@@ -584,16 +600,33 @@ inline Block Edge::GetBezierHullBlock() const
 {
     _ASSERT(!straight);
     return Block(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
-        std::max(std::max(start.x, end.x), std::max(c1.x, c2.x)),
-        std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
-        std::max(std::max(start.y, end.y), std::max(c1.y, c2.y)));
+                 std::max(std::max(start.x, end.x), std::max(c1.x, c2.x)),
+                 std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+                 std::max(std::max(start.y, end.y), std::max(c1.y, c2.y)));
 }
+
+inline Range Edge::GetHullXRange() const
+{
+    if (straight)
+        return Range(std::min(start.x, end.x), std::max(start.x, end.x));
+    return Range(std::min(std::min(start.x, end.x), std::min(c1.x, c2.x)),
+                 std::max(std::max(start.x, end.x), std::max(c1.x, c2.x)));
+}
+
+inline Range Edge::GetHullYRange() const
+{
+    if (straight)
+        return Range(std::min(start.y, end.y), std::max(start.y, end.y));
+    return Range(std::min(std::min(start.y, end.y), std::min(c1.y, c2.y)),
+                 std::max(std::max(start.y, end.y), std::max(c1.y, c2.y)));
+}
+
 
 /** Find and eliminate any potential loop in the segment [first,last)
  * does not work with vectors (iterators must survive insert+delete ops)
  */
 template <typename E, typename Iterator>
-static void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self,
+void Edge::RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self,
                              std::vector<Edge>*original, size_t orig_offset)
 {
     XY r[9];

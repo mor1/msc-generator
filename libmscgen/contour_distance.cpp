@@ -44,7 +44,7 @@
 	ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 	DEALINGS IN THE SOFTWARE.
 */
- 
+
 /** @file contour_distance.cpp Various auxiliary functions
  * non-inline functions from contour_basics.h.
  * @ingroup contour_files
@@ -149,7 +149,7 @@ ETriangleDirType triangle_dir(XY a, XY b, XY c)
 * @param B the other end.
 * @returns The fake angle from 'A' to 'B'. -1 on error (degenerate cases)
 */
-double angle(XY base, XY A, XY B)
+double angle(const XY &base, const XY &A, const XY &B)
 {
     bool clockwise;
     switch (triangle_dir(base, A, B)) {
@@ -189,7 +189,7 @@ double angle(XY base, XY A, XY B)
 * @returns The fake angle of 'base'->'A' from a horizontal line going through 'base'. 
 *          -1 on error ('base'=='A')
 */
-double angle_to_horizontal(XY base, XY A)
+double angle_to_horizontal(const XY &base, const XY &A)
 {
     if (base.test_equal(A))
         return -1;

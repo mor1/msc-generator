@@ -179,7 +179,7 @@ EContourRelationType ContourList::RelationTo(const ContourList &c, bool ignore_h
 
 /** Determine the relative vertical distance between our shapes and another one.
  *
- * For detailed explanation and parameters, see 
+ * For detailed explanation and parameters, see
  * Contour::OffsetBelow(const Contour &below, double &touchpoint, double offset).
  */
 double ContourList::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const
@@ -193,7 +193,7 @@ double ContourList::OffsetBelow(const SimpleContour &below, double &touchpoint, 
 
 /** Determine the relative vertical distance between two list of shapes.
  *
- * For detailed explanation and parameters, see 
+ * For detailed explanation and parameters, see
  * Contour::OffsetBelow(const Contour &below, double &touchpoint, double offset).
  */
 double ContourList::OffsetBelow(const ContourList &below, double &touchpoint, double offset) const
@@ -291,7 +291,7 @@ const size_t link_info::no_link = std::numeric_limits<size_t>::max();
  * @nosubgrouping
  * A ray is a half line going to or coming from a crosspoint.
  * For curvy edges, a ray is also curvy. If two edges cross, we have 4 resulting ray.
- * This structure contains a set of memebers identifying the ray, another set to 
+ * This structure contains a set of memebers identifying the ray, another set to
  * link it to other rays and a third set to store the evaluation and walk status.*/
 struct Ray
 {
@@ -325,7 +325,7 @@ struct Ray
      * They are mutable so that updating status can be made on const Ray sturctures.
      * @{ */
     mutable bool   valid;     ///<False if this ray have already been included in a contour resulting from a walk.
-    mutable size_t seq_num;   ///<Stop the walk if arriving to a ray with the same seq num as where we started the walk 
+    mutable size_t seq_num;   ///<Stop the walk if arriving to a ray with the same seq num as where we started the walk
     mutable size_t switch_to; ///<Index of another ray for this cp, where the walk shoud be continued if arriving on this ray. `no_link` on error.
     mutable int    coverage_at_0_minus_inf; ///<Only at cp heads at untle operation: it holds the coverage at the RayAngle<0, -inf> direction from the cp. If very large, we do not know
     /** @} */
@@ -336,7 +336,7 @@ struct Ray
 };
 
 /** Structure holding our position during walk.
- * 
+ *
  * We may be either at a vertex or a crosspoint
  */
 struct RayPointer {
@@ -348,7 +348,7 @@ struct RayPointer {
 
 /** To store info for walk backtracing.
  *
- * If we are unable to continue walk (cps are calculated badly) 
+ * If we are unable to continue walk (cps are calculated badly)
  * we need to backtrack. We store info for that here.
  */
 struct walk_data {
@@ -360,7 +360,7 @@ struct walk_data {
 };
 
 /** Node of a tree holding SimpleContours.
- * 
+ *
  * Used for post-processing after walks to determine which SimpleContour is inside which others.
  */
 struct node
@@ -380,9 +380,9 @@ struct node
  * This class is instantiated with one or two contours.
  * Note that they can be either const versions or move versions. We store
  * pointers to both along with flags if they were const or move versions.
- * The difference is important when parts of a contour (specifically a SimpleContour) 
- * has no cp ('cp' means crosspoint from now on) with any other. 
- * In that case it may (e.g. for unions) need to be copied to 
+ * The difference is important when parts of a contour (specifically a SimpleContour)
+ * has no cp ('cp' means crosspoint from now on) with any other.
+ * In that case it may (e.g. for unions) need to be copied to
  * to the result. If its origin contour was a move version we do not copy, but move.
  *
  * ### Finding crosspoints
@@ -397,7 +397,7 @@ struct node
  * After we have identified all the crosspoints we evaluate them in the light of the
  * operation (see details at EvaluateCrosspoints()). Evaluation tells us for each
  * ray of a cp, which other ray shall we continue walking, if arrived on the first ray.
- * Evaluation also tells us which ray of which crosspoints can we start a walk from. 
+ * Evaluation also tells us which ray of which crosspoints can we start a walk from.
  * See the example below.
  * @verbatim
  +-->----+
@@ -413,12 +413,12 @@ struct node
  * SimpleContour. They have two cps (marked with `o` and `x`). Let us assume we take the union
  * of the two contours. In this case the `o` cp
  * is evaluated as follows. From the north ray, we have to switch to the east ray and vice versa.
- * Also, the east is eligible to start the walk with. (Starting at the north would yield in a 
+ * Also, the east is eligible to start the walk with. (Starting at the north would yield in a
  * counterclockwise result and here we are after a clockwise union. This is because we always
  * start *outwards* from a cp, irrespective of edge direction. Sometimes we have to walk *against*
  * edge direction, e.g., for XOR operations, thus we mostly ignore edge direction on walking.)
  * The other two rays should never be arrived on (they will not be part of the union, since they are
- * inside it), thus these are marked as *error*. Similar for `x` if we arrive on the west ray we shall 
+ * inside it), thus these are marked as *error*. Similar for `x` if we arrive on the west ray we shall
  * continue on the south one and vice versa (and we can start with the west one); while the other two
  * represent errors.
  * For the case of the intersection operation, the east and south ray of `o` would be valid ones
@@ -431,7 +431,7 @@ struct node
  * for the ray we arrived to the crosspoint. Eventually we arrive back to where we started from.
  * (In fact we may terminate the walk after arriving back to another ray of the same cp. To this end,
  * rays in the cp are assigned a *sequence number*. If we arrive back to a ray with the same
- * sequence number we stop the walk. Note that at one crosspoint there may be rays with different 
+ * sequence number we stop the walk. Note that at one crosspoint there may be rays with different
  * sequence numbers. Sometimes we have to continue the walk even if we arrived back to the cp until
  * we get back on the right ray, see the example below at Untangling.)
  * Note that during walk we ignore the original direction of edges. Sometimes we have to walk them
@@ -440,7 +440,7 @@ struct node
  * In the meantime we mark all rays we crossed, so that we do not start a walk resulting in this very
  * SimpleContour again. If there are eligible starting rays, we do another walk, as long as we have ones left -
  * each walk generating a separate, non-flipped, disjoint SimpleContour, which however, may be inside one another.
- * See for example the two shapes ('A' forming an upside-down U-shape and 'B' forming a rectangle) below 
+ * See for example the two shapes ('A' forming an upside-down U-shape and 'B' forming a rectangle) below
  * and assume we do an intersection operation.
  * @verbatim
     +-------->-------------+
@@ -452,43 +452,43 @@ struct node
   +-------------<--------------+
  @endverbatim
  * Four cps can be find (each having one eligible ray to start the walk, specifically
- * the east one for '1' and '3'; and the south one for '2' and '4'). 
+ * the east one for '1' and '3'; and the south one for '2' and '4').
  * The Contour resulting from the intersection will have two parts, marked with 'M' and 'N'.
- * Let's assume we started from the leftmost crosspoint (marked with `1`). 
+ * Let's assume we started from the leftmost crosspoint (marked with `1`).
  * During the walk we cross `2` and get back to '1' having
- * walked the SimpleContour 'M'. In order to obtain 'N' we need to start walking from one of the 
+ * walked the SimpleContour 'M'. In order to obtain 'N' we need to start walking from one of the
  * two remaining eligible rays. Starting from any of the two that walk will give us 'N'.
  *
  * ### Post-processing
  *
- * After completing all the walks we have a set of SimpleContours, whose edges do not cross. Note that 
+ * After completing all the walks we have a set of SimpleContours, whose edges do not cross. Note that
  * even if we hunt for a clockwise union or intersection, some of them can be counterclockwise.
  * Take the above example and assume a union operation. In this case the result will have a hole
- * marked with 'H'. The eligible rays for the same 4 cps are north for '1' and '3'; east for '2' 
+ * marked with 'H'. The eligible rays for the same 4 cps are north for '1' and '3'; east for '2'
  * and '4'. Walking from '2' or '3' will walk around 'H' - but in a counterclockwise direction.
  * This is well and shows us 'H' will be a hole.
  *
  * The final step is to determine which of the resulting SimpleContours are contained in which other.
  * We also have to consider those parts of ther original contours that had no cps and therefore
- * were not walked. They are of course disjoint from the result of the walks and may either be added 
+ * were not walked. They are of course disjoint from the result of the walks and may either be added
  * as is, or omitted completely. We determine the containment relationship (which contains whitch other)
  * and build a tree of `node` structure in Do() and lastly convert the tree to a Contour in ConvertNode().
  *
  * ## Untangling
  *
- * A few words about untangling. In this case we have only a single shape - which is not a 
- * valid contour, but we know that its neighbouring edges connect. There are two rules on which part the 
+ * A few words about untangling. In this case we have only a single shape - which is not a
+ * valid contour, but we know that its neighbouring edges connect. There are two rules on which part the
  * result shall contain.
- *     - *Winding* rule: If the original shape crosses the ray from left-to-right, counts +1. 
- *       If the path crosses the ray from right to left, counts -1. (Left and right are determined from the 
- *       perspective of looking along the ray from the starting point.) 
+ *     - *Winding* rule: If the original shape crosses the ray from left-to-right, counts +1.
+ *       If the path crosses the ray from right to left, counts -1. (Left and right are determined from the
+ *       perspective of looking along the ray from the starting point.)
  *       If the total count is non-zero, the point will be included in the untangled shape.
- *     - *Even-odd* rule: Counts the total number of intersections, without regard to the orientation of the contour. 
+ *     - *Even-odd* rule: Counts the total number of intersections, without regard to the orientation of the contour.
  *       If the total number of intersections is odd, the point will be included in the untangled shape.
  *
  * See the below example.
  * @verbatim
-   +--->---------------+  +--->---------------+   +--->---------------+  
+   +--->---------------+  +--->---------------+   +--->---------------+
    |                   |  |...................|   |...................|
    |      +-->---+     |  |...................|   |......+--<---+.....|
    |      |  B   |     |  |...................|   |......|      |.....|
@@ -497,7 +497,7 @@ struct node
    +-------<-----+        +-------<-----+         +-------<-----+
  @endverbatim
  * In case the winding rule, the final shape would contain 'B', where in case of the evenodd rule
- * it would not, see the two shapes on the right, where dots indicate the areas covered. 
+ * it would not, see the two shapes on the right, where dots indicate the areas covered.
  * (The counter would be +2 for points inside 'B'.)
  *
  * Note that for the evenodd rule the direction of the edges of 'B' had been reversed. Also note that the crosspoint
@@ -514,7 +514,7 @@ struct node
  *
  * Basically the process is very similar to the above one. We take crosspoints, evaluate and walk.
  * However, the crosspoints are taken between the edges of the single shape.
- * 
+ *
  * # Data Structures
  *
  * The data structure is a bit exotic here.
@@ -526,7 +526,7 @@ struct node
  * or outgoing. Thus for the examples above east rays (both incoming and outgoing) have angle of zero,
  * south rays the angle of 90 degrees, west rays 180 degrees and north rays 270 degrees. (Note that we
  * store the 'false angle' not the precise one as we just use it for soriting.) This angle is
- * used to sorth the rays around a crosspoint in clockwise order. To be able to sort curvy edges with the 
+ * used to sorth the rays around a crosspoint in clockwise order. To be able to sort curvy edges with the
  * same tangent, we also store the curvyness of the ange, which is the inverse of the curve radius at the
  * crosspoint (thus zero for straight lines). See RayAngle.
  *
@@ -540,15 +540,15 @@ struct node
  * which links only the heads. This second list contains as many elements as there are SimpleContour with crosspoints.
  * I call the first list "strict" since it contains all rays (in one of the circular lists), and the
  * latter loose, as it only contains head rays.
- * 
+ *
  * Furthermore, there is a third list which lists rays associated with a crosspoint in clockwise order.
  * In fact they are ordered by <false angle, curve angle> and the head is the ray closest to <0, -inf>.
  * E.g., for a simple corsspoint of two edges crossing, we will have 4 rays in the circular list, two
  * for each edge. This is also a strict list, since all rays belong to one such list.
- * Finally, a fourth list links the heads of the per-crosspoint lists. This is a loose list. 
- * For loose lists: only heads of the strict lists are doubly linked, 
+ * Finally, a fourth list links the heads of the per-crosspoint lists. This is a loose list.
+ * For loose lists: only heads of the strict lists are doubly linked,
  * any other ray has its `next` member set to themselves and `prev` member set to the respective strict list head.
- * For strict lists: a separate circular list is maintained for each contour and cp. 
+ * For strict lists: a separate circular list is maintained for each contour and cp.
  * If `next==prev`, we are alone in our circular list.
  *
  * Each Ray structure contains four link_info members with `prev` and `next` members for the four lists, resp.
@@ -556,9 +556,9 @@ struct node
  * This enables us to move both along the endges of a SimpleContour during walking and also to rotate around crosspoints easily.
  *
  * ### Ray groups
- * 
+ *
  * Rays are ordered clockwise around a crosspoint in their list. In this ordering we ignore
- * whether the ray is incoming or outgoing, we take its angle as if it were outgoing - 
+ * whether the ray is incoming or outgoing, we take its angle as if it were outgoing -
  * horizontal right is angle 0 and angle grows clockwise (in a space where the y coordinate grows
  * downward). We use fake angles here with curvature values, see RayAngle.
  *
@@ -572,20 +572,20 @@ struct node
    +-----<-------------+          |        B  |     |      B     |
                                   +------<----+     +-----<------+
    @endverbatim
- * Here the two shapes have some parts of their edges common. In the first two case the common 
- * segments share the same direction, but in the third they are opposite. In all cases the 
+ * Here the two shapes have some parts of their edges common. In the first two case the common
+ * segments share the same direction, but in the third they are opposite. In all cases the
  * crosspoints marked by `o` have three ray groups. Two of the ray groups have a single ray,
  * whereas a third one has two.
  *
- * What follows from the above definition is that if we have to continue 
- * the walk along one of the rays of a ray group, we can (at least in theory) pick any of them. 
- * The crosspoint we hit next will have to be on all such rays. This is unfortunately not always 
- * true, due to numeric imprecision. 
+ * What follows from the above definition is that if we have to continue
+ * the walk along one of the rays of a ray group, we can (at least in theory) pick any of them.
+ * The crosspoint we hit next will have to be on all such rays. This is unfortunately not always
+ * true, due to numeric imprecision.
  * For this we use ClosestNextCP() to see which of the edges in a ray group has its next crosspoint
  * closest to the cp of the ray group and use sthat ray. Also, we have the idea of *backtracking*.
  *
  * ### Backtracking
- * 
+ *
  * During walk, we record a stack of decisions we made, that is selection between ray group members.
  * If later in the walk we end up in a ray with error, we backtrack and try other members of the ray group.
  * See Walk() and sturct walk_data for details.
@@ -601,22 +601,22 @@ protected:
     mutable std::vector<size_t> StartRays;    ///<Indexes of rays where walks can start
 
 private:
-    /** Compare two rays based on their contour. 
-     * Returns 0 if on same contour, +1/-1 if not. 
+    /** Compare two rays based on their contour.
+     * Returns 0 if on same contour, +1/-1 if not.
      Ordering is deterministic, but not defined. */
     int RayCompareBy_Contour(size_t r1, size_t r2) const
         {return Rays[r1].contour == Rays[r2].contour ? 0 : Rays[r1].contour < Rays[r2].contour ? -1 : +1; }
-    /** Compare two rays based on (vertex, pos, incoming) triplets. 
-     * If vertex & pos is equal, we put incoming as smaller than outgoing. 
+    /** Compare two rays based on (vertex, pos, incoming) triplets.
+     * If vertex & pos is equal, we put incoming as smaller than outgoing.
      * Returns true if r1<r2. */
     bool RayCompareBy_VertexPosIncoming (size_t r1, size_t r2) const
         {return Rays[r1].vertex == Rays[r2].vertex ? test_equal(Rays[r1].pos, Rays[r2].pos) ? Rays[r1].incoming == Rays[r2].incoming ? false : Rays[r1].incoming : Rays[r1].pos<Rays[r2].pos : Rays[r1].vertex<Rays[r2].vertex;}
-    /** Compare two rays based on their crosspoint. 
-     * Returns 0 if on same CP, +1/-1 if not. 
+    /** Compare two rays based on their crosspoint.
+     * Returns 0 if on same CP, +1/-1 if not.
      Ordering is deterministic, but not defined. */
     int RayCompareBy_CP(size_t r1, size_t r2) const
         {return Rays[r1].xy.test_equal(Rays[r2].xy) ? 0 : Rays[r1].xy < Rays[r2].xy ? -1 : +1; }
-    /** Compare two rays based on (angle, contour, vertex, pos, incoming) sextets. 
+    /** Compare two rays based on (angle, contour, vertex, pos, incoming) sextets.
      * Returns true if r1<r2. */
     bool RayCompareBy_Angle(size_t r1, size_t r2) const
         {return Rays[r1].angle.IsSimilar(Rays[r2].angle) ? Rays[r1].contour == Rays[r2].contour ? RayCompareBy_VertexPosIncoming(r1, r2) : Rays[r1].contour < Rays[r2].contour : Rays[r1].angle.Smaller(Rays[r2].angle);}
@@ -641,11 +641,11 @@ protected:
     /**Find the crosspoints between the edges of `i`, adds them to 'Rays' and returns the number of crosspoints found.*/
     unsigned FindCrosspointsHelper(const ContourWithHoles *i);
     /**Find the crosspoints between the edges of shapes in `c`, adds them to 'Rays' and returns the number of crosspoints found.
-     * If "cwh_included" is false we do not test individual ContourWithHoles in the list for self-crossing, 
+     * If "cwh_included" is false we do not test individual ContourWithHoles in the list for self-crossing,
      * just pairwise touch between the list elements */
     unsigned FindCrosspointsHelper(const ContourList *c, bool cwh_included);
     /**Find the crosspoints between the edges of `c`, adds them to 'Rays' and returns the number of crosspoints found.
-     * If "cwh_included" is false we do not test individual ContourWithHoles for self-crossing, 
+     * If "cwh_included" is false we do not test individual ContourWithHoles for self-crossing,
      * just pairwise touch between the ContourWithHoles this Contour consists of.*/
     unsigned FindCrosspointsHelper(const Contour *c, bool cwh_included);
     /**Finds the crosspoints between `c1` and `c2`, adds them to 'Rays' and returns the number of crosspoints.
@@ -661,7 +661,7 @@ protected:
      * `m_c1` and `m_c2` are the main Contour of them, respectively. */
     unsigned FindCrosspointsHelper(const Contour *m_c1, const ContourList *c1, const Contour *m_c2, const ContourList *c2);
     /**Finds the crosspoints between C1 and C2 or just in C1. Adds them to 'Rays' & return their number.*/
-    unsigned FindCrosspoints();  
+    unsigned FindCrosspoints();
     bool OperationWithAnEmpty(Contour::EOperationType type, bool clockwise) const;
     bool IsCoverageToInclude(int cov, Contour::EOperationType type) const;
     size_t FindRayGroupEnd(size_t from, int &coverage, size_t abort_at1, size_t abort_at2) const;
@@ -833,7 +833,7 @@ bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
     return Rays[u].contour == c;
 }
 
-/** Adds and links a ray. 
+/** Adds and links a ray.
  *
  * This is a helper, it shall be called four times for each crosspoint.
  * We check for already inserted rays and do not insert duplicate ones.
@@ -933,7 +933,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
                 //This is to avoid a vertex cp to be added twice (in case it is detected
                 //again for the following edge).
                 AddCrosspoint(r[k], NULL, &*i, one_pos[k]==1 ? i->next(u1) : u1,
-                                               one_pos[k]==1 ? 0 : one_pos[k], 
+                                               one_pos[k]==1 ? 0 : one_pos[k],
                                     NULL, &*i, two_pos[k]==1 ? i->next(u2) : u2,
                                                two_pos[k]==1 ? 0 : two_pos[k]);
             }
@@ -942,11 +942,11 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
     for (size_t u1 = 1; u1<i->size(); u1++) {
         const unsigned n = i->at(u1).SelfCrossing(r, one_pos, two_pos);
         _ASSERT(n<=1);
-        if (n==1 && !(one_pos))
-            AddCrosspoint(r[0], bool(), &*i, one_pos[0]==1 ? i->next(u1) : u1,
-                                             one_pos[0]==1 ? 0 : one_pos[0], 
-                                bool(), &*i, two_pos[0]==1 ? i->next(u1) : u1,
-                                             two_pos[0]==1 ? 0 : two_pos[0]);
+        if (n==1) // && !(one_pos))
+            AddCrosspoint(r[0], NULL, &*i, one_pos[0]==1 ? i->next(u1) : u1,
+                                           one_pos[0]==1 ? 0 : one_pos[0],
+                                NULL, &*i, two_pos[0]==1 ? i->next(u1) : u1,
+                                           two_pos[0]==1 ? 0 : two_pos[0]);
     }
     return ret;
 }
@@ -1012,14 +1012,14 @@ unsigned ContoursHelper::FindCrosspointsHelper(const Contour *m_c1, const Simple
     for (size_t u1 = 0; u1<i1->size(); u1++)
         for (size_t u2 = 0; u2<i2->size(); u2++) {
             const unsigned n = i1->at(u1).Crossing(i2->at(u2), false, r, one_pos, two_pos);
-            for (unsigned k = 0; k<n; k++) 
+            for (unsigned k = 0; k<n; k++)
                 //change vertex crosspoints which are detected at the _end_
                 //of an edge to be expressed as being at the beginning of the
                 //following edge.
                 //This is to avoid a vertex cp to be added twice (in case it is detected
                 //again for the following edge).
-                AddCrosspoint(r[k], m_c1, i1, one_pos[k]==1 ? i1->next(u1) : u1, 
-                                              one_pos[k]==1 ? 0 : one_pos[k], 
+                AddCrosspoint(r[k], m_c1, i1, one_pos[k]==1 ? i1->next(u1) : u1,
+                                              one_pos[k]==1 ? 0 : one_pos[k],
                                     m_c2, i2, two_pos[k]==1 ? i2->next(u2) : u2,
                                               two_pos[k]==1 ? 0 : two_pos[k]);
             ret += n;
@@ -1104,8 +1104,8 @@ void ContoursHelper::ResetCrosspoints() const
 }
 
 /** Returns wether to include a part of a shape.
- * 
- * Specifically : 
+ *
+ * Specifically :
  * - If union, pick the angle ranges covered by at least one contour
  * - If intersect, pick angle ranges covered by all of the contours
  * - If xor, we pick ranges of odd coverage
@@ -1118,7 +1118,7 @@ void ContoursHelper::ResetCrosspoints() const
  * - hole1 + hole2 = inv(inv(hole1) + inv(hole2))
  * - hole1 * hole  = inv(inv(hole1) * inv(hole2))
  * - hole * surface = 0
- * - surface - surface = surface1 + inv(surface2) and not surface1 * inv(surface2) 
+ * - surface - surface = surface1 + inv(surface2) and not surface1 * inv(surface2)
  * @param [in] cov The total cumulative coverage at the area. E.g., if two positive (clockwise)
  *                 surface cover an area, coverage there is +2.
  * @param [in] type The type of operation we perform.
@@ -1141,11 +1141,11 @@ inline bool ContoursHelper::IsCoverageToInclude(int cov, Contour::EOperationType
 }
 
 /** Returns the ray after the current ray-group.
- * 
+ *
  * A ray group is a set of rays of the same cp where RayAngle is the same.
  * This functions steps ahead in the per cp list until it hits a ray with a different RayAngle.
  * @param [in] from The index of the ray we start the search from.
- * @param coverage When calling it shall be the coverage of the area just before from. 
+ * @param coverage When calling it shall be the coverage of the area just before from.
  *                 On return it will contain the coverage just before the returned ray.
  * @param [in] abort_at1 Stop searching if hitting this ray. Return this as result (with coverage set accordingly)
  * @param [in] abort_at2 Stop searching if hitting this ray. Return this as result (with coverage set accordingly)
@@ -1188,7 +1188,7 @@ bool ContoursHelper::GoToCoverage(size_t &from, size_t &to, int &cov_now, Contou
  *
  * Holes are considered just like the outline.
  * @param [in] xy The coordinates of the point
- * @param [in] cp_head If the point is a cp in 'Rays' the head ray for the crosspoint. 
+ * @param [in] cp_head If the point is a cp in 'Rays' the head ray for the crosspoint.
  *                     Else link_info::no_link.
  * @param [in] cwh The shape for which coverage is calculated.
  * @returns The coverage just a bit right-up from the cp, just before a hypothetical ray with RayAngle of <0,-inf>.*/
@@ -1203,15 +1203,15 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, size_t cp_head, const Conto
     //if it is an ellipse that touches the line: no change in cov
     //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
 
-    //For beziers, we check if this particular edge is part of the crosspoint. 
-    //If so, we ignore it outright to save processing (and avoid problems from numerical 
+    //For beziers, we check if this particular edge is part of the crosspoint.
+    //If so, we ignore it outright to save processing (and avoid problems from numerical
     //imprecision)
     int ret = 0;
     for (size_t e=0; e<cwh->outline.size();e++) {
         if (cp_head != link_info::no_link && !cwh->outline[e].IsStraight()) {
             //for beziers search the crosspoint if we are part of this cp
-            size_t u = cp_head; 
-            //XXX ToDo: We cannot FULLY ignore these edges, as they may be curvy 
+            size_t u = cp_head;
+            //XXX ToDo: We cannot FULLY ignore these edges, as they may be curvy
             //and cross they line more than once....
             do {
                 if (Rays[u].contour == &cwh->outline) {
@@ -1226,7 +1226,7 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, size_t cp_head, const Conto
                 u = Rays[u].link_in_cp.next;
             } while (u!=cp_head);
             //if the cp is on 'e' we do nothing
-            if (u!=cp_head) 
+            if (u!=cp_head)
                 continue;
         }
         double x[3], pos[3];
@@ -1267,8 +1267,8 @@ int ContoursHelper::CalcCoverageHelper2(const XY &xy, size_t cp_head, const Cont
     //if it is an ellipse that touches the line: no change in cov
     //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
 
-    //For beziers, we check if this particular edge is part of the crosspoint. 
-    //If so, we ignore it outright to save processing (and avoid problems from numerical 
+    //For beziers, we check if this particular edge is part of the crosspoint.
+    //If so, we ignore it outright to save processing (and avoid problems from numerical
     //imprecision)
     int ret = 0;
     for (size_t e = 0; e<cwh->outline.size(); e++) {
@@ -1325,7 +1325,7 @@ int ContoursHelper::CalcCoverageHelper(size_t cp_head) const
 /** Calculates the coverage inside a SimpleContour assuming it has no crosspoints.
  *
  * We assume C2==NULL, an untangle operation.
- * This is called at the end of an untangle, when 'sc' has no crosspoints. In this case 
+ * This is called at the end of an untangle, when 'sc' has no crosspoints. In this case
  * 1. sc itself is untangled, thus there is a valid area it encloses.
  * 2. it touches nothing, thus the coverage in it is meaningful to talk aboiut.
  * 3. We can calculate its clockwisedness.
@@ -1385,7 +1385,7 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
  * Coverage values add up, thus if a point is covered by two clockwise surfaces,
  * we say that the coverage at that point is +2.
  *
- * See the examples below. We show two edges for each example, with two rays per edge. 
+ * See the examples below. We show two edges for each example, with two rays per edge.
  * @verbatim
        (A1)
         |                       0
@@ -1407,29 +1407,29 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
  * which is angle zero (tangent is horizontal to the right) and curvature -inf, which is a counterclockwise
  * curve with infinitely small radius. Depending on the operation this can be calculated as below.
  *
- * - If we make operations on sane and untangled shapes 
- *   we can be sure that if we walk along an edge, to our left is the outside of the 
- *   surface and to our right is the inside of the surface. 
+ * - If we make operations on sane and untangled shapes
+ *   we can be sure that if we walk along an edge, to our left is the outside of the
+ *   surface and to our right is the inside of the surface.
  *   Thus (knowing if the shape is clockwise or counterclockwise) we can detemine the coverage outside
- *   (always zero) and inside (+1 or -1). So we merely check each edge 
+ *   (always zero) and inside (+1 or -1). So we merely check each edge
  *   that is part of this cp and determine if the point in question is to its left or right, giving us
  *   the coverage from the contour of that shape. We sum up and are done. This is done inside
  *   EvaluateCrosspoints().
  *
  * - For untangle operations we are in a more difficult situation, since we have no well behaving contours
  *   and it is impossible to locally tell the coverage just by looking at the vicinity of a cp. Thus
- *   here we have to make a vertical cut of the (untangled) shape and count how many edges cross the 
+ *   here we have to make a vertical cut of the (untangled) shape and count how many edges cross the
  *   vertical line drawn at the cp above the cp (with smaller y coordinate) and count how many left-to-right
  *   and right-to-left crossings we have and thereby determining the coverage. This is more expensive.
  *   This is done in CalcCoverageHelper().
  *
- * After we have determined the coverage at RayAngle (0, -inf), we use IsCoverageToInclude() to can see 
+ * After we have determined the coverage at RayAngle (0, -inf), we use IsCoverageToInclude() to can see
  * if this area shall be included in the result or not. We then walk arount the cp in clockwise fashion
  * updating the coverage at each edge, until we see a change in the inclusion. This then enables us to pair rays along the contour of the
- * result shape. This will be stored in the 'switch_to' member of the Ray. 
+ * result shape. This will be stored in the 'switch_to' member of the Ray.
  *
  * We also set the 'seq_num' member of the ray to set which rays are equivalent from a stopping perspective.
- * 
+ *
  * This function also fills in StartRays with incoming rays that are at the contour of the result.
  */
 
@@ -1644,9 +1644,9 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                 //If an edge's incoming ray has smaller angle than the outgoing, then the
                 //dir before <0, -inf> is included in a clockwise simplecontour.
                 //This happens if we find an incoming ray for the contour first.
-                //Coverage is +1 there if the above is TRUE and the main contour is clockwise  
+                //Coverage is +1 there if the above is TRUE and the main contour is clockwise
                 // (irrespective of the clockwiseness of the simplecontour of the edge)
-                //Coverage is -1 there if the above is FALSE, the main contour is cclockwise  
+                //Coverage is -1 there if the above is FALSE, the main contour is cclockwise
                 // (irrespective of the clockwiseness of the simplecontour of the edge)
                 //Else coverage by this contour is zero (either outside of it or in a hole).
                 _ASSERT(Rays[ray_no].main_contour);
@@ -1720,7 +1720,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
         //We start by testing a few prerequisites. If we have created two sequence nums and
         //marked four edges, only then do we start investigating.
         if (marked_rays==4 && seq_num == orig_seq_num+2) {
-            //OK, we may have a thing here. See if 
+            //OK, we may have a thing here. See if
             //a) we have 4 rays in the cp
             //b) all are along the same line (same angle +-2)
             unsigned no_rays = 1;
@@ -1743,8 +1743,8 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                 goto next_cp;
             if (!test_equal(angle2, Rays[rays[(same+2)%4]].angle.angle))
                 goto next_cp;
-            //Now we know this is the special case. 
-            //Index 'same' and 'same+1' (modulo 4) of 'rays' point to the same direction and 
+            //Now we know this is the special case.
+            //Index 'same' and 'same+1' (modulo 4) of 'rays' point to the same direction and
             //'same+2' and 'same+3' also point to the same dir and these two dirs are opposite
             //if the two rays going the same dir are not switching to each other, the existing
             //arrangement will keep the contours together and we need not do anything.
@@ -1757,7 +1757,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
             _ASSERT(Rays[rays[same]].seq_num == Rays[rays[(same+1)%4]].seq_num);
             _ASSERT(Rays[rays[(same+2)%4]].seq_num == Rays[rays[(same+3)%4]].seq_num);
             //Ok, we need to rearrange
-            //instead of switching from same<->same+1 and same+2<->same+3, we shall 
+            //instead of switching from same<->same+1 and same+2<->same+3, we shall
             //switch from same<->same+3 and same+1<->same+2.
             Rays[rays[same]].switch_to = rays[(same+3)%4];
             Rays[rays[(same+3)%4]].switch_to = rays[same];
@@ -1780,13 +1780,13 @@ next_cp:
  * This function does not actually switch from one contour to another.
  * For vertices it simply goes to along the next edge up to the first
  * cp or the ending vertex. For the first cp, it stops at the incoming
- * ray of that cp. 
+ * ray of that cp.
  * For cps it leaves the cp along the ray pointed by `p` and finds the next
  * cp on that edge (or the ending vertex of the edge if no cp).
  * Actual switching is done in Walk() from which this is called.
  *
  * @param p The current position of the walk. Can be a vertex or a crosspoint.
- * @param [in] forward True if we walk the same direction as edges go or opposite. 
+ * @param [in] forward True if we walk the same direction as edges go or opposite.
 */
 void ContoursHelper::Advance(RayPointer &p, bool forward) const
 {
@@ -1831,7 +1831,7 @@ void ContoursHelper::Advance(RayPointer &p, bool forward) const
                 // AND (Rays[p.index].pos==0 (the next cp is at the start of the edge)
                 // then we remain in cp mode
                 p.at_vertex = p.vertex != Rays[p.index].vertex || Rays[p.index].pos>0;
-            } else 
+            } else
                 p.at_vertex = true;
         }
         //else we remained on the same edge, use updated p.index
@@ -1889,7 +1889,7 @@ void ContoursHelper::AppendDuringWalk(std::vector<Edge> &edges, const Edge &edge
     }
     edges.push_back(edge);
 };
-                           
+
 
 /** Perform a walk operation on evaluated crosspoints.
  *
@@ -1905,16 +1905,16 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     //In endpoints[i].second, we store the start position of the ith edge.
     //(In short: endpoints[i] contains values for the ith vertex.)
     //Each position is respective to the original egde. So for the bottom view
-    //we have two (clockwise) rectangles. Assuming we do a union and focus on 
+    //we have two (clockwise) rectangles. Assuming we do a union and focus on
     //           +-------+    the edge marked with (1) and (2) and their crosspoint.
     //           |       |    This crosspoint lies on position 0.75 on edge #1 and
-    //          (2)      |    at position 0.25 on edge #2 (approximately using 
+    //          (2)      |    at position 0.25 on edge #2 (approximately using
     //           |       |    ascii art). If we start the walk from the asterisk
     //  *-(1)----o---+   |    (a vertex) endpoints[0].first will be 1 (complete
     //  |        |   |   |    end of edge marked by (3)) and endpoints[0].second
     // (3)       +---o---+    will be 0 (complete start of the edge maked by (1)).
     //  |            |        Then endpoints[1].first will be 0.75 (we do not include
-    //  +------------+        the entire length of edge (1), but only up to position 
+    //  +------------+        the entire length of edge (1), but only up to position
     //                        0.75. endpoints[1].second will be 0.25, since edge (2)
     // will be included not from its start, but only from the crosspoint (0.25).
     // Then endpoints[2].first will be 1 to indicate that edge #2 is included to its
@@ -1929,27 +1929,27 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     // Note that by this step the positions we noted in "endpoints" will not be accurate
     // for the edges in "edges" since we have already adjusted the startpoint and these
     // position values were computed for the _original_ edges. So we need to adjust the
-    // ending position value to cater for the (potential) shortening of the edge when we 
+    // ending position value to cater for the (potential) shortening of the edge when we
     // have set its starting point. Consider the below situation when we do an intersection.
     //         +---+     In this case the edge (1) has two crosspoints (at positions 0.5
-    //         |   |     and 0.75 roughly) and we only indlude the part between the two 
+    //         |   |     and 0.75 roughly) and we only indlude the part between the two
     // +-(1)---*---o--+  cps. This means that if this is the asterisk endpoints[0].second
     // |       +---+  |  will be 0.5 and endpoints[1].first will be 0.75.
-    // +--------------+  When we append the above mentioned segment of edge #1 to the 
+    // +--------------+  When we append the above mentioned segment of edge #1 to the
     // "edges" vector, we already set its starting point to the asterisk, so it is (roughly)
     // half as long as the original edge #1. Now if we were to set its endpoint blindly to
-    // position 0.75, we would create an edge longer than the desired fragment, which is 
+    // position 0.75, we would create an edge longer than the desired fragment, which is
     // now at the half-point of edges[0]. Thus the end positions need to be adjusted
     // by the start positions.
     // That is, every endpoints[i].first (the desired endpoint of edges[i-1], corresponding
     // in value to the original of edges[i]) has to be adjusted by endpoints[i-1].second
-    // (the desired (and already set) starting position of edges[i-1] understood as a 
+    // (the desired (and already set) starting position of edges[i-1] understood as a
     // position on the original of edges[i-1].
     //
     // You could ask why do we bother with these position values? We already know the coordinates
     // of the crosspoints, by dont we just set the start/end of the edges to those. The answer is
     // that for bezier curves it is an expensive operation to find the parameter value (position)
-    // of a point (given by XY coordinates) on the curve and chop the rest away. In contrast 
+    // of a point (given by XY coordinates) on the curve and chop the rest away. In contrast
     // if you know the parameter of the point you want to chop away it is fast. Since we have
     // already got all position values for all crosspoints anyway in FindCrosspoints(), we might
     // as well use them to speed up.
@@ -1972,7 +1972,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     do {
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
-            if (forward) 
+            if (forward)
                 AppendDuringWalk(edges, Rays[current.index].contour->at(current.vertex)); //just append the whole edge
             else {
                 //Append the inverse of the edge
@@ -2003,9 +2003,9 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                         if (edges.size()==0)
                             return SimpleContour();
                         AppendDuringWalk(edges, Edge(ray.xy, edges[0].GetStart()), 1-(1-terminating_pos)/(1-prev_startpos));
-                        for (size_t i = 0; i<edges.size()-1; /*nope*/) 
-                            if (edges[i].GetStart() == edges[i+1].GetStart() && edges[i].IsStraight()) 
-                                //the next edge starts at the same location as the current one 
+                        for (size_t i = 0; i<edges.size()-1; /*nope*/)
+                            if (edges[i].GetStart() == edges[i+1].GetStart() && edges[i].IsStraight())
+                                //the next edge starts at the same location as the current one
                                 //and the current edge is straight (no chance of a looping edge)
                                 //we shall delete the current edge.
                                 edges.erase(edges.begin()+i);
@@ -2020,7 +2020,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
                     last_chosen = wdata.back().chosen_outgoing;
                     //Since we have already appended an edge after the one in edges.back()
                     //its endpoint has been correctly set. No need to chop it again.
-                    terminating_pos = 1;  
+                    terminating_pos = 1;
                     prev_startpos = 0;
                     wdata.pop_back(); //pop the backtracking stack
                     switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
@@ -2044,14 +2044,13 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
             //Append a point
             double my_startpos;
             Edge edge(next_ray.contour->at(next_ray.vertex));
-            if (forward) 
+            if (forward)
                 my_startpos = next_ray.pos;
              else {
                 edge.Invert();
                 my_startpos = 1 - next_ray.pos;
              }
             edge.SetStart(next_ray.xy, my_startpos);
-            const bool started = edges.size()==0;
             AppendDuringWalk(edges, edge, 1-(1-terminating_pos)/(1-prev_startpos));
             prev_startpos = my_startpos;
         }
@@ -2061,17 +2060,16 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
 
     //Now set end and startpoint of edges and cleanup
     //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-    if (edges.size()>1) {
-        if (edges[0].GetStart().test_equal(edges.back().GetStart()))
-            edges.pop_back();
-        else if (edges.front().GetStart()!=edges.back().GetEnd()) {
-            double terminating_pos = Rays[current.index].incoming ? Rays[current.index].pos : 1- Rays[current.index].pos;
-            if (terminating_pos)
-                edges.back().SetEnd(edges.front().GetStart(), 1-(1-terminating_pos)/(1-prev_startpos));
-            if (edges.back().IsDot())
-                edges.pop_back();
-        }
+    //if (edges.size()>1 && edges[0].GetStart().test_equal(edges.back().GetStart()))
+    //    edges.pop_back();
+
+    if (edges.size()>=1 && edges.front().GetStart()!=edges.back().GetEnd()) {
+        double terminating_pos = Rays[current.index].incoming ? Rays[current.index].pos : 1- Rays[current.index].pos;
+        if (terminating_pos)
+            edges.back().SetEnd(edges.front().GetStart(), 1-(1-terminating_pos)/(1-prev_startpos));
     }
+    if (edges.back().IsDot())
+        edges.pop_back();
     if (edges.size()==0) return SimpleContour();
     if (edges.size()==1 && (edges.front().IsStraight() || edges.front().IsDot())) return SimpleContour();
     if (edges.size()==2 && edges.front().IsStraight() && edges.back().IsStraight()) return SimpleContour();
@@ -2106,23 +2104,23 @@ endend:
     return ret;
 }
 
-/** Finds the combined coverage of elements in "list" at the area covered by "c" 
+/** Finds the combined coverage of elements in "list" at the area covered by "c"
  * We assume c does not overlap with any element. */
 int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const
 {
-    for (auto i=list.begin(); i!=list.end(); i++) 
+    for (auto i=list.begin(); i!=list.end(); i++)
         switch(i->contour.CheckContainment(c)) {
-        case REL_OVERLAP: 
-        case REL_A_IS_EMPTY: 
-        case REL_B_IS_EMPTY: 
-        case REL_BOTH_EMPTY: 
-        case REL_SAME: 
-        case REL_A_IN_HOLE_OF_B: 
-        case REL_B_IN_HOLE_OF_A: 
+        case REL_OVERLAP:
+        case REL_A_IS_EMPTY:
+        case REL_B_IS_EMPTY:
+        case REL_BOTH_EMPTY:
+        case REL_SAME:
+        case REL_A_IN_HOLE_OF_B:
+        case REL_B_IN_HOLE_OF_A:
         case REL_IN_HOLE_APART:
             _ASSERT(0); //should not happen
             //fallthrough
-        case REL_A_INSIDE_B: 
+        case REL_A_INSIDE_B:
         case REL_APART:     //c is outside "i->contour" check further elements in list
             continue;
         case REL_B_INSIDE_A: //"c" is inside "i->contour", dwelve deeper
@@ -2173,13 +2171,13 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 
 /** Insert a shape that had no crosspoints into the post-processing tree.
  *
- * If the SimpleContour in "c->outline" has no crosspoints and 
+ * If the SimpleContour in "c->outline" has no crosspoints and
  * it should be included due to the operation, this is called and we insert it into the tree.
  * This is done by finding where to insert (which shape already in the contour is it inside).
- * Plus we go on and process its holes, too 
+ * Plus we go on and process its holes, too
  * @param list The tree to insert to
- * @param c The shape to insert 
- * @param [in] const_c True if `c` should be copied, false if we can move. 
+ * @param c The shape to insert
+ * @param [in] const_c True if `c` should be copied, false if we can move.
  * @param [in] C_other One of C1 or C2 - the other than the one `c` is from.
  * @param [in] type The operation we perform.
  */
@@ -2204,7 +2202,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
                 const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
                 coverage_in_c = cov_from_us + cov_from_other;
             } else {
-                EPointRelationType is_within_other;
+                EPointRelationType is_within_other = WI_INSIDE;
                 for (unsigned u = 0; u<c->outline.size(); u++) {
                     is_within_other = C_other->IsWithin(c->outline[u].GetStart());
                     if (is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX)
@@ -2226,7 +2224,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
             //place into the tree
             //If the contour is not const, we can destroy it.
             //The below move does only destroy the outline of c, not the holes.
-            node *n = InsertContour(list, const_c ? 
+            node *n = InsertContour(list, const_c ?
                                            node(c->outline) :
                                            node(std::move(const_cast<SimpleContour&&>(c->outline))));
             _ASSERT(n);
@@ -2240,7 +2238,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
 
 /** Converts a post-processing tree to a class Contour.
  *
- * We simply walk the top level entries of the tree (a forest really) and convert them to 
+ * We simply walk the top level entries of the tree (a forest really) and convert them to
  * ContourWithHoles objects and we add them to 'result'
  * @param [in] type The type of operation we do.
  * @param list The tree we process. This will be emptied.
@@ -2250,7 +2248,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
 void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, Contour &result, bool positive) const
 {
     for (auto &n : list) {
-        if (n.contour.GetClockWise() != positive) 
+        if (n.contour.GetClockWise() != positive)
             n.contour.Invert();
         ContourWithHoles c(std::move(n.contour));
         ConvertNode(type, std::move(n.children), c.holes, !positive);
@@ -2260,7 +2258,7 @@ void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &
 
 /** Converts a post-processing tree to a class ContourList.
  *
- * We simply walk the top level entries of the tree (a forest really) and convert them to 
+ * We simply walk the top level entries of the tree (a forest really) and convert them to
  * ContourWithHoles objects and we add them to 'result'
  * @param [in] type The type of operation we do.
  * @param list The tree we process. This will be emptied.
@@ -2270,7 +2268,7 @@ void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &
 void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, ContourList &result, bool positive) const
 {
     for (auto &n : list) {
-        if (n.contour.GetClockWise() != positive) 
+        if (n.contour.GetClockWise() != positive)
             n.contour.Invert();
         ContourWithHoles c(std::move(n.contour));
         ConvertNode(type, std::move(n.children), c.holes, !positive);
@@ -2280,7 +2278,7 @@ void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &
 
 /** Returns what to do if performing an operation with an empty contour.
  *
- * E.g., if A+B is done and B is empty. In this case either we have to return 
+ * E.g., if A+B is done and B is empty. In this case either we have to return
  * A or an empty contour. (E.g., for unions we need to return A, for intersections
  * we need to return an empty contour.)
  * @param type The type of operation we do.
@@ -2346,7 +2344,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
     std::list<node> list; //this will be the root(s) of the post-processing tree (forest).
 #ifdef _DEBUG
     expand_debug_cps.clear();
-#endif 
+#endif
     if (Rays.size()) {
 #ifdef _DEBUG
         size_t u = link_cps_head;
@@ -2363,7 +2361,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         //evaluate crosspoints
         EvaluateCrosspoints(type); // Process each cp and determine if it is relevant to us or not
         //Walk while we have eligible starting points
-        for (size_t u : StartRays) 
+        for (size_t u : StartRays)
             if (Rays[u].valid)
                 InsertContour(&list, node(Walk(RayPointer(u))));
         ResetCrosspoints(); //A subsequent call to "Do" can work OK, again
@@ -2376,7 +2374,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         if (C2)
             DebugSnapshot(Path(*C2), expand_debug_cps);
     }
-#endif 
+#endif
     //Now we need to consider those contours from the original set
     //for which we found no crosspoints (may be all of them, none of them or in between)
     //We shall always demand a positive surface, except if both input are hole
@@ -2396,9 +2394,9 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
     _ASSERT(result.IsSane());
 
 #ifdef _DEBUG
-    if (doit) 
+    if (doit)
         DebugSnapshot(Path(result), expand_debug_cps);
-#endif 
+#endif
 }
 
 double ContourList::Distance(const XY &o, XY &ret) const
@@ -2817,7 +2815,7 @@ bool Contour::TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]
     return was;
 }
 
-Range Contour::Cut(const XY &A, const XY &B) const 
+Range Contour::Cut(const XY &A, const XY &B) const
 {
     Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
     if (ret.IsInvalid()) return ret;

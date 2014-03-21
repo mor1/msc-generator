@@ -1092,7 +1092,7 @@ double ArrowHead::bigYExtent(bool bidir, bool forward, const std::vector<LineAtt
  *                          Essentially the width of the arrowhead.
  * @returns The contour of the arrowhead.
  */
-Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool bidir,
+Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool /*bidir*/,
                                        EArrowType type, EArrowEnd which, const LineAttr &ltype, 
                                        bool left, double *body_margin) const
 {
