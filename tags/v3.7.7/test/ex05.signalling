@@ -1,0 +1,6 @@
+->Client: Hit;
+Client=>Server: Request;
+Server>>Backend: Query;
+Server<<Backend: Response;
+Client<=Server: Reply;
+Client<>Backend: Optional Query;
