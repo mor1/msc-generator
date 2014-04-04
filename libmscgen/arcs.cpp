@@ -5044,6 +5044,12 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertic
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
 
+//Dividers that are there just for vspace (without text or line or disco)
+//do not have any cover - only mainline. This will make them
+//allocate space correctly (even with compress) even if used inside a parallel
+//block (there the mainlines affect only elements in the same column, whereas
+//covers affect all - using the new parallel layout implemented in
+//Msc::PlaceArcLists().
 void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
@@ -5052,8 +5058,13 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     if (nudge) {
         Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
         area.mainline = area = b;
-        if (cover)
-            *cover = GetCover4Compress(area);
+        area.arc = this;
+        if (cover) {
+            Area cover_area(this);
+            cover_area.mainline = b;
+            //nothing in "cover_area" just a mainline
+            *cover =  cover_area;
+        }
         height = chart->nudgeSize;
         LayoutComments(canvas, cover);
         return;
@@ -5087,7 +5098,8 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     else if (title && (style.read().line.type.second != LINE_NONE || style.read().fill.color.second.type!=ColorType::INVALID))
         area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
                       y-lw, y+wh.y+lw);
-    else if (area.IsEmpty())
+    else if (area.IsEmpty() && type!=MSC_ARC_VSPACE)
+        //for VSPACE with no text and line (and thus empty 'area' so far) we only add a mainline
         area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                      centerline-chart->nudgeSize/2, centerline+chart->nudgeSize/2);
     area.arc = this;

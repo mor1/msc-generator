@@ -43,7 +43,7 @@ void Area::swap(Area &a)
     Contour::swap(a);
 }
 
-double Area::OffsetBelow(const Contour &below, double &touchpoint, double offset) const
+double Area::OffsetBelow(const contour::Contour &below, double &touchpoint, double offset) const
 {
     if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
     if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;

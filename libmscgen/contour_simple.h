@@ -172,6 +172,7 @@ void DoubleMap<element>::Prune()
 class SimpleContour;
 class Contour;
 
+/** A class holding a series of edges (not necessarily closed or connected).*/
 class Path
 {
     friend void contour_test(void);
@@ -185,15 +186,15 @@ public:
     Path(const XY &c, double radius_x, double radius_y = 0, double tilt_deg = 0, double s_deg = 0, double d_deg = 360, bool add_closing_line=true);
     Path(const Path &p) = default; ///<Create a copy of another path
     Path(Path &&p) { swap(p); }  ///<Move content of another path. The other path gets undefined.
-    Path(const std::vector<XY> &v) { assign(v); }
-    Path(const XY v[], size_t size) { assign(v, size); }
-    template<size_t size> Path(const XY(&v)[size]) { assign(v, size); }
-    Path(const std::vector<Edge> &v) : edges(v) {}
-    Path(std::vector<Edge> &&v) : edges(std::move(v)) {}
-    Path(const Edge v[], size_t size) { assign(v, size); }
-    template<size_t size> Path(const Edge(&v)[size]) { assign(v, size); } ///<Set path content to `v`.
-    Path(const SimpleContour &p) { assign(p); }
-    Path(const Contour &p) { assign(p); }
+    Path(const std::vector<XY> &v) { assign(v); } ///<Creates a connected path from a series of points
+    Path(const XY v[], size_t size) { assign(v, size); } ///<Creates a connected path from a series of 'size' points stored at 'v'
+    template<size_t size> Path(const XY(&v)[size]) { assign(v, size); } ///<Creates a connected path from a series of points in a C-style array
+    Path(const std::vector<Edge> &v) : edges(v) {} ///<Creates a path from a series of edges
+    Path(std::vector<Edge> &&v) : edges(std::move(v)) {} ///<Creates a path by moving a series of edges
+    Path(const Edge v[], size_t size) { assign(v, size); } ///<Creates a path from a series of 'size' edges stored at 'v'
+    template<size_t size> Path(const Edge(&v)[size]) { assign(v, size); } ///<Creates a path from a series of edges in a C-style array
+    Path(const SimpleContour &p) { assign(p); } ///<Creates a path from a SimpleContour
+    Path(const Contour &p) { assign(p); } ///<Creates a path from a Contour taking all its components and holes
 
     Path &operator =(Path &&p) { if (this!=&p) swap(p);  return *this; }
     Path &operator =(const Path &p) { if (this!=&p) edges = p.edges; return *this; }
@@ -205,7 +206,7 @@ public:
     //bool operator ==(const Path &b) const;
     const Edge &at(size_t i) const { return edges[i]; }          ///<Returns const reference to edge at index `i`.
     const Edge &operator[](size_t edge) const { return at(edge); } ///<Returns const reference to edge at index `i`.
-    void swap(Path &b) { edges.swap(b.edges); };
+    void swap(Path &b) { edges.swap(b.edges); } ///<Swaps us with 'b'
     void clear() { edges.clear(); } ///<Empty the shape by deleting all edges.
 
     Path &append(const std::vector<XY> &v, bool ensure_connect = false);      ///<Append `v` to path.
@@ -231,7 +232,7 @@ public:
     Path &assign(const Contour &);          ///<Make us equal to p. Defined in contour.h
 
     size_t size() const { return edges.size(); }             ///<Returns the number of edges.
-    Block CalculateBoundingBox() const;
+    Block CalculateBoundingBox() const; ///<Calculates the bounding box of us. Moderately expensive.
     bool IsEmpty() const { return edges.size()==0; }            ///<Returns if the shape is empty (no edges).
     void CairoPath(cairo_t *cr, bool show_hidden) const;
     void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
@@ -243,9 +244,9 @@ public:
     Path &Scale(double sc) { for (auto &e : edges) e.Scale(sc); return *this;} ///<Scale the path.
     Path &Scale(const XY &sc) { for (auto &e : edges) e.Scale(sc); return *this;} ///<Scale the path.
     Path &SwapXY() { for (auto &e : edges) e.SwapXY(); return *this;} ///<Transpose the path: swap XY coordinates
-    Path &Rotate(double degree) { return Rotate(cos(degree/180*M_PI), sin(degree/180*M_PI)); }
+    Path &Rotate(double degree) { return Rotate(cos(degree/180*M_PI), sin(degree/180*M_PI)); } ///<Rotate path around origin
     Path &Rotate(double cos, double sin) { for (auto &e : edges) e.Rotate(cos, sin); return *this;} ///<Rotate the path by `radian`. `sin` and `cos` are pre-computed values.
-    Path &RotateAround(const XY&c, double degree) { return RotateAround(c, cos(degree/180*M_PI), sin(degree/180*M_PI)); }
+    Path &RotateAround(const XY&c, double degree) { return RotateAround(c, cos(degree/180*M_PI), sin(degree/180*M_PI)); } ///<Rotat path around 'c'
     Path &RotateAround(const XY&c, double cos, double sin) { for (auto &e : edges) e.RotateAround(c, cos, sin); return *this; } ///<Rotate the path by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
     Path CreateInverted() const { Path tmp(*this); return tmp.Invert(); } ///<Invert the direction of the path
@@ -258,6 +259,7 @@ public:
     Path CreateRotatedAround(const XY&c, double degree) const { Path tmp(*this); return tmp.RotateAround(c, degree); } ///<Rotate the path by `radian` around `c`. `sin` and `cos` are pre-computed values.
     Path CreateRotatedAround(const XY&c, double cos, double sin) const { Path tmp(*this); return tmp.RotateAround(c, cos, sin); } ///<Rotate the path by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
+    /** Appends an edge. If ensure_connect is true and 'edge' does not connect, we add a line before it.*/
     void AddAnEdge(const Edge &edge, bool ensure_connect = false);
 };
 
@@ -267,10 +269,9 @@ public:
  * - Never degenerate - always has actual area
  * - Never flopped - edges never cross each-other (except joining at vertices)
  * - Always contagious - one single surface
- * - Always goes in clockwise direction - except internally, when we store holes.
  *
- * The constructors are all protected, since you are not supposed to instantiate
- * a copy from this class. This is used by class Contour to store parts.
+ * The constructors are all protected, since you are not supposed to create
+ * an instance of this class. This is used by class Contour to store parts.
  */
 class SimpleContour
 {
@@ -281,33 +282,36 @@ class SimpleContour
     friend struct node;
     friend void contour_test(void);
 
+    /** A data structure to store additional data with an edge.
+     * The additional data is about how this edge connects with the following one.
+     * Used during SimpleContour::Expand().*/
     struct ExpandMetaData : public Edge
     {
-        const int           original_edge;
-        Edge::EExpandCPType cross_type; //The type of crossing between edge #i and #i+1 (wrapped around)
-        XY                  cross_point;//The cp between edge #i and #i+1 (wrapped around)
-        XY                  prev_tangent; //A point along the linear continuation of this edge's start. Used only for CP_PARALLEL and CP_EXTENDED
-        XY                  next_tangent; //A point along the linear continuation of this edge's end. Used only for CP_PARALLEL and CP_EXTENDED
-        double              us_end_pos;
-        double              next_start_pos;
+        const int           original_edge; ///<The index of the edge in the SimpleContour under expansion this struct corresponds to.
+        Edge::EExpandCPType cross_type;    ///<The type of crossing between this edge and the following one (wrapped around)
+        XY                  cross_point;   ///<The cp between this edge and the following one (wrapped around)
+        XY                  prev_tangent;  ///<A point along the linear continuation of this edge's start. Used only for CP_PARALLEL and CP_EXTENDED
+        XY                  next_tangent;  ///<A point along the linear continuation of this edge's end. Used only for CP_PARALLEL and CP_EXTENDED
+        double              us_end_pos;    ///<In case of a real crosspoint, the position of it on us.
+        double              next_start_pos;///<In case of a real crosspoint, the position of it on the following edge.
 
         ExpandMetaData(const Edge &e, int o=-1, Edge::EExpandCPType a = Edge::CP_TRIVIAL, const XY &c = XY(), double ue=double(), double ns=double()) :
-            Edge(e), original_edge(o), cross_type(a), cross_point(c), us_end_pos(ue), next_start_pos(ns) {}
+            Edge(e), original_edge(o), cross_type(a), cross_point(c), us_end_pos(ue), next_start_pos(ns) {} ///<Consturct from an edge.
         ExpandMetaData(const XY&s, const XY &d, bool v = true, Edge::EExpandCPType a = Edge::CP_TRIVIAL, const XY &c = XY(), double ue = double(), double ns = double()) :
-            Edge(s, d, v), original_edge(-1), cross_type(a), cross_point(c), us_end_pos(ue), next_start_pos(ns) {}
+            Edge(s, d, v), original_edge(-1), cross_type(a), cross_point(c), us_end_pos(ue), next_start_pos(ns) {} ///<Construct from a straight line 
         ExpandMetaData(const XY&s, const XY &d, const XY&c1, const XY &c2, bool v = true, Edge::EExpandCPType a = Edge::CP_TRIVIAL, const XY &c = XY(), double ue = double(), double ns = double()) :
-            Edge(s, d, c1, c2, v), original_edge(-1), cross_type(a),cross_point(c), us_end_pos(ue), next_start_pos(ns) {}
+            Edge(s, d, c1, c2, v), original_edge(-1), cross_type(a),cross_point(c), us_end_pos(ue), next_start_pos(ns) {} ///<Construct from a bezier's four points
     };
 
 protected:
     std::vector<Edge> edges; ///<An ordered list of (directed) edges.
 private:
-    mutable bool clockwise_fresh : 1;
-    mutable bool boundingBox_fresh : 1;
-    mutable bool area_fresh : 1;
-    mutable bool clockwise : 1;
-    mutable Block  boundingBox;      ///<The bounding box for the shape.
-    mutable double area;     ///<if nonzero, it tells the surface area of the shape. Negative for counterclockwise shapes.
+    mutable bool clockwise_fresh : 1;   ///<If true, the member 'clockwise' is up-to-date
+    mutable bool boundingBox_fresh : 1; ///<If true, the member 'boundingBox' is up-to-date
+    mutable bool area_fresh : 1;        ///<If true, the member 'area' is up-to-date
+    mutable bool clockwise : 1;         ///<Tells if the simplecontour is clockwise or counterclockwise
+    mutable Block  boundingBox;         ///<The bounding box for the shape.
+    mutable double area;                ///<The surface area of the shape. Negative for counterclockwise shapes.
 
     EContourRelationType CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -315,8 +319,7 @@ private:
     const Block &CalculateBoundingBox() const;
 
     double CalculateArea() const;
-    void CalculateClockwise() const { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } }
-    void AppendDuringWalk(const Edge &, const XY *prev_xy);
+    void CalculateClockwise() const { if (!clockwise_fresh) { if (!area_fresh) CalculateArea(); clockwise = area>=0; clockwise_fresh = true; } } ///<Calcualtes whether we are clockwise or not.
     bool Sanitize();
 
     size_t     next(size_t vertex) const {return size()<=1 ? 0 : (vertex+1)%size();}         ///<Returns index of subsequent edge, warps around to 0 at last one.
@@ -359,7 +362,7 @@ protected:
 
     bool AddAnEdge(const Edge &edge);
     SimpleContour &Invert();
-    SimpleContour CreateInvert() const { return SimpleContour(*this).Invert(); }
+    SimpleContour CreateInvert() const { return SimpleContour(*this).Invert(); } ///<Creates an inverted version of us
 
     EContourRelationType CheckContainment(const SimpleContour &b) const;
 
@@ -378,8 +381,8 @@ public:
     const Edge &operator[](size_t edge) const {return at(edge);} ///<Returns const reference to edge at index `i`.
     void swap(SimpleContour &b);
     void clear() { edges.clear(); clockwise_fresh=true; area_fresh = true; boundingBox_fresh = true;  boundingBox.MakeInvalid(); area = 0.; clockwise = true; } ///<Empty the shape by deleting all edges.
-    operator Path() const { return Path(edges); }
-    void AppendToPath(Path &p) const { p.append(edges); }
+    operator Path() const { return Path(edges); } ///<Convert our content to a Path
+    void AppendToPath(Path &p) const { p.append(edges); } ///<Append our content to a Path
 
     void assign_dont_check(const std::vector<XY> &v);      ///<Set shape content to `v`. Assume edges in `v` connect and do not cross.
     void assign_dont_check(const XY v[], size_t size);  ///<Set shape content to `v` of size `size`. Assume edges in `v` connect and do not cross.
@@ -396,7 +399,7 @@ public:
     const Block &GetBoundingBox() const { if (!boundingBox_fresh) CalculateBoundingBox(); return boundingBox; } ///<Returns the bounding box.
     bool GetClockWise() const { if (!clockwise_fresh) CalculateClockwise(); return clockwise; }              ///<Returns if the shape is clockwise.
     bool IsEmpty() const {return edges.size()==0;}            ///<Returns if the shape is empty (no edges).
-    bool IsSane() const;                                      ///<Checks if all edges connect, none degenerate, etc.
+    bool IsSane() const;                                      
     double GetArea() const {return area_fresh ? area : CalculateArea();}  ///<Return surface area of shape.
     double GetCircumference(bool include_hidden=false) const;
     XY CentroidUpscaled() const;
@@ -424,7 +427,6 @@ public:
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const;
-    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const;
 };
 
 /** Simple comparison operator for container ordering */

@@ -54,6 +54,16 @@ ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
+in 3.7.8 (feature freeze for 3.8)
+FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
+FIX: Optimize Tangent functions
+FIX: Fix shape lib on linux
+
+in 3.7.7 (feature freeze for 3.8)
+Documented in code.
+Random bugfixes.
+
+
 in 3.7.6 (feature freeze for 3.8)
 ADDED defshape command
 ADDED file.info file.url options
@@ -70,9 +80,6 @@ FIXED: Clean up the many functions ending with 2
 FIXED: Remove CP_PARALLEL_XXX and just use CP_PARALLEL - plus clean up SimpleContour::Expand's cycles and the parallel behaviour
 FIXED: Optimize OffsetBelow with existing offset info
 FIXED: More precise CrossingVertical - refine result
-FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
-FIX: Optimize Tangent functions
-FIX: Fix shape lib on linux
 
 In 3.7.5 (feature freeze for 3.8)
 FIXED: Reworked shape support properly
