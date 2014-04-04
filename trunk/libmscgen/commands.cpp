@@ -1163,6 +1163,11 @@ ArcBase* CommandVSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
     return this;
 }
 
+//VSpaces do not have any cover - only mainline. This will make them
+//allocate space correctly (even with compress) even if used inside a parallel
+//block (there the mainlines affect only elements in the same column, whereas
+//covers affect all - using the new parallel layout implemented in
+//Msc::PlaceArcLists().
 void CommandVSpace::Layout(Canvas &canvas, AreaList *cover)
 {
     double dist = space.second;
@@ -1173,9 +1178,15 @@ void CommandVSpace::Layout(Canvas &canvas, AreaList *cover)
     if (dist<=0)
         dist = 0;
     else if (!compressable) {
-        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, dist);
-        if (cover)
-            *cover = GetCover4Compress(area);
+        Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, dist);
+        area.mainline = area = b;
+        area.arc = this;
+        if (cover) {
+            Area cover_area(this);
+            cover_area.mainline = b;
+            //nothing in "cover_area" just a mainline
+            *cover = cover_area;
+        }
     }
     height = dist;
 }

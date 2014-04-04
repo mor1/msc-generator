@@ -19,30 +19,30 @@
 
 /** @defgroup contour The contour library 
  *
- * The contour library contains functionality for handling 2D shapes. Intersection,
+ * The contour library contains functionality for handling 2D vector shapes. Intersection,
  * union, expansion, area/circumference calculation, distance computation are the key 
  * fetures.
  *
  * What is a *contour*?
  * --------------------
  *
- * We define the concept of a *contour* (ebodied in the Contour class) which is a
+ * We define the concept of a *contour* (embodied in the Contour class) as a
  * closed 2D shape. It has vertices and edges, where edges can be straight sections
- * or segments of (possibly rotated) ellipses. (In the future bezier curve support
- * will be added.) Contours are stored as lists (well, vectors) of their edges.
+ * or cubic bezier curves. Contours are stored as lists (well, vectors) of their edges.
  *
  * The library can handle contours that have *holes* in them, or that have multiple
  * disjoint parts (even inside a hole). We always try to normalize contours
  * such that their edges do not cross any other edge. 
  * Edges are ordered in the contour - *clockwise* for positive contour outlines, 
  * while counerclockwise for outlines representing holes. Clockwiseness is defined
- * such that the y coordinate grows _downward_.
+ * such that the y coordinate grows _downward_. This convention is used everywhere
+ * as throughout the comments.
  *
  * Features
  * --------
  *
  * - The main feature of the library is to be able to create union and intersection
- * of contours, substraction and xor operation is also possible. 
+ * of contours; substraction and xor operation is also possible. 
  * - A number of auxiliary operations
  * are defined, such as area, centroid location and circumference length calculation, 
  * tangent fitting and various cuts. 
@@ -51,6 +51,8 @@
  * - The library can *expand* a contory by a given pixels, that is generate
  * a contour that is this many pixels wider (or narrrower for negative values), 
  * such that the resulting contour is sane - its edges do not cross each other.
+ * (In general this is called curve offsetting, but for closed curves this really 
+ * becomes expansion or shrinking.)
  * - Another way to expand a shape (called Expand2D) takes two parameters (x and y) 
  * and creates a shape around the original such that an x-y rectangle just fits 
  * in between at any given place. In other words, placing a 2*x - 2*y rectangle
@@ -62,6 +64,11 @@
  * See the definition of the Contour class for a detailed description of the
  * features.
  *
+ * The library also contains a Path class which is represents a set of
+ * (not necessarily connected) edges, which may or may not be closed.
+ * It supports basic transformations and drawing.
+ * You can also convert it to a Contour (assuming it is a closed path).
+ *
  * Terminology
  * -----------
  * 
@@ -69,45 +76,47 @@
  *   The start of the edge is position zero, the end of it is position 1, but this
  *   is not used, as we refer to the end of an edge as the start of the next edge.
  * - *Crosspoints* are points of edges meeting. 
- * - *rays* are defined in context of crosspoints. A ray is a part of an edge
- *   coming to or leaving from a crosspoint, being incoming/outgoing rays respectively.
- *   For example, two straight crossing have four rays, two incoming and two outgoing.
+ * - *rays* are defined in the context of a crosspoint. A ray is a part of an edge
+ *   coming to or leaving from a crosspoint (called incoming/outgoing rays, respectively).
+ *   For example, two straight crossing edges have four rays, two incoming and two outgoing.
  *   If three edges cross at the same point, we have 6 rays. If an edge `E` crosses a vertex `V`
  *   of the other polygon, we still have 4 rays: one incoming and outgoing for the edge; 
  *   an incoming ray for the edge leading to `V` and an outgoing ray for the edge after `V`.
- *   A ray can be curvy, if its edge is not straight.
- * - *Walking* is the procedure used to calculate the union/intersection of two points.
- *   We calculate all crosspoints and starts walking around one of the contours. During the walk
+ *   A ray can be curvy, if its edge is a bezier.
+ * - *Walking* is the procedure used to calculate the union/intersection of two shapes.
+ *   We calculate all crosspoints and start walking around one of the contours. During the walk
  *   we stop by each crosspoint and see if we have to switch to the other contour. Finally we get
  *   back to the staring point. Then we can start an additional walk if relevant crosspoints have
  *   not been visited - in which case the resulting contour will not be contigous, that is it will
- *   contain multiple disjoint shapes.
- * - A *tangent* for our purposes is a line that touches a shape (or edge) only at a single point.
- *   Usually shapes have functions that take that single point as input and provide another point on the 
+ *   contain multiple disjoint shapes. (Some of which may turn out to be holes inside other 
+ *   shapes.)
+ * - A *tangent* for our purposes is a line that touches a shape (or edge) only at a single point
+ *   (Except for straight lines, where the tangent _lies on_ the edge.)
+ *   Class Contour and Edge have functions that take that single point as input and provide another point on the 
  *   tangent line some distance away. We can speak of a *forward* point, which is when we start on the
  *   tangent line towards the end of the edge or a *backward* point which is towards the start of the edge.
  *   We also call these 'next' and 'prev' tangent points, respectively.
  *   Now, a few more details here
- *     - If the shape is concave, the line may cross the shape elsewhere, but still locally there is only
  *       one point.
  *     - If we take a tangent at a point on a concave edge (say the inner circle of a crescent moon)
  *       the tangent will even locally be inside the shape.
  *     - If we take a tangent at a point that is on a straight edge, naturally the tangent line will
- *       include the straight edge.
+ *       lien on the straight edge.
  *     - If we take a tangent at a vertex, which is not smooth (has an angle), there are actually two
  *       different tangent lines, one for each edge. In this case the forward and backward tangent points 
  *       are returned form the edge subsequent or preceeding to the vertex, respectively.
  * - *Untangling* means the process of creating a shape, whose edges do not cross each other. Normally
  *   contours in class Contour have no edges crossing. There are two rules of what part of a tangled
- *   list of edges shall we keep during untangling. For both fill rules, whether or not a point is included 
+ *   list of edges shall we keep during untangling, called winding rules. 
+ *   For both fill rules, whether or not a point is included 
  *   in the resulting shape is determined by taking a ray from that point to infinity and looking at intersections 
  *   with the original shape's contour. The ray can be in any direction, as long as it doesn't pass through the 
  *   end point of an edge or have a tricky intersection such as intersecting tangent to the path.
- *     - *Winding* rule: If the original shape crosses the ray from left-to-right, counts +1. 
+ *     - *Nonzero* rule: If the original shape crosses the ray from left-to-right, counts +1. 
  *       If the path crosses the ray from right to left, counts -1. (Left and right are determined from the 
  *       perspective of looking along the ray from the starting point.) 
  *       If the total count is non-zero, the point will be included in the untangled shape.
- *     - Counts the total number of intersections, without regard to the orientation of the contour. 
+ *     - *Evenodd* rule: Counts the total number of intersections, without regard to the orientation of the contour. 
  *       If the total number of intersections is odd, the point will be included in the untangled shape.
  */
 

@@ -67,7 +67,7 @@ struct RayAngle {
      * clockwise, larger positive values the smaller the turn radius is.
      */
     double curve;
-    RayAngle() {};
+    RayAngle() = default;
     explicit RayAngle(double a, double b=0) : angle(a), curve(b) {}
     bool IsSimilar(const RayAngle&o) const {return test_equal(angle, o.angle) && test_equal(curve, o.curve);}  ///<Compares two RayAngles
     bool Smaller(const RayAngle&o) const {return test_equal(angle, o.angle) ? test_smaller(curve, o.curve) : angle < o.angle;} ///<True we are smaller than `o`, that is, `o` is clockwise after us. We do not define operator < since this is not strict, but approximate.
@@ -186,8 +186,11 @@ enum EExpandType {
     EXPAND_BEVEL
 };
 
+/** Returns true if t is one of EXPAND_MITER_XXX */
 inline bool IsMiter(EExpandType t) { return t==EXPAND_MITER || t==EXPAND_MITER_BEVEL || t==EXPAND_MITER_ROUND|| t==EXPAND_MITER_SQUARE; }
+/** Returns if t dictates a round join for parallel edge endings. */
 inline bool IsRound(EExpandType t) { return t==EXPAND_ROUND || t==EXPAND_MITER_ROUND; }
+/** Returns if t dictates a bevelled join for parallel edge endings. */
 inline bool IsBevel(EExpandType t) { return t==EXPAND_BEVEL || t==EXPAND_MITER_BEVEL; }
 
 /** Return which of two points are clockwise if seen from a third point.
@@ -203,7 +206,7 @@ inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool
     return (clockwise == (CLOCKWISE == triangle_dir(from, A, B))) ? B : A;
 }
 
-
+/** Describes how two sections can cross each other.*/
 enum ELineCrossingType
 {
     LINE_CROSSING_PARALLEL,  ///< No crossing, the two sections are parallel.
@@ -215,11 +218,15 @@ enum ELineCrossingType
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N, XY &r);
 
 
+/** Returns the point on position 't' of the section A->B. 
+ * 't' must be [0..1], 0 returns 'A', 1 returns 'B', 0.5 returns their midpoint.*/
 inline XY Mid(const XY &A, const XY &B, double t)
 {
     return A+t*(B-A);
 }
 
+/** Holds either a straight line or a cubic bezier. 
+ * May be visible or invisible. */
 class Edge
 {
     friend void contour_test(void);
@@ -313,39 +320,39 @@ public:
             @endverbatim */
             CP_INVERSE
     };
-    ///<True if two expanded edges or their extrension has crosspoints.
+    /** True if two expanded edges or their extrension has crosspoints.*/
     static bool HasCP(EExpandCPType t) { return t==CP_REAL || t==CP_EXTENDED || t==CP_TRIVIAL; }
-    ///<True if two expanded edges or their extrension has crosspoints.
-
-    enum { MAX_CP = 9 };
+    enum { MAX_CP = 9 ///<The maximum number of crosspoints two Edges may have.
+    };
 
 protected:
     friend class SimpleContour;
     friend class Path;
     friend class ContoursHelper;
     friend void contour_test_bezier(unsigned num);
-    struct CrossResult
-    {
-        XY r;
-        double pos_my;
-        double pos_other;
-    };
 protected:
-    bool straight : 1;
+    bool straight : 1;  ///<True if the Edge is a straight line (members c1 and c2 are to be ignored), false if a cubic bezier.
 public:
-    mutable bool visible : 1;
+    mutable bool visible : 1; ///<True if the edge is visible.
 protected:
-    XY start;
-    XY end;
-    XY c1;
-    XY c2;
+    XY start; ///<The startpoint of the Edge (first control point for cubic beziers)
+    XY end;   ///<The endpoint of the Edge (fourth control point for cubic beziers)
+    XY c1;    ///<If a cubic bezier, then the second control point - the one associated with 'start'
+    XY c2;    ///<If a cubic bezier, then the third control point - the one associated with 'end'
 public:
+    /** Contsruct a straight edge. */
     Edge(const XY &A, const XY &B, bool v = true)
         :straight(true), visible(v), start(A), end(B) {}
+    /** Construct a cubic bezier. Will be converted to straight line if too flat. */
     Edge(const XY &A, const XY &B, const XY &C, const XY &D, bool v = true)
         :straight(false), visible(v), start(A), end(B), c1(C), c2(D) { MakeStraightIfNeeded(); }
     Edge() = default;
     Edge(const Edge &) = default;
+    /** Construct the Edge as a section of another one. 
+     * Will be converted to straight line if too flat. 
+     * @param [in] e The other edge.
+     * @param [in] t The starting parameter of the section to cut out of 'e'. Must be in [0..s).
+     * @param [in] s The ending parameter of the section to cut out of 'e'. Must be in (t..1].*/
     Edge(const Edge &e, double t, double s) : Edge(e) { Chop(t, s); MakeStraightIfNeeded(); }
     Edge & operator = (const Edge &) = default;
     /** Only checks shape, not visibility */
@@ -355,14 +362,16 @@ public:
 
     const XY & GetStart() const { return start; } ///<Returns the startpoint.
     const XY & GetEnd() const { return end; }     ///<Returns the endpoint.
-    const XY &GetC1() const { _ASSERT(!straight); return c1; }
-    const XY &GetC2() const { _ASSERT(!straight); return c2; }
-    bool IsStraight() const { return straight; }
-    bool IsDot() const { return start.test_equal(end) && (straight || (start.test_equal(c1) && end.test_equal(c2))); }
+    const XY &GetC1() const { _ASSERT(!straight); return c1; } ///<Returns the second control point for cubic beziers.
+    const XY &GetC2() const { _ASSERT(!straight); return c2; } ///<Returns the third control point for cubic beziers.
+    bool IsStraight() const { return straight; } ///<True if the Edge is a straight line.
+    bool IsDot() const { return start.test_equal(end) && (straight || (start.test_equal(c1) && end.test_equal(c2))); } ///<Ture if the edge is degenerated to a single point.
 
+    /** Returns the point at position 'pos' on the Edge. 'pos' must be in [0..1]*/
     XY Pos2Point(double pos) const { return straight ? Mid(start, end, pos) : Split(pos); }
 
 protected:
+    /** Returns the point at position 'pos' of a bezier curve. 'pos' must be in [0..1]*/
     XY Split(double t) const
     {
         return pow(1-t, 3) * start
@@ -371,15 +380,13 @@ protected:
             + pow(t, 3) * end;
     }
     XY Split(double t, XY &r1, XY &r2) const;
-    XY Split() const { XY a, b; return Split(a, b); }
+    XY Split() const { XY a, b; return Split(a, b); } ///<Returns the midpoint of a bezier curve
     XY Split(XY &r1, XY &r2) const;
     void Split(Edge &r1, Edge &r2) const;
     void Split(double t, Edge &r1, Edge &r2) const;
     bool Chop(double t, double s);
     bool MakeStraightIfNeeded(double maximum_distance_sqr = 0.001);
     int WhichSide(const XY &A, const XY &B) const;
-    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const;
-    bool OverlapConvexHull(const XY&A, const XY&B, const XY&C) const;
     bool HullOverlap(const Edge &, bool is_next) const;
     double HullDistance(const XY &A, const XY &B) const;
     double HullDistance(const XY &A, const XY &B, const XY &C, const XY &D) const;
@@ -395,8 +402,6 @@ protected:
     unsigned CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
                             double pos_my_mul, double pos_other_mul,
                             double pos_my_offset, double pos_other_offset, unsigned alloc_size) const;
-    unsigned CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
-                                    double pos_mul, double pos_offset) const;
 
     Edge& SetStart(const XY &p, double pos);
     Edge& SetEnd(const XY &p, double pos);
@@ -411,27 +416,27 @@ protected:
                                       double &my_pos, double &M_pos) const;
     template <typename E, typename Iterator>
     static void RemoveLoop(std::list<E> &edges, Iterator first, Iterator last, bool self=false,
-                                 std::vector<Edge>*original = NULL, size_t orig_offset = 0);
+                           std::vector<Edge>*original = NULL, size_t orig_offset = 0);
     void TangentFromRecursive(const XY &from, XY &clockwise, XY &cclockwise) const;
 
 public:
-    Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }
-    Edge CreateShifted(const XY&p) const { return Edge(*this).Shift(p); }
+    Edge &Shift(const XY&p) { start += p; end += p; if (!straight) { c1 += p; c2 += p; } return *this; }  ///<Shift the egde
+    Edge CreateShifted(const XY&p) const { return Edge(*this).Shift(p); } ///<Create a shifted version of the edge
     Edge &Scale(double sc) { start *= sc; end *= sc; if (!straight) { c1 *= sc; c2 *= sc; } return *this; }    ///<Scale the edge.
     Edge CreateScaled(double sc) const { return Edge(*this).Scale(sc); }    ///<Scale the edge.
     Edge &Scale(const XY &sc) { start.Scale(sc); end.Scale(sc); if (!straight) { c1.Scale(sc); c2.Scale(sc); } return *this; }    ///<Scale the edge.
     Edge CreateScaled(const XY &sc) const { return Edge(*this).Scale(sc); }    ///<Scale the edge.
-    Edge &Rotate(double cos, double sin) { start.Rotate(cos, sin); end.Rotate(cos, sin); if (!straight) { c1.Rotate(cos, sin); c2.Rotate(cos, sin); } return *this; }
-    Edge CreateRotated(double cos, double sin) const { return Edge(*this).Rotate(cos, sin); }
-    Edge &RotateAround(const XY&c, double cos, double sin) { start.RotateAround(c, cos, sin); end.RotateAround(c, cos, sin); if (!straight) { c1.RotateAround(c, cos, sin); c2.RotateAround(c, cos, sin); } return *this; }
-    Edge CreateRotatedAround(const XY&c, double cos, double sin) const { return Edge(*this).RotateAround(c, cos, sin); }
-    Edge &SwapXY() { start.SwapXY(); end.SwapXY(); if (!straight) { c1.SwapXY(); c2.SwapXY(); } return *this; }
-    Edge CreateSwapXYd() const { return Edge(*this).SwapXY(); }
-    Edge &Invert() { std::swap(start, end); if (!straight) std::swap(c1, c2); return *this; } ///<Reverses the direction of the edge.
+    Edge &Rotate(double cos, double sin) { start.Rotate(cos, sin); end.Rotate(cos, sin); if (!straight) { c1.Rotate(cos, sin); c2.Rotate(cos, sin); } return *this; } ///<Rotates the edge around the origin
+    Edge CreateRotated(double cos, double sin) const { return Edge(*this).Rotate(cos, sin); } ///<Creates a rotated version of the edge
+    Edge &RotateAround(const XY&c, double cos, double sin) { start.RotateAround(c, cos, sin); end.RotateAround(c, cos, sin); if (!straight) { c1.RotateAround(c, cos, sin); c2.RotateAround(c, cos, sin); } return *this; } ///<Rotates the edge around a point
+    Edge CreateRotatedAround(const XY&c, double cos, double sin) const { return Edge(*this).RotateAround(c, cos, sin); } ///<Creates a version of the edge rotated around a point
+    Edge &SwapXY() { start.SwapXY(); end.SwapXY(); if (!straight) { c1.SwapXY(); c2.SwapXY(); } return *this; } ///<Swaps XY coordinates
+    Edge CreateSwapXYd() const { return Edge(*this).SwapXY(); } ///<Created a version of the edge with swapped x and y coordinates.
+    Edge &Invert() { std::swap(start, end); if (!straight) std::swap(c1, c2); return *this; } ///<Reverses the direction of the edge effectively swapping start and end.
 
-    //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
+    /** Returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.*/
     XY PrevTangentPoint(double pos) const { return straight ? 2*start-end : pos ? Mid(Mid(start, c1, pos), Mid(c1, c2, pos), pos) : 2*start-c1; }
-    //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
+    /** Returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge. */
     XY NextTangentPoint(double pos) const { return straight ? 2*end-start : pos<1 ? Mid(Mid(c1, c2, pos), Mid(c2, end, pos), pos) : 2*end-c2; }
 
     bool CheckAndCombine(const Edge &next, double *pos = NULL);
@@ -445,10 +450,10 @@ public:
     XY XMaxExtreme(double &pos) const;
 
     double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-    DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; }    //always nonnegative
-    void Distance(const Edge &, DistanceType &ret) const;    //always nonnegative
+    DistanceType Distance(const Edge &o) const { DistanceType ret; Distance(o, ret); return ret; } ///<Returns the distance of 'o' from 'this'.
+    void Distance(const Edge &, DistanceType &ret) const; 
 
-    double GetAreaAboveAdjusted() const;
+    double GetAreaAboveAdjusted() const; ///<The area above the edge (adjusted).
     double GetLength() const; ///<Returns the length of the arc.
     //returns the centroid of the area above multipled by the (signed) area above
     XY GetCentroidAreaAboveUpscaled() const;
@@ -460,14 +465,13 @@ public:
 
     //tangential toucher from a point
     void TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    void TangentFrom2(const XY &from, XY &clockwise, XY &cclockwise) const;
     void TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
 
     void   PathTo(cairo_t *cr) const { if (straight) cairo_line_to(cr, end.x, end.y); else cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, end.x, end.y); } ///<Adds the edge to a cairo path. * It assumes cairo position is at `start`.
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse = false) const;
 
     static void GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y = 0,
-        double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
+                                double tilt_deg = 0, double s_deg = 0, double d_deg = 0, bool clockwise = true);
     bool CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent, std::vector<Edge> *original = NULL) const;
     bool CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const;
 
@@ -475,6 +479,10 @@ public:
     unsigned atY(double y, double roots[3]) const;
 };
 
+/** Changes a bezier curve to straight if it is too flat.
+ * @param [in] maximum_distance_sqr The sum of the square distance of c1 and c2 from the start->end segment.
+ *                                  If the actual distance is smaller than this, we switch to straight.
+ * @returns true if we have switched from bezier to straight line.*/
 inline bool Edge::MakeStraightIfNeeded(double maximum_distance_sqr) 
 {
     _ASSERT(!isnan(start.x) && !isnan(start.y));
@@ -492,7 +500,11 @@ inline bool Edge::MakeStraightIfNeeded(double maximum_distance_sqr)
     return straight = (d2 + d3)*(d2 + d3) < maximum_distance_sqr * (dx*dx + dy*dy);
 }
 
-//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+/** Set the start of the Edge thereby effectively chopping its head away.
+ * We assume 'p' and 'pos' correspond to the same point and use the one resulting
+ * in faster operation. This is very small processing when compiled in optimized mode. 
+ * For straight edges, only an assignment and "pos" need not be calculated in the
+ * caller context (as it is not used) due to inlining.*/
 inline Edge& Edge::SetStart(const XY &p, double pos)
 {
     if (!straight) {
@@ -516,7 +528,11 @@ inline Edge& Edge::SetStart(const XY &p, double pos)
     return *this;
 }
 
-//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
+/** Set the end of the Edge thereby effectively chopping its tail away.
+ * We assume 'p' and 'pos' correspond to the same point and use the one resulting
+ * in faster operation. This is very small processing when compiled in optimized mode. 
+ * For straight edges, only an assignment and "pos" need not be calculated in the
+ * caller context (as it is not used) due to inlining.*/
 inline Edge& Edge::SetEnd(const XY &p, double pos)
 {
     if (!straight) {
@@ -540,8 +556,12 @@ inline Edge& Edge::SetEnd(const XY &p, double pos)
     return *this;
 }
 
-//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
-//This version ignores the "pos" completely for staright lines even in debug mode
+/** Set the start of the Edge thereby effectively chopping its head away.
+ * We assume 'p' and 'pos' correspond to the same point and use the one resulting
+ * in faster operation. This is very small processing when compiled in optimized mode. 
+ * For straight edges, only an assignment and "pos" need not be calculated in the
+ * caller context (as it is not used) due to inlining.
+ * This version ignores the "pos" completely for staright lines even in debug mode*/
 inline Edge& Edge::SetStartIgn(const XY &p, double pos)
 {
     if (!straight) {
@@ -558,8 +578,12 @@ inline Edge& Edge::SetStartIgn(const XY &p, double pos)
     return *this;
 }
 
-//this is very small in release mode. If straight, only an assignment and "pos" need not be calculated
-//This version ignores the "pos" completely for staright lines even in debug mode
+/** Set the end of the Edge thereby effectively chopping its tail away.
+ * We assume 'p' and 'pos' correspond to the same point and use the one resulting
+ * in faster operation. This is very small processing when compiled in optimized mode. 
+ * For straight edges, only an assignment and "pos" need not be calculated in the
+ * caller context (as it is not used) due to inlining.
+ * This version ignores the "pos" completely for staright lines even in debug mode*/
 inline Edge& Edge::SetEndIgn(const XY &p, double pos)
 {
     if (!straight) {
@@ -576,6 +600,12 @@ inline Edge& Edge::SetEndIgn(const XY &p, double pos)
     return *this;
 }
 
+/** Set the start and end of the Edge thereby effectively chopping its head and tail away.
+ * We assume 'p' and 'pos' correspond to the same point and use the one resulting
+ * in faster operation. This is very small processing when compiled in optimized mode.
+ * For straight edges, only an assignment and "pos" need not be calculated in the
+ * caller context (as it is not used) due to inlining. Ignores the "pos" completely 
+ * for staright lines even in debug mode.*/
 inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double dpos)
 {
     if (!straight) {
@@ -595,7 +625,7 @@ inline Edge& Edge::SetStartEndIgn(const XY &s, const XY &d, double spos, double 
     return *this;
 }
 
-
+/** Returns the bounding box of the hull of the bezier curve.*/
 inline Block Edge::GetBezierHullBlock() const
 {
     _ASSERT(!straight);
@@ -605,6 +635,8 @@ inline Block Edge::GetBezierHullBlock() const
                  std::max(std::max(start.y, end.y), std::max(c1.y, c2.y)));
 }
 
+/** Returns the x range of the hull's bounding box.
+ * (Cheaper than GetBezierHullBlock() & works for straight edges, too.)*/
 inline Range Edge::GetHullXRange() const
 {
     if (straight)
@@ -613,6 +645,8 @@ inline Range Edge::GetHullXRange() const
                  std::max(std::max(start.x, end.x), std::max(c1.x, c2.x)));
 }
 
+/** Returns the y range of the hull's bounding box.
+* (Cheaper than GetBezierHullBlock() & works for straight edges, too.)*/
 inline Range Edge::GetHullYRange() const
 {
     if (straight)

@@ -58,6 +58,8 @@ Block Path::CalculateBoundingBox() const
  * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
  * @param [in] s_deg The startpoint of the arc.
  * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
+ * @param [in] add_closing_line If true the function adds a line to not entirely closed arcs. If false, such arcs
+ *             remain open. No impact on full circles/ellipses.
  * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
 */
 Path::Path(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg, bool add_closing_line)
@@ -412,10 +414,13 @@ inline bool really_between04_warp(const RayAngle &q, const RayAngle &a, const Ra
     return a.Smaller(q) || q.Smaller(b);
 }
 
-//Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A.
-//It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
-//clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
-//it encircles.
+/** A helper for CheckContainment().
+ * Can result in SAME, APRT, A_INSIDE_B and these results represent the actual
+ * relation between 'this' and 'b'.
+ * It can also return OVERLAP, which only means one of our point is outside 'b', 
+ * either because we are APART or because B_INSIDE_A.
+ * clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
+ * it encircles.*/
 EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
     size_t edge;
@@ -562,6 +567,8 @@ void SimpleContour::assign_dont_check(const Edge v[], size_t size)
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
+/** Checks if all edges connect, the shape is closed, no edges 
+ * are degenerated to a dot, the shape has an actual area, etc.*/
 bool SimpleContour::IsSane() const
 {
     if (size()==0) return true;
@@ -782,11 +789,13 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
 /** Helper that creates a half circle for EXPAND_ROUND or EXPAND_MITER_ROUND type expansion,
  * where expanded edges are parallel.
  *
- * @param [in] start The start of the half circle (end of the previous expanded edge)
- * @param [in] end The end of the half circle (the start of the next previous edge)
- * @param [in] old The position of the vertex before expanding the edges.
+ * @param [in] center The center of the circle of the arc (likely the original vertex)
+ * @param [in] start The start of the arc (end of the previous expanded edge)
+ * @param [in] end The end of the arc (the start of the next previous edge)
  * @param [in] clockwise The clockwisedness of the original shape.
- * @param [out] append_to Append the resulting (series of) Edge(s) to this array.
+ * @param [out] insert_to Insert the resulting (series of) Edge(s) to this list...
+ * @param [in] here ...before this location.
+ * @param [in] visible Set the visibility of the newly inserted edges to this.
  */
 void SimpleContour::CreateRoundForExpand(const XY &center, const XY &start, const XY &end, bool clockwise,
                           std::list<ExpandMetaData> &insert_to, std::list<ExpandMetaData>::iterator here,
@@ -1213,7 +1222,17 @@ end:
 }
 
 
-//my index is the index of the edge (of "this") just added
+/** A helper to Expand2D.
+ * It connects two edges, which ended up disconnected after being Expand2D'd.
+ * @param [in] gap Specifies how much to expand.
+ * @param a The series of edges on which to work.
+ * @param [in] original_last The index of the first edge in 'a' to connect.
+ * @param [in] next The index of the second edge in 'a' to connect. Edges used to connect 
+ *                  will be inserted before this edge.
+ * @param [in] my_index The index of the edge in 'this' corresponding to 'a[next]'.
+ * @param [in] last_type The ending direction of 'a[original_last]'
+ * @param [in] stype The starting direction of 'a[next]'
+ */
 void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
                                    unsigned original_last, unsigned next, unsigned my_index,
                                    int last_type, int stype) const
@@ -1443,11 +1462,9 @@ final_merge:
 }
 
 /** Calculates the distance between a point and us by finding our closest point.
- *
  * @param [in] o The point to take the distance from.
  * @param [out] ret We return the point on our contour closes to `o`.
- * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.
- */
+ * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty. */
 double SimpleContour::Distance(const XY &o, XY &ret) const
 {
     if (IsEmpty()) return CONTOUR_INFINITY;
@@ -1468,7 +1485,6 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
 }
 
 /** Calculates the distance between a point and us by finding our closest point and returns two tangent points.
- *
  * Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points
  * from the tangent of the shape at `ret`. See @ref contour for a description of tangents.
  *
@@ -1476,8 +1492,7 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
  * @param [out] ret We return the point on our contour closes to `o`.
  * @param [out] t1 The forward tangent point.
  * @param [out] t2 The backward tangent point.
- * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.
- */
+ * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.*/
 double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
 {
     if (IsEmpty()) return CONTOUR_INFINITY;
@@ -1507,8 +1522,7 @@ double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2)
  * thus both values are between 0 and 1. It is possible that a single value is
  * returned if the edge touches the shape or if its start is inside the shape, but
  * its end is outside. If the edge does not cross or touch the shape, an invalid
- * range is returned.
- */
+ * range is returned.*/
 Range SimpleContour::Cut(const Edge &s) const
 {
     Range ret;

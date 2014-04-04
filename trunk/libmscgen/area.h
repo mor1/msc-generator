@@ -106,7 +106,7 @@ public:
          {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
-    double OffsetBelow(const Contour &below, double &touchpoint, double offset = CONTOUR_INFINITY) const;
+    double OffsetBelow(const contour::Contour &below, double &touchpoint, double offset = CONTOUR_INFINITY) const;
     double OffsetBelow(const Area &below, double &touchpoint, double offset = CONTOUR_INFINITY, bool bMainline = true) const;
 };
 

@@ -300,9 +300,11 @@ public:
 
     /** Initializes the Csh Object.
      * @param [in] defaultDesign Specifies a Context to collect 
-     *   forbidden and default style names; color names and definitons to learn 
+     *   forbidden and default style names, color names and definitons to learn 
      *   from. If not in the initialization of a global variable, best to use 
-     *   ArcBase::defaultDesign.*/
+     *   ArcBase::defaultDesign.
+     * @param [in] shapes Specifies a shape collection to learn available shape 
+     *   names from. May be NULL, if no shapes.*/
     Csh(const Context &defaultDesign, const ShapeCollection *shapes);
 
     /**Add a name of a shape (whithout the actual shape)*/

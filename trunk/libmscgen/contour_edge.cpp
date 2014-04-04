@@ -34,7 +34,7 @@ namespace contour {
 
     /** Solve quadratic equation.
 *
-* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[2]` is the coeff of `x^2`.
+* @param [in] afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[2]` is the coeff of `x^2`.
 * @param [out] afRoot Returns the root(s).
 * @returns the number of roots [0..2].
 */
@@ -72,7 +72,7 @@ unsigned solve_degree2(double afCoeff[3], double afRoot[2])
 
 /** Solve qubic equation.
 *
-* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[3]` is the coeff of `x^3`.
+* @param [in] afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[3]` is the coeff of `x^3`.
 * @param [out] afRoot Returns the root(s).
 * @returns the number of roots [1..3].
 */
@@ -148,7 +148,7 @@ unsigned solve_degree3(double afCoeff[4], double afRoot[3])
 *
 * Based on David Eberly's code at
 * <http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Core/MgcPolynomial.cpp>
-* @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[4]` is the coeff of `x^4`.
+* @param [in] afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[4]` is the coeff of `x^4`.
 * @param [out] afRoot Returns the root(s).
 * @returns the number of roots [0..4]
 */
@@ -270,7 +270,7 @@ XY Edge::Split(XY &r1, XY &r2) const
 
 const double flatness_tolerance = 0.001;
 
-
+/** Split the bezier curve to two halves.*/
 void Edge::Split(Edge &r1, Edge &r2) const
 {
     r1.start = start;
@@ -285,6 +285,7 @@ void Edge::Split(Edge &r1, Edge &r2) const
     r2.MakeStraightIfNeeded(flatness_tolerance);
 }
 
+/** Split the bezier curve at position t. t must be in (0..1).*/
 void Edge::Split(double t, Edge &r1, Edge &r2) const
 {
     r1.start = start;
@@ -299,6 +300,10 @@ void Edge::Split(double t, Edge &r1, Edge &r2) const
     r2.MakeStraightIfNeeded(flatness_tolerance);
 }
 
+/** Cuts away the beginning and the end of the edge.
+ * Keep only the parts between 't' and 's'.
+ * Returns true if the result is degenerate to a single point.
+ * 's' and 't' must be between [0..1].*/
 bool Edge::Chop(double t, double s)
 {
     _ASSERT(t>=0 && s>=0 && t<=1 && s<=1);
@@ -367,17 +372,19 @@ int Cross(const XY &A1, const XY &A2, const XY &B1, const XY &B2, double &t, dou
 
 
 /** Check if two segments cross
-* returns 0 if none, 1 if yes, 2 if they are rectilinear and overlap.
-* 0 - no crossing
-* 1 - one crossing point (in r[0])
-* 2 - the two sections intersects from r[0] to r[1]
-* if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
-* in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
-* See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
-* crossing points that result in a pos value close to 1 are ignored
-* In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
-* sections are returned (if they overlap or touch)
-*/
+ * returns 0 if none, 1 if yes, 2 if they are rectilinear and overlap.
+ * 0 - no crossing
+ * 1 - one crossing point (in r[0])
+ * 2 - the two sections intersects from r[0] to r[1]
+ * if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
+ * in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
+ * See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
+ * crossing points that result in a pos value close to 1 are ignored
+ * In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
+ * sections are returned (if they overlap or touch).
+ * If they cross close to the end of one of the section we snap the positions 
+ * to exact 0 or 1.
+ */
 unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
 {
     _ASSERT(straight && o.straight);
@@ -461,6 +468,8 @@ unsigned Edge::CrossingSegments(const Edge &o, XY r[], double pos_my[], double p
  * crossing points that result in a pos value close to 1 are ignored
  * In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
  * sections are returned (if they overlap or touch)
+ * If they cross close to the end of one of the section we DO NOT snap the positions
+ * to exact 0 or 1 (as opposed to CrossingSegments()).
  */
 unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
 {
@@ -609,45 +618,10 @@ int Edge::WhichSide(const XY &A, const XY &B) const
     return positive==num ? +1 : negative==num ? -1 : 0;
 }
 
-/**Determines if the convex hull represented by the four points overlap with us */
-bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C, const XY&D) const
-{
-    int one, total;
-    total = WhichSide(A, B);
-    if (total==0) return true;
-    total += one = WhichSide(B, C);
-    if (one==0) return true;
-    total += one = WhichSide(C, D);
-    if (one==0) return true;
-    total += one = WhichSide(D, A);
-    if (one==0) return true;
-    //it still may be that 'o' is completely iside 'ABCD'
-    //XXX ToDo: Check for clockwiseness of ABCD
-    if (total==-4) return true;
-    return false;
-}
-
-/**Determines if the triangle represented by the three points overlap with us */
-bool Edge::OverlapConvexHull(const XY&A, const XY&B, const XY&C) const
-{
-    int one, total;
-    total = WhichSide(A, B);
-    if (total==0) return true;
-    total += one = WhichSide(B, C);
-    if (one==0) return true;
-    total += one = WhichSide(C, A);
-    if (one==0) return true;
-    //it still may be that 'o' is completely iside 'ABC'
-    //XXX ToDo: Check for clockwiseness of ABC
-    if (total==-3) return true;
-    return false;
-}
-
-
 
 /** Checks if the bounding box of the hull of two beziers overlap.
- * @param [in] The other edge
- * @param [in] If true 'o' is an edge following 'this' and we ignore if they 
+ * @param [in] o The other edge
+ * @param [in] is_next If true 'o' is an edge following 'this' and we ignore if they 
  *             connect via this->end == o.start.
  * @returns True if there is overlap */
 bool Edge::HullOverlap(const Edge &o, bool is_next) const
@@ -666,7 +640,27 @@ bool Edge::HullOverlap(const Edge &o, bool is_next) const
     return false;
 }
 
-/* Returns the number of crosspoints */
+/** A helper to find edge crosspoints, to be called recursively.
+ * We subdivide each edge and try to find crosspoints that way.
+ * So 'this' and 'A' may be only part of the original edges we search
+ * crosspoints of.
+ * @param [in] A (part of) the other edge.
+ * @param [out] r The resulting crosspoints.
+ * @param [out] pos_my The positions of the resulting crosspoints on the
+ *                     original edge of 'this'.
+ * @param [out] pos_other The positions of the resulting crosspoints on the
+ *                     original edge of 'A'.
+ * @param [in] pos_my_mul The multiplier to apply to a found position on
+ *             'this' to convert it to a position on the original of 'this'.
+ * @param [in] pos_other_mul The multiplier to apply to a found position on
+ *             'A' to convert it to a position on the original of 'A'.
+ * @param [in] pos_my_offset The offset to add to a found (and multiplied)
+ *             position on 'this' to convert it to a position on the original of 'this'.
+ * @param [in] pos_other_offset The offset to add to a found (and multiplied)
+ *             position on 'A' to convert it to a position on the original of 'A'.
+ * @param [in] alloc_size The number of crosspoints for which 'r', 'pos_my' and
+ *             'pos_other' has space for.
+ * @returns the number of crosspoints found.*/
 unsigned Edge::CrossingBezier(const Edge &A, XY r[], double pos_my[], double pos_other[],
                               double pos_my_mul, double pos_other_mul,
                               double pos_my_offset, double pos_other_offset, unsigned alloc_size) const
@@ -763,7 +757,7 @@ bool Edge::CheckAndCombine(const Edge &next, double *pos)
 * endpoint of the common section.
 * The arrays shall be at least Edge::MAX_CP big.
 *
-* @param [in] o The other edge.
+* @param [in] A The other edge.
 * @param [in] is_next If true we assume A follows *this (and thus do not report
 *             if their start and endpoints (respectively) meet.
 * @param [out] r The crosspoins.
@@ -895,6 +889,11 @@ snap_ends:
     return ret;
 }
 
+/** Finds where an edge crosses itself.
+ * @param [out] r The crosspoints
+ * @param [out] pos1 The positions associated with the crosspoints.
+ * @param [out] pos2 The other positions associated with the crosspoints.
+ * @returns the number fof crosspoints found.*/
 unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], double pos2[Edge::MAX_CP]) const
 {
     if (straight) return 0;
@@ -981,39 +980,6 @@ unsigned Edge::SelfCrossing(XY r[Edge::MAX_CP], double pos1[Edge::MAX_CP], doubl
     }
     return 1;
 }
-
-
-/* Returns the number of crosspoints*/
-unsigned Edge::CrossingVerticalBezier(double x, double y[], double pos[], bool forward[],
-    double pos_mul, double pos_offset) const
-{
-    if (straight) {
-        if ((start.x >= x && end.x < x) ||      //we cross leftward
-            (start.x < x && end.x >= x)) {      //we cross rightward
-            //we cross p's line y
-            pos[0] = (x - start.x)/(end.x - start.x) * pos_mul + pos_offset;
-            y[0] = (end.y - start.y)*pos[0]+ start.y;
-            forward[0] = start.x < x; //we cross rightward
-            return 1;
-        }
-        //We do not check for a vertical line here, just in CrossingVertical
-        //If a split segment ends up being a vertical line, its neighbouring segments
-        //will report it.
-        //if (start.x == x && end.x == x) return -1; //vertical line
-        return 0;
-    }
-    //if all points are left or right of the line, we certainly do not cross
-    if (start.x<x && end.x<x && c1.x<x && c2.x<x) return 0;
-    if (start.x>x && end.x>x && c1.x>x && c2.x>x) return 0;
-    Edge M1, M2;
-    Split(M1, M2);
-    pos_mul /= 2;
-    unsigned num;
-    num = M1.CrossingVerticalBezier(x, y, pos, forward, pos_mul, pos_offset);
-    num += M2.CrossingVerticalBezier(x, y+num, pos+num, forward+num, pos_mul, pos_offset+pos_mul);
-    return num;
-}
-
 
 
 
@@ -1359,8 +1325,11 @@ RayAngle Edge::Angle(bool incoming,  double pos) const
                       RayAngle(angle_to_horizontal(C, B), invRadius);
 }
 
+/** Returns either the x or the y coordinate of 'p' depending on the value of 'i'*/
 inline double COORD(const XY &p, unsigned i) { return i ? p.y : p.x; }
 
+/** Calculates the tight bounding box of 'this'.
+ * Moderately expensive.*/
 Block Edge::CreateBoundingBox() const
 {
     if (straight)
@@ -1521,6 +1490,11 @@ double SectionPointDistance(const XY&A, const XY&B, const XY &M, XY &point, doub
 }
 
 
+/** Calculates the distance of a point from the edge.
+ * @param [in] M The point to calculate the distance of.
+ * @param [out] point The point of 'this' closest to 'M'.
+ * @param [out] pos The position corresponding to 'point'.
+ * @returns the distance, always nonnegative.*/
 double Edge::Distance(const XY &M, XY &point, double &pos) const //always nonnegative
 {
     if (straight)
@@ -1621,6 +1595,9 @@ double Edge::FindBezierParam(const XY &p) const
     return ret;
 }
 
+/** Merges the distance of 'o' from 'this' to 'ret'.
+ * That is, if 'o' is closer to 'this' than the distance stored in 'ret',
+ * we update 'ret' with this new distance.*/
 void Edge::Distance(const Edge &o, DistanceType &ret) const    //always nonnegative
 {
     if (ret.IsZero()) return;
@@ -2024,16 +2001,16 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
 *
 * @param [in] M The other expanded edge.
 * @param [out] newcp Returns their new crosspoint.
-* @param [in] my_next tangent The ideal next tangent of *this. 
+* @param [in] my_next_tangent The ideal next tangent of *this. 
 *                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
-* @oaram [in] Ms_prev_tangent The ideal previous tangent of M.
+* @param [in] Ms_prev_tangent The ideal previous tangent of M.
 *                             Used to detect parallel joins and for calculating CP_EXTENDED crosspoints.
 * @param [in] is_my_origin_bezier True, if the original edge of *this was a bezier. Used when calculating
 *                                 'newcp' for parallel joins.
 * @param [in] is_Ms_origin_bezier True, if the original edge of M was a bezier. Used when calculating
 *                                 'newcp' for parallel joins.
 * @param [out] my_pos In case of CP_REAL returns the position of the cp on 'this', if it is a bezier.
-* @param [out[ M_pos In case of CP_REAL returns the position of the cp on M, if that is a bezier.
+* @param [out] M_pos In case of CP_REAL returns the position of the cp on M, if that is a bezier.
 * @returns The relation of the two expanded edges.
 */
 Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp, 
@@ -2135,7 +2112,18 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp,
     }
 }
 
-/** Creates a circle, ellipse or a segment of it. */
+/** Creates a circle, ellipse or a segment of it. 
+ * @param [out] append_to append the resulting edge(s) to this collection.
+ * @param [in] c The center of the circle/ellipse.
+ * @param [in] radius_x The radius along the x axis. Must be positive.
+ * @param [in] radius_y The radius along the x axis. Must be nonnegative. 
+ *                      If zero, we use radius_x instead. 
+ * @param [in] tilt_deg Degrees by which we rotate the ellipse clockwise 
+ *                      (ignored if radius_x==radius_y)
+ * @param [in] s_deg Degrees where to start the arc. 
+ * @param [in] d_deg Degrees where to end the arc. Both d_deg and s_deg are 
+ *                   counted from the "right" direction clockwise.
+ * @param [in] clockwise If true the arc goes clockwise from s_deg to d_deg.*/
 void Edge::GenerateEllipse(std::vector<Edge> &append_to, const XY &c, double radius_x, double radius_y, 
                            double tilt_deg, double s_deg, double d_deg, bool clockwise)
 {
@@ -2661,6 +2649,7 @@ bool Edge::CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent,
     return true;
 }
 
+/** Helper for CreateExpand(). */
 bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const
 {
     if (straight) {
@@ -2740,7 +2729,20 @@ bool Edge::CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::ve
     return true;
 }
 
-//helpers for offsetbelow
+/** Determines how much one edge is below us.
+ * @param [in] o The other edge to consider.
+ * @param [out] touchpoint The y coordinate where 'o' would touch 
+ *                         us if shifted upwards by what we return.
+ * @param [in] min_so_far If o is further down below us by more than this value,
+ *                        return this value. This also allows optimization for
+ *                        bezier curves: if the hull or bounding box of 'o' is 
+ *                        below our hull or bounding box more than 'min_so_far'
+ *                        we do not need to calculate the exact offset between
+ *                        us and 'o', just return min_so_far.
+ * @returns how much 'o' should be shifted upwards to touch us. If o is above us
+ *          or overlaps us, we return a negative value (since o need shifting
+ *          down). If o is besides us, we consider the offset CONTOUR_INFINITE
+ *          and return min_so_far.*/
 double Edge::OffsetBelow(const Edge &o, double &touchpoint, double min_so_far) const
 {
     const Range AB = GetHullXRange();

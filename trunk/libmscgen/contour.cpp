@@ -60,6 +60,9 @@ void ContourList::SwapXY()
     boundingBox.SwapXY();
 }
 
+/** Returns the relation of 'c' to the shapes in the list.
+ * If 'ignore_holes' is true we ignore holes both in our shapes and in 'c'.
+ * Note that the clockwiseness is ignored in RelationTo() calls.*/
 EContourRelationType ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
     if (IsEmpty())
@@ -118,6 +121,9 @@ EContourRelationType ContourList::RelationTo(const ContourWithHoles &c, bool ign
     return res;
 }
 
+/** Returns the relation of 'c' to the shapes in the list.
+* If 'ignore_holes' is true we ignore holes both in our shapes and in 'c'.
+* Note that the clockwiseness is ignored in RelationTo() calls.*/
 EContourRelationType ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
 {
     if (IsEmpty())
@@ -218,18 +224,33 @@ void ContourList::CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) c
         c.CairoPath(cr, show_hidden, clockwiseonly);
 }
 
+/** Draw the shape in dashed lines to the path of a cairo context. 
+ * Needed for backends not supporting dashed lines. 
+ * If `show_hidden` is false, we skip edges marked not visible.*/
 void ContourList::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     for (auto &c : *this)
         c.CairoPathDashed(cr, pattern, num, show_hidden);
 }
 
+/** Draw the shape in dashed lines to the path of a cairo context.
+* Needed for backends not supporting dashed lines.
+* If `show_hidden` is false, we skip edges marked not visible.
+If `clockwiseonly` is false, we skip counterclockwise contours.*/
 void ContourList::CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const
 {
     for (auto &c : *this)
         c.CairoPathDashed(cr, pattern, num, show_hidden, clockwiseonly);
 }
 
+/** Calculates the distance between my shapes and 'c' by finding their two closest points.
+*
+* @param [in] ch The other shape to take the distance from.
+* @param dist_so_far We return the distance of the two closest points and the two points themselves.
+*            Distance is negative one is inside the other (but not in a hole), zero if partial overlap only (two points equal)
+*            'Inside' here ignores clockwiseness. Distance is `CONTOUR_INFINITY` if one of the shapes is empty.
+*            Note that `ret` can contain the result of previous searches, we update it if we find two points
+*            with a smaller distance (in absolute value).*/
 void ContourList::Distance(const ContourWithHoles &ch, DistanceType &dist_so_far) const
 {
     if (IsEmpty() || ch.IsEmpty()) return;
@@ -250,6 +271,14 @@ void ContourList::Distance(const ContourWithHoles &ch, DistanceType &dist_so_far
     }
 }
 
+/** Calculates the distance between two lists of shapes by finding their two closest points.
+*
+* @param [in] cl The other list to take the distance from.
+* @param dist_so_far We return the distance of the two closest points and the two points themselves.
+*            Distance is negative one is inside the other (but not in a hole), zero if partial overlap only (two points equal)
+*            'Inside' here ignores clockwiseness. Distance is `CONTOUR_INFINITY` if one of the shapes is empty.
+*            Note that `ret` can contain the result of previous searches, we update it if we find two points
+*            with a smaller distance (in absolute value).*/
 void ContourList::Distance(const ContourList &cl, DistanceType &dist_so_far) const
 {
     if (IsEmpty() || cl.IsEmpty()) return;
@@ -274,15 +303,15 @@ void ContourList::Distance(const ContourList &cl, DistanceType &dist_so_far) con
 
 
 
-///ContoursHelper/////////////////////////////////////////////////////////
+//ContoursHelper/////////////////////////////////////////////////////////
 
 
 /** Implements the index of a doubly linked list */
 struct link_info
 {
-    size_t next;
-    size_t prev;
-    static const size_t no_link;
+    size_t next; ///<Index of next element (in ContoursHelper::Rays)
+    size_t prev; ///<Index of previous element (in ContoursHelper::Rays)
+    static const size_t no_link; ///<The constant to mean "unspecified". 
 };
 
 const size_t link_info::no_link = std::numeric_limits<size_t>::max();
@@ -332,7 +361,9 @@ struct Ray
     Ray(const XY &point, const Contour *m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a) :
         main_contour(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a),
         xy(point), valid(true), switch_to(link_info::no_link), coverage_at_0_minus_inf(std::numeric_limits<int>::max()) {_ASSERT(c); }
-    void Reset() const { valid = true; switch_to = link_info::no_link; } //keep coverage_at_0_minus_inf intact - that is the same for all operations
+    /** Sets validity to true and erases switch_to. Afer this you can call EvaluateCorsspoints() again. 
+     * Keeps coverage_at_0_minus_inf intact - that is the same for all operations.*/
+    void Reset() const { valid = true; switch_to = link_info::no_link; } 
 };
 
 /** Structure holding our position during walk.
@@ -341,8 +372,8 @@ struct Ray
  */
 struct RayPointer {
     bool   at_vertex;  ///<True if we are at a vertex, false if at a cp.
-    size_t index;      ///Index of a ray. If we are at a vertex this points to a nearby ray on this contour
-    size_t vertex;     ///the number of the vertex if we are at a vertex. Else ignore.
+    size_t index;      ///<Index of a ray. If we are at a vertex this points to a nearby ray on this contour
+    size_t vertex;     ///<the number of the vertex if we are at a vertex. Else ignore.
     explicit RayPointer(size_t i) : at_vertex(false), index(i) {}
 };
 
@@ -2399,6 +2430,10 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
 #endif
 }
 
+/** Calculates the distance between a point and the list of contours by finding our closest point.
+* @param [in] o The point to take the distance from.
+* @param [out] ret We return the point on one of our contours closes to `o`.
+* @return The distance, negative if `o` is inside one of the contours. `CONTOUR_INFINITY` if we are empty. */
 double ContourList::Distance(const XY &o, XY &ret) const
 {
     double d = CONTOUR_INFINITY;
@@ -2414,6 +2449,15 @@ double ContourList::Distance(const XY &o, XY &ret) const
     return d;
 }
 
+/** Calculates the distance between a point and our shapes by finding our closest point and returns two tangent points.
+* Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points
+* from the tangent of the shape at `ret`. See @ref contour for a description of tangents.
+*
+* @param [in] o The point to take the distance from.
+* @param [out] ret We return the point on our contour closes to `o`.
+* @param [out] t1 The forward tangent point.
+* @param [out] t2 The backward tangent point.
+* @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.*/
 double ContourList::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
 {
     double d = CONTOUR_INFINITY;
@@ -2434,12 +2478,14 @@ double ContourList::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) c
 
 /////////////////////ContourWithHoles
 
+/** Checks if all edges connect, the outline and holes are closed, no edges
+* are degenerated to a dot, the shape has an actual area, etc.*/
 bool ContourWithHoles::IsSane(bool shouldbehole) const
 {
     if (!outline.IsSane()) return false;
     if (outline.GetClockWise()==shouldbehole) return false;
-    for (auto i=holes.begin(); i!=holes.end(); i++)
-        if (!i->IsSane(!shouldbehole))
+    for (auto &h :holes)
+        if (!h.IsSane(!shouldbehole))
             return false;
     return true;
 }
@@ -2538,6 +2584,14 @@ EContourRelationType ContourWithHoles::RelationTo(const ContourWithHoles &c, boo
     }
 }
 
+/** Calculates the distance between two shapes by finding their two closest points.
+*
+* @param [in] c The other shape to take the distance from.
+* @param dist_so_far We return the distance of the two closest points and the two points themselves.
+*            Distance is negative one is inside the other (but not in a hole), zero if partial overlap only (two points equal)
+*            'Inside' here ignores clockwiseness. Distance is `CONTOUR_INFINITY` if one of the shapes is empty.
+*            Note that `ret` can contain the result of previous searches, we update it if we find two points
+*            with a smaller distance (in absolute value).*/
 void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const
 {
     if (dist_so_far.IsZero()) return;
@@ -2653,6 +2707,8 @@ Contour &Contour::assign_dont_check(Path &&p, bool close_everything)
     return assign_dont_check(std::move(p.edges));
 }
 
+/** Checks if all edges connect, the shape is closed, no edges
+* are degenerated to a dot, the shape has an actual area, etc.*/
 bool Contour::IsSane() const
 {
     if (!first.IsSane(!first.GetClockWise())) return false;

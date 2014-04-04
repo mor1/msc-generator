@@ -182,7 +182,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 
 /** Find what is the proper identation for this line 
  * Consider if we are in a label, and consider '{' and '}' chars.
- * @param [in] lStart the line we talk about
+ * @param [in] line the line we talk about
  * @returns the number of spaces proper at the head of this line */
 int  CCshRichEditCtrl::FindProperLineIdent(int line)
 {
@@ -232,7 +232,7 @@ int  CCshRichEditCtrl::FindProperLineIdent(int line)
 
 /** Return the column of the first non space in the current line
  * @param [in] lStart the position of the cursor of which line we are interested in
- * @retun -1 if current line has only spaces or is empty*/
+ * @return -1 if current line has only spaces or is empty*/
 int CCshRichEditCtrl::FindCurrentLineIdent(long lStart) 
 {
 	int line = LineFromChar(lStart);
@@ -291,7 +291,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
  * @param [in] smartIdent A pre-calculated smart ident position if >=0.
  *                        In this we jump to that (if in the right direction), 
  *                        else we align to prevident (so end result differs 
- *                        from prev_ident in <int>*m_tabsize
+ *                        from prev_ident in 'm_tabsize' (Man, what does this mean?!?)
  * @param [in] prevIdent The previously existing identation of the line 
  *                       (must be nonnegative)
  * @param [in] strict If true and the actual value of prevIdent lies in the right 
@@ -321,7 +321,8 @@ int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIdent, int pre
  * @param target_ident The identation we want 
  * @param current_ident The current identation of the line
  * @param col The current cursor position in the line
- * @param lStart The current cursor position
+ * @param lStart The start of the selection or current cursor position
+ * @param lEnd The end of the selection or current cursor position
  * @param [in] standalone If true, we disable drawing and adjust selection afterwards.
  *                        If false we assume this is called for consecutive lines
  *                        so we do not disable redraw and leave selection as garbage.

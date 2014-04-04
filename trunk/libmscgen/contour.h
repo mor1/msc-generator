@@ -32,7 +32,7 @@ namespace contour {
 
 class ContourWithHoles;
 
-/** A list of non-overlapping ContourWithHoles 
+/** A list of non-overlapping ContourWithHole objects. 
  * @ingroup contour_internal
  *
  * A building block toward the overall Contour class.
@@ -45,9 +45,7 @@ class ContourWithHoles;
  * When we say "non-overlapping" we mean that no two shapes have intersections
  * and they do not even touch by edge. However, it is possible that they touch
  * by vertex. That is, a vertex of one shape may lie on a vertex or edge of
- * another.
- */
-
+ * another. For speed it maintains an overall bounding box of its content.*/
 class ContourList : protected std::list<ContourWithHoles>
 {
     friend class ContourWithHoles;
@@ -64,46 +62,46 @@ class ContourList : protected std::list<ContourWithHoles>
     void append(const ContourList &p) {_ASSERT(p.size()==0 || size()==0 || GetClockWise() == p.GetClockWise()); boundingBox += p.GetBoundingBox(); insert(end(), p.begin(), p.end());} ///<Append a list of shapes & update bounding box. Assumes none of the shapes is overlapping with us.
     void append(ContourList &&p) {_ASSERT(p.size()==0 || size()==0 || GetClockWise() == p.GetClockWise()); boundingBox += p.GetBoundingBox(); splice(end(), p);} ///<Append (move) a list of shapes & update bounding box. Assumes none of the shapes is overlapping with us.
 
-    void Invert();
+    void Invert();  ///<Inverts all shapes in the list.
 
-    void Shift(const XY &xy);
-    void Scale(double sc);
-    void Scale(const XY &sc);
-    void SwapXY();
-    void Rotate(double cos, double sin);
-    void RotateAround(const XY&c, double cos, double sin);
+    void Shift(const XY &xy); ///<Shifts all shapes in the list.
+    void Scale(double sc);    ///<Scales all shapes in the list.
+    void Scale(const XY &sc); ///<Scales all shapes in the list.
+    void SwapXY();            ///<Swaps the x and y coordinates of all the shapes in the list.
+    void Rotate(double cos, double sin); ///<Rotates all shapes in the list around the origin
+    void RotateAround(const XY&c, double cos, double sin); ///<Scales all shapes in the list around 'c'
 
     EContourRelationType RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     EContourRelationType RelationTo(const ContourList &c, bool ignore_holes) const;
     void Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const;
     void Distance(const ContourList &cl, DistanceType &dist_so_far) const;
 public:
-    const ContourWithHoles & operator[](size_type i) const;
+    const ContourWithHoles &operator[](size_type i) const; ///<Returns the i_th element in the list. Crashes if i is beyond our size.
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}  ///<Swap content with another ContourList object
     void clear() {std::list<ContourWithHoles>::clear(); boundingBox.MakeInvalid();} ///<Clear content, making the list empty
     size_type size() const {return std::list<ContourWithHoles>::size();} ///<Return the number of elements in the list
     bool operator < (const ContourList &p) const;
     bool operator ==(const ContourList &p) const;
-    operator Path() const { Path p; AppendToPath(p); return p; }
-    void AppendToPath(Path &p) const;
+    operator Path() const { Path p; AppendToPath(p); return p; } ///<Converts the list to a single Path object.
+    void AppendToPath(Path &p) const; ///<Appends the list of contours to a Path object.
 
     bool IsEmpty() const { return size()==0; } ///<True if the list is empty
     const Block &GetBoundingBox(void) const {return boundingBox;} ///<Return the bounding box of the list. Invalid if the list is empty.
-    bool GetClockWise() const;
-    double GetArea(bool consider_holes=true) const;
-    double GetCircumference(bool consider_holes=true, bool include_hidden=false) const;
-    XY CentroidUpscaled() const;
+    bool GetClockWise() const; ///<Returns true if the contours are positive in this list.
+    double GetArea(bool consider_holes=true) const; ///<Returns the combined area of the contours. Negative if they are counterclockwise.
+    double GetCircumference(bool consider_holes=true, bool include_hidden=false) const; ///<Returns the combined length of the circumference of the contours in the list.
+    XY CentroidUpscaled() const; ///<Returns the combined centroid of the shapes, scaled by their (potentially negative) area.
 
-    EPointRelationType IsWithin(const XY &p) const;
-    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const;
+    EPointRelationType IsWithin(const XY &p) const; ///<Returns the relation of a poiont to the list of contours.
+    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const; 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const ContourList &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
-    void CairoPath(cairo_t *cr, bool show_hidden) const;
-    void CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
-    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
+    void CairoPath(cairo_t *cr, bool show_hidden) const; ///< Draw the shapes as a path to a cairo context. If `show_hidden` is false, we skip edges marked not visible.
+    void CairoPath(cairo_t *cr, bool show_hidden, bool clockwiseonly) const; ///< Draw the shape as a path to a cairo context. If `show_hidden` is false, we skip edges marked not visible. If `clockwiseonly` is false, we skip counterclockwise contours.
+    void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const; 
     void CairoPathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
     double Distance(const XY &o, XY &ret) const;
@@ -198,8 +196,8 @@ public:
     ContourWithHoles &operator = (SimpleContour &&a) {outline.swap(a); holes.clear(); return *this;} ///<Moves a shape with no holes. `a` becomes undefined.
     ContourWithHoles &operator = (const ContourWithHoles &a) {if (this!=&a) outline = a.outline; holes=a.holes; return *this;} ///<Copy a shape.
     ContourWithHoles &operator = (ContourWithHoles &&a) {if (this!=&a) swap(a); return *this;} ///<Move a shape, `a` becomes undefined.
-    operator Path() const { Path p; AppendToPath(p); return p; }
-    void AppendToPath(Path &p) const { outline.AppendToPath(p); holes.AppendToPath(p); }
+    operator Path() const { Path p; AppendToPath(p); return p; } ///<Converts the shape (with its holes) to a Path object
+    void AppendToPath(Path &p) const { outline.AppendToPath(p); holes.AppendToPath(p); } ///<Appends the shape (with its holes) to a Path object
 
     bool IsSane(bool shouldbehole=false) const;
     bool IsEmpty() const {return outline.IsEmpty();} ///<True if shape has no outline (and holes).
@@ -322,8 +320,9 @@ class Contour
      * @{ */
     /** Create a contour by executing an operation on two contours */
     Contour(EOperationType type, const Contour &c1, const Contour &c2) {Operation(type, c1, c2);} 
-    Contour(EOperationType type, const Contour &c1, Contour &&c2) {Operation(type, c1, std::move(c2));}
-    Contour(EOperationType type, Contour &&c1, Contour &&c2) {Operation(type, std::move(c1), std::move(c2));}
+    Contour(EOperationType type, const Contour &c1, Contour &&c2) { Operation(type, c1, std::move(c2)); }
+    Contour(EOperationType type, Contour &&c1, const Contour &c2) { Operation(type, std::move(c1), c2); }
+    Contour(EOperationType type, Contour &&c1, Contour &&c2) { Operation(type, std::move(c1), std::move(c2)); }
     //@} 
 protected:
     void append(const ContourWithHoles &p) {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); first.assign(p);} else {boundingBox+=p.GetBoundingBox(); further.append(p);}} ///<Append a shape assuming it is disjoint.
@@ -336,7 +335,7 @@ protected:
     void Rotate(double cos, double sin) {first.Rotate(cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape by `radian`. `sin` and `cos` are pre-computed values.
     void RotateAround(const XY&c, double cos, double sin) {first.RotateAround(c, cos, sin); boundingBox = first.GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin); boundingBox += further.GetBoundingBox();}} ///<Helper: Rotate the shape around `c` by `radian`. `sin` and `cos` are pre-computed values.
 
-    /** @name Operation() varianta. 
+    /** @name Operation() variants. 
      * Performs an operation on one or two contours and stores the result in `this`. Used internally.*/
     /** @{ */
     void Operation(EOperationType type, const Contour &c1);
@@ -490,32 +489,34 @@ public:
     Contour &append_dont_check(const Edge v[], size_t size) {ContourWithHoles tmp; tmp.outline.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));return *this;}
     /** Appends shape created from an ordered list of edges. Assumes the poins specify an untangled polygon that does not overlap with the existing Contour. */
     template<size_t SIZE> Contour &append_dont_check(const Edge (&v)[SIZE]) {append_dont_check (v, SIZE);return *this;}
-    /** @return *this;} */ //assignment
 
 
     /** @name Basic information 
      * @{ */
-    size_t size() const {if (first.outline.size()) return further.size()+1; return 0;} ///< Returns 
-    bool IsEmpty() const {return first.IsEmpty();}
-    const Block &GetBoundingBox(void) const {return boundingBox;}
-    bool GetClockWise() const {return first.GetClockWise();}
-    double GetArea(bool consider_holes=true) const {return further.size() ? further.GetArea(consider_holes) + first.GetArea(consider_holes) : first.GetArea(consider_holes);}
-    double GetCircumference(bool consider_holes=true, bool include_hidden=false) const {return further.size() ? further.GetCircumference(consider_holes, include_hidden) + first.GetCircumference(consider_holes, include_hidden) : first.GetCircumference(consider_holes, include_hidden);}
-    XY Centroid() const {return (further.IsEmpty() ? first.CentroidUpscaled() : first.CentroidUpscaled()+further.CentroidUpscaled())/GetArea();}
-    //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}
-    //bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).GetStart()));}
-    const ContourWithHoles &operator[](size_t n) const {return n==0 ? first : further[n-1];}
-    bool IsSane() const;
+    size_t size() const {if (first.outline.size()) return further.size()+1; return 0;} ///< Returns how many outlines we have
+    bool IsEmpty() const {return first.IsEmpty();} ///<Returns if we have any content at all or not
+    const Block &GetBoundingBox(void) const {return boundingBox;} ///<returns our bounding box
+    bool GetClockWise() const {return first.GetClockWise();} ///<Returns if we are clockwise or not (all our outlines must be the same)
+    double GetArea(bool consider_holes=true) const {return further.size() ? further.GetArea(consider_holes) + first.GetArea(consider_holes) : first.GetArea(consider_holes);} ///<Get the total surface area of our shapes. Substract holes if 'consider_holes' is ture. If we are counterclocwise result will be negative.
+    double GetCircumference(bool consider_holes=true, bool include_hidden=false) const {return further.size() ? further.GetCircumference(consider_holes, include_hidden) + first.GetCircumference(consider_holes, include_hidden) : first.GetCircumference(consider_holes, include_hidden);} ///<Return the total combined length of the circumference of the shapes. If 'consider_holes' is true, we also add the circumference of holes (plus any positive shapes inside them and that of their holes and so on). If 'include_hidden' is true, we also add the length of invisible edges.
+    XY Centroid() const {return (further.IsEmpty() ? first.CentroidUpscaled() : first.CentroidUpscaled()+further.CentroidUpscaled())/GetArea();} ///<Returns the centroid (centerpoint) of us.
+    const ContourWithHoles &operator[](size_t n) const {return n==0 ? first : further[n-1];} ///<Returns a reference to the n_th outline. Crashes if 'n' is out-of-bounds.
+    bool IsSane() const; 
     bool operator < (const Contour &p) const {return first==p.first ? further < p.further: first < p.first;}
     bool operator ==(const Contour &p) const {return first==p.first && further == p.further;}
     /** @} */ //Basic information
 
     /** @name Basic Operations
      * @{ */
+    /** Swaps us with another Contour.*/
     void swap(Contour &a) {first.swap(a.first); further.swap(a.further); std::swap(boundingBox, a.boundingBox);}
+    /** Clears all content from us.*/
     void clear() {first.clear(); further.clear(); boundingBox.MakeInvalid();}
+    /** Removes holes from all our shapes. Returns a reference to us.*/
     Contour &ClearHoles() {first.holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear(); return *this;}
+    /** Converts us to a Path object.*/
     operator Path() const { Path p; AppendToPath(p); return p; }
+    /** Appends our edges to a Path object*/
     void AppendToPath(Path &p) const { first.AppendToPath(p); further.AppendToPath(p); }
     /** @} */ //Basic Operations
 
@@ -837,13 +838,14 @@ inline Contour operator ^ (Contour &&a, Contour &&b)           {return Contour(a
 
 
 
+/** Calculate the distance of a list of shape pointers from a contour 'c' and merges it into 'dist_so_far'*/
 template <typename LT> void Distance(const LT &list, const Contour &c, DistanceType &dist_so_far)
 {
     if (list.size()==0 || c.IsEmpty()) return;
-    for (auto i = list.begin(); i!=list.end(); i++) {
-        const double bbdist = (*i)->GetBoundingBox().Distance(c.GetBoundingBox());
+    for (auto &e : list) {
+        const double bbdist = e->GetBoundingBox().Distance(c.GetBoundingBox());
         if (dist_so_far.ConsiderBB(bbdist))
-            (*i)->Distance(c, dist_so_far);
+            e->Distance(c, dist_so_far);
         else
             dist_so_far.MergeInOut(bbdist);
         if (dist_so_far.IsZero())
@@ -923,6 +925,12 @@ inline EPointRelationType ContourList::IsWithin(const XY &p) const
     return WI_OUTSIDE;
 }
 
+/** Returns the touchpoint of tangents drawn from a point to the list of shape.
+*
+* @param [in] p The point to draw the tangents from.
+* @param [out] t1 The point where the first tangent touches any of the shapes.
+* @param [out] t2 The point where the second tangent touches any of the the shapes.
+* @returns The relation of the point to the shape. Meaningful tangents can only be drawn if this is WI_OUTSIDE.*/
 inline EPointRelationType ContourList::Tangents(const XY &p, XY &t1, XY &t2) const
 {
     EPointRelationType ret = boundingBox.IsWithin(p);
@@ -932,7 +940,9 @@ inline EPointRelationType ContourList::Tangents(const XY &p, XY &t1, XY &t2) con
     return WI_OUTSIDE;
 }
 
-
+/** Creates a cross-section of the list of shapes along a vertical line.
+* @param [in] x The x coordinate of the vertical line
+* @param section A DoubleMap containing true for points inside the shape, false for outside. May contain entries already.*/
 inline void ContourList::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
     for (auto i=begin(); i!=end(); i++)
@@ -1006,6 +1016,15 @@ inline double ContourWithHoles::Distance(const XY &o, XY &ret) const
 }
 
 
+/** Calculates the distance between a point and us by finding our closest point and returns two tangent points.
+* Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points
+* from the tangent of the shape at `ret`. See @ref contour for a description of tangents.
+*
+* @param [in] o The point to take the distance from.
+* @param [out] ret We return the point on our contour closes to `o`.
+* @param [out] t1 The forward tangent point.
+* @param [out] t2 The backward tangent point.
+* @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.*/
 inline double ContourWithHoles::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
 {
     double d = outline.DistanceWithTangents(o, ret, t1, t2);
@@ -1022,6 +1041,14 @@ inline double ContourWithHoles::DistanceWithTangents(const XY &o, XY &ret, XY &t
 }
 
 
+/** Returns a cut of the list of shapes along an edge.
+*
+* Takes all crosspoints of a (finite length, possibly curvy) edge and the shapes
+* and returns the two outermost. We return `pos` values corresponding to the edge,
+* thus both values are between 0 and 1. It is possible that a single value is
+* returned if the edge touches one shape or if its start is inside one shape, but
+* its end is outside. If the edge does not cross nor touch any shape, an invalid
+* range is returned.*/
 inline Range ContourList::Cut(const Edge &e) const
 {
     Range ret;
@@ -1031,6 +1058,17 @@ inline Range ContourList::Cut(const Edge &e) const
     return ret;
 }
 
+/** Returns a cut of the shapes along an edge.
+*
+* Same as Cut(const Edge &s), but also returns the coordinates of the positions
+* returned and a forward tangent point for them. In case the edge cuts the shape
+* at a non-smooth vertex, then we take the tangent line of both edges of the vertex
+* average them and return a point from this middle line in the forward direction.
+*
+* @param [in] e The edge to cut with.
+* @param [out] from Values correspond to the position returned in `from`. `first` is the coordinate of the point, `second` is the forward tangent point.
+* @param [out] till Values correspond to the position returned in `till`. `first` is the coordinate of the point, `second` is the forward tangent point.
+* @return The `pos` value corresponding to the two outmost crosspoints.*/
 inline Range ContourList::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const
 {
     Range ret;
@@ -1050,14 +1088,36 @@ inline Range ContourList::CutWithTangent(const Edge &e, std::pair<XY, XY> &from,
     return ret;
 }
 
+/** Creates a cross-section (or cut) of the shapes along a straight line.
+*
+* We return all crosspoints of an infinite line specified by `A` and `B`.
+* We return them in `pos` terms, that is, at `A` we return 0, at `B` we return 1 and
+* linearly intrapolate and extrapolate between them and outside, respectively.
+*
+* @param [in] A One point of the infinite line.
+* @param [in] B Another point of the infinite line.
+* @param [out] map A DoubleMap containing true for points inside the shapes, false for outside.*/
 inline void ContourList::Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const
 {
-    for (auto i = begin(); i!=end(); i++)
-        i->Cut(A, B, map);
+    for (auto &cwh : *this)
+        cwh.Cut(A, B, map);
 }
 
 
-//returns true only if all is true
+/** Calculates the touchpoint of tangents drawn from a given point.
+*
+* Given the point `from` draw tangents to the shapes (two can be drawn)
+* and calculate where these tangents touch one the shapes.
+* Tangent is anything touching a shape (at a vertex, at the middle of a curvy edge
+* or going along, in parallel with a full straight edge), but not crossing any 
+* other shape.
+* In this context the *clockwise tangent* is the one which is traversed from
+* `from` towards the shape touches the given shape in the clockwise direction.
+* @param [in] from The point from which the tangents are drawn.
+* @param [out] clockwise The point where the clockwise tangent touches the shape.
+* @param [out] cclockwise The point where the counterclockwise tangent touches the shape.
+* @returns True if success, false if `from` is inside or on the shape.
+*/
 inline bool ContourList::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
     if (size()==0) return false;
@@ -1073,6 +1133,10 @@ inline bool ContourList::TangentFrom(const XY &from, XY &clockwise, XY &cclockwi
 }
 ///////Contour///////////////////////////////////////
 
+/** Returns the relation of a point to us. Ignores clockwiseness:
+ * four counterclockwise outlines we return WI_INSIDE if the point
+ * is inside the finite space they enclose the same way as if they
+ * were clockwise.*/
 inline EPointRelationType ContourWithHoles::IsWithin(const XY &p) const
 {
     EPointRelationType ret = outline.IsWithin(p);
@@ -1086,6 +1150,14 @@ inline EPointRelationType ContourWithHoles::IsWithin(const XY &p) const
     }
 }
 
+/** Calculate the relation of a point and the shape and return tangents, if the point is on the shape.
+*
+* @param [in] p The point in question.
+* @param [out] t1 the forward tangent from 'p', undefined if p is not on the circumference.
+* @param [out] t2 the backward tangent from 'p', undefined if p is not on the circumference.
+* @returns The relation. Note that for counerclockwise 'inside' is the same as if the
+contour were clockwise, that is in the limited space enclosed.
+*/
 inline EPointRelationType ContourWithHoles::Tangents(const XY &p, XY &t1, XY &t2) const
 {
     size_t edge;
