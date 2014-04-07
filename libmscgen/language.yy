@@ -241,15 +241,30 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 
 %%
 
-msc_with_bye: msc
-              | msc TOK_BYE
+msc_with_bye: msc eof
+{
+	YYACCEPT;
+}
+
+eof:   TOK_EOF 
+     | TOK_BYE 
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	csh.AddCSH_AllCommentBeyond(@1);
   #else
   #endif
-    free($2);
-    YYACCEPT; //ignore anything after bye
+    free($1);
+} 
+     | TOK_BYE TOK_SEMICOLON
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_SEMICOLON);
+	csh.AddCSH_AllCommentBeyond(@2);
+  #else
+  #endif
+    free($1);
 }
 
 msc:
@@ -271,8 +286,6 @@ msc:
     msc.AddArcs($2);
   #endif
     free($1);
-
-    YYACCEPT;
 }
               | msckey braced_arclist
 {
@@ -282,9 +295,8 @@ msc:
   #else
     msc.AddArcs($2);
   #endif
-    YYACCEPT;
 }
-           | TOK_MSC error TOK_EOF
+           | TOK_MSC error eof
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -293,15 +305,17 @@ msc:
     msc.Error.Error(MSC_POS(@2).start, "Missing an equal sign or a list of elements between braces ('{' and '}').");
   #endif
     free($1);
+	YYACCEPT; //We should noty parse further in msc_with_bye as we may have something beyond BYE (in eof)
 }
-           | top_level_arclist TOK_EOF
+           | top_level_arclist eof
 {
   #ifdef C_S_H_IS_COMPILED
   #else
     msc.AddArcs($1);
   #endif
+	YYACCEPT; //We should noty parse further in msc_with_bye as we may have something beyond BYE (in eof)
 }
-                 | top_level_arclist error TOK_EOF
+                 | top_level_arclist error eof
 {
   #ifdef C_S_H_IS_COMPILED
     CshPos pos = @2;
@@ -312,10 +326,10 @@ msc:
     msc.AddArcs($1);
     msc.Error.Error(MSC_POS(@2).start, "Could not recognize this as a valid line.");
   #endif
-  YYACCEPT;
+	YYACCEPT; //We should noty parse further in msc_with_bye as we may have something beyond BYE (in eof)
 };
 
-top_level_arclist: arclist_maybe_no_semicolon TOK_EOF
+top_level_arclist: arclist_maybe_no_semicolon 
                  | arclist_maybe_no_semicolon TOK_CCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
@@ -420,7 +434,42 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing '}'.");
     msc.Error.Error(MSC_POS(@1).start, MSC_POS(@2).end.NextChar(), "Here is the corresponding '{'.");
   #endif
+}
+            | scope_open TOK_EOF
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_ErrorAfter(@1, "Missing a closing brace ('}').");
+  #else
+    $$ = NULL;
+    //Do not pop context, as the missing scope_close would have done
+    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a corresponding '}'.");
+  #endif
+}
+            | scope_open arclist_maybe_no_semicolon TOK_BYE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_Error(@3, "The command 'bye' can only be used at the top level.");
+  #else
+    $$ = $2;
+    //Do not pop context, as the missing scope_close would have done
+    msc.Error.Error(MSC_POS(@3).start, "The command 'bye' can not be used between curly braces '{' and '}'.");
+    msc.Error.Error(MSC_POS(@1).start, MSC_POS(@3).start, "Here is the opening '{'.");
+  #endif
+  free($3);
+}
+            | scope_open TOK_BYE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_Error(@2, "The command 'bye' can only be used at the top level and not inside curly braces '{' and '}'.");
+  #else
+    $$ = NULL;
+    //Do not pop context, as the missing scope_close would have done
+    msc.Error.Error(MSC_POS(@2).start, "The command 'bye' can not be used between curly braces '{' and '}'.");
+  #endif
+  free($2);
 };
+
+
 
 arclist_maybe_no_semicolon : arclist
             | arclist arc_with_parallel
@@ -855,7 +904,8 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     $$ = ($1);
-    ($$)->AddAttributeList(NULL);
+	if ($1)
+        ($$)->AddAttributeList(NULL);
   #endif
 }
               | TOK_COMMAND_DEFSHAPE shapedef

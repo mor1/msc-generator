@@ -700,6 +700,12 @@ void Csh::AddCSH_SymbolName(const CshPos&pos, const char *name)
     //if no keyword match, we assume an entityname
 }
 
+//Mark anything beyond the end of 'pos' as comment
+void Csh::AddCSH_AllCommentBeyond(const CshPos&pos)
+{
+    AddCSH(CshPos(pos.last_pos+1, input_text_length), COLOR_COMMENT);
+}
+
 void Csh::AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, extvxpos_designator_names);
@@ -749,6 +755,7 @@ bool CshHintGraphicCallbackForMarkers(Canvas *canvas, CshHintGraphicParam /*p*/,
 void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme)
 {
     //initialize data struct
+    input_text_length = len;
     cursor_pos = cursor_p;
     cshScheme = scheme;
     CshList.clear();
@@ -801,6 +808,7 @@ void CshContext::SetToDesign(const Context &design)
 
 Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes) : 
     was_partial(false), 
+    input_text_length(0),
     hintStatus(HINT_NONE), 
     addMarkersAtEnd(false), 
     pShapes(shapes),

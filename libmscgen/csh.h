@@ -272,6 +272,7 @@ public:
     CshEntry     partial_at_cursor_pos;  ///<If the cursor is at a partially matching keyword this contains that keyword (color==what we have to revert to if cursor moves away)
     std::set<CshHint> Hints;             ///<The collected hints
     bool         hintsForcedOnly;        ///<Set to true if hint is located such that it should be displayed only if user forces that by Ctrl+Space
+    unsigned     input_text_length;      ///<Length of the text we parse
     /** @} */
     /** @name Running variables during csh parsing
      * @{  */
@@ -329,6 +330,7 @@ public:
     void AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
     void AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name); ///<At pos there is an ext pos designator name. Search and color.
     void AddCSH_SymbolName(const CshPos&pos, const char *name); ///<At pos there is a symbol. Color it.
+    void AddCSH_AllCommentBeyond(const CshPos&pos); ///<Mark anything beyond the end of 'pos' as comment
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
     EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
