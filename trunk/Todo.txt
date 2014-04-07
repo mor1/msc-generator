@@ -55,6 +55,7 @@ ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
 in 3.7.8 (feature freeze for 3.8)
+FIXED: bye command now works (even inside a scoped block)
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
 FIX: Fix shape lib on linux
@@ -62,7 +63,6 @@ FIX: Fix shape lib on linux
 in 3.7.7 (feature freeze for 3.8)
 Documented in code.
 Random bugfixes.
-
 
 in 3.7.6 (feature freeze for 3.8)
 ADDED defshape command
