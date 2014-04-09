@@ -1579,7 +1579,9 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
         default:
             _ASSERT(0);
         }
-    }
+    } else 
+        //if no lost position
+        lsym_size.x = lsym_size.y = 0;
 }
 
 EArrowEnd ArcDirArrow::WhichArrow(unsigned i)
