@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -53,8 +53,6 @@ using std::string;
 
 /** Name of a virtual marker representing the current vertical location. Used in verticals when one end is not specified.*/
 #define MARKER_HERE_STR "\""
-/** Name of a virtual marker representing end of the last parallel block. Used in verticals when both ends are not specified. -- This feature is currently removed.*/
-#define MARKER_PREV_PARALLEL_STR "\"\""
 
 /** The margin on left and right side, between LNote-LSide and RSide-RNote. 
  * In pos space, will be fed into XCoord().*/
@@ -221,13 +219,22 @@ public:
 class DistanceMapVerticalElement
 {
     friend class DistanceMapVertical;
-    std::string                marker; ///<The name of the marker after which we store. Empty for top of chart.
-    std::map<unsigned, double> left;   ///<Space requirements on the left side of entities
-    std::map<unsigned, double> right;  ///<Space requirements on the left side of entities
+    const std::string          marker;  ///<The name of the marker after which we store. Empty for top of chart. If equal to MARKER_HERE_STR, 'element' and 'top' specifies the position.
+    const Element * const      element; ///<If we are not aligned to a marker but to an element, this is the one.
+    const bool                 top; 
+    std::map<unsigned, double> left;    ///<Space requirements on the left side of entities
+    std::map<unsigned, double> right;   ///<Space requirements on the left side of entities
+    unsigned                   left_entity;  ///<The index of the leftmost entity touched
+    unsigned                   right_entity; ///<The index of the rightmost entity touched
 public:
-    explicit DistanceMapVerticalElement(const std::string &m="") : marker(m) {}
+    enum {NO_LEFT_ENTITY=10000, NO_RIGHT_ENTITY=0};
+    explicit DistanceMapVerticalElement(const std::string &m = "") : marker(m), element(NULL), top(false), left_entity(NO_LEFT_ENTITY), right_entity(NO_RIGHT_ENTITY) {}
+    explicit DistanceMapVerticalElement(const Element *e, bool t) : marker(MARKER_HERE_STR), element(e), top(t), left_entity(NO_LEFT_ENTITY), right_entity(NO_RIGHT_ENTITY) {}
     void Insert(unsigned e1, int e2, double d);  ///<Insert a distance requirement 
     double Query(unsigned e1, int e2); ///<Return a distance req
+    void InsertEntity(unsigned e) { left_entity = std::min(left_entity, e); right_entity = std::max(right_entity, e); }
+    unsigned QueryLeftEntity() const { return left_entity; }
+    unsigned QueryRightEntity() const { return right_entity; }
     DistanceMapVerticalElement &operator +=(const DistanceMapVerticalElement &d);
 };
 
@@ -241,14 +248,27 @@ class DistanceMapVertical
 protected:
     std::list<DistanceMapVerticalElement> elements;
 public:
+    typedef std::list<DistanceMapVerticalElement>::iterator iterator;
+    typedef std::list<DistanceMapVerticalElement>::const_iterator const_iterator;
     DistanceMapVertical() { elements.emplace_back(""); }
     /** Insert a side distance, which happened after the last marker*/
     void Insert(unsigned e1, int e2, double d) { elements.back().Insert(e1, e2, d); }
-    void Insert(unsigned e1, int e2, double d, const string &from, const string &to = MARKER_HERE_STR);
+    void InsertEntity(unsigned e) { elements.back().InsertEntity(e); }
+    void InsertEntity(EIterator e) { elements.back().InsertEntity((*e)->index); }
+    void Insert(unsigned e1, int e2, double d, iterator from) { Insert(e1, e2, d, from, elements.end()); }
+    void Insert(unsigned e1, int e2, double d, iterator from, iterator to);
     void InsertMarker(const std::string &m) { elements.emplace_back(m); }
-    DistanceMapVerticalElement Get(const std::string &m1, const std::string &m2);
-    const string &GetCurrentMarker() const { return elements.back().marker; }
-
+    void InsertElementTop(const Element *e) { elements.emplace_back(e, true); }
+    void InsertElementBottom(const Element *e) { elements.emplace_back(e, false); }
+    iterator GetIterator(const string &m) { return std::find_if(elements.begin(), elements.end(), [&](const DistanceMapVerticalElement&e) {return e.marker==m; }); }
+    const_iterator GetIterator(const string &m) const { return std::find_if(elements.begin(), elements.end(), [&](const DistanceMapVerticalElement&e) {return e.marker==m; }); };
+    iterator GetIterator(const Element *elm, bool t) { return std::find_if(elements.begin(), elements.end(), [&](const DistanceMapVerticalElement&e) {return e.marker==MARKER_HERE_STR && e.element==elm && e.top==t; }); }
+    const_iterator GetIterator(const Element *elm, bool t) const { return std::find_if(elements.begin(), elements.end(), [&](const DistanceMapVerticalElement&e) {return e.marker==MARKER_HERE_STR && e.element == elm && e.top==t; }); }
+    iterator GetIteratorEnd() { return elements.end(); }
+    const_iterator GetIteratorEnd() const { return elements.end(); }
+    iterator GetIteratorLast() { return --elements.end(); }
+    const_iterator GetIteratorLast() const { return --elements.end(); }
+    DistanceMapVerticalElement Get(const_iterator m1, const_iterator m2) const;
 };
 /////////////////////////////////////////////////////////////////////
 
@@ -475,7 +495,7 @@ public:
     void AutoPaginate(Canvas &canvas, double pageSize, bool addHeading);
     void CalculateWidthHeight(Canvas &canvas,
                               bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth);
-    void PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker);
+    void PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs);
     void PlaceFloatingNotes(Canvas &canvas);
 
     void InvalidateNotesToThisTarget(const Element *target);

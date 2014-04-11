@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -241,6 +241,17 @@ public:
             if (*i == p) return i;
             i++;}
             return PtrList<Entity>::end();
+    }
+    /** Find an entity by pointer.
+    * If not found, returns end()*/
+    PtrList<Entity>::iterator Find_by_Index(unsigned index)
+    {
+        PtrList<Entity>::iterator i = PtrList<Entity>::begin();
+        while (i!=PtrList<Entity>::end()) {
+            if ((*i)->index == index) return i;
+            i++;
+        }
+        return PtrList<Entity>::end();
     }
     /** Sort the list by increasing `pos`*/
     void SortByPos(void);

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ using namespace std;
 const Context Element::defaultDesign(true);
 
 Element::Element(Msc *m) : chart(m), 
-    hidden(false), linenum_final(false),  yPos(0),
+    hidden(false), linenum_final(false), yPos(0), 
     draw_is_different(false), area_draw_is_frame(false),
     comments(false), comment_height(0),
     indicator_style(m->Contexts.back().styles["indicator"]),

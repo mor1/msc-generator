@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -292,7 +292,7 @@ template class PtrList<ArcBase>;
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), had_add_attr_list(false), valid(true), 
     compress(false), parallel(false), overlap(false),
-    keep_together(true), keep_with_next(false),
+    keep_together(true), keep_with_next(false), height(0),
     type(t), myProgressCategory(c)
 {
     compress = chart->Contexts.back().compress.second;
@@ -418,9 +418,20 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
+
+void ArcBase::AddEntityLineWidths(DistanceMapVertical &vdist)
+{
+    for (const auto &e : chart->ActiveEntities)
+        if (e->running_shown.IsActive()) {
+            vdist.Insert(e->index, DISTANCE_LEFT, chart->activeEntitySize);
+            vdist.Insert(e->index, DISTANCE_RIGHT, chart->activeEntitySize);
+        }
+}
+
 ArcBase* ArcBase::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
                                    EIterator &/*left*/, EIterator &/*right*/,
-                                   Numbering &/*number*/, Element **target)
+                                   Numbering &/*number*/, Element **target,
+                                   ArcBase * /*vertical_target*/)
 {
     if (CanBeNoted()) *target = this;
     return this;
@@ -492,8 +503,18 @@ EDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-void ArcIndicator::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
+void ArcIndicator::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(src);
+    vdist.InsertEntity(dst);
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
     const double width = indicator_style.read().line.LineWidth() + indicator_size.x/2;
@@ -792,7 +813,7 @@ string ArcLabelled::Print(int ident) const
 //fills the "compress" member from the style.read().
 //Strictly to be called by descendants
 ArcBase *ArcLabelled::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, Element **target)
+                                       Numbering &number, Element **target, ArcBase * vertical_target)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -815,7 +836,7 @@ ArcBase *ArcLabelled::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
             chart->ReferenceNames[refname].number_text = number_text;
         ++number;
     }
-    return ArcBase::PostParseProcess(canvas, hide, left, right, number, target);
+    return ArcBase::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 }
 
 void ArcLabelled::FinalizeLabels(Canvas &canvas) 
@@ -953,13 +974,13 @@ string ArcSelfArrow::Print(int ident) const
 };
 
 ArcBase* ArcSelfArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                        Numbering &number, Element **target)
+                                        Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     if (chart->ErrorIfEntityGrouped(src, (*src)->file_pos)) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 
     const EIterator substitute = chart->FindActiveParentEntity(src);
     const bool we_disappear = src != substitute; //src is not visible -> we disappear, too
@@ -984,12 +1005,21 @@ ArcBase* ArcSelfArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 void ArcSelfArrow::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(src);
     const double left = chart->XCoord(XSizeUnit)+src_act+style.read().line.LineWidth()/2;
     const double right = parsed_label.getSpaceRequired() + src_act;
     distances.Insert((*src)->index, DISTANCE_RIGHT, left);
     distances.Insert((*src)->index, DISTANCE_LEFT, right);
     vdist.Insert((*src)->index, DISTANCE_RIGHT, left);
     vdist.Insert((*src)->index, DISTANCE_LEFT, right);
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
@@ -1286,7 +1316,7 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_BELOW 1
 
 ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, Element **target)
+                                       Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     bool error = false;
@@ -1333,7 +1363,7 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     no_problem:
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 
     //Update src, dst and mid
     EIterator sub;
@@ -1499,6 +1529,13 @@ const double LSYM_SIZE_ADJ = 0.66;
 void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(src);
+    vdist.InsertEntity(dst);
+
     //Here we have a valid canvas, so we adjust act_size
     if (canvas.HasImprecisePositioning() && slant_angle==0)
         for (auto &i : act_size)
@@ -1582,6 +1619,10 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     } else 
         //if no lost position
         lsym_size.x = lsym_size.y = 0;
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 EArrowEnd ArcDirArrow::WhichArrow(unsigned i)
@@ -2015,7 +2056,7 @@ string ArcBigArrow::Print(int ident) const
 }
 
 ArcBase* ArcBigArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                       Numbering &number, Element **target)
+                                       Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     //Check that we have no loss specified
@@ -2026,7 +2067,7 @@ ArcBase* ArcBigArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     lost_pos.valid = false;
     lost_at = -2;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
-    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, target);
+    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
     style.write().arrow.line = style.read().line;
     return ret;
@@ -2042,6 +2083,13 @@ void ArcBigArrow::FinalizeLabels(Canvas &canvas)
 void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(src);
+    vdist.InsertEntity(dst);
+
     //fill an "indexes" and "act_size" array
     const bool fw = (*src)->index < (*dst)->index;
     std::vector<unsigned> indexes;
@@ -2093,7 +2141,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
             dy-sy, act_size.front(), segment_lines.front());
     const DoublePair sp_right_end = style.read().arrow.getBigWidthsForSpace(
             fw, isBidir(), fw ? MSC_ARROW_END : MSC_ARROW_START,
-            dy-sy, act_size.front(), segment_lines.front());
+            dy-sy, act_size.back(), segment_lines.front());
 
     //add the distance requirement to the left and right side of src and dst
     distances.Insert(indexes.front(), DISTANCE_LEFT,  sp_left_end.first  *cos_slant);
@@ -2102,8 +2150,8 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     distances.Insert(indexes.back(),  DISTANCE_RIGHT, sp_right_end.second*cos_slant);
 
     //add the distances to keep for verticals only on the outer side of src and dst
-    vdist.Insert(indexes.front(), DISTANCE_LEFT,  sp_left_end.first *cos_slant);
-    vdist.Insert(indexes.back(),  DISTANCE_RIGHT, sp_right_end.first*cos_slant);
+    vdist.Insert(indexes.front(), DISTANCE_LEFT,  sp_left_end.first  *cos_slant);
+    vdist.Insert(indexes.back(),  DISTANCE_RIGHT, sp_right_end.second*cos_slant);
 
     //Collect iterators and distances into arrays
     margins.reserve(2+middle.size()); margins.clear();
@@ -2140,6 +2188,10 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
                                   segment_lines[stext]);
     distances.Insert(indexes[stext], indexes[dtext], 
         (sm + parsed_label.getSpaceRequired() + dm + act_size[stext] +act_size[dtext])*cos_slant);
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 
@@ -2337,7 +2389,7 @@ double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
 ArcVerticalArrow::ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc) :
     ArcArrow(t.arc.type, MscProgress::VERTICAL, msc, msc->Contexts.back().styles["vertical"]), 
     src(s ? s : ""), dst(d ? d : ""), lost(t.arc.lost!=EArrowLost::NOT), 
-    lost_pos(t.arc.lost_pos.CopyTo().start), shape(ARROW_OR_BOX), pos(*msc), ypos(2)
+    lost_pos(t.arc.lost_pos.CopyTo().start), shape(ARROW_OR_BOX), pos(*msc), prev_arc(NULL), ypos(2)
 {
     //If we are defined via a backwards arrow, swap source and dst
     if (t.dir==MSC_DIR_LEFT)
@@ -2350,6 +2402,7 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
 {
     if (!p || !p->valid) return this;
     valid = true;
+    //Note p->pos may be POS_INVALID if the user specified no 'at' clause.
     pos = *p;
     return this;
 }
@@ -2379,6 +2432,7 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
     default:
         _ASSERT(0); //fallthrough
     case ARROW_OR_BOX:
+    case BOX:
         SetStyleWithText("vertical");
         break;
     case BRACE:
@@ -2414,10 +2468,31 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
         break;
     }
 }
- 
+
+
 const StyleCoW *ArcVerticalArrow::GetRefinementStyle(EArcType t) const
 {
-    switch(t) {
+    EArcType tt;
+    if (shape==BOX) 
+        switch (t) {
+        case MSC_ARC_SOLID:
+        case MSC_ARC_SOLID_BIDIR:
+            tt = MSC_BOX_SOLID; break;
+        case MSC_ARC_DOTTED:
+        case MSC_ARC_DOTTED_BIDIR:
+            tt = MSC_BOX_DOTTED; break;
+        case MSC_ARC_DASHED:
+        case MSC_ARC_DASHED_BIDIR:
+            tt = MSC_BOX_DASHED; break;
+        case MSC_ARC_DOUBLE:
+        case MSC_ARC_DOUBLE_BIDIR:
+            tt = MSC_BOX_DOUBLE; break;
+        default: 
+            tt = t;
+    } else
+        tt = t;
+
+    switch(tt) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
         return &chart->Contexts.back().styles["vertical->"];
@@ -2494,11 +2569,12 @@ Element* ArcVerticalArrow::AttachNote(CommandNote *note)
 
 
 ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                            Numbering &number, Element **target)
+                                            Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     if (lost) switch (shape) {
     case ARROW_OR_BOX: chart->Error.Error(lost_pos, "Box or block arrow verticals cannot indicate loss.", "Ignoring loss symbol."); break;
+    case BOX:          chart->Error.Error(lost_pos, "Box verticals cannot indicate loss.", "Ignoring loss symbol."); break;
     case BRACE:        chart->Error.Error(lost_pos, "Brace verticals cannot indicate loss.", "Ignoring loss symbol."); break;
     case BRACKET:      chart->Error.Error(lost_pos, "Bracket verticals cannot indicate loss.", "Ignoring loss symbol."); break;
     case RANGE:        chart->Error.Error(lost_pos, "Range verticals cannot indicate loss.", "Ignoring loss symbol."); break;
@@ -2506,15 +2582,18 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     default: _ASSERT(0);
     }
     //Ignore hide: we show verticals even if they may be hidden
-    if (src == MARKER_HERE_STR || src == MARKER_PREV_PARALLEL_STR)
-        if (dst == MARKER_HERE_STR || dst == MARKER_PREV_PARALLEL_STR) {
-            chart->Error.Error(file_pos.start, "Need at least one marker specified."
-                                               " Ignoring vertical.");
+    if (src == MARKER_HERE_STR && dst == MARKER_HERE_STR) {
+        //Try to see if we have a prior element to use
+        if (vertical_target == NULL) {
             valid = false;
+            chart->Error.Error(file_pos.start, "This vertical has no markers and no prior element to align to. Ignoring it.",
+                "Either specify markers to set the top and bottom of the vertical or "
+                "specify it directly after another element to align to.");
             return NULL;
-        }
-
-    if (src != MARKER_HERE_STR && src != MARKER_PREV_PARALLEL_STR) {
+        } else 
+            prev_arc = vertical_target;
+    }
+    if (src != MARKER_HERE_STR) {
         std::map<string, Msc::MarkerData>::const_iterator i = chart->Markers.find(src);
         if (i == chart->Markers.end()) {
             chart->Error.Error(file_pos.start, "Cannot find marker '" + src + "'."
@@ -2524,7 +2603,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
         }
     }
 
-    if (dst != MARKER_HERE_STR && dst != MARKER_PREV_PARALLEL_STR) {
+    if (dst != MARKER_HERE_STR) {
         std::map<string, Msc::MarkerData>::const_iterator i = chart->Markers.find(dst);
         if (i == chart->Markers.end()) {
             chart->Error.Error(file_pos.start, "Cannot find marker '" + dst + "'."
@@ -2539,7 +2618,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     if (error) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 
     left = chart->EntityMinByPos(left, pos.entity1);
     right = chart->EntityMaxByPos(right, pos.entity1);
@@ -2550,12 +2629,16 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
         return NULL;
 
     //Now change entities in vertxPos to point to ActiveEntities
-    pos.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity1));
-    pos.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity2));
-    _ASSERT(pos.entity1 != chart->ActiveEntities.end());
-    _ASSERT(pos.entity2 != chart->ActiveEntities.end());
-    if (pos.pos == VertXPos::POS_CENTER && pos.entity1 == pos.entity2)
-        pos.pos = VertXPos::POS_AT;
+    //If the pos is invalid, it marks a missing 'at' clause. 
+    //In this case we calculate the pos later in Width().
+    if (pos.pos != VertXPos::POS_INVALID) {
+        pos.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity1));
+        pos.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity2));
+        _ASSERT(pos.entity1 != chart->ActiveEntities.end());
+        _ASSERT(pos.entity2 != chart->ActiveEntities.end());
+        if (pos.pos == VertXPos::POS_CENTER && pos.entity1 == pos.entity2)
+            pos.pos = VertXPos::POS_AT;
+    }
 
     //If we do a RANGE, remove arrowheads for box symbols
     if (shape == RANGE) 
@@ -2614,6 +2697,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
     default:
         _ASSERT(0);
     case ARROW_OR_BOX:
+    case BOX:
         //Here body width is the width of the box or arrow body
         if (width==0)
             width = style.read().text.getCharHeight(canvas);
@@ -2671,16 +2755,40 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
         break;
     }
 
+    const bool both_none = (src==MARKER_HERE_STR && dst == MARKER_HERE_STR);
+    const auto si = both_none ? vdist.GetIterator(prev_arc, true) :
+                      src==MARKER_HERE_STR ? vdist.GetIteratorEnd() :
+                           vdist.GetIterator(src);
+    const auto di = both_none ? vdist.GetIterator(prev_arc, false) :
+                      dst==MARKER_HERE_STR ? vdist.GetIteratorEnd() :
+                           vdist.GetIterator(dst);
+    //If pos.pos is invalid, we select a location.
+    if (pos.pos==VertXPos::POS_INVALID) {
+        const DistanceMapVerticalElement elem = vdist.Get(si, di);
+        const bool left = style.read().side.second == ESide::RIGHT;
+        const unsigned i = left ? elem.QueryLeftEntity() : elem.QueryRightEntity();
+        pos.pos = left ? VertXPos::POS_LEFT_SIDE
+            : VertXPos::POS_RIGHT_SIDE;
+        if (i==DistanceMapVerticalElement::NO_LEFT_ENTITY)
+            pos.entity1 = chart->ActiveEntities.Find_by_Ptr(chart->LSide);
+        else if (i==DistanceMapVerticalElement::NO_RIGHT_ENTITY)
+            pos.entity1 = chart->ActiveEntities.Find_by_Ptr(chart->RSide);
+        else
+            pos.entity1 = chart->ActiveEntities.Find_by_Index(i);
+        pos.offset = 0;
+    }
+    _ASSERT(pos.entity1 != chart->ActiveEntities.end());
+
     const unsigned index = (*pos.entity1)->index;
     double displace;
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
     case VertXPos::POS_LEFT_SIDE:
-        displace = -vdist.Get(src, dst).Query(index, DISTANCE_LEFT);
+        displace = -vdist.Get(si, di).Query(index, DISTANCE_LEFT);
         break;
     case VertXPos::POS_RIGHT_BY:
     case VertXPos::POS_RIGHT_SIDE:
-        displace = vdist.Get(src, dst).Query(index, DISTANCE_RIGHT);
+        displace = vdist.Get(si, di).Query(index, DISTANCE_RIGHT);
         break;
     default:
         displace = 0;
@@ -2728,8 +2836,8 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
     case VertXPos::POS_AT:
         distances.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset);
         distances.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset);
-        vdist.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset, src, dst);
-        vdist.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset, src, dst);
+        vdist.Insert(index, DISTANCE_LEFT, (width+ext_width)/2 - pos.offset, si, di);
+        vdist.Insert(index, DISTANCE_RIGHT, (width+ext_width)/2 + pos.offset, si, di);
         break;
     case VertXPos::POS_THIRD_LEFT:
     case VertXPos::POS_THIRD_RIGHT:
@@ -2739,20 +2847,20 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
         break;
     case VertXPos::POS_LEFT_BY:
         distances.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset);
-        vdist.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset, src, dst);
+        vdist.Insert(index, DISTANCE_LEFT, width + ext_width - pos.offset, si, di);
         break;
     case VertXPos::POS_RIGHT_BY:
         distances.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset);
-        vdist.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset, src, dst);
+        vdist.Insert(index, DISTANCE_RIGHT, width + ext_width + pos.offset, si, di);
         break;
 
     case VertXPos::POS_LEFT_SIDE:
         distances.Insert(index, DISTANCE_LEFT, width - pos.offset);
-        vdist.Insert(index, DISTANCE_LEFT, width - pos.offset, src, dst);
+        vdist.Insert(index, DISTANCE_LEFT, width - pos.offset, di, si);
         break;
     case VertXPos::POS_RIGHT_SIDE:
         distances.Insert(index, DISTANCE_RIGHT, width + pos.offset);
-        vdist.Insert(index, DISTANCE_RIGHT, width + pos.offset, src, dst);
+        vdist.Insert(index, DISTANCE_RIGHT, width + pos.offset, si, di);
         break;
     };
 }
@@ -2793,35 +2901,20 @@ Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
     return edges;
 }
 
-void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
+void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
 {
     if (!valid) return;
-    //Here we are sure markers are OK
-    //all below are integers. yPos is such, in general. "Markers" are yPos of the markers
-    if (src == MARKER_HERE_STR)
-        ypos[0] = yPos;
-    else if (src != MARKER_PREV_PARALLEL_STR)
-        ypos[0] = chart->Markers.find(src)->second.y;
-    else if (autoMarker>=0)
-        ypos[0] = floor(autoMarker+0.5);
-    else {
-        chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
-                            " Ignoring vertical arrow.",
-                            "Try putting it into a later block.");
-        valid = false;
-        return;
-    }
+    if (src!=MARKER_HERE_STR || dst!=MARKER_HERE_STR) {
+        //Here we are sure markers are OK
+        //all below are integers. yPos is such, in general. "Markers" are yPos of the markers
+        ypos[0] = src == MARKER_HERE_STR ? yPos : chart->Markers.find(src)->second.y;
+        ypos[1] = dst == MARKER_HERE_STR ? yPos : chart->Markers.find(dst)->second.y;
 
-    if (dst == MARKER_HERE_STR)
-        ypos[1] = yPos;
-    else if (dst != MARKER_PREV_PARALLEL_STR)
-        ypos[1] = chart->Markers.find(dst)->second.y;
-    else if (autoMarker>=0)
-        ypos[1] = floor(autoMarker+0.5);
-    else {
-        chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
-                            " Ignoring vertical arrow.",
-                            "Try putting it into a later block.");
+    } else if (prev_arc) {
+        ypos[0] = prev_arc->GetYExtent().from;
+        ypos[1] = prev_arc->GetYExtent().till;
+    } else {
+        _ASSERT(0); // this should have been caught in PostParseProcess()
         valid = false;
         return;
     }
@@ -2844,6 +2937,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
         dm = sm = lw;
     } else switch (shape) {
         case ARROW_OR_BOX:
+        case BOX:
             sm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second == ESide::LEFT,
                                                  isBidir(), style.read().arrow.startType.second, style.read().line);
             dm = style.read().arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.read().side.second != ESide::LEFT,
@@ -2892,7 +2986,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
     switch (shape) {
     default:
         _ASSERT(0); //fallthrough
-    case ARROW_OR_BOX: 
+    case ARROW_OR_BOX:
+    case BOX:
         //adjust xpos and width
         width -= lw; //not necessarily integer, the distance from midline to midline
         xpos = floor(xpos + 0.5); //xpos is integer now: the centerline of arrow if arrow
@@ -2950,7 +3045,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/, double autoMarker)
     switch (shape) {
     default:
         _ASSERT(0); //fallthrough
-    case ARROW_OR_BOX: 
+    case ARROW_OR_BOX:
+    case BOX:
         {
             const double ss = style.read().arrow.getBigWidthsForSpace(
                                   forward, isBidir(), forward ? MSC_ARROW_START : MSC_ARROW_END,
@@ -3089,6 +3185,7 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
     //Draw shape 
     switch (shape) {
     case ARROW_OR_BOX:
+    case BOX:
         style.read().arrow.BigDrawFromContour(outer_contours, NULL, style.read().fill, style.read().shadow, canvas);
         break;
     case RANGE: {
@@ -3392,7 +3489,7 @@ string ArcBoxSeries::Print(int ident) const
 }
 
 ArcBase* ArcBox::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                  Numbering &number, Element **target)
+                                  Numbering &number, Element **target, ArcBase *vertical_target)
 {
     ArcBase *ret = this;
     if (collapsed == BOX_COLLAPSE_BLOCKARROW) {
@@ -3415,11 +3512,11 @@ ArcBase* ArcBox::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EI
         aba->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
         aba->CombineComments(this); //we pass on our notes to the block arrow
         Element *const old_target = *target;
-        ret = aba->PostParseProcess(canvas, hide, left, right, number, target);
+        ret = aba->PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
         if (old_target != *target && ret == NULL)
             *target = DELETE_NOTE;
     } else 
-        ret = ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
+        ret = ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
     //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
@@ -3457,7 +3554,7 @@ void ArcBox::FinalizeLabels(Canvas &canvas)
 }
 
 ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, Element **target)
+                                        Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid || series.size()==0) return NULL;
     //If first segment is compressed or parallel, copy that to full series
@@ -3494,7 +3591,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
         *target = *i;
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
-        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, target); //ret is an arcblockarrow if we need to collapse
+        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, target, vertical_target); //ret is an arcblockarrow if we need to collapse
 		//Check if we are collapsed to a block arrow
 		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
 			_ASSERT(series.size()==1);
@@ -3595,12 +3692,31 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
     const EIterator src = (*series.begin())->src;
     const EIterator dst = (*series.begin())->dst;
 
-    const string &last_marker = vdist.GetCurrentMarker();
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(src);
+    vdist.InsertEntity(dst);
+
+    const auto last_marker = vdist.GetIteratorLast();
     EntityDistanceMap d;
     double max_width = 0; //the widest label plus margins
     for (auto pBox : series) {
+        //Add a new element to vdist
+        vdist.InsertElementTop(pBox);
+        //Add activation status right away
+        AddEntityLineWidths(vdist);
+        vdist.InsertEntity(src);
+        vdist.InsertEntity(dst);
+
         if (pBox->content.size())
             chart->WidthArcList(canvas, (pBox->content), d, vdist);
+        //Add a new element to vdist
+        vdist.InsertElementBottom(pBox);
+        //Add activation status right away
+        AddEntityLineWidths(vdist);
+
         double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
         if (pBox==*series.begin()) {
@@ -3659,6 +3775,11 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
     distances += d;
     vdist.Insert((*src)->index, DISTANCE_LEFT, left_space, last_marker);
     vdist.Insert((*dst)->index, DISTANCE_RIGHT, right_space, last_marker);
+
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
@@ -3915,12 +4036,12 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 
 
 
-void ArcBoxSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
+void ArcBoxSeries::PlaceWithMarkers(Canvas &canvas)
 {
     for (auto i = series.begin(); i!=series.end(); i++) {
         chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::BOX);
         if ((*i)->valid && (*i)->content.size()) 
-            chart->PlaceWithMarkersArcList(canvas, (*i)->content, autoMarker);
+            chart->PlaceWithMarkersArcList(canvas, (*i)->content);
     }
 }
 
@@ -4190,13 +4311,13 @@ struct pipe_compare
 };
 
 ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, Element **target)
+                                        Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
 
     //Add numbering, if needed 
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->PostParseProcess(canvas, hide, left, right, number, target);
+        (*i)->PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
         chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::PIPE);
     }
     //Postparse the content;
@@ -4429,6 +4550,18 @@ void ArcPipeSeries::FinalizeLabels(Canvas &canvas)
 void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    for (auto pPipe : series) {
+        //Add a new element to vdist
+        vdist.InsertElementTop(pPipe);
+        //Add activation status right away
+        AddEntityLineWidths(vdist);
+        vdist.InsertEntity(pPipe->src);
+        vdist.InsertEntity(pPipe->dst);
+    }
     EntityDistanceMap d, d_pipe;
     if (content.size())
         chart->WidthArcList(canvas, content, d, vdist);
@@ -4495,6 +4628,17 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
     d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap, chart->activeEntitySize/2);
     d.CombineBoxSideToPair(chart->hscaleAutoXGap);
     distances += d;
+
+    for (auto pPipe : series) {
+        //Add a new element to vdist
+        vdist.InsertElementBottom(pPipe);
+        //Add activation status right away
+        AddEntityLineWidths(vdist);
+    }
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 //Takes the pipe_body member of each pipe and calculates their contours used for drawing.
@@ -4713,12 +4857,12 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
     total_height = y = ceil(y);
     //Now set the y coordinate in all segments
     double max_shadow_offset = 0;
-    for (auto i = series.begin(); i!=series.end(); i++) {
+    for (auto &pPipe : series) {
         //fill in pipe_block.y (both are integer)
-        (*i)->pipe_block.y.from = chart->boxVGapOutside;
-        (*i)->pipe_block.y.till = y;
-        chart->NoteBlockers.Append(*i);
-        max_shadow_offset = std::max(max_shadow_offset, (*i)->style.read().shadow.offset.second);
+        pPipe->pipe_block.y.from = chart->boxVGapOutside;
+        pPipe->pipe_block.y.till = y;
+        chart->NoteBlockers.Append(pPipe);
+        max_shadow_offset = std::max(max_shadow_offset, pPipe->style.read().shadow.offset.second);
     }
     //Calculate contours in all pipes from pipe_block
     Area pipe_body_cover(this);
@@ -4733,6 +4877,8 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
     if (cover)
         *cover += GetCover4Compress(pipe_body_cover);
     height = yPos + total_height + max_shadow_offset + chart->boxVGapOutside;
+    for (auto &pPipe : series)
+        pPipe->height = height; //so that if a vertical is following pPipe we get the right height
     //We do not call NoteHeight here as a PipeSeries will not have notes, only its elements
     comment_height = std::max(note_l, note_r);
 }
@@ -4795,10 +4941,10 @@ double ArcPipeSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 }
 
 
-void ArcPipeSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
+void ArcPipeSeries::PlaceWithMarkers(Canvas &canvas)
 {
     if (content.size())
-        chart->PlaceWithMarkersArcList(canvas, content, autoMarker);
+        chart->PlaceWithMarkersArcList(canvas, content);
     for (unsigned u=0; u<series.size(); u++)
     chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::PIPE);
 }
@@ -5005,7 +5151,7 @@ bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge, b
 }
 
 ArcBase* ArcDivider::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                      Numbering &number, Element **target)
+                                      Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     string ss;
@@ -5025,15 +5171,25 @@ ArcBase* ArcDivider::PostParseProcess(Canvas &canvas, bool hide, EIterator &left
     }
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 
     if (hide) return NULL;
     return this;
 }
 
-void ArcDivider::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/)
+void ArcDivider::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
+    vdist.InsertEntity(chart->LSide->index);
+    vdist.InsertEntity(chart->RSide->index);
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
     //Get marging from lside and rside
@@ -5222,7 +5378,8 @@ string ArcParallel::Print(int ident) const
 
 ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide, 
                                        EIterator &left, EIterator &right, 
-                                       Numbering &number, Element **target)
+                                       Numbering &number, Element **target,
+                                       ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
     for (auto &block : blocks) 
@@ -5248,6 +5405,10 @@ void ArcParallel::FinalizeLabels(Canvas &canvas)
 void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
     EntityDistanceMap d;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
         chart->WidthArcList(canvas, *i, d, vdist);
@@ -5255,6 +5416,10 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     d.CombineUnPairedLeftRightToPair(chart->hscaleAutoXGap);
     d.CombineBoxSideToPair(chart->hscaleAutoXGap);
     distances += d;
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
@@ -5340,14 +5505,13 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                    false, true);
 }
 
-void ArcParallel::PlaceWithMarkers(Canvas &canvas, double autoMarker)
+void ArcParallel::PlaceWithMarkers(Canvas &canvas)
 {
     if (!valid) return;
     int n=0;
     //For automarker, give the bottom of the largest blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PlaceWithMarkersArcList(canvas, *i,
-            n>0 ? yPos + height : autoMarker);
+        chart->PlaceWithMarkersArcList(canvas, *i);
 }
 
 void ArcParallel::PostPosProcess(Canvas &canvas)

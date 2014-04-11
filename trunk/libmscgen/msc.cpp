@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -283,24 +283,26 @@ DistanceMapVerticalElement &DistanceMapVerticalElement::operator += (const Dista
         else
             i->second = std::max(i->second, m.second);
     }
+    left_entity  = std::min(left_entity,  d.left_entity);
+    right_entity = std::max(right_entity, d.right_entity);
     return *this;
 }
 
 /** Insert a side distance between the two given markers (which may come in any order)
  * if one of the markers is not yet found (or is empty) we insert the side distance
  * from the valid marker to the currently last one. If none found, we do nothing. */
-void DistanceMapVertical::Insert(unsigned e1, int e2, double d, const string &since, const string &to)
+void DistanceMapVertical::Insert(unsigned e1, int e2, double d, iterator since, iterator to)
 {
     //Find first marker
     auto i = elements.begin();
-    while (i!=elements.end() && i->marker!=since && i->marker!=to)
+    while (i!=elements.end() && i!=since && i!=to)
         i++;
     _ASSERT(i!=elements.end()); //one marker assumed to be there
     if (i==elements.end()) return;
     //insert in all subsequent ranges till we find the other one
     do {
         (i++)->Insert(e1, e2, d);
-    } while (i!=elements.end() && i->marker!=since && i->marker!=to);
+    } while (i!=elements.end() && i!=since && i!=to);
 }
 
 
@@ -310,21 +312,21 @@ void DistanceMapVertical::Insert(unsigned e1, int e2, double d, const string &si
  * If a marker is not found, it is assumed to be below us and we
  * treat it as if it were MARKER_HERE_STR.
  * The two markers are equal (or none found), we return zero distances. */
-DistanceMapVerticalElement DistanceMapVertical::Get(const std::string &m1, const std::string &m2)
+DistanceMapVerticalElement DistanceMapVertical::Get(const_iterator m1, const_iterator m2) const
 {
     //We assume none of the marker name we store is equal to MARKER_HERE_STR...
     DistanceMapVerticalElement ret;
     if (m1==m2)
         return ret;
     bool had_one = false;
-    for (const auto &e : elements) {
-        if (e.marker == m1 || e.marker == m2) {
+    for (const_iterator i = elements.begin(); i!=elements.end(); i++) {
+        if (i == m1 || i == m2) {
             if (had_one)
                 return ret;
             had_one = true;
-            ret = e;
+            ret += *i;
         } else if (had_one)
-            ret += e;
+            ret += *i;
     }
     return ret;
 }
@@ -1145,6 +1147,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     }
 
     //Main loop, PostParseProcess each arc in the list
+    ArcBase *prev_arc = NULL;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -1164,7 +1167,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
             //i remains at this very same CommandEntity!
         }
         Element * const old_target = *target;
-        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, target);
+        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, target, prev_arc);
         //if the new target is somewhere inside "i" (or is exactly == to "i")
         //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
         if (*target != old_target && replace != (*i)) {
@@ -1207,8 +1210,11 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
             if (cn && cn->GetStyle().read().side.second == ESide::END) {
                 EndNotes.Append(cn);
                 arcs.erase(i++);
-            } else 
+            } else {
+                if ((*i)->CanBeAlignedTo())
+                    prev_arc = *i;
                 i++;
+            }
 		} else {
             //The arc requested a replacement
             //Note that any replacement already has its postparseprocess called
@@ -1218,9 +1224,11 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
             else {
                 //if we replace to an arclist, unroll the arclist
                 CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
-                if (al == NULL) {
+                if (1 || al == NULL) { //Do not unroll, so that we can adjust vertical to it
 					Progress.DoneItem(MscProgress::POST_PARSE, replace->myProgressCategory);
                     (*i++) = replace;
+                    if (replace->CanBeAlignedTo())
+                        prev_arc = replace;
 				} else {
                     auto j = i;
                     i++; //next element to PostParseProcess
@@ -1836,7 +1844,7 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
         Numbering dummy3;
         Element *dummy4;
         //at_to_level must be true, or else it complains...
-        ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4);
+        ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL);
     } else {
         ce = NULL;
     }
@@ -2336,10 +2344,10 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
 
 /** Places elements that can be placed only when marker positions are known (verticals, some symbols).
  * Calls ArcBase::PlaceWithMarkers for all elements in the list.*/
-void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker)
+void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs)
 {
     for (auto pArc : arcs) {
-        pArc->PlaceWithMarkers(canvas, autoMarker);
+        pArc->PlaceWithMarkers(canvas);
         Progress.DoneItem(MscProgress::PLACEWITHMARKERS, pArc->myProgressCategory);
     }
 }
@@ -2438,7 +2446,7 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     }
 
     Progress.StartSection(MscProgress::PLACEWITHMARKERS);
-    PlaceWithMarkersArcList(canvas, Arcs, -1);
+    PlaceWithMarkersArcList(canvas, Arcs);
     Progress.StartSection(MscProgress::NOTES);
     PlaceFloatingNotes(canvas);
 

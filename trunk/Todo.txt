@@ -57,8 +57,12 @@ ADD: hints for built-in styles after defstyle
 in 3.7.8 (feature freeze for 3.8)
 FIXED: bye command now works (even inside a scoped block)
 FIXED: Fix shape lib on linux
+ADDED: markerless and 'at' clause-less verticals.
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
+FIX: CSH on windows
+FIX: One vertical example is bad.
+DOC: vertical stuff.
 
 in 3.7.7 (feature freeze for 3.8)
 Documented in code.

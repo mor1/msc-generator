@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -358,7 +358,7 @@ EEntityStatus CommandEntity::GetCombinedStatus(const Entity& entity) const
  * 8. For those that draw a heading, update "left" and "right", process label & record max width
  */
 ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                         Numbering &, Element **target)
+                                         Numbering &, Element **target, ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
 
@@ -534,6 +534,10 @@ ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
 void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (!valid || hidden) return;
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
     //Add distances for entity heading
     //Start by creating a map in which distances are ordered by index
     std::map<int, pair<double, double>> dist; //map the index of an active entity to spaces left & right
@@ -548,6 +552,7 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVer
             dist[index] = pair<double, double>(halfsize, halfsize);
             (*i)->right_ent = (*i)->left_ent = (*i)->itr;
             (*i)->right_offset = (*i)->left_offset = 0;
+            vdist.InsertEntity((*i)->itr);
         } else {
             //grouped entity, which is not collapsed
             //find leftmost and rightmost active entity 
@@ -573,6 +578,8 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVer
                 distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
                                  (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
             }
+            vdist.InsertEntity((*i)->left_ent);
+            vdist.InsertEntity((*i)->right_ent);
         }
     }
     if (dist.size()) {
@@ -604,6 +611,10 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVer
                 distances.was_activated.insert((*(*i)->itr)->index);
         }
     }
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 //Here we add to "cover", do not overwrite it
@@ -747,7 +758,7 @@ bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &left,
                                           EIterator &right, Numbering &number,
-                                          Element **note_target)
+                                          Element **note_target, ArcBase *vertical_target)
 {
     if (auto_heading_attr && !autoHeading) {
         autoHeading = static_cast<CommandEntity*>(new CommandEntity(NULL, chart, false));
@@ -757,10 +768,10 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
         Numbering dummy3;
         Element *dummy4=NULL;
         //at_to_level must be true, or else it complains...
-        autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4);
+        autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL);
         chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->myProgressCategory);
     }
-    return ArcCommand::PostParseProcess(canvas, hide, left, right, number, note_target);
+    return ArcCommand::PostParseProcess(canvas, hide, left, right, number, note_target, vertical_target);
 }
 
 void CommandNewpage::FinalizeLabels(Canvas &)
@@ -805,7 +816,7 @@ void CommandNewpage::CollectPageBreak(double /*hSize*/)
     chart->pageBreakData.push_back(PageBreakData(yPos, manual, autoHeading));
 }
 
-void CommandNewpage::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
+void CommandNewpage::PlaceWithMarkers(Canvas &/*cover*/)
 {
     if (autoHeading)
         chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, autoHeading->myProgressCategory);
@@ -841,7 +852,7 @@ void CommandNewBackground::PostPosProcess(Canvas &/*canvas*/)
 
 //////////////////////////////////////////////////////////////////////////////////////
 ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                            Numbering &number, Element ** /*target*/)
+                                            Numbering &number, Element ** /*target*/, ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -904,11 +915,7 @@ void CommandMark::Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/,
     //Add a new element to vdist
     vdist.InsertMarker(name);
     //Add activation status right away
-    for (const auto &e : chart->ActiveEntities) 
-        if (e->running_shown.IsActive()) {
-            vdist.Insert(e->index, DISTANCE_LEFT, chart->activeEntitySize);
-            vdist.Insert(e->index, DISTANCE_RIGHT, chart->activeEntitySize);
-        }
+    AddEntityLineWidths(vdist);
 }
 
 void CommandMark::ShiftBy(double y)
@@ -1058,7 +1065,8 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandHSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
                                          EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, Element ** /*target*/)
+                                         Numbering &/*number*/, Element ** /*target*/,
+                                         ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1153,7 +1161,8 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandVSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
                                          EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, Element ** /*target*/)
+                                         Numbering &/*number*/, Element ** /*target*/,
+                                         ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1332,7 +1341,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, Element ** target)
+                                         Numbering &/*number*/, Element ** target, ArcBase * /*vertical_target*/)
 {
     *target = this;
     if (!valid) return NULL;
@@ -1404,7 +1413,15 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterato
 
 void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
+    //Add a new element to vdist
+    vdist.InsertElementTop(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
     ArcCommand::Width(canvas, distances, vdist);
+    //Add a new element to vdist
+    vdist.InsertElementBottom(this);
+    //Add activation status right away
+    AddEntityLineWidths(vdist);
 }
 
 
@@ -1480,7 +1497,7 @@ void CommandSymbol::ShiftBy(double y)
     outer_edge.y.Shift(y);
 }
 
-void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
+void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/)
 {
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
@@ -1625,7 +1642,7 @@ bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_floa
 }
 
 ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, Element **note_target)
+                                       Numbering &number, Element **note_target, ArcBase * vertical_target)
 {
     if (!valid) return NULL;
     compress = false; //really relevant only for endnotes...
@@ -1651,7 +1668,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
-    ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, note_target);
+    ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, note_target, vertical_target);
 
     if (target == DELETE_NOTE || hide) 
         return NULL; //silently drop note - our target has disappeared, as well
