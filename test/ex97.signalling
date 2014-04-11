@@ -1,36 +1,34 @@
 C: Client;
 S: Server;
 B: Backend;
-mark very_top;
-->C: Hit;
-mark top;
-box C==C: Generate\nrequest;
-mark top2;
-vertical range top-- at C+:
-    Default\nrange [side=end];
-C=>S: Request;
-note: This must\nbe very fast;
-mark q_top;
-box S..B: Server gets info
 {
-    S>>B: Query;
-    mark middle;
-    S<<B: Response;
+    ->C: Hit;
+    {
+        box C==C: Generate\nrequest;
+        vertical range -- [side=end]:
+            Default\nrange;
+        mark top2;
+        C=>S: Request;
+        note: This must\nbe very fast;
+        mark q_top;
+        box S..B: Server gets info
+        {
+            S>>B: Query;
+            mark middle;
+            S<<B: Response;
+         };
+         vertical brace at S-: \-Default brace;
+         vertical brace at S-: \-Radius=3 brace
+             [line.radius=3];
+         mark bottom;
+         C<=S: Reply;
+    };
+    vertical bracket top2=> at C-:
+        Round, dbl bracket [line.corner=round];
+    vertical bracket at C-: Default bracket;
+    vertical pointer top2->*middle:
+        Lost Pointer [lost.line.type=dashed];
+    vertical pointer: Pointer [line.corner=round];
 };
-vertical brace q_top-- at S- :
-    \-Default brace;
-vertical brace q_top-- at S- :
-    \-Radus=3 brace [line.radius=3];
-mark bottom;
-C<=S: Reply;
-vertical bracket top2=> at C-:
-    Round, double bracket [line.corner=round];
-vertical bracket top<-> at C-:
-    Default bracket;
-vertical pointer top2->*middle at B+:
-    Lost Pointer [lost.line.type=dashed];    
-vertical pointer top-> at B+:
-    Pointer [line.corner=round];
-vertical range very_top<> at B+:
-    Dotted arrow range
+vertical range <>: Dotted arrow range
     [arrow.endtype = empty_sharp];

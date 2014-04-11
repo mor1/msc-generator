@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -158,7 +158,7 @@ protected:
     bool   keep_together;  ///<If true, do not split this by automatic pagination.
     bool   keep_with_next; ///<If true, do not separate this from following element by automatic pagination 
     string refname;        ///<Value of the "refname" attribute, to reference numbers & others. Empty if none.
-    mutable double height; ///<Pixel height of the arc, calculated by Layout()
+    mutable double  height;///<Pixel height of the arc, calculated by Layout()
 public:
     const EArcType type;   ///<Type of the arc
     const MscProgress::ECategory myProgressCategory; ///<The category of the arc for calculating progress.
@@ -185,6 +185,8 @@ public:
     bool IsKeepWithNext() const {return keep_with_next;}
     /** True if a note can be attached to this arc. */
     virtual bool CanBeNoted() const {return false;}
+    /** True if the entity is likely to produce height and can be the target of a vertical*/
+    virtual bool CanBeAlignedTo() const { return false; }
     /** Get the Y coordinate of the top of the arc. */
     double GetPos() const {return yPos;}
     /** Return the height of the element with its side comments */
@@ -213,6 +215,10 @@ public:
     /** Converting to text for debugging, idented at specified level*/
     virtual string Print(int ident = 0) const = 0;
 
+    /** Add the current activation status to the last element in 'vdist'. Used by Width().*/
+    void AddEntityLineWidths(DistanceMapVertical &vdist);
+
+    /** Lay out our comments & return their combined coverage in `cover`*/
     /** @name Recursive processors
      * These functions are called recursively for all arcs in this order*/
     /** @{ */
@@ -221,7 +227,7 @@ public:
      * Entity order and collapse/expand is already known here 
      * See documentation for libmscgen for more info.*/
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     /** Substitute name references in labels & process all escapes 
      * See documentation for libmscgen for more info.*/
     virtual void FinalizeLabels(Canvas &canvas);
@@ -249,7 +255,7 @@ public:
     /** Place verticals. 
      * All height & pos info final by now, except on verticals & notes 
      * See documentation for libmscgen for more info.*/
-    virtual void PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/) {}
+    virtual void PlaceWithMarkers(Canvas &/*cover*/) {}
     /** Emit warnings that need final layout. 
      * See documentation for libmscgen for more info.*/
     virtual void PostPosProcess(Canvas &cover);
@@ -279,6 +285,7 @@ public:
     /** Creates an indicator object at Entity `s`*/
     ArcIndicator(Msc *chart, EIterator s, const StyleCoW &st, const FileLineColRange &l);
 	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::INDICATOR;}
+    virtual bool CanBeAlignedTo() const { return true; }
     /** True if `src` and `dst` are properly set.*/
     bool IsComplete() const;
     void SetEntities(EIterator s, EIterator d) {src=s; dst=d;}
@@ -311,6 +318,7 @@ public:
     ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al);
     const StyleCoW &GetStyle() const {return style;}
     virtual bool CanBeNoted() const {return true;}
+    virtual bool CanBeAlignedTo() const { return true; }
     /** Set style to this name, but combine it with default text style */
     void SetStyleWithText(const char *style_name); 
     /** Set style to this name, but combine it with default text style. Use existing style if NULL.*/
@@ -343,7 +351,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     /** Return the formatted number of the arc (empty string if none).*/
     const string &GetNumberText() const {return number_text;}
     /** Return the numbering style of the arc (even if numbering is turned off).*/
@@ -453,7 +461,7 @@ public:
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -522,7 +530,7 @@ public:
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     /** Update the stored activation status of entities.
      * Called if a centierlined entity command after us has changed active entities.*/
     virtual void UpdateActiveSizes(); 
@@ -576,7 +584,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
@@ -593,6 +601,7 @@ public:
     /** Lists Vertical shapes */
     enum EVerticalShape {
         ARROW_OR_BOX, ///<Either an arrow or a box depending on the 'ArcBase::type' field
+        BOX,          ///<A box, even if ArcBase::type is of MSC_ARC_XXX type.
         BRACE,        ///<A curly brace
         BRACKET,      ///<A square bracket (potentially with custom corners)
         RANGE,        ///<A range with potential arrow
@@ -606,6 +615,7 @@ protected:
     EVerticalShape shape;    ///<The shape of the vertical
     VertXPos pos;            ///<The horizontal position, specified by the user
     WidthAttr width_attr;    ///<The value of the width attribute
+    const ArcBase *prev_arc; ///<The arc before us. Used only if no markers specified.
     mutable bool forward;    ///<if the arrow is up to down.
     mutable bool left;       ///<True if we are at the left side of the entity (or we draw such)
     mutable double width;    ///<width of us (just the body for arrows)
@@ -630,13 +640,14 @@ public:
     ArcVerticalArrow* AddXpos(VertXPos *p);
     /** Sets the shape of the vertical. Used only in parsing.*/
     void SetVerticalShape(EVerticalShape sh);
+    virtual bool CanBeAlignedTo() const { return false; }
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual Element* AttachNote(CommandNote *);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -645,7 +656,7 @@ public:
     virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -2;}
-    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
     void DrawBraceLostPointer(Canvas &canvas, const LineAttr &line, const ArrowHead &arrow);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
@@ -682,7 +693,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
@@ -702,12 +713,13 @@ protected:
 public:
     /** Create a series using a box as a first element */
     ArcBoxSeries(ArcBox *first);
+    virtual bool CanBeAlignedTo() const { return true; }
     /** Append subsequent boxes to the series */
     ArcBoxSeries* AddFollow(ArcBox *f);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
@@ -717,7 +729,7 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -780,10 +792,11 @@ public:
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     /** Add actual content */
     ArcPipeSeries* AddArcList(ArcList*l);
+    virtual bool CanBeAlignedTo() const { return true; }
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     void CalculateContours(Area *pipe_body_cover=NULL);
@@ -794,7 +807,7 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -815,13 +828,14 @@ protected:
     mutable Contour text_cover;///<The cover of the label
 public:
     ArcDivider(EArcType t, Msc *msc);
+    virtual bool CanBeAlignedTo() const { return !nudge; } //nudges cannot be targets of a vertical
     /** Return default style name for this arc type */
     static const char *MyStyleName(EArcType t);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool nudge, bool title);
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
@@ -840,10 +854,11 @@ public:
     ArcParallel(Msc *msc, ArcList*l) : ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc) {AddArcList(l);}
     /** Add one more parallel block */
     ArcParallel* AddArcList(ArcList*l);
+    virtual bool CanBeAlignedTo() const { return true; }
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target);
+                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
@@ -853,7 +868,7 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };

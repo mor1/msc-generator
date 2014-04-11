@@ -2,22 +2,20 @@ C: Client;
 S: Server;
 B: Backend;
 ->C: Hit;
-mark top;
-box C==C: Generate\nrequest;
-mark top2;
-C=>S: Request;
-note: This must\nbe very fast;
-mark q_top;
-box S..B: Server gets info
 {
-    S>>B: Query;
-    S<<B: Response;
+    box C==C: Generate\nrequest;
+    {
+        C=>S: Request;
+        note: This must\nbe very fast;
+        box S..B: Server gets info
+        {
+            S>>B: Query;
+            S<<B: Response;
+        };
+        vertical brace at S-: Query;
+        C<=S: Reply;
+    };
+    vertical bracket: Request/Response
+        [line.corner=bevel];
 };
-vertical brace q_top-- at S- :
-    Query;
-C<=S: Reply;
-vertical bracket top2<-> at C-:
-    Request/Response
-    [line.corner=bevel];
-vertical range top<-> at C-:
-    Whole process;
+vertical range: Whole process;

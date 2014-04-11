@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -54,6 +54,7 @@ class Msc;
 class Canvas;
 class CommandNote;
 class EntityDistanceMap;
+class DistanceMapVertical;
 
 /** Indicates that the note shall be deleted */
 #define DELETE_NOTE ((Element * )1)
@@ -77,21 +78,21 @@ protected:
     Msc * const     chart;              ///<The chart this element belongs to
     bool            hidden;             ///<True if we are hidden inside a collapsed box
     bool            linenum_final;      ///<True if `file_pos` member is the final value. Needed during parsing.
-    double          yPos;               ///<The y position of this element.
-    Area            area;               ///<The area covered by the element. This is used by tracking to recognize which element the pointer points to.
-    Contour         area_draw;          ///<The area to draw when highlighting the element - if different from `area` (usually a frame, like for e.g., boxes with content)
-    bool            draw_is_different;  ///<True is `area_draw` is different from `area`.
-    bool            area_draw_is_frame; ///<True if `area_draw` is a frame. If so, we will not expand `area_draw` in PostPosProcess.
-    Contour         area_to_note;       ///<If not empty the notes targeting this element will point towards this area.
-    Contour         area_to_note2;      ///<If a note with "at" clause does not hit the 'area_to_note`, try this.
+    mutable double  yPos;               ///<The y position of this element.
+    mutable Area    area;               ///<The area covered by the element. This is used by tracking to recognize which element the pointer points to.
+    mutable Contour area_draw;          ///<The area to draw when highlighting the element - if different from `area` (usually a frame, like for e.g., boxes with content)
+    mutable bool    draw_is_different;  ///<True is `area_draw` is different from `area`.
+    mutable bool    area_draw_is_frame; ///<True if `area_draw` is a frame. If so, we will not expand `area_draw` in PostPosProcess.
+    mutable Contour area_to_note;       ///<If not empty the notes targeting this element will point towards this area.
+    mutable Contour area_to_note2;      ///<If a note with "at" clause does not hit the 'area_to_note`, try this.
 
     CommandNoteList comments;           ///<A pointer to comments attached to this element. Comments exist independently and will not be deleted on the deletion of this Element.
     double          comment_height;     ///<Total height of the comments attached (max of the two sides)
-    Contour         area_important;     ///<Those parts of `area`, which must not be covered by notes.
+    mutable Contour area_important;     ///<Those parts of `area`, which must not be covered by notes.
 
-    std::vector<EGUIControlType> 
-           controls;           ///<GUI controls of this element.
-    Block  control_location;   ///<The area the GUI controls occupy.
+    mutable std::vector<EGUIControlType>
+                   controls;           ///<GUI controls of this element.
+    mutable Block  control_location;   ///<The area the GUI controls occupy.
     const StyleCoW 
            indicator_style;    ///<The style to be used if we need to replace this with an indicator
     /** Returns the size of an indicator that is supposed to replace us considering `indicator_style`*/
@@ -128,7 +129,6 @@ public:
     const Contour &GetAreaToNote2() const {return area_to_note2;}
     /** Return the list of GUI controls associated with this Element*/
     const std::vector<EGUIControlType>& GetControls() const {return controls;}
-    /** Lay out our comments & return their combined coverage in `cover`*/
     void LayoutComments(Canvas &canvas, AreaList *cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
     virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void PostPosProcess(Canvas &);

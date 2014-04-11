@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -149,7 +149,7 @@ static void usage()
 " -l          Display program licence and exit.\n"
 " -h          Display this help and exit.\n"
 "\n"
-"Msc-generator version %s, Copyright (C) 2008-2013 Zoltan Turanyi,\n"
+"Msc-generator version %s, Copyright (C) 2008-2014 Zoltan Turanyi,\n"
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
@@ -166,7 +166,7 @@ static void licence()
     printf(
 "Msc-generator, a message sequence chart renderer.\n"
 "This file is part of Msc-generator.\n"
-"Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi\n"
+"Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi\n"
 "Distributed under GNU Affero General Public License.\n"
 "\n"
 "Msc-generator is free software: you can redistribute it and/or modify\n"

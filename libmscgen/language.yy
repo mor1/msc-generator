@@ -14,7 +14,7 @@
 %{
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -686,27 +686,14 @@ arc:           arcrel
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "brace", HINT_KEYWORD));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "bracket", HINT_KEYWORD));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "range", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "box", HINT_KEYWORD));
     }
-    csh.AddCSH_ErrorAfter(@1, "Missing a marker.");
+    csh.AddCSH_ErrorAfter(@1, "Missing a marker or one of 'brace', 'bracket', 'range', 'box' or an arrow or box symbol, such as '->' or '--'.");
   #else
-    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a marker.");
+    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a marker or one of 'brace', 'bracket', 'range', 'box' or an arrow or box symbol, such as '->' or '--'.");
   #endif
     free($1);
     $$ = NULL;
-}
-              | TOK_VERTICAL vertical_shape
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH(@2, COLOR_KEYWORD);
-    csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER);
-    csh.AddCSH_ErrorAfter(@2, "Missing a marker.");
-  #else
-    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing a marker.");
-  #endif
-    free($1);
-    $$ = NULL;
-    $2; //to suppress bison warning of unused parameter
 }
               |TOK_VERTICAL vertrel
 {
@@ -732,6 +719,25 @@ arc:           arcrel
       ($3)->AddAttributeList(NULL);
       $$ = ($3);
     } else $$ = NULL;
+  #endif
+    free($1);
+}
+              |TOK_VERTICAL vertical_shape 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+  #else
+	ArcTypePlusDir typeplusdir;
+	typeplusdir.arc.type = MSC_ARC_SOLID;
+	typeplusdir.arc.lost = EArrowLost::NOT;
+	typeplusdir.dir = MSC_DIR_RIGHT;
+	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
+	VertXPos vxp(msc);
+	ava->AddXpos(&vxp);
+    ava->SetVerticalShape($2);
+    ava->AddAttributeList(NULL);
+	$$ = ava;
   #endif
     free($1);
 }
@@ -767,6 +773,29 @@ arc:           arcrel
       ($3)->AddAttributeList($4);
       $$ = ($3);
     } else $$ = NULL;
+  #endif
+    free($1);
+}
+              | TOK_VERTICAL vertical_shape full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
+        ArcVerticalArrow::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
+        ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
+  #else
+	ArcTypePlusDir typeplusdir;
+	typeplusdir.arc.type = MSC_ARC_SOLID;
+	typeplusdir.arc.lost = EArrowLost::NOT;
+	typeplusdir.dir = MSC_DIR_RIGHT;
+	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
+	VertXPos vxp(msc);
+	ava->AddXpos(&vxp);
+    ava->SetVerticalShape($2);
+    ava->AddAttributeList($3);
+	$$ = ava;
   #endif
     free($1);
 }
@@ -2811,20 +2840,6 @@ vertxpos: TOK_AT entity_string
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing an entity name.");
   #endif
     free($1);
-}
-         | entity_string
-{
-  #ifdef C_S_H_IS_COMPILED
-    if (CaseInsensitiveBeginsWith("at", $1) && csh.cursor_pos == (@1).last_pos)
-        csh.AddCSH(@1, COLOR_KEYWORD_PARTIAL);
-    if (csh.CheckHintAt(@1, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
-        csh.hintStatus = HINT_READY;
-    }
-  #else
-    $$ = NULL;
-  #endif
-    free($1);
 };
 
 
@@ -2944,7 +2959,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #ifdef C_S_H_IS_COMPILED
     csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
-    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, &msc);
+    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
   #endif
 }
        | entity_string
@@ -2978,13 +2993,29 @@ vertrel: vertrel_no_xpos vertxpos
          | vertrel_no_xpos
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH_ErrorAfter(@1, "Missing the 'at' keyword.");
   #else
-    $$ = NULL;
-    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing the 'at' keyword.");
-    if ($1) delete $1;
+	VertXPos vxp(msc);
+	$$ = ($1)->AddXpos(&vxp);
   #endif
-}
+} 
+         | vertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+  #else
+    if ($1) {
+		ArcTypePlusDir typeplusdir;
+		typeplusdir.arc.type = MSC_ARC_SOLID;
+		typeplusdir.arc.lost = EArrowLost::NOT;
+		typeplusdir.dir = MSC_DIR_RIGHT;
+		ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
+		ava->AddXpos($1);
+		$$ = ava;
+		delete $1;
+	} else
+	    $$ = NULL;
+  #endif
+
+};
 
 arcrel:       TOK_SPECIAL_ARC
 {
@@ -4216,7 +4247,14 @@ vertical_shape: TOK_VERTICAL_SHAPE
     }
   #endif
   free($1);
-};
+} 
+               | TOK_COMMAND_BOX
+{
+  #ifndef C_S_H_IS_COMPILED
+	$$ = ArcVerticalArrow::BOX;
+  #endif
+  free($1);
+}
 
 
 //cannot be a reserved word, symbol or style name
