@@ -32,7 +32,8 @@ mark top;
             a->*b: \plLost;
             a*->b: \prLost;
       };
-      vertical brace top-- at c+: Arrows here;
+      vertical brace: Arrows here;
+      vspace 10;
       mark above_boxes;
       mark above_boxes_5 [offset=5];
       box ==: Empty boxes {
@@ -50,10 +51,10 @@ mark top;
                 b->b;
             };
       };
-      vertical range above_boxes<->between_boxes at c+:
+      vertical range above_boxes<->between_boxes:
           First set of boxes
           [side=end, text.width=80, text.wrap=yes, number=no];
-      vertical range between_boxes<-> at c+:
+      vertical range between_boxes<->:
           Second set of boxes
           [side=end, text.width=80, text.wrap=yes, number=no];
       vertical pointer above_boxes_5->*between_boxes at bb+:
@@ -71,9 +72,9 @@ mark top;
             note: These are example
                     block arrows;
       };
-      vertical brace top-- at cc+: Block arrows here;
+      vertical brace: Block arrows here;
 };
-vertical top-> at cc++: All the way down...;
+vertical ->: All the way down...;
 ---: Separator;
 mark pipe_top;
 pipe aa--bb: Solid pipe []

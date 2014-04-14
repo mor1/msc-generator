@@ -860,7 +860,6 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
     ($3)->Prepend($1);
     CommandEntity *ce = new CommandEntity($3, &msc, false);
@@ -890,8 +889,6 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@3, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-    csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
     ($4)->Prepend($2);
     CommandEntity *ce = new CommandEntity($4, &msc, false);
@@ -1596,7 +1593,6 @@ entitylist:   entity
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
     ($3)->Prepend($1);
     $$ = $3;
