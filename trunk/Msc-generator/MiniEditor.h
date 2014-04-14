@@ -42,18 +42,7 @@ class CCshRichEditCtrl : public CRichEditCtrl
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
     CEditorBar * const m_parent;
-    struct Change {
-        long length_before;     ///<What is the length of the text before the change (each newline counted as 2 chars as in GetTextLength()).
-        long sel_length_before; ///<What is the length of the selection before the change (what is likely deleted) (each newline as one character as in GetSel())
-        long cr_in_sel;         ///<How many newlines inside the selection
-        long pos;               ///<Where did the change occur (newlines counted as one char, indexed from zero)
-        bool head;              ///<true if the change happened after 'pos' (at deletion 'pos' was the first char to delete, at insertion it happens before 'pos') or before (like a backspace or ctrl+bksp).
-        bool force_full;        ///<true if the change is so invasive, a full csh recoloring is needed
-        CHARRANGE sel_before;   ///<The selection before the change (for undo)
-        long start;         ///<Calculated start of change
-        long ins;           ///<Calculated number of inserted characters
-        long del;           ///<Calculated number of deleted characters
-    } last_change; ///<Contains information recorded before a change to chart text about the impending change. Used to adjust existing CSH entries.
+    CHARRANGE m_crSel_before;    //The selection before a change
 public:
     typedef enum UpdateCSHType {
         NO = 0,
@@ -85,12 +74,10 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions
-	void UpdateText(const char *text, CHARRANGE &cr, bool notifyDoc, bool updateCSH);
-    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool notifyDoc, bool updateCSH);
-    void IndicateFullTextChange() { last_change.force_full = true; } ///<Indicate that we have changed so much of the text a full CSH recoloring is needed
-    bool DoUpdate(bool notifyDoc, UpdateCSHType updateCSH);
+	void UpdateText(const char *text, CHARRANGE &cr, bool notifyDoc);
+    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool notifyDoc);
+    bool DoUpdate(bool notifyDoc, bool update_window, UpdateCSHType updateCSH);
 	void CancelPartialMatch();
-    const Change & GetLastChange() const { return last_change; }
 	
 
 	//Mouse Wheel handling

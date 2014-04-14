@@ -632,7 +632,7 @@ bool EntityApp::AddAttribute(const Attribute& a)
         style += chart->Contexts.back().styles[a.name];
         return true;
     }
-    if (a.Is("Shape")) {
+    if (a.Is("shape")) {
         if (!chart->Shapes) {
             chart->Error.Error(a, false, "No shapes have been loaded. Ignoring attribute.");
             return true;
@@ -1000,8 +1000,8 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
     if (csh.pShapes && *csh.pShapes) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape", HINT_ATTR_NAME));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "Shape.size", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape.size", HINT_ATTR_NAME));
     }
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
