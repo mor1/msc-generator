@@ -268,8 +268,7 @@ public:
      * @{ */
     CshListType  CshList;                ///<The collected color syntax info
     CshErrorList CshErrors;              ///<The collected errors
-    bool         was_partial;            ///<Indicates if the cursor is at the end of a partial keyword
-    CshEntry     partial_at_cursor_pos;  ///<If the cursor is at a partially matching keyword this contains that keyword (color==what we have to revert to if cursor moves away)
+    bool         was_partial;            ///<Indicates if the cursor is at the end of a partial keyword. On Sel Change we need to re-csh
     std::set<CshHint> Hints;             ///<The collected hints
     bool         hintsForcedOnly;        ///<Set to true if hint is located such that it should be displayed only if user forces that by Ctrl+Space
     unsigned     input_text_length;      ///<Length of the text we parse

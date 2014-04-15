@@ -56,6 +56,9 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     m_bWasAutoComplete = false;
 }
 
+#define LIMIT_TEXT 64000
+#define LIMIT_TEXT_STR "64Kbytes"
+
 /** Create the object. 
  * initialize the tabsize and color scheme.
  * Create our hint popup window, too. */
@@ -71,6 +74,7 @@ BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd,
         return false;
     if (!m_hintsPopup.Create(IDD_POPUPLIST, this))
         return false;
+    LimitText(LIMIT_TEXT);
     return true;
 }
 
@@ -431,8 +435,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //if nothing selected let it run further as if not in hint mode
             }
         } else if (pMsg->message == WM_CHAR) {
-            if (isalnum(pMsg->wParam) || pMsg->wParam == '_')
-                //characters that can make up a hinted keyword - 
+            if (isalnum(pMsg->wParam) || pMsg->wParam == '_' || pMsg->wParam<=31 || pMsg->wParam>=127)
+                //characters that can make up a hinted keyword -
+                //or are control characters
                 //we insert them and re-calc hints afterwards in OnCommand
                 return CRichEditCtrl::PreTranslateMessage(pMsg);
             //do nothing if no item is selected
@@ -751,6 +756,13 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr,
     DoUpdate(notifyDoc, true, FORCE_CSH);
     m_parent->m_bSuspendNotifications = saved_prevention;
     SetFocus();
+
+    if (t.GetLength()>LIMIT_TEXT && m_parent) {
+        m_parent->SetReadOnly();
+        MessageBox("The internal editor can only handle files up to " LIMIT_TEXT_STR 
+                   ". Use an external editor to edit.",
+                   "Msc-generator", MB_OK | MB_ICONERROR);
+    }
 }
 
 template<class EntryList>
@@ -813,10 +825,8 @@ CSH entries start with the first character of the file indexed as 1.
 Thus, if a csh entry corresponds to the first character (only) of a file,
 it has 'first_pos = 1' and 'last_pos = 1'. For the first three letter 
 of the file these values are 1 and 3.
-In contrast, last_change values start being indexed from zero.
-Thus if you insert a character at the beginning of the file, you get
-last_change.start = 0, and last_change.ins = 1 (being the number of characers
-inserted).
+In contrast, RichEditCtrl values start being indexed from zero.
+Thus if the caret is before the first character, we get lStart=lEnd = 0.
 */
 
 bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHType updateCSH)
@@ -855,15 +865,40 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
             if (text[last_diff-1]!=prev_text[last_diff-1+ldiff])
                 break;
         //last_diff is the index of the last different char plus one
-        if (first_diff+1>last_diff) {
-            //change happened in the middle of a consecutive set of same chars
-            std::swap(first_diff, last_diff);
-            last_diff++;
-            first_diff--;
+        if (last_diff==0) {
+            //the new file is a postfix of the old one
+            _ASSERT(ldiff>0);
+            start = 0;
+            ins = 0;
+            del = ldiff;
+        } else if (last_diff<=first_diff) {
+            //same text from front and beginning overlap
+            //last_diff and first diff actually point to chars that are the same
+            start = last_diff;
+            ins = first_diff - last_diff;
+            del = ins + ldiff;
+        } else {
+            start = first_diff;
+            ins = last_diff - first_diff;
+            del = ins + ldiff;
         }
-        start = first_diff;
-        ins = last_diff-first_diff;
-        del = ins + ldiff;
+    }
+    //Now expand the changed range to include the selection before the action.
+    //This is needed for paste actions: if we paste (unformatted or badly formatted) 
+    //text which is equal to the text already there, the above algorithm will not 
+    //detect the change and coloring will remain as pasted.
+    //Note that start is now in RichEditCtrl space: if we insert at the beginning
+    //of the file, start is zero.
+    if (m_crSel_before.cpMin < m_crSel_before.cpMax) {
+        if (m_crSel_before.cpMin < start) {
+            ins += start - m_crSel_before.cpMin;
+            del += start - m_crSel_before.cpMin;
+            start = m_crSel_before.cpMin;
+        }
+        if (m_crSel_before.cpMax > start + del) {
+            ins += m_crSel_before.cpMax - start - del;
+            del = m_crSel_before.cpMax - start;
+        }
     }
     prev_text = text;
 
@@ -993,12 +1028,21 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
         for (const auto &e : m_csh.CshErrors)
             csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
     } else {
+        csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_MAX);
+        //kill any entries overlapping with a no_error - so they are forced to be refreshed
+        for (auto &err : csh_error_delta) 
+            for (auto &csh : old_csh_list)
+                if (err.color == COLOR_MAX &&
+                    csh.first_pos <= err.last_pos &&
+                    err.first_pos <= csh.last_pos)
+                    csh.color = COLOR_MAX;
         csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_MAX);
-        csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_NO_ERROR);
     }
 
     //Ok now copy the delta to the editor window, if there is something to do
-    if (csh_delta.size()==0 && csh_error_delta.size()==0 && updateCSH<FORCE_CSH)
+    //Note: if we have inserted, we need to make that COLOR_NORMAL even if csh_delta is
+    //empty.
+    if (ins==0 && csh_delta.size()==0 && csh_error_delta.size()==0 && updateCSH<FORCE_CSH)
         goto done;
 
     //freeze screen, prevent visual updates
@@ -1025,10 +1069,11 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
         }
 
     if (pApp->m_bShowCshErrors)
-        for (auto i = csh_error_delta.rbegin(); !(i==csh_error_delta.rend()); i++) {
-            SetSel(i->first_pos-1, i->last_pos);
-            SetSelectionCharFormat(scheme[i->color]);
-        }
+        for (auto i = csh_error_delta.rbegin(); !(i==csh_error_delta.rend()); i++) 
+            if (i->color<COLOR_MAX) {
+                SetSel(i->first_pos-1, i->last_pos);
+                SetSelectionCharFormat(scheme[i->color]);
+            }
 
     //restore cursor and scroll position
     SetSel(cr);
@@ -1054,20 +1099,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	m_csh.was_partial = false;
     if (!pApp || !pApp->m_bShowCsh) return;
 
-	SetRedraw(false);
-    const bool saved_notification = m_parent->m_bSuspendNotifications;
-    m_parent->m_bSuspendNotifications = true;
-
-    //Set the partial match to the color previously proscribed in Csh
-	SetSel(m_csh.partial_at_cursor_pos.first_pos-1, m_csh.partial_at_cursor_pos.last_pos); //select all
-	SetSelectionCharFormat(pApp->m_csh_cf[pApp->m_nCshScheme][m_csh.partial_at_cursor_pos.color]); 
-
-	SetSel(cr);
-
-    m_parent->m_bSuspendNotifications = saved_notification;
-    SetRedraw(true);
-
-	Invalidate();
+    DoUpdate(false, true, CSH);
 }
 
 void CCshRichEditCtrl::JumpToLine(int line, int col) {
@@ -1106,7 +1138,7 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return TRUE;
 }
 
-//Assumes we have called UpdateCsh just before and m_csh is up-to-date
+//Assumes we have called DoUpdate just before and m_csh is up-to-date
 //if setUptoCursor is true, we set m_bTillCursorOnly to true
 //if false, we leave the value unchanged (=start with a false value)
 void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)

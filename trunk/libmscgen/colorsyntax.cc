@@ -5391,7 +5391,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     for (auto &str : *((yyvsp[(1) - (2)].stringlist)))
-        if (csh.ForbiddenStyles.find(str) != csh.ForbiddenStyles.end())
+        if (csh.ForbiddenStyles.find(str) == csh.ForbiddenStyles.end())
             csh.Contexts.back().StyleNames.insert(str);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         MscStyle().AttributeNames(csh);

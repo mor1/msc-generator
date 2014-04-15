@@ -36,6 +36,20 @@ using namespace std;
 
 const ShapeCollection *Csh::def_shapes = new ShapeCollection;
 
+/** Finds a text in a collection - or its prefix if no exact match.
+ @returns 0 if no match, 1 if text is a prefix of one of the entries,
+ 2 if text is one of the entries.*/
+unsigned FindPrefix(const std::set<std::string> &set, const string &text) 
+{
+    auto i = set.lower_bound(text);
+    if (i==set.end()) return 0;
+    if (*i == text) return 2;
+    //no exact match, see if text is a prefix of the next one
+    i++;
+    if (i==set.end()) return 0;
+    return CaseInsensitiveBeginsWith(i->c_str(), text.c_str());
+}
+                                                               
 bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) const
 {
     if ((effects & mask) != (p.effects & p.mask)) return false;
@@ -581,12 +595,6 @@ void Csh::AddCSH_KeywordOrEntity(const CshPos&pos, const char *name)
     //Partial match but currently typing...
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, EColorSyntaxType(type+1));
-        partial_at_cursor_pos.first_pos = pos.first_pos;
-        partial_at_cursor_pos.last_pos = pos.last_pos;
-        if (EntityNames.find(string(name)) == EntityNames.end())
-            partial_at_cursor_pos.color = COLOR_ENTITYNAME_FIRST;
-        else
-            partial_at_cursor_pos.color = COLOR_ENTITYNAME;
         was_partial = true;
         return;
     }
@@ -611,9 +619,6 @@ void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType c
     case 0: AddCSH_Error(pos, array == opt_names ? "Unkown chart option." : "Unknown attribute."); return;
     case 1:
         AddCSH(pos, EColorSyntaxType(color+1));
-        partial_at_cursor_pos.first_pos = pos.first_pos;
-        partial_at_cursor_pos.last_pos = pos.last_pos;
-        partial_at_cursor_pos.color = COLOR_NORMAL;
         was_partial = true;
     }
 }
@@ -631,9 +636,6 @@ void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
     unsigned match_result = find_opt_attr_name(name, attr_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_ATTRNAME_PARTIAL);
-        partial_at_cursor_pos.first_pos = pos.first_pos;
-        partial_at_cursor_pos.last_pos = pos.last_pos;
-        partial_at_cursor_pos.color = COLOR_STYLENAME;
         was_partial = true;
         return;
     }
@@ -641,30 +643,37 @@ void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
         AddCSH(pos, COLOR_ATTRNAME);
         return;
     }
-    //if no keyword match, we assume an entityname
-    AddCSH(pos, COLOR_STYLENAME);
-    return;
+    //if no keyword match, we assume a style name
+    const unsigned u = FindPrefix(Contexts.back().StyleNames, name);
+    if (u==2)
+        AddCSH(pos, COLOR_ATTRVALUE);
+    else if (u==1 && pos.last_pos==cursor_pos) {
+        AddCSH(pos, COLOR_ATTRVALUE);
+        was_partial = true;
+    } else 
+        //If we do not type or is it a prefix it add error
+        AddCSH_Error(pos, "Unknown attribute or style name.");
 }
 
 void Csh::AddCSH_EntityName(const CshPos&pos, const char *name)
 {
-    if (EntityNames.find(string(name)) != EntityNames.end()) {
+    const unsigned u = FindPrefix(EntityNames, name);
+    if (u==2) {
         AddCSH(pos, COLOR_ENTITYNAME);
         return;
     }
     //We know that there has been no such entity yet
-    //If we are currently typing it, use normal color, else
+    //If we are currently typing it and it is a prefix 
+    //of an entity, use entitycolor, else
     //the one designated for first use of entities
-    //In both cases insert to entity name database
-    EntityNames.insert(string(name));
-    if (pos.last_pos != cursor_pos) {
-        AddCSH(pos, COLOR_ENTITYNAME_FIRST);
+    //In the latter case insert to entity name database
+    if (u==1 && pos.last_pos==cursor_pos) {
+        AddCSH(pos, COLOR_ENTITYNAME);
+        was_partial = true;
         return;
     }
-    partial_at_cursor_pos.first_pos = pos.first_pos;
-    partial_at_cursor_pos.last_pos = pos.last_pos;
-    partial_at_cursor_pos.color = COLOR_ENTITYNAME_FIRST;
-    was_partial = true;
+    EntityNames.insert(string(name));
+    AddCSH(pos, COLOR_ENTITYNAME_FIRST);
 }
 
 void Csh::AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name)
@@ -687,9 +696,6 @@ void Csh::AddCSH_SymbolName(const CshPos&pos, const char *name)
     unsigned match_result = find_opt_attr_name(name, symbol_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_KEYWORD_PARTIAL);
-        partial_at_cursor_pos.first_pos = pos.first_pos;
-        partial_at_cursor_pos.last_pos = pos.last_pos;
-        partial_at_cursor_pos.color = COLOR_KEYWORD;
         was_partial = true;
         return;
     }
@@ -697,7 +703,13 @@ void Csh::AddCSH_SymbolName(const CshPos&pos, const char *name)
         AddCSH(pos, COLOR_KEYWORD);
         return;
     }
-    //if no keyword match, we assume an entityname
+    //if no keyword match, not even partial, we emit an error
+    string s = "Unknown symbol name. Use one of '";
+    for (auto t: symbol_names)
+        s.append(t).append("', '");
+    s.erase(s.length()-3);
+    s.append(".");
+    AddCSH_Error(pos, s);
 }
 
 //Mark anything beyond the end of 'pos' as comment
@@ -711,9 +723,6 @@ void Csh::AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name)
     unsigned match_result = find_opt_attr_name(name, extvxpos_designator_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_KEYWORD_PARTIAL);
-        partial_at_cursor_pos.first_pos = pos.first_pos;
-        partial_at_cursor_pos.last_pos = pos.last_pos;
-        partial_at_cursor_pos.color = COLOR_KEYWORD;
         was_partial = true;
         return;
     }
@@ -721,7 +730,13 @@ void Csh::AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name)
         AddCSH(pos, COLOR_KEYWORD);
         return;
     }
-    //if no keyword match, we assume an entityname
+    //if no keyword match, not even partial, we emit an error
+    string s = "Invalid keyword here. Use one of '";
+    for (auto t: extvxpos_designator_names)
+        s.append(t).append("', '");
+    s.erase(s.length()-3);
+    s.append(".");
+    AddCSH_Error(pos, s);
 }
 
 /** Callback for drawing a symbol before marker names in the hints popup list box.

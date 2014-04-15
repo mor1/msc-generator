@@ -1750,7 +1750,7 @@ styledef : tok_stringlist full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
     for (auto &str : *($1))
-        if (csh.ForbiddenStyles.find(str) != csh.ForbiddenStyles.end())
+        if (csh.ForbiddenStyles.find(str) == csh.ForbiddenStyles.end())
             csh.Contexts.back().StyleNames.insert(str);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         MscStyle().AttributeNames(csh);
