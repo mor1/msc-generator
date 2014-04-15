@@ -642,7 +642,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
     //Needed for single thread operation when the system DLLs start our
     //application to draw an embedded object, for instance.
     CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    CompileEditingChart(true, pWnd || !pWnd->IsWindowVisible());
+    CompileEditingChart(true, !pWnd || !pWnd->IsWindowVisible());
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
