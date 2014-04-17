@@ -640,6 +640,7 @@ public:
     ArcVerticalArrow* AddXpos(VertXPos *p);
     /** Sets the shape of the vertical. Used only in parsing.*/
     void SetVerticalShape(EVerticalShape sh);
+    virtual bool CanBeNoted() const { return false; }
     virtual bool CanBeAlignedTo() const { return false; }
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     bool AddAttribute(const Attribute &);

@@ -3954,14 +3954,14 @@ comment:            comment_command full_arcattrlist_with_label
 colon_string: TOK_COLON_QUOTED_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ColonString(@1, $1, false);
+    csh.AddCSH_ColonString(@1, $1, false);
   #endif
     $$ = $1;
 }
              | TOK_COLON_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ColonString(@1, $1, true);
+    csh.AddCSH_ColonString(@1, $1, true);
   #endif
     $$ = $1;
 };

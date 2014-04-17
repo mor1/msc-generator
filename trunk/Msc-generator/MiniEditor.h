@@ -43,6 +43,7 @@ class CCshRichEditCtrl : public CRichEditCtrl
     CPopupList m_hintsPopup;
     CEditorBar * const m_parent;
     CHARRANGE m_crSel_before;    //The selection before a change
+    CString m_prev_text;         //The previous text (for which m_csh) is relevant. Used in DoUpdate().
 public:
     typedef enum UpdateCSHType {
         NO = 0,

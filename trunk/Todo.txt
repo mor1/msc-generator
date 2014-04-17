@@ -54,13 +54,18 @@ ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
+In 3.7.11
+FIXED: When typing a command name csh works bad.
+FIXED: Cannot turn off numbering for comments
+FIX: cover of a box does not include elements outside it - fails to compress well
+FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
+FIX: Optimize Tangent functions
+
 in 3.7.9 (feature freeze for 3.8)
 FIXED: Not always compiles on F2 or Ctrl+W
 FIXED: At paste, CSH may screw up
 FIXED: many bugs on CSH delta operations
 FIXED: Internal editor is now limited to 64K and warns if above
-FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
-FIX: Optimize Tangent functions
 
 
 in 3.7.8 (feature freeze for 3.8)

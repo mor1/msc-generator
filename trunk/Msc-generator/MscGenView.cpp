@@ -175,7 +175,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
         XY(pApp->m_printer_usr_margins[0] + pApp->m_printer_usr_margins[1], 
            pApp->m_printer_usr_margins[2] + pApp->m_printer_usr_margins[3]);
     if (ps != new_ps && pApp->m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false, false);
+        pDoc->CompileEditingChart(false);
     pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
     return TRUE;
 }
