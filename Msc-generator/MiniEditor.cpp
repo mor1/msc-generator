@@ -141,7 +141,7 @@ int CCshRichEditCtrl::LastNonWhitespaceIdent(const char *str, int Max)
  * The returned value is the ident of the first non-whitespace after the colon
  * (can be in a different line than the colon). If the cursor is in-between
  * the colon and the first non-whitespace, we return the ident of the colon+2.
- * @param [in] lStart The position of the cursor (assumedly inside a label)
+ * @param [in] lStart The position of the cursor (assumedly inside a colon-label)
  * @param [out] line The number of the line we found the colon in.
  * @returns Return -1 if we are 1) not in a label or 2) smart ident is off 
  *          or 3) no csh or 4) the label is not preceeeded by a colon.
@@ -153,54 +153,62 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 	ASSERT(pApp != NULL);
     if (!pApp || !pApp->m_bSmartIdent || !pApp->m_bDoCshProcessing) return -1;
 	//Go through the list of color syntax highlight entries
-	for (auto  i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
-		//if we do not fall into a label skip
-		if (i->color != COLOR_LABEL_TEXT || i->first_pos>=lStart || i->last_pos<lStart ) continue;
-		//if yes and is preceeded by a colon...
-		auto j = i;
-		j--;
-		if (j->color != COLOR_COLON) continue;
+	for (auto &pos : m_csh.ColonLabels) {
+		if (pos.first_pos>=lStart || pos.last_pos<lStart ) continue;
         int dummy;
-        if (line) ConvertPosToLineCol(j->first_pos, *line, dummy); //the line of the colon
+        if (line) ConvertPosToLineCol(pos.first_pos, *line, dummy); //the line of the colon
         
-        //if this line begins with a { or [, use the line of the colon
-        //to align to.
         int offset = m_tabsize;
         int nLine, nCol;
         ConvertPosToLineCol(lStart, nLine, nCol);
         CString strLine;
         int nLineLength = GetLineString(nLine, strLine);
         int ident1 = FirstNonWhitespaceIdent(strLine);
+        //if the line to ident begins with a { or [, use the line of the colon
+        //to align to.
         if (ident1>=0 && (strLine[ident1] == '{' || strLine[ident1] == '[')) {
             if (strLine[ident1] == '{')
                 offset = 0;
-            //store the line of the colon in strLine
-            ConvertPosToLineCol(j->first_pos, nLine, nCol);
+            //store the line of the colon strLine and its pos in nLine, nCol
+            ConvertPosToLineCol(pos.first_pos, nLine, nCol);
             nLineLength = GetLineString(nLine, strLine);
         } else {
-            //OK, we are really identing a line of the label
-            //find the first non-space in the label
-            ConvertPosToLineCol(i->first_pos, nLine, nCol);
+            //OK, we are really identing a line of the label text
+            //First see if the colon is the last char in its line
+            //store the line of the colon strLine and its pos in nLine, nCol
+            ConvertPosToLineCol(pos.first_pos, nLine, nCol);
             nLineLength = GetLineString(nLine, strLine);
-            if (nLineLength > nCol) {
-                //if the colon is not the last char in the line, 
-                //search the line to the first non whitespace:
+            int i = nLineLength-1;
+            while (i>nCol && (strLine[i]==' ' || strLine[i]=='\t'))
+                i--;
+            //now strLine[i] is the last non-whitespace in the line of the colon
+            if (i > nCol) {
+                //The colon is not the last char in the line.
+                //Search the line after the colon to the first non whitespace:
                 //that will be the first char of the label - use that as ident
+                nCol++; //step over the colon
                 while (nCol<nLineLength && (strLine[nCol]==' ' || strLine[nCol]=='\t')) 
                     nCol++;
                 //if there is such a non-space in the label on the same line as the colon
                 if (nCol<nLineLength)
                     return nCol;
-                else
-                    return -1;
+                else {
+                    _ASSERT(0);
+                    return -1; //should not happen, we must have chars after the colon here
+                }
             }
+            //OK, here the colon is the last char in its line,
+            //so the ident to return is the ident of the colon's line + m_tabsize
+            //Now offset==m_tabsize and strLine holds the line of the colon.
         } 
         //All other cases use the ident of strLine plus 'offset'
         const int ident = FirstNonWhitespaceIdent(strLine);
         //..and ident one compared to that
         if (ident>=0)
             return ident + offset;
+        _ASSERT(0); //should not happen, the line of the colon must not be empty
 	}
+    //We were not inside a colon-label
 	return -1;
 }
 
@@ -380,7 +388,9 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
         Invalidate();
         UpdateWindow();
     } else {
-        m_csh.AdjustCSH(lStart-col+1, target_ident-current_ident);
+        Csh::AdjustCSHList(m_csh.CshList,    lStart-col+1, target_ident-current_ident);
+        Csh::AdjustCSHList(m_csh.ColonLabels,lStart-col+1, target_ident-current_ident);
+        Csh::AdjustCSHList(m_csh.CshErrors,  lStart-col+1, target_ident-current_ident);
     }
     return true;
 }
@@ -841,18 +851,15 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
     //Now remove CR ('\r') characters, keep only LF ('\n')
     RemoveCRLF(text);
 
-    //Find where did we change the text
-    static CString prev_text;
-
     /* Compute diff to last text */
     long start, ins, del;
     const size_t l1 = text.GetLength();
-    const size_t l2 = prev_text.GetLength();
+    const size_t l2 = m_prev_text.GetLength();
     const size_t lmin = std::min(l1, l2);
     const int ldiff = (int)l2-(int)l1;
     size_t first_diff, last_diff;
     for (first_diff = 0; first_diff<lmin; first_diff++)
-        if (text[first_diff]!=prev_text[first_diff])
+        if (text[first_diff]!=m_prev_text[first_diff])
             break;
     if (first_diff == lmin) {
         //one text is prefix of the other
@@ -862,7 +869,7 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
     } else {
         //search for the end of the differences
         for (last_diff = l1; last_diff>std::max(0, -ldiff); last_diff--)
-            if (text[last_diff-1]!=prev_text[last_diff-1+ldiff])
+            if (text[last_diff-1]!=m_prev_text[last_diff-1+ldiff])
                 break;
         //last_diff is the index of the last different char plus one
         if (last_diff==0) {
@@ -900,188 +907,189 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
             del = m_crSel_before.cpMax - start;
         }
     }
-    prev_text = text;
+    m_prev_text = text;
 
     //Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-    if (!pApp->m_bDoCshProcessing || updateCSH==NO) {
-    done:
-        //Ok, notify the document about the change
-        if (notifyDoc) {
-            CMscGenDoc *pDoc = GetMscGenDocument();
-            if (pDoc)
-                pDoc->OnInternalEditorChange(start, ins, del, m_crSel_before);
+    if (pApp->m_bDoCshProcessing && updateCSH!=NO) {
+        CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
+
+        //record scroll and cursor position 
+        POINT scroll_pos;
+        CHARRANGE cr;
+        ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+        GetSel(cr);
+
+        //if we do not do CSH processing, but we are forced, we clear all formatting now
+        if (!pApp->m_bDoCshProcessing && updateCSH==FORCE_CSH) {
+            SetRedraw(false);
+            const bool saved_notification = m_parent->m_bSuspendNotifications;
+            m_parent->m_bSuspendNotifications = true;
+
+            SetSel(0, -1); //select all
+            SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+
+            //restore cursor and scroll position
+            SetSel(cr);
+            ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+
+            m_parent->m_bSuspendNotifications = saved_notification;
+            update_window = true;
+        } else {
+            //here pApp->m_bDoCshProcessing is true - Parse the text for CSH
+
+            if (updateCSH == FORCE_CSH) {
+                //if we force a csh update (e.g., due to switching csh schemes)
+                //we force a fill update.
+                //(however, we correctly calculate ins,del,start above, since
+                //those may be needed by MscGenDoc to decide on grouping undo)
+                m_csh.CshList.clear();
+                m_csh.CshErrors.clear();
+            }
+            //if we had csh entries before, consider last_change
+            if (m_csh.CshList.size()) {
+                //Since start is as if the first char in the file is indexed
+                //at zero, we add one (csh entries are indexed from 1).
+                Csh::AdjustCSHList(m_csh.CshList,   start+1, ins-del);
+                Csh::AdjustCSHList(m_csh.CshErrors, start+1, ins-del);
+                //We do not adjust ColonLabels here, since that is not needed
+                //for calculating coloring diffs, only to smart ident.
+                //If we inserted, destroy any marking overlapping with the insertion.
+                if (ins) {
+                    for (auto &csh : m_csh.CshList)
+                        if (csh.first_pos <= start+1+ins &&
+                            start+1 <= csh.last_pos)
+                            csh.color = COLOR_NORMAL;
+                    for (auto &csh : m_csh.CshErrors)
+                        if (csh.first_pos <= start+1+ins &&
+                            start+1 <= csh.last_pos)
+                            csh.color = COLOR_MAX;
+                }
+            }
+            //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
+            CshPos old_uc = m_csh.hintedStringPos;
+            //move the last list to csh_delta
+            CshListType old_csh_list;
+            old_csh_list.swap(m_csh.CshList);
+            CshErrorList old_csh_error_list;
+            old_csh_error_list.swap(m_csh.CshErrors);
+            //Take the design, color and style definitions from the designlib
+            m_csh = pApp->m_designlib_csh;
+            m_csh.use_scheme = &pApp->m_nCshScheme;
+            m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
+            //If we consider the hinted string only up to the cursor, trim the returned pos
+            if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
+                m_csh.hintedStringPos.last_pos = cr.cpMin;
+
+            //retune true if the past and new m_csh.hintedStringPos overlap
+            ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
+            //if we are not in hint mode, we return true if we should enter one
+            if (!InHintMode() && ins-del==1)
+                ret = true;
+
+            //Apply the color syntax to the text in the editor
+            if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
+                MscError Error;
+                Error.AddFile("Hint");
+                std::list<CString> errors;
+                std::vector<std::pair<int, int>> error_pos;
+                for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
+                    int line, col;
+                    ConvertPosToLineCol(i->first_pos, line, col);
+                    line++; col++; //Needed as errors are indexed from one, positions from zero
+                    error_pos.push_back(std::pair<int, int>(line, col));
+                    errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
+                }
+                pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
+                SetFocus(); //back to editor
+            }
+            if ((pApp->m_bShowCsh && updateCSH >= CSH) || updateCSH == FORCE_CSH) {
+                //create a diff 
+                //csh_list is unfortunately not always sorted by first_pos, but close.
+                std::sort(m_csh.CshList.begin(), m_csh.CshList.end(),
+                    [](CshEntry const & a, CshEntry const &b) {
+                    return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
+                });
+                std::sort(m_csh.CshErrors.begin(), m_csh.CshErrors.end(),
+                    [](CshError const & a, CshError const &b) {
+                    return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
+                });
+                CshListType csh_delta, csh_error_delta;
+                if (updateCSH == FORCE_CSH) {
+                    csh_delta = m_csh.CshList;
+                    csh_error_delta.reserve(m_csh.CshErrors.size());
+                    for (const auto &e : m_csh.CshErrors)
+                        csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
+                } else {
+                    csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_MAX);
+                    //kill any entries overlapping with a no_error - so they are forced to be refreshed
+                    for (auto &err : csh_error_delta)
+                        if (err.color == COLOR_MAX)
+                            for (auto &csh : old_csh_list)
+                                if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
+                                    csh.color = COLOR_MAX;
+                    csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_NORMAL);
+                }
+
+                //Ok now copy the delta to the editor window, if there is something to do
+                //Note: if we have inserted, we need to make that text COLOR_NORMAL even if csh_delta is
+                //empty.
+                if (ins || csh_delta.size() || csh_error_delta.size() || updateCSH==FORCE_CSH) {
+
+                    //freeze screen, prevent visual updates
+                    SetRedraw(false);
+                    const bool saved_notification = m_parent->m_bSuspendNotifications;
+                    m_parent->m_bSuspendNotifications = true;
+
+                    //Erase all formatting on a full update (deltas contain all entries in this case)
+                    if (updateCSH == FORCE_CSH) {
+                        SetSel(0, -1); //select all
+                        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+                    } else if (ins) {
+                        SetSel(start, start+ins); //select inserted text
+                        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+                    }
+
+                    //First erase formatting from parts, where errors ceased to exist
+                    for (auto &e : csh_error_delta)
+                        if (e.color==COLOR_MAX) {
+                            SetSel(e.first_pos-1, e.last_pos);
+                            SetSelectionCharFormat(scheme[COLOR_NORMAL]);
+                        }
+
+                    //Now add coloring to parts where it changed 
+                    //Go backwards, since overlaid entries are added later
+                    for (auto &e : csh_delta)
+                        if (e.color<COLOR_MAX) {
+                            SetSel(e.first_pos-1, e.last_pos);
+                            SetSelectionCharFormat(scheme[e.color]);
+                        }
+                    //Now add errors, if we show them
+                    if (pApp->m_bShowCshErrors)
+                        for (auto &e : csh_error_delta)
+                            if (e.color<COLOR_MAX) {
+                                SetSel(e.first_pos-1, e.last_pos);
+                                SetSelectionCharFormat(scheme[e.color]);
+                            }
+
+                    //restore cursor and scroll position
+                    SetSel(cr);
+                    ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+
+                    m_parent->m_bSuspendNotifications = saved_notification;
+                    update_window = true;
+                }
+            }
         }
-        if (update_window) {
-            SetRedraw(true);
-            Invalidate();
-            UpdateWindow();
-        }
-        return ret;
     }
-    CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-
-    //record scroll and cursor position 
-    POINT scroll_pos;
-    CHARRANGE cr;
-    ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-    GetSel(cr);
-
-    //if we do not do CSH processing, but we are forced, we clear all formatting now
-    if (!pApp->m_bDoCshProcessing && updateCSH==FORCE_CSH) {
-        SetRedraw(false);
-        const bool saved_notification = m_parent->m_bSuspendNotifications;
-        m_parent->m_bSuspendNotifications = true;
-
-        SetSel(0, -1); //select all
-        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-
-        //restore cursor and scroll position
-        SetSel(cr);
-        ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-
-        m_parent->m_bSuspendNotifications = saved_notification;
+    //Ok, notify the document about the change
+    if (notifyDoc && GetMscGenDocument()) 
+        GetMscGenDocument()->OnInternalEditorChange(start, ins, del, m_crSel_before);
+    if (update_window) {
         SetRedraw(true);
         Invalidate();
         UpdateWindow();
-        goto done;
     }
-
-    //here pApp->m_bDoCshProcessing is true - Parse the text for CSH
-
-    if (updateCSH == FORCE_CSH) {
-        //if we force a csh update (e.g., due to switching csh schemes)
-        //we force a fill update.
-        //(however, we correctly calculate ins,del,start above, since
-        //those may be needed by MscGenDoc to decide on grouping undo)
-        m_csh.CshList.clear();
-        m_csh.CshErrors.clear();
-    }
-    //if we had csh entries before, consider last_change
-    if (m_csh.CshList.size()) {
-        //Since start is as if the first char in the file is indexed
-        //at zero, we add one (csh entries are indexed from 1).
-        m_csh.AdjustCSH(start+1, ins-del);
-        //if we inserted, destroy any marking overlapping with the insertion
-        if (ins) {
-            for (auto &csh : m_csh.CshList)
-                if (csh.first_pos <= start+1+ins &&
-                    start+1 <= csh.last_pos) 
-                        csh.color = COLOR_MAX;
-            for (auto &csh : m_csh.CshErrors)
-                if (csh.first_pos <= start+1+ins &&
-                    start+1 <= csh.last_pos) 
-                        csh.color = COLOR_MAX;
-        }
-    }
-    //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
-    CshPos old_uc = m_csh.hintedStringPos;
-    //move the last list to csh_delta
-    CshListType old_csh_list;
-    old_csh_list.swap(m_csh.CshList);
-    CshErrorList old_csh_error_list;
-    old_csh_error_list.swap(m_csh.CshErrors);
-    //Take the design, color and style definitions from the designlib
-    m_csh = pApp->m_designlib_csh;
-    m_csh.use_scheme = &pApp->m_nCshScheme;
-    m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
-    //If we consider the hinted string only up to the cursor, trim the returned pos
-    if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
-        m_csh.hintedStringPos.last_pos = cr.cpMin;
-
-    //retune true if the past and new m_csh.hintedStringPos overlap
-    ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
-    //if we are not in hint mode, we return true if we should enter one
-    if (!InHintMode() && ins-del==1)
-        ret = true;
-
-    //Apply the color syntax to the text in the editor
-    if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
-        MscError Error;
-        Error.AddFile("Hint");
-        std::list<CString> errors;
-        std::vector<std::pair<int, int>> error_pos;
-        for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
-            int line, col;
-            ConvertPosToLineCol(i->first_pos, line, col);
-            line++; col++; //Needed as errors are indexed from one, positions from zero
-            error_pos.push_back(std::pair<int, int>(line, col));
-            errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
-        }
-        pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
-        SetFocus();
-    }
-    if ((!pApp->m_bShowCsh || updateCSH < CSH) && updateCSH < FORCE_CSH) goto done;
-    //create a diff 
-    //csh_list is unfortunately not always sorted by first_pos, but close.
-    std::sort(m_csh.CshList.begin(), m_csh.CshList.end(),
-        [](CshEntry const & a, CshEntry const &b) {
-        return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
-    });
-    std::sort(m_csh.CshErrors.begin(), m_csh.CshErrors.end(),
-        [](CshError const & a, CshError const &b) {
-        return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
-    });
-    CshListType csh_delta, csh_error_delta;
-    if (updateCSH == FORCE_CSH) {
-        csh_delta = m_csh.CshList;
-        csh_error_delta.reserve(m_csh.CshErrors.size());
-        for (const auto &e : m_csh.CshErrors)
-            csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
-    } else {
-        csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_MAX);
-        //kill any entries overlapping with a no_error - so they are forced to be refreshed
-        for (auto &err : csh_error_delta) 
-            for (auto &csh : old_csh_list)
-                if (err.color == COLOR_MAX &&
-                    csh.first_pos <= err.last_pos &&
-                    err.first_pos <= csh.last_pos)
-                    csh.color = COLOR_MAX;
-        csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_MAX);
-    }
-
-    //Ok now copy the delta to the editor window, if there is something to do
-    //Note: if we have inserted, we need to make that COLOR_NORMAL even if csh_delta is
-    //empty.
-    if (ins==0 && csh_delta.size()==0 && csh_error_delta.size()==0 && updateCSH<FORCE_CSH)
-        goto done;
-
-    //freeze screen, prevent visual updates
-    SetRedraw(false);
-    const bool saved_notification = m_parent->m_bSuspendNotifications;
-    m_parent->m_bSuspendNotifications = true;
-
-    //Erase all formatting on a full update (deltas contain all entries in this case)
-    if (updateCSH == FORCE_CSH) {
-        SetSel(0, -1); //select all
-        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-    } else if (ins) {
-        SetSel(start, start+ins); //select inserted text
-        SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-    }
-
-    const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
-    const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
-    //Go backwards, since overlaid entries are added later
-    for (auto i = csh_delta.rbegin(); !(i==csh_delta.rend()); i++)
-        if (i->color<COLOR_MAX) {
-            SetSel(i->first_pos-1, i->last_pos);
-            SetSelectionCharFormat(scheme[i->color]);
-        }
-
-    if (pApp->m_bShowCshErrors)
-        for (auto i = csh_error_delta.rbegin(); !(i==csh_error_delta.rend()); i++) 
-            if (i->color<COLOR_MAX) {
-                SetSel(i->first_pos-1, i->last_pos);
-                SetSelectionCharFormat(scheme[i->color]);
-            }
-
-    //restore cursor and scroll position
-    SetSel(cr);
-    ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-
-    m_parent->m_bSuspendNotifications = saved_notification;
-    update_window = true;
-    goto done;
+    return ret;
 }
 
 void CCshRichEditCtrl::CancelPartialMatch()

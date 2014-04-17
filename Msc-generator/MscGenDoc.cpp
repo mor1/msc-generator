@@ -568,7 +568,7 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_itrSaved = m_itrEditing; //start as unmodified
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
-	CompileEditingChart(true, false);
+	CompileEditingChart(true);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
 	return TRUE;
@@ -638,11 +638,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-    //if the main window is invisible, do a blocking compilation
-    //Needed for single thread operation when the system DLLs start our
-    //application to draw an embedded object, for instance.
-    CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    CompileEditingChart(true, !pWnd || !pWnd->IsWindowVisible());
+    CompileEditingChart(true);
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
@@ -981,7 +977,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));  //undo blocked
         m_page_serialized_in = 0; //all pages visible
 	}
-	CompileEditingChart(true, false);
+	CompileEditingChart(true);
     m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
@@ -1029,7 +1025,7 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
-	CompileEditingChart(true, false);
+	CompileEditingChart(true);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
@@ -1127,7 +1123,7 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	m_itrEditing->SetDesign(design);
     m_itrEditing->block_undo = true;
     pApp->m_designlib_csh.ForcedDesign = design;
-	CompileEditingChart(true, false);
+	CompileEditingChart(true);
 }
 
 void CMscGenDoc::ChangePage(unsigned page)
@@ -1405,7 +1401,7 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
 
 	if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO)) 
-		CompileEditingChart(true, true);
+		CompileEditingChart(true);
 }
 
 bool CMscGenDoc::CheckIfChanged()
@@ -1447,7 +1443,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
     m_itrEditing->block_undo = true;
     if (pApp->IsInternalEditorRunning())
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
-    CompileEditingChart(true, false);
+    CompileEditingChart(true);
 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
@@ -1611,9 +1607,9 @@ bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilin
     return true;
 }
 
-void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
+void CMscGenDoc::CompileEditingChart(bool resetZoom)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
     //Change showing only if not viewing in full screen mode
@@ -1631,8 +1627,12 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
+    //if the main window is invisible, do a blocking compilation
+    //Needed for single thread operation when the system DLLs start our
+    //application to draw an embedded object, for instance.
     //This can be nil if we are shutting down...
     CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    const bool block = !pWnd || !pWnd->IsWindowVisible();
 
     //Prepare m_ChartCompiling
     m_itrShown = m_itrEditing;
@@ -2062,7 +2062,7 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     }
     if (!changed) return false;
 	InsertNewChart(chart);
-    CompileEditingChart(true,false);
+    CompileEditingChart(true);
     return true;
 }
 

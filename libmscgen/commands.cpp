@@ -1688,9 +1688,10 @@ void CommandNote::FinalizeLabels(Canvas &canvas)
     if (!valid) return;
     const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
     //skip numbering if target has no number
-    const bool has_num = style.write().numbering.second = 
-        al && al->GetStyle().read().numbering.second && al->GetNumberText().length(); 
-    if (has_num) {
+    if (style.read().numbering.second &&
+        (!al || !al->GetStyle().read().numbering.second || !al->GetNumberText().length()))
+        style.write().numbering.second = false;
+    if (style.read().numbering.second) {
         numberingStyle = al->GetNumberingStyle();
         number_text = al->GetNumberText();
     }

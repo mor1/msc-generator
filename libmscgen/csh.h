@@ -267,6 +267,7 @@ public:
     /** @name The collected CSH info and hints 
      * @{ */
     CshListType  CshList;                ///<The collected color syntax info
+    std::vector<CshPos> ColonLabels;     ///<The position of colon labels.
     CshErrorList CshErrors;              ///<The collected errors
     bool         was_partial;            ///<Indicates if the cursor is at the end of a partial keyword. On Sel Change we need to re-csh
     std::set<CshHint> Hints;             ///<The collected hints
@@ -321,6 +322,7 @@ public:
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
     void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
     void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
+    void AddCSH_LabelEscape(const CshPos& pos); ///<Adds a COLOR_LABEL_ESCAPE. Splits any previous COLOR_LABEL_TEXT records.
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
     void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
     void AddCSH_AttrColorValue(const CshPos& pos); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
@@ -335,7 +337,6 @@ public:
     EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
     template <class EntryList>
     static void AdjustCSHList(EntryList &, int start, int offset); 
-    void AdjustCSH(int start, int offset) {AdjustCSHList(CshList, start, offset); AdjustCSHList(CshErrors, start, offset);}///<Emulate inserting or removing offset chars after start & update CSH entries
 
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.

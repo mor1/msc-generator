@@ -444,32 +444,84 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
-    //pos.first_pos++;
-    char *copy = strdup(value);
+    ColonLabels.push_back(pos);
     if (processComments) {
-        char *p = copy;
-        while (*p!=0) {
-            //search for #
-            while (*p!=0 && *p!='#') p++;
-            if (!*p) break;
-            //if we hit a # count the \s before
-            unsigned count = 0;
-            //string starts with colon, so we are limited by that
-            while (*(p-1-count) == '\\') count++;
-            //if even number then replace comment with spaces till end of line
-            if (count%2 == 0) {
-                CshPos comment;
-                comment.first_pos = pos.first_pos + unsigned(p - copy)-1;
-                while (*p!=0 && *p!=0x0d && *p!=0x0a) *(p++) = ' ';
-                comment.last_pos = pos.first_pos + unsigned(p - copy);
-                AddCSH(comment, COLOR_COMMENT);
-            } else
-                p++; //step over the escaped #
-
+        const char *beginning = value+1;
+        if (*beginning) {
+            const char *p = beginning;
+            while (*p!=0) {
+                //search for #
+                while (*p!=0 && *p!='#') p++;
+                if (!*p) break;
+                //if we hit a # count the \s before
+                unsigned count = 0;
+                //string starts with colon, so we are limited by that
+                while (*(p-1-count) == '\\') count++;
+                //if even number then replace comment with spaces till end of line
+                if (count%2 == 0) {
+                    CshPos txt;
+                    txt.first_pos = pos.first_pos + int(beginning - value);
+                    txt.last_pos = pos.first_pos + int(p - value) - 1;
+                    if (txt.last_pos>=txt.first_pos) {
+                        AddCSH(txt, COLOR_LABEL_TEXT);
+                        StringFormat::ExtractCSH(txt.first_pos, beginning, *this);
+                    }
+                    CshPos comment;
+                    comment.first_pos = pos.first_pos + int(p - value);
+                    //step to end of comment
+                    while (*p!=0 && *p!=0x0d && *p!=0x0a) p++;
+                    comment.last_pos = pos.first_pos + int(p - value) - 1;
+                    AddCSH(comment, COLOR_COMMENT);
+                    beginning = p+1;
+                } else
+                    p++; //step over the escaped #
+            }
+            CshPos txt;
+            txt.first_pos = pos.first_pos + int(beginning - value);
+            txt.last_pos = pos.first_pos + int(p - value) - 1;
+            AddCSH(txt, COLOR_LABEL_TEXT);
+            StringFormat::ExtractCSH(txt.first_pos, beginning, *this); //omit the colon
         }
+    } else {
+        CshPos p;
+        p.first_pos = pos.first_pos+1;
+        p.last_pos = pos.last_pos;
+        AddCSH(p, COLOR_LABEL_TEXT);
+        StringFormat::ExtractCSH(p.first_pos, value+1, *this); //omit the colon
     }
-    AddCSH_AttrValue(pos, copy+1, NULL);
-    free(copy);
+}
+
+void Csh::AddCSH_LabelEscape(const CshPos& pos)
+{
+    //We go back and find if there is any existing CSH record for us
+    for (auto i = --CshList.end(); i!=CshList.end() && i->last_pos>pos.first_pos; i--)
+        if (i->color == COLOR_LABEL_TEXT && i->first_pos < pos.last_pos) {
+            const int orig_end = i->last_pos;
+            CshEntry esc;
+            esc.color = COLOR_LABEL_ESCAPE;
+            esc.first_pos = pos.first_pos;
+            esc.last_pos = pos.last_pos;
+            if (i->first_pos<pos.first_pos) {
+                //LABEL_TEXT extends before pos.
+                //truncate it
+                i->last_pos = pos.first_pos-1;
+                //insert a LABEL_ESCAPE
+                i++;
+                i = CshList.insert(i, esc);
+            } else
+                //just change it to LABEL_ESCAPE
+                *i = esc;
+            //i now points to the LABEL_ESCAPE
+            if (orig_end > pos.last_pos) {
+                //LABEL_TEXT extended after pos: insert remainder
+                i++;
+                esc.color = COLOR_LABEL_TEXT;
+                esc.first_pos = pos.last_pos + 1;
+                esc.last_pos = orig_end;
+                CshList.insert(i, esc);
+            }
+            break; //we are done
+        }
 }
 
 /** Names of keywords for coloring.
@@ -774,6 +826,8 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     cursor_pos = cursor_p;
     cshScheme = scheme;
     CshList.clear();
+    ColonLabels.clear();
+    CshErrors.clear();
     EntityNames.clear();
     MarkerNames.clear();
     if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())

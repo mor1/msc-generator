@@ -757,7 +757,12 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     while (pos<len) {
         EColorSyntaxType color = COLOR_NORMAL;
         unsigned length;
-        switch (sf.ProcessEscape(text+pos, length)) {
+        const EEscapeType escape = sf.ProcessEscape(text+pos, length);
+        switch (escape) {
+        case NON_ESCAPE:
+        case SOLO_ESCAPE:
+        default:
+            break;
         case NUMBERING_FORMAT:
         case NUMBERING:
         case LINE_BREAK:
@@ -765,21 +770,14 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
         case FORMATTING_OK:
         case NON_FORMATTING:
         case REFERENCE:
-            color = COLOR_LABEL_ESCAPE; break;
         case INVALID_ESCAPE:
-            color = COLOR_ERROR; break;
-        case NON_ESCAPE:
-		case SOLO_ESCAPE:
-            color = COLOR_NORMAL; break;
-        }
-        if (color != COLOR_NORMAL) {
             CshPos loc;
             loc.first_pos = startpos+pos;
             loc.last_pos = loc.first_pos+length-1;
-            if (color == COLOR_ERROR)
+            if (escape == INVALID_ESCAPE)
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
             else
-                csh.AddCSH(loc, color);
+                csh.AddCSH_LabelEscape(loc);
         }
         pos+=length;
     }
