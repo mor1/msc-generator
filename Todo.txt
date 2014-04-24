@@ -54,10 +54,17 @@ ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
 
+In 3.7.12
+DOC: Add "rewriting CSH" to release notes
+FIXED: Issue with Ctrl+Drag text selection
+CHANGED: Rewritten CSH workflow for less flicker
+FIX: Where the cursor ends up after a single-line TAB
+
 In 3.7.11
 FIXED: When typing a command name csh works bad.
 FIXED: Cannot turn off numbering for comments
-FIX: cover of a box does not include elements outside it - fails to compress well
+FIXED: Smart ident, when typing a {,[ or \n at the beginning of a line
+FIXED: cover of a box does not include elements outside it - fails to compress well
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
 

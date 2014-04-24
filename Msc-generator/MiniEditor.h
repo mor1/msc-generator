@@ -36,20 +36,21 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-    bool m_bWasReturnKey;        //if the return key was pressed
+    bool m_bWasReturnKey;        ///<True if the return key was pressed. Needed to se if we shall show the line begin hints or not.
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
     bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
     CPopupList m_hintsPopup;
     CEditorBar * const m_parent;
     CHARRANGE m_crSel_before;    //The selection before a change
-    CString m_prev_text;         //The previous text (for which m_csh) is relevant. Used in DoUpdate().
+    CString m_prev_text;         //The previous text (for which m_csh) is relevant. Used in UpdateCSH().
+    typedef std::pair<bool, bool> WindowUpdateStatus;
+    bool m_bRedrawState;         //Store what is the redraw State, since we have no GetRedraw()
 public:
     typedef enum UpdateCSHType {
-        NO = 0,
-        HINTS = 1,
-        CSH = 2,
-        FORCE_CSH = 3
+        HINTS_AND_COLON_LABELS = 0,
+        CSH = 1,
+        FORCE_CSH = 2
     };
     Csh  m_csh;
     int m_tabsize;
@@ -73,11 +74,14 @@ public:
 	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=0, bool strict=false);
     bool SetCurrentIdentTo(int target_ident, int current_ident, int col, long lStart, long lEnd, bool standalone);
 	BOOL PreTranslateMessage(MSG* pMsg);
+    WindowUpdateStatus GetWindowUpdate();
+    WindowUpdateStatus DisableWindowUpdate();
+    void RestoreWindowUpdate(WindowUpdateStatus s);
 
 	//Color Syntax Highlighting functions
-	void UpdateText(const char *text, CHARRANGE &cr, bool notifyDoc);
-    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool notifyDoc);
-    bool DoUpdate(bool notifyDoc, bool update_window, UpdateCSHType updateCSH);
+	void UpdateText(const char *text, CHARRANGE &cr);
+    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol);
+    bool UpdateCSH(UpdateCSHType updateCSH);
 	void CancelPartialMatch();
 	
 

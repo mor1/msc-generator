@@ -40,7 +40,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
     if (!pApp->m_bHints || csh.hintStatus != HINT_READY)
         csh.Hints.clear();
     else {
-        //Now delete those not requested by the user preferences,
+        //Now delete those hints not requested by the user preferences,
         //but only if we do hints not in response to a Ctrl+Space
         //Keep first line ones only if after the user pressed newline
         if (csh.hintType == HINT_LINE_START && !userRequest)
