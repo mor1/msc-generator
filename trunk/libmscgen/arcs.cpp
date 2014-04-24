@@ -3800,6 +3800,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     double y = chart->boxVGapOutside;
     yPos = y;
     double comment_end=y;
+    AreaList combined_content_cover;
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
         
@@ -3876,6 +3877,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
             (*i)->height_w_lower_line = (*i)->height + lw;
         else
             (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.read().line.LineWidth();
+        if (cover)
+            combined_content_cover += std::move(content_cover);
         chart->Progress.DoneItem(MscProgress::LAYOUT, MscProgress::BOX);
     } /* for cycle through segments */
     //Final advance of linewidth, the inner edge (y) is on integer
@@ -3889,33 +3892,41 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     
     Area overall_box(main_style.read().line.CreateRectangle_OuterEdge(b), this);
     // now we have all geometries correct, now calculate areas and covers
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
-        (*i)->area.arc = *i;
-        if ((*i)->content.size() && (*i)->collapsed==BOX_COLLAPSE_EXPAND) {
+    for (auto box : series) {
+        box->area = Contour(sx-lw, dx+lw, box->yPos, box->yPos + box->height_w_lower_line) * overall_box;
+        box->area.arc = box;
+        if (box->content.size() && box->collapsed==BOX_COLLAPSE_EXPAND) {
             //Make a frame, add it to the already added label
-            (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth) - (*i)->area;
-            (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-            (*i)->draw_is_different = true;
-            (*i)->area_draw_is_frame = true;
+            box->area_draw = box->area.CreateExpand(chart->trackFrameWidth) - box->area;
+            box->area_draw += box->text_cover.CreateExpand(chart->trackExpandBy);
+            box->draw_is_different = true;
+            box->area_draw_is_frame = true;
         } else {
-            (*i)->area_draw.clear();
-            (*i)->draw_is_different = false;
-            (*i)->area_draw_is_frame = false;
+            box->area_draw.clear();
+            box->draw_is_different = false;
+            box->area_draw_is_frame = false;
         }
-        (*i)->area_important = (*i)->text_cover;
-        chart->NoteBlockers.Append(*i);
+        box->area_important = box->text_cover;
+        chart->NoteBlockers.Append(box);
     }
     const double &offset = main_style.read().shadow.offset.second;
     if (offset)
         overall_box += overall_box.CreateShifted(XY(offset, offset));
     overall_box.mainline = Block(chart->GetDrawing().x, b.y);
-    if (cover)
-        *cover = GetCover4Compress(overall_box);
+    if (cover) {
+        *cover += GetCover4Compress(overall_box);
+        //See if some of the content lies outside this box series - then add it to cover
+        std::list<Area> alist = combined_content_cover.EmptyToList(); //convert to list so that we can move elements out                     
+        for (auto area : alist)
+            if (!overall_box.GetBoundingBox().IsWithin(area.GetBoundingBox().UpperLeft()) ||
+                !overall_box.GetBoundingBox().IsWithin(area.GetBoundingBox().LowerRight()))
+                *cover += std::move(area);
+    }
     height = yPos + total_height + offset + chart->boxVGapOutside;
     //We do not call CommentHeight for "this" since a box series cannot take notes, only its
     //box elements do and those were handled above
     comment_height = comment_end;
+
 }
 
 void ArcBox::ShiftBy(double y)

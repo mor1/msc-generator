@@ -567,7 +567,7 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_itrEditing = m_charts.begin();
 	m_itrSaved = m_itrEditing; //start as unmodified
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	CompileEditingChart(true);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
@@ -622,7 +622,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	}
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	//Delete all entries before the currently loaded one (no undo)
 	//part after (redo) was deleted by Serialize or InsertNewChart
 	//Here we set all our m_itr* iterators to valid values afterwards
@@ -671,7 +671,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
     //case we effectively perform an Undo to m_itrShown.
 	m_itrSaved = m_itrEditing = m_itrShown;
 	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
     if (restartEditor) 
         m_ExternalEditor.Start(lpszPathName);
     m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
@@ -792,7 +792,7 @@ void CMscGenDoc::OnEditUndo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 
 	CheckIfChanged();     
 	if (restartEditor)
@@ -814,7 +814,7 @@ void CMscGenDoc::OnEditRedo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	
 	CheckIfChanged();     
 	if (restartEditor)
@@ -981,7 +981,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
     m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	if (restartEditor) 
 		m_ExternalEditor.Start();
 };
@@ -1446,7 +1446,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
     CompileEditingChart(true);
 
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, false);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 }
 
 void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before)

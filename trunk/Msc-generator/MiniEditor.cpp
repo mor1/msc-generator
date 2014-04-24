@@ -54,6 +54,7 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
     m_bWasAutoComplete = false;
+    m_bRedrawState = true;
 }
 
 #define LIMIT_TEXT 64000
@@ -156,7 +157,10 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 	for (auto &pos : m_csh.ColonLabels) {
 		if (pos.first_pos>=lStart || pos.last_pos<lStart ) continue;
         int dummy;
-        if (line) ConvertPosToLineCol(pos.first_pos, *line, dummy); //the line of the colon
+        //Note: pos.first_pos indexes the text file from 1
+        //whereas lStart indexes the file from 0.
+        //hence we substract one from first_pos
+        if (line) ConvertPosToLineCol(pos.first_pos-1, *line, dummy); //the line of the colon
         
         int offset = m_tabsize;
         int nLine, nCol;
@@ -170,13 +174,13 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
             if (strLine[ident1] == '{')
                 offset = 0;
             //store the line of the colon strLine and its pos in nLine, nCol
-            ConvertPosToLineCol(pos.first_pos, nLine, nCol);
+            ConvertPosToLineCol(pos.first_pos-1, nLine, nCol);
             nLineLength = GetLineString(nLine, strLine);
         } else {
             //OK, we are really identing a line of the label text
             //First see if the colon is the last char in its line
             //store the line of the colon strLine and its pos in nLine, nCol
-            ConvertPosToLineCol(pos.first_pos, nLine, nCol);
+            ConvertPosToLineCol(pos.first_pos-1, nLine, nCol);
             nLineLength = GetLineString(nLine, strLine);
             int i = nLineLength-1;
             while (i>nCol && (strLine[i]==' ' || strLine[i]=='\t'))
@@ -364,13 +368,12 @@ int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIdent, int pre
 bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, int col, 
                                          long lStart, long lEnd, bool standalone)
 {
-    if (current_ident == -1) return false; //empty line
+    if (current_ident == -1) 
+        current_ident = 0; //empty line
     if (target_ident == current_ident) return false; //nothing to do
-    bool notif = m_parent->m_bSuspendNotifications;
-    if (standalone) {
-        SetRedraw(false);
-        m_parent->m_bSuspendNotifications = true;
-    }
+    WindowUpdateStatus state;
+    if (standalone)
+        state = DisableWindowUpdate();
     if (target_ident > current_ident) {
         SetSel(lStart-col, lStart-col);
         ReplaceSel(CString(' ', target_ident-current_ident));
@@ -383,10 +386,7 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
             SetSel(lStart-current_ident+target_ident, lEnd-current_ident+target_ident);
         else
             SetSel(lStart, lEnd);
-        SetRedraw(true);
-        m_parent->m_bSuspendNotifications = notif;
-        Invalidate();
-        UpdateWindow();
+        RestoreWindowUpdate(state);
     } else {
         Csh::AdjustCSHList(m_csh.CshList,    lStart-col+1, target_ident-current_ident);
         Csh::AdjustCSHList(m_csh.ColonLabels,lStart-col+1, target_ident-current_ident);
@@ -425,7 +425,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
     m_bWasReturnKey = false;
     if (pMsg->message != WM_KEYDOWN && pMsg->message != WM_CHAR)
-        return CRichEditCtrl::PreTranslateMessage(pMsg);
+        return FALSE && CRichEditCtrl::PreTranslateMessage(pMsg);
     GetSel(m_crSel_before);
     long lStart = m_crSel_before.cpMin;
     long lEnd = m_crSel_before.cpMax;
@@ -474,7 +474,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         if (pMsg->wParam == VK_SPACE && GetKeyState(VK_CONTROL) & 0x8000) {
             m_bUserRequested = true;
             //just update CSH records for hints
-            DoUpdate(false, false, HINTS);
+            UpdateCSH(HINTS_AND_COLON_LABELS);
             //see if we are at the beginning of a word
             bool till_cursor_only = false;
             if (lStart==0) till_cursor_only = true;
@@ -511,11 +511,13 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             return CRichEditCtrl::PreTranslateMessage(pMsg);
     }
 
-    //Do nothing for characters other than closing braces
-    if (pMsg->message == WM_CHAR && pMsg->wParam != '}')
+    //Do nothing for characters other than braces and opening square bracket
+    if (pMsg->message == WM_CHAR && pMsg->wParam != '}' && 
+        pMsg->wParam != '{' && pMsg->wParam != '[')
         return CRichEditCtrl::PreTranslateMessage(pMsg);
 
-    //At this point we have either WM_CHAR and a closing brace or WM_KEYDOWN and TAB, ENTER OR BKSPACE
+    //At this point we have either WM_CHAR and a brace/bracket
+    //or WM_KEYDOWN and TAB, ENTER OR BKSPACE
 
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
@@ -524,16 +526,14 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 	ConvertPosToLineCol(lStart, line, col);
 	const int current_ident = FindCurrentLineIdent(lStart);
 
-	if (pMsg->wParam == '}') {
+    if (pMsg->wParam == '}') {
         if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //if we are in a label, do nothing
         if (FindColonLabelIdent(lStart)>-1) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //if we are not at the beginning of a line do nothing
         if (current_ident!=-1 && current_ident<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
         //else insert and auto-ident
-        SetRedraw(false);
-        bool notif = m_parent->m_bSuspendNotifications;
-        m_parent->m_bSuspendNotifications = true;
+        const auto state = DisableWindowUpdate();
         ReplaceSel("}", FALSE);
         GetSel(lStart, lEnd);
         const int ident = FindProperLineIdent(line);
@@ -550,16 +550,57 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             ReplaceSel(spaces, FALSE);
         }
         SetSel(lStart + ident - new_current_ident, lEnd + ident - new_current_ident);
-        SetRedraw(true);
-        m_parent->m_bSuspendNotifications = notif;
-        DoUpdate(true, true, CSH);
+        UpdateCSH(CSH);
+        RestoreWindowUpdate(state);
         return TRUE;
-		//int brace_ident = FindIdentForClosingBrace(lStart);
-		//if (brace_ident == -1) brace_ident = 0; //beginning of line if no matching opening brace
-		//SetCurrentIdentTo(brace_ident, current_ident, col, lStart, lEnd, true);
-        //return CRichEditCtrl::PreTranslateMessage(pMsg); //let RicheditCtrl insert the }
 	}
+    WindowUpdateStatus state;
+    if (pMsg->wParam == '{' || pMsg->wParam == '[') {
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        //if we are not at the beginning of a line do nothing
+        if (current_ident!=-1 && current_ident<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
+        state = DisableWindowUpdate();
+        ReplaceSel(pMsg->wParam=='{' ? "{" : "[", FALSE);
+    apply_ident:
+        UpdateCSH(HINTS_AND_COLON_LABELS);
+        GetSel(lStart, lEnd);
+        ConvertPosToLineCol(lStart, line, col);
+        int ident = FindProperLineIdent(line);
+        const int current_ident2 = FindCurrentLineIdent(lStart);
+        const bool changed = SetCurrentIdentTo(ident, current_ident2, col, lStart, lEnd, true);
+        //if we have inserted a char, set cursor after it
+        if (pMsg->wParam != VK_RETURN)
+            ident++;
+        lStart = ConvertLineColToPos(line, ident);
+        SetSel(lStart, lStart);
+        UpdateCSH(CSH);
+        RestoreWindowUpdate(state);
+        return TRUE;
+    }
 
+	if (pMsg->wParam == VK_RETURN) {
+        m_bWasReturnKey=true;
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        state = DisableWindowUpdate();
+        ReplaceSel("\n", FALSE);
+        goto apply_ident;
+	}
+    if (pMsg->wParam == VK_BACK) {
+        //in case of ctrl+backspace we do not do
+        //any smart ident. In this case we have no clue about 
+        //how many characters will we delete, so we indicate unknown.
+        if (bool(GetKeyState(VK_CONTROL) & 0x8000)) 
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
+		//if not in leading whitespace or at beginning of line
+        if ((col==0) || (current_ident!=-1 && current_ident<col)) 
+            return CRichEditCtrl::PreTranslateMessage(pMsg);
+		//in leading whitespace, consider smart ident and/or previous line indent
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        const int smartIdent = FindProperLineIdent(line);
+		int ident = CalcTabStop(col, false, smartIdent, current_ident, true);
+        SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
+        return TRUE;
+	}
     //Here are the rules for TAB
     //1. if TAB mode is on, we ident all lines in selection correctly.
     //2. if TAB mode is off
@@ -568,27 +609,26 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     //             we ident the line correctly and jump to the beginning of the line
     //        * else we insert as many spaces to fall to int multiple of m_tabsize
     //    - if the selection is a range, we delete it and fall to int multiple of m_tabsize
-	if (pMsg->wParam == VK_TAB) {
+    if (pMsg->wParam == VK_TAB) {
         CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
         _ASSERT(pApp);
         const bool shift = bool(GetKeyState(VK_SHIFT) & 0x8000);
-        bool changed = false;
         if (pApp->m_bTABIdents) { //TAB mode
             int eLine, eCol;
             ConvertPosToLineCol(lEnd, eLine, eCol);
+            const auto state = DisableWindowUpdate();
+            bool changed = false;
             if (line == eLine) {
                 const int ident = FindProperLineIdent(line);
-                changed = SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
-            } else { //This is commented out as it works not very well...
+                changed = SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, false);
+            } else { 
                 //We need to save CSH info, since it will be modified by SetCurrentIdent(..., false)
                 //and will become out-of-sync with m_prev_text.
+                //No need to save m_csh.ColonLabels - that is not synced to m_prev_text
                 CshListType saved_csh_list;
                 CshErrorList saved_csh_error_list;
                 saved_csh_list = m_csh.CshList;
                 saved_csh_error_list = m_csh.CshErrors;
-                bool notif = m_parent->m_bSuspendNotifications;
-                m_parent->m_bSuspendNotifications = true;
-                SetRedraw(false);
                 POINT scroll_pos;
                 ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
@@ -613,13 +653,14 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     }
                 }
                 SetSel(lStart, lEnd);
-                m_parent->m_bSuspendNotifications = notif;
                 ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-                SetRedraw(true);
                 //restore csh info
                 m_csh.CshList = std::move(saved_csh_list);
                 m_csh.CshErrors = std::move(saved_csh_error_list);
             }
+            if (changed)
+                UpdateCSH(CSH);
+            RestoreWindowUpdate(state);
         } else { //smart ident, but no tab mode
             //if no selection:
             if (lStart == lEnd) {
@@ -634,18 +675,15 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     ident = CalcTabStop(col, !shift, smartIdent, current_ident, true);
                 }
                 if (ident != col) {
+                    const auto state2 = DisableWindowUpdate();
                     if (ident<col) {
-                        bool notif = m_parent->m_bSuspendNotifications;
-                        m_parent->m_bSuspendNotifications = true;
-                        SetRedraw(false);
                         SetSel(lStart+(ident-col), lStart);
                         ReplaceSel("");
-                        SetRedraw(true);
-                        m_parent->m_bSuspendNotifications = notif;
                     } else {
                         ReplaceSel(CString(' ', ident-col));
                     }
-                    changed = true;
+                    UpdateCSH(CSH);
+                    RestoreWindowUpdate(state2);
                 }
             } else {
                 //a full selection, do identation
@@ -672,9 +710,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 const int offset = CalcTabStop(headCol, !shift, smartIdent, headCol, true) - headCol;
 
                 //Insert/remove "offset" amount of space from the beginning of each line
-                SetRedraw(false);
-                bool notif = m_parent->m_bSuspendNotifications;
-                m_parent->m_bSuspendNotifications = true;
+                const auto state = DisableWindowUpdate();
                 POINT scroll_pos;
                 ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
                 CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
@@ -696,75 +732,67 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 }
                 SetSel(lStart, lEnd);
                 ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-                m_parent->m_bSuspendNotifications = notif;
-                SetRedraw(true);
-                changed = true;
+                UpdateCSH(CSH);
+                RestoreWindowUpdate(state);
             }
         }
-        if (changed) 
-            DoUpdate(true, true, CSH);
         return TRUE;
-	}
-	if (pMsg->wParam == VK_RETURN) {
-        m_bWasReturnKey=true;
-        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
-        SetRedraw(false);
-        bool notif = m_parent->m_bSuspendNotifications;
-        m_parent->m_bSuspendNotifications = true;
-        ReplaceSel("\n", FALSE);
-        const int ident = FindProperLineIdent(line+1);
-        //If the determined ident is zero, just let the system handle the RETURN
-        if (ident>0) {
-            //insert that many spaces as ident after the newline
-            CString spaces(' ', ident);
-            ReplaceSel(spaces, FALSE);
-        }
-        SetRedraw(true);
-        m_parent->m_bSuspendNotifications = notif;
-        DoUpdate(true, true, CSH);
-        return TRUE;
-	}
-    if (pMsg->wParam == VK_BACK) {
-        //in case of ctrl+backspace we do not do
-        //any smart ident. In this case we have no clue about 
-        //how many characters will we delete, so we indicate unknown.
-        if (bool(GetKeyState(VK_CONTROL) & 0x8000)) 
-            return CRichEditCtrl::PreTranslateMessage(pMsg);
-		//if not in leading whitespace or at beginning of line
-        if ((col==0) || (current_ident!=-1 && current_ident<col)) 
-            return CRichEditCtrl::PreTranslateMessage(pMsg);
-		//in leading whitespace, consider smart ident and/or previous line indent
-        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
-        const int smartIdent = FindProperLineIdent(line);
-		int ident = CalcTabStop(col, false, smartIdent, current_ident, true);
-        SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
-        return TRUE;
-	}
+    }
     return CRichEditCtrl::PreTranslateMessage(pMsg);
 }
 
-void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, 
-                                  bool notifyDoc)
+CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::GetWindowUpdate()
+{
+    WindowUpdateStatus ret;
+    ret.first = m_bRedrawState;
+    ret.second = m_parent->m_bSuspendNotifications;
+    return ret;
+}
+
+CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
+{
+    WindowUpdateStatus ret;
+    ret.first = m_bRedrawState;
+    ret.second = m_parent->m_bSuspendNotifications;
+    m_bRedrawState = false;
+    m_parent->m_bSuspendNotifications = true;
+    if (ret.first)
+        SetRedraw(false);
+    return ret;
+}
+
+void CCshRichEditCtrl::RestoreWindowUpdate(WindowUpdateStatus s)
+{
+    m_parent->m_bSuspendNotifications = s.second;
+    if (s.first != m_bRedrawState) {
+        m_bRedrawState = s.first;
+        SetRedraw(m_bRedrawState);        if (m_bRedrawState) {            CWnd::Invalidate();
+            CWnd::UpdateWindow();
+        }    }}
+
+
+//We never notify the document object about a change in this function,
+//as it is called by the document object only.
+void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol)
 {
     CHARRANGE cr;
     cr.cpMin = ConvertLineColToPos(lStartLine, lStartCol);
     cr.cpMax = ConvertLineColToPos(lEndLine, lEndCol);
-    UpdateText(text, cr, notifyDoc);
+    UpdateText(text, cr);
 }
 
-void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr,
-                                  bool notifyDoc)
+//We never notify the document object about a change in this function,
+//as it is called by the document object only.
+void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr)
 {
     CString t = text;
     EnsureCRLF(t);
 
-    SetRedraw(false);
-    const bool saved_prevention = m_parent->m_bSuspendNotifications;
-    m_parent->m_bSuspendNotifications = true;
+    const auto state = DisableWindowUpdate();
     SetWindowText(t);
     SetSel(cr);
-    DoUpdate(notifyDoc, true, FORCE_CSH);
-    m_parent->m_bSuspendNotifications = saved_prevention;
+    UpdateCSH(FORCE_CSH);
+    RestoreWindowUpdate(state);
     SetFocus();
 
     if (t.GetLength()>LIMIT_TEXT && m_parent) {
@@ -817,13 +845,13 @@ CshListType Diff(const EntryList &old_list,
 }
 
 /** Updates CSH in the editor window and notifies the document.
-@param [in] notifyDoc If true, we call CMscGenDoc::OnInternalEditorChange()
-@param [in] update_window if ture, we call SetRedraw(true); Invalidate(); UpdateWindow();
-@param [in] updateCSH Tells us what to update. NO means nothing (apart from
-                      notifying the doc object). HINTS re-parses, updates hints
+@param [in] updateCSH Tells us what to update. 
+                      HINTS_AND_COLON_LABELS re-parses, updates hints & colon_labels
                       but does not re-color (only if CMscGenApp::m_bDoCshProcessing
-                      is true). Used when Ctrl+Space has been 
-                      pressed. CSH updates both hints and recolor the text
+                      is true) and leaves m_prev_text, m_csh.CshList and m_csh.CshErrors 
+                      intact. Used when Ctrl+Space has been 
+                      pressed or during indentation. 
+                      CSH updates both hints and recolor the text
                       (only if CMscGenApp::m_bDoCshProcessing and m_bShowCSH are set).
                       FORCE_CSH forces a full recoloring (discarding delta).
 @returns In hint node we return true if we keep hinting the same string. Outside
@@ -839,7 +867,7 @@ In contrast, RichEditCtrl values start being indexed from zero.
 Thus if the caret is before the first character, we get lStart=lEnd = 0.
 */
 
-bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHType updateCSH)
+bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
 {
     bool ret = false;
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -850,7 +878,27 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
     GetWindowText(text);
     //Now remove CR ('\r') characters, keep only LF ('\n')
     RemoveCRLF(text);
+    //if we only refresh HINTS or COLON_LABELS
+    if (updateCSH==HINTS_AND_COLON_LABELS) {
+        Csh save = std::move(m_csh);
+        m_csh = pApp->m_designlib_csh;
+        m_csh.use_scheme = &pApp->m_nCshScheme;
+        CHARRANGE cr;
+        GetSel(cr);
+        CshPos old_uc = m_csh.hintedStringPos;
+        m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
+        //restore old csh and error list - the ones matching the (now unchanged) m_prev_text
+        m_csh.CshList.swap(save.CshList);
+        m_csh.CshErrors.swap(save.CshErrors);
+        //If we consider the hinted string only up to the cursor, trim the returned pos
+        if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
+            m_csh.hintedStringPos.last_pos = cr.cpMin;
 
+        //retune true if the past and new m_csh.hintedStringPos overlap
+        return m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
+    }
+
+    //now updateCSH is either CSH or FORCE_CSH
     /* Compute diff to last text */
     long start, ins, del;
     const size_t l1 = text.GetLength();
@@ -909,8 +957,9 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
     }
     m_prev_text = text;
 
+    const auto state = GetWindowUpdate();
     //Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-    if (pApp->m_bDoCshProcessing && updateCSH!=NO) {
+    if (pApp->m_bDoCshProcessing) {
         CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
 
         //record scroll and cursor position 
@@ -921,19 +970,13 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
 
         //if we do not do CSH processing, but we are forced, we clear all formatting now
         if (!pApp->m_bDoCshProcessing && updateCSH==FORCE_CSH) {
-            SetRedraw(false);
-            const bool saved_notification = m_parent->m_bSuspendNotifications;
-            m_parent->m_bSuspendNotifications = true;
-
+            DisableWindowUpdate();
             SetSel(0, -1); //select all
             SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
 
             //restore cursor and scroll position
             SetSel(cr);
             ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-
-            m_parent->m_bSuspendNotifications = saved_notification;
-            update_window = true;
         } else {
             //here pApp->m_bDoCshProcessing is true - Parse the text for CSH
 
@@ -1036,10 +1079,7 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
                 if (ins || csh_delta.size() || csh_error_delta.size() || updateCSH==FORCE_CSH) {
 
                     //freeze screen, prevent visual updates
-                    SetRedraw(false);
-                    const bool saved_notification = m_parent->m_bSuspendNotifications;
-                    m_parent->m_bSuspendNotifications = true;
-
+                    DisableWindowUpdate();
                     //Erase all formatting on a full update (deltas contain all entries in this case)
                     if (updateCSH == FORCE_CSH) {
                         SetSel(0, -1); //select all
@@ -1074,21 +1114,15 @@ bool CCshRichEditCtrl::DoUpdate(bool notifyDoc, bool update_window, UpdateCSHTyp
                     //restore cursor and scroll position
                     SetSel(cr);
                     ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-
-                    m_parent->m_bSuspendNotifications = saved_notification;
-                    update_window = true;
                 }
             }
         }
     }
     //Ok, notify the document about the change
-    if (notifyDoc && GetMscGenDocument()) 
+    _ASSERT(updateCSH!=HINTS_AND_COLON_LABELS);
+    if (GetMscGenDocument()) 
         GetMscGenDocument()->OnInternalEditorChange(start, ins, del, m_crSel_before);
-    if (update_window) {
-        SetRedraw(true);
-        Invalidate();
-        UpdateWindow();
-    }
+    RestoreWindowUpdate(state);
     return ret;
 }
 
@@ -1107,7 +1141,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	m_csh.was_partial = false;
     if (!pApp || !pApp->m_bShowCsh) return;
 
-    DoUpdate(false, true, CSH);
+    UpdateCSH(CSH);
 }
 
 void CCshRichEditCtrl::JumpToLine(int line, int col) {
@@ -1146,7 +1180,7 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return TRUE;
 }
 
-//Assumes we have called DoUpdate just before and m_csh is up-to-date
+//Assumes we have called UpdateCSH just before and m_csh is up-to-date
 //if setUptoCursor is true, we set m_bTillCursorOnly to true
 //if false, we leave the value unchanged (=start with a false value)
 void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
@@ -1239,14 +1273,11 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
         //Set flag So that we do not re-enter hint mode as a result of change we do below
         m_bWasAutoComplete = true; 
     }
-    SetRedraw(false);
-    bool notif = m_parent->m_bSuspendNotifications;
-    m_parent->m_bSuspendNotifications = true;
+    const auto state = DisableWindowUpdate();
     SetSel(pos.first_pos, pos.last_pos);
     ReplaceSel(subst); 
-    m_parent->m_bSuspendNotifications = notif;
-    SetRedraw(true);
-    DoUpdate(true, true, CSH);
+    UpdateCSH(CSH);
+    RestoreWindowUpdate(state);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1335,10 +1366,10 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		if (pDoc != NULL) {
             if (pDoc->m_ExternalEditor.IsRunning())
                 SetReadOnly();
-            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(false);
+            const auto state = pApp->m_pWndEditor->m_ctrlEditor.DisableWindowUpdate();
             pApp->m_pWndEditor->m_ctrlEditor.SetSel(0,-1);
-            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(true);
             pApp->m_pWndEditor->m_ctrlEditor.ReplaceSel(pDoc->m_itrEditing->GetText());
+            pApp->m_pWndEditor->m_ctrlEditor.RestoreWindowUpdate(state);
         }
 	}
 
@@ -1399,7 +1430,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	if (m_bSuspendNotifications) return TRUE;
 
-	const bool hint = m_ctrlEditor.DoUpdate(true, false, CCshRichEditCtrl::CSH);
+    const bool hint = m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::CSH);
     //Update hints if we are in hint mode
     if (m_ctrlEditor.InHintMode()) {
         //Kill the user requested nature
@@ -1410,7 +1441,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
         long s, e;
         m_ctrlEditor.GetSel(s,e);
         //Enter hint mode only if we typed a character (outside hint mode
-        //this is what DoUpdate returns)
+        //this is what UpdateCSH returns)
         if (hint && s==e) {
             bool till_cursor_only = false;
             if (s<=1) 
@@ -1442,7 +1473,6 @@ void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result)
         CMscGenDoc *pDoc = GetMscGenDocument();
         if (pDoc)
             pDoc->OnInternalEditorSelChange();
-        SetFocus();
     } else 
         m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
 	*result = 0;
@@ -1529,7 +1559,7 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 		} while (FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord()));
 		m_ctrlEditor.HideSelection(FALSE, FALSE);
 		m_bSuspendNotifications = saved_notification;
-        m_ctrlEditor.DoUpdate(true, true, CCshRichEditCtrl::CSH);
+        m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::CSH);
 		return 0;
 	}
 	bool findnext = pFindReplace->FindNext();

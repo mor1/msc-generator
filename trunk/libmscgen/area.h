@@ -159,6 +159,7 @@ public:
     /** Determines which area `p` falls in. Searches from the end of the list and returns the first hit.*/
     const Area *InWhichFromBack(const contour::XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
     void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
+    std::list<Area> EmptyToList() { std::list<Area> c; c.swap(cover); boundingBox.MakeInvalid(); return c; } ///<Empties the list and moves its content to the return value
 };
 
 inline bool Area::operator <(const Area &b) const
