@@ -1,0 +1,41 @@
+hscale=auto;
+numbering=yes;
+Left_MN, Left_AR, Server, Right_AR, Right_MN;
+{
+    Server->Left_AR: Query;
+    Left_AR->Left_MN: Query;
+    Left_AR<-Left_MN: Response;
+    Server<-Left_AR: Response;
+} {
+
+    Server->Right_AR: Query;
+    Right_AR->Right_MN: Query;
+    Right_AR<-Right_MN: Response;
+    Server<-Right_AR: Response;
+};
+Left_MN--Left_MN: Now I have both [number=no];
+
+parallel pipe Server--Server: Now I have both {
+    Left_AR->Right_AR:aa;
+    Left_AR->Right_AR:aa;
+    Left_AR->Right_AR:aa;
+    Left_AR->Right_AR:aa
+                      aaaa;
+};
+
+Right_MN--Right_MN: Now I have both
+                    aaa
+                    aaaa
+                    aa;
+newpage;
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both [keep_with_next=yes];
+Server->Server: Now I have both [keep_together=yes];
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both;
+Server--Server: Now I have both;

@@ -1,0 +1,19 @@
+msc=qsd;
+C [label="Client"],
+S [label="Server"],
+B [label="Backend"];
+->C: Hit [strong];
+box C==C: Generate\nrequest;
+C=>S: Request;
+box S--S: Check cache;
+box S--B: Alt\#1: cache miss
+{
+    S->B: Query;
+    S<-B: Response;
+}
+..: Alt\#2: cache hit
+{
+    S->S: Read\ncache [weak];
+};
+C<=S: Reply;
+---: All done;

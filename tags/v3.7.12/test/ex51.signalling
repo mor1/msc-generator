@@ -1,0 +1,6 @@
+hscale=auto;
+a->b:     Label with a semicolon("\;") in it;
+a->b: "   Label with a semicolon(\";\") in it";
+box a--b: Escapes: \{ \[ \; \# and \\.;
+---: Can escape these, too: \] \} \";
+: but not needed: ] } ";
