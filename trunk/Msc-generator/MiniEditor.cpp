@@ -30,6 +30,7 @@ static char THIS_FILE[] = __FILE__;
 
 BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 	ON_WM_MOUSEWHEEL() 
+    ON_MESSAGE(EM_PASTESPECIAL, OnPasteSpecial)
 END_MESSAGE_MAP()
 
 
@@ -395,6 +396,45 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
     return true;
 }
 
+LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM lParam)
+{
+    //if we do not paste CF_TEXT, we use regular paste
+    if (wParam!=CF_TEXT) {
+        CRichEditCtrl::Paste();
+        return 0;
+    }
+
+    // Test to see if we can open the clipboard first.
+    if (OpenClipboard()) {
+        // Retrieve the Clipboard data (specifying that 
+        // we want ANSI text (via the CF_TEXT value).
+        HANDLE hClipboardData = GetClipboardData(CF_TEXT);
+
+        // Call GlobalLock so that to retrieve a pointer
+        // to the data associated with the handle returned
+        // from GetClipboardData.
+        char *pchData = (char*)GlobalLock(hClipboardData);
+
+        // Set a local CString variable to the data
+        // and then update the dialog with the Clipboard data
+        CString strFromClipboard = pchData;
+        const auto state = GetWindowUpdate();
+        SetRedraw(false);
+        ReplaceSel(pchData);
+        RestoreWindowUpdate(state);
+
+        // Unlock the global memory.
+        GlobalUnlock(hClipboardData);
+
+        // Finally, when finished I simply close the Clipboard
+        // which has the effect of unlocking it so that other
+        // applications can examine or modify its contents.
+        CloseClipboard();
+    }
+    return 0;
+}
+
+
 //This is to handle TAB, SHIFT+TAB, RETURN, BACKSPACE, and "}" chars
 //We assume no TAB characters in the file, we replace everything to spaces
 /* TAB rules
@@ -425,7 +465,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
     m_bWasReturnKey = false;
     if (pMsg->message != WM_KEYDOWN && pMsg->message != WM_CHAR)
-        return FALSE && CRichEditCtrl::PreTranslateMessage(pMsg);
+        return CRichEditCtrl::PreTranslateMessage(pMsg);
+    static std::list<std::pair<UINT, WPARAM>> msg;
+    msg.emplace_back(pMsg->message, pMsg->wParam);
     GetSel(m_crSel_before);
     long lStart = m_crSel_before.cpMin;
     long lEnd = m_crSel_before.cpMax;
@@ -504,9 +546,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             return TRUE;
         }
         //call parent if not keys relevant for smart identing
-        if (pMsg->wParam == VK_INSERT) return CRichEditCtrl::PreTranslateMessage(pMsg);
-        if (pMsg->wParam == VK_DELETE) return CRichEditCtrl::PreTranslateMessage(pMsg);
-        //do nothing if keydown is not TAB, ENTER or BACKSPACE
         if (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && pMsg->wParam != VK_BACK)
             return CRichEditCtrl::PreTranslateMessage(pMsg);
     }
@@ -761,14 +800,12 @@ CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
     return ret;
 }
 
-void CCshRichEditCtrl::RestoreWindowUpdate(WindowUpdateStatus s)
+void CCshRichEditCtrl::RestoreWindowUpdate(const WindowUpdateStatus &s)
 {
     m_parent->m_bSuspendNotifications = s.second;
     if (s.first != m_bRedrawState) {
         m_bRedrawState = s.first;
-        SetRedraw(m_bRedrawState);        if (m_bRedrawState) {            CWnd::Invalidate();
-            CWnd::UpdateWindow();
-        }    }}
+        SetRedraw(m_bRedrawState);        if (m_bRedrawState) {            Invalidate();            UpdateWindow();        }    }}
 
 
 //We never notify the document object about a change in this function,
@@ -812,6 +849,11 @@ CshListType Diff(const EntryList &old_list,
     auto o = old_list.begin();
     auto n = new_list.begin();
     while (o!=old_list.end() && n!= new_list.end()) {
+        //ignore NULL values in the old list (which can happen due to delete)
+        if (o->first_pos > o->last_pos) {
+            o++;
+            continue;
+        }
         if (o->first_pos == n->first_pos) {
             if (o->last_pos != n->last_pos) {
                 if (o->last_pos > n->last_pos) {//if old csh is longer, we add its neutral version
@@ -913,7 +955,6 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         //one text is prefix of the other
         start = lmin;
         ins = ldiff>=0 ? 0 : -ldiff;
-        del = ldiff>=0 ? ldiff : 0;
     } else {
         //search for the end of the differences
         for (last_diff = l1; last_diff>std::max(0, -ldiff); last_diff--)
@@ -924,22 +965,25 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             //the new file is a postfix of the old one
             _ASSERT(ldiff>0);
             start = 0;
-            ins = 0;
-            del = ldiff;
+            ins = first_diff;
         } else if (last_diff<=first_diff) {
             //same text from front and beginning overlap
             //last_diff and first diff actually point to chars that are the same
-            start = last_diff;
-            ins = first_diff - last_diff;
-            del = ins + ldiff;
+            start = last_diff - std::max(0, -ldiff);
+            ins = first_diff - start + std::max(0, -ldiff);
         } else {
             start = first_diff;
             ins = last_diff - first_diff;
-            del = ins + ldiff;
         }
     }
+    del = ins + ldiff;
+    _ASSERT(ins>=0 && del>=0);
+    //string a;
+    //a << first_diff << " " <<last_diff << ", ";
+    //a << "c " << start << " " << ins << " " << del;
+    //MessageBox(a.c_str());
     //Now expand the changed range to include the selection before the action.
-    //This is needed for paste actions: if we paste (unformatted or badly formatted) 
+    //This is needed for te (unformatted or badly formatted) 
     //text which is equal to the text already there, the above algorithm will not 
     //detect the change and coloring will remain as pasted.
     //Note that start is now in RichEditCtrl space: if we insert at the beginning
