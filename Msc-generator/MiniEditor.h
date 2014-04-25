@@ -36,6 +36,11 @@ class CEditorBar;
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
+protected:
+    DECLARE_MESSAGE_MAP()
+    LRESULT OnPasteSpecial(WPARAM wParam, LPARAM lParam);
+
+private:
     bool m_bWasReturnKey;        ///<True if the return key was pressed. Needed to se if we shall show the line begin hints or not.
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
@@ -76,7 +81,7 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
     WindowUpdateStatus GetWindowUpdate();
     WindowUpdateStatus DisableWindowUpdate();
-    void RestoreWindowUpdate(WindowUpdateStatus s);
+    void RestoreWindowUpdate(const WindowUpdateStatus &s);
 
 	//Color Syntax Highlighting functions
 	void UpdateText(const char *text, CHARRANGE &cr);
@@ -94,8 +99,6 @@ public:
     void CancelHintMode();
     void CancelUserSelected() {m_bUserRequested = false;}
     void ReplaceHintedString(const char *substitute, bool endHintMode);
-
-	DECLARE_MESSAGE_MAP()
 };
 
 class CMainFrame;
