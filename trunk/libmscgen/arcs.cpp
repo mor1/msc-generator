@@ -3918,8 +3918,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         //See if some of the content lies outside this box series - then add it to cover
         std::list<Area> alist = combined_content_cover.EmptyToList(); //convert to list so that we can move elements out                     
         for (auto area : alist)
-            if (!overall_box.GetBoundingBox().IsWithin(area.GetBoundingBox().UpperLeft()) ||
-                !overall_box.GetBoundingBox().IsWithin(area.GetBoundingBox().LowerRight()))
+            if (!overall_box.GetBoundingBox().IsWithinBool(area.GetBoundingBox().UpperLeft()) ||
+                !overall_box.GetBoundingBox().IsWithinBool(area.GetBoundingBox().LowerRight()))
                 *cover += std::move(area);
     }
     height = yPos + total_height + offset + chart->boxVGapOutside;

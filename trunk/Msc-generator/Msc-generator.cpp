@@ -628,8 +628,6 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, "28.3464567");
     sscanf(val, "%lf", m_printer_usr_margins+3);
 
-	m_bDoCshProcessing = m_bShowCsh || m_bHints;
-
 	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
 	CFileFind finder;
 	if (!finder.FindFile(m_NppPath))
@@ -1019,7 +1017,6 @@ void CMscGenApp::OnUpdateCheckPageBreaks(CCmdUI *pCmdUI)
 void CMscGenApp::OnCheckCsh()
 {
     m_bShowCsh = !m_bShowCsh;
-    m_bDoCshProcessing = m_bShowCsh || m_bHints;
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh);
     if (IsInternalEditorRunning()) 
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
@@ -1067,6 +1064,8 @@ void CMscGenApp::OnCheckSmartIdent()
 {
     m_bSmartIdent = !m_bSmartIdent;
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent);
+    if (IsInternalEditorRunning() && m_bSmartIdent)
+        m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::HINTS_AND_LABELS);
 }
 
 /** Toggles the smart identation button.
@@ -1082,7 +1081,7 @@ void CMscGenApp::OnCheckTABIdents()
  * Checks it if m_bTABIdents is true.*/
 void CMscGenApp::OnUpdateCheckTABIdents(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->Enable(m_bSmartIdent && IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bTABIdents);
 }
 
@@ -1090,7 +1089,7 @@ void CMscGenApp::OnUpdateCheckTABIdents(CCmdUI *pCmdUI)
 * Checks it if m_bSmartIdent is true.*/
 void CMscGenApp::OnUpdateCheckSmartIdent(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->Enable(IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bSmartIdent);
 }
 
@@ -1109,7 +1108,7 @@ void CMscGenApp::OnCheckCshError()
  * Checks it if m_bShowCshErrors is true.*/
 void CMscGenApp::OnUpdateCheckCshError(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->Enable(IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bShowCshErrors);
 }
 
@@ -1128,7 +1127,7 @@ void CMscGenApp::OnCheckCshErrorInWindow()
  * Checks it if m_bShowCshErrorsInWindow is true.*/
 void CMscGenApp::OnUpdateCheckCshErrorInWindow(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->Enable(IsInternalEditorRunning());
     pCmdUI->SetCheck(m_bShowCshErrorsInWindow);
 }
 
@@ -1238,7 +1237,6 @@ void CMscGenApp::OnUpdateCheckEeNotepadpp(CCmdUI *pCmdUI)
 void CMscGenApp::OnCheckHints()
 {
     m_bHints = !m_bHints;
-    m_bDoCshProcessing = m_bShowCsh || m_bHints;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints);
 }
 

@@ -755,7 +755,6 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     StringFormat sf;
     const size_t len = strlen(text);
     while (pos<len) {
-        EColorSyntaxType color = COLOR_NORMAL;
         unsigned length;
         const EEscapeType escape = sf.ProcessEscape(text+pos, length);
         switch (escape) {

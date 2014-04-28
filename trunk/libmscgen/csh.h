@@ -90,6 +90,10 @@ struct CshEntry
     bool operator==(const CshEntry&o) const { return color == o.color && first_pos==o.first_pos && last_pos ==o.last_pos; }
 };
 
+
+/** An ordered collection of position ranges.*/
+typedef std::vector<CshPos> CshPosList;
+
 /** An ordered collection of colored ranges.*/
 class CshListType : public std::vector<CshEntry>
 {
@@ -267,7 +271,8 @@ public:
     /** @name The collected CSH info and hints 
      * @{ */
     CshListType  CshList;                ///<The collected color syntax info
-    std::vector<CshPos> ColonLabels;     ///<The position of colon labels.
+    CshPosList   ColonLabels;            ///<The position of colon labels 
+    CshPosList   QuotedStrings;          ///<The position of quoted strings 
     CshErrorList CshErrors;              ///<The collected errors
     bool         was_partial;            ///<Indicates if the cursor is at the end of a partial keyword. On Sel Change we need to re-csh
     std::set<CshHint> Hints;             ///<The collected hints
@@ -334,7 +339,11 @@ public:
     void AddCSH_AllCommentBeyond(const CshPos&pos); ///<Mark anything beyond the end of 'pos' as comment
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
-    EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
+    void AddColonLabel(const CshPos&pos) { ColonLabels.push_back(pos); } ///<Marks a range as a colon label
+    void AddQuotedString(const CshPos&pos) { QuotedStrings.push_back(pos); } ///<Marks a range as a quoted string
+    const CshPos *IsInColonLabel(int pos) const;        ///<After parsing return true if character 'pos' is in a colon label. (Used for smart ident.)
+    const CshPos *IsInQuotedString(int pos) const;        ///<After parsing return true if character 'pos' is in a quoted string. (Used for smart ident.)
+
     template <class EntryList>
     static void AdjustCSHList(EntryList &, int start, int offset); 
 

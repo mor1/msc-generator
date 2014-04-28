@@ -85,12 +85,11 @@ public:
     MscError m_DesignErrors;             ///<Errors collected during the compilation of the design lib.
     Csh m_designlib_csh;                 ///<The color & other info collected during design library. Used to seed the Csh of the internal editor.
 	CString m_CopyrightText;             ///<The copyright text to display at the bottom of the charts.
-    bool m_bDoCshProcessing;             ///<True if we do CSH processing of the internal editor text. (Needed not just for coloring, but also for smart ident.)
 	bool m_bShowCsh;                     ///<True if we show CSH markings in internal editor.
     bool m_bShowCshErrors;               ///<True if we show CSH discovered parse errors
     bool m_bShowCshErrorsInWindow;       ///<True if we list the CSH discovered parse errors in the output window.
 	unsigned m_nCshScheme;               ///<Which color shceme do we use for CSH
-    bool m_bSmartIdent;                  ///<Whether we do smart ident or not
+    bool m_bSmartIdent;                  ///<Whether we do smart ident or not. If true m_csh.ColonLabels are kep up-to-date at every change
     bool m_bTABIdents;                   ///<Whether TAB idents the line (true) or inserts a tab
     CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX]; ///<The colors used for each color scheme
 	COLORREF m_trackFillColor;           ///<The color used to fill element tracking outlines
@@ -134,7 +133,7 @@ public:
     /** True if the internal editor is running */
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
-
+    
 	DECLARE_MESSAGE_MAP()
     /** @name GUI control functions
      * These functions are called when a control is invoked on the GUI. */

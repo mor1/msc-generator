@@ -339,7 +339,7 @@ SimpleContour &SimpleContour::Invert()
  */
 EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool strict) const
 {
-    if (size()==0 || GetBoundingBox().IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
+    if (size()==0 || !GetBoundingBox().IsWithinBool(p)) return WI_OUTSIDE;
 
     //Follow the contour and see how much it crosses the vertical line going through p
     //count the crossings below us (with larger y)
@@ -424,10 +424,14 @@ inline bool really_between04_warp(const RayAngle &q, const RayAngle &a, const Ra
 EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
     size_t edge;
-    for (size_t i=0; i<size(); i++) {
+    _ASSERT(!b.IsEmpty() && !IsEmpty());
+    const size_t max = size();
+    for (size_t i=0; i<max; i++) {
         double pos;
         const XY p = at(i).GetStart();
-        //if we are a single ellipsis, use our center point, else use a vertex
+        //Optimize: check BB here and not in SimpleContour::IsWithin below
+        if (!b.GetBoundingBox().IsWithinBool(p)) return REL_OVERLAP;
+        //check bb here
         switch (b.IsWithin(p, &edge, &pos, /*strict=*/false)) {
         default:
             _ASSERT(0);
@@ -455,26 +459,6 @@ EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &
             if (really_between04_warp(prev2, next1, prev1) &&
                 really_between04_warp(next2, next1, prev1)) return REL_B_INSIDE_A;
             return REL_APART;
-
-            //double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
-            //double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
-            //double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
-            //double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
-            //if (!  GetClockWise()) std::swap(one_prev, one_next); //make angles as if clockwise
-            //if (!b.GetClockWise()) std::swap(two_prev, two_next); //make angles as if clockwise
-
-            ////if both the same, we continue: this vertex is non-decisive
-            //if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
-
-            ////if values are too close it is dangerous, we look for other vertices
-            //if (test_equal(one_prev, one_next)) break;
-            //if (test_equal(two_prev, two_next)) break;
-
-            //if (really_between04_warp(one_prev, two_next, two_prev) &&
-            //    really_between04_warp(one_next, two_next, two_prev)) return REL_A_INSIDE_B;
-            //if (really_between04_warp(two_prev, one_next, one_prev) &&
-            //    really_between04_warp(two_next, one_next, one_prev)) return REL_B_INSIDE_A;
-            //return REL_APART;
         }
     }
     //All points were on a vertex equal in one of the directions
@@ -490,6 +474,13 @@ EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &
  */
 EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other) const
 {
+    //fast path
+    if (!GetBoundingBox().Overlaps(other.GetBoundingBox()))
+        return REL_APART;
+    if (other.IsEmpty()) 
+        return IsEmpty() ? REL_BOTH_EMPTY : REL_B_IS_EMPTY;
+    if (IsEmpty())
+        return REL_A_IS_EMPTY;
     EContourRelationType this_in_other = CheckContainmentHelper(other);
     if (this_in_other != REL_OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {

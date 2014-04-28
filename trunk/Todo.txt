@@ -53,16 +53,19 @@ In 3.8.1
 ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 ADD: hints for built-in styles after defstyle
+FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
+FIX: Optimize Tangent functions
+
+In 3.7.13
+FIXED: Where the cursor ends up after a single-line TAB
+DOCED: Add "rewriting CSH" to doc
 
 In 3.7.12
 DOCED: Add "rewriting CSH" to release notes
 FIXED: Issue with Ctrl+Drag text selection
 CHANGED: Rewritten CSH workflow for less flicker
 FIXED: Paste eats last CRLF problem.
-FIX: Where the cursor ends up after a single-line TAB
-FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
-FIX: Optimize Tangent functions
-FIX: disable TAB key ident checkbox if smart ident is not ON.
+DONE: disable TAB key ident checkbox if smart ident is not ON.
 
 In 3.7.11
 FIXED: When typing a command name csh works bad.
