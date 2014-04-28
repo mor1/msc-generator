@@ -444,7 +444,6 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
-    ColonLabels.push_back(pos);
     if (processComments) {
         const char *beginning = value+1;
         if (*beginning) {
@@ -827,6 +826,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     cshScheme = scheme;
     CshList.clear();
     ColonLabels.clear();
+    QuotedStrings.clear();
     CshErrors.clear();
     EntityNames.clear();
     MarkerNames.clear();
@@ -858,12 +858,27 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     //Find the plain text for all hints <-- What was this??
 }
 
-EColorSyntaxType Csh::GetCshAt(int pos)
+
+const CshPos *Csh::IsInColonLabel(int pos) const
 {
-    //Search labels backwards
-    for (auto i = CshList.rbegin(); !(i==CshList.rend()); i++)
-        if (i->first_pos<=pos && i->last_pos>=pos) return i->color;
-    return COLOR_NORMAL;
+    //'pos' is in RichEdit units: index zero is before the first char.
+    //the positions in 'Labels' is in csh units: the first char is
+    //indexed 1, and for single character ranges first_pos==last_pos
+    for (auto &p : ColonLabels)
+        if (p.first_pos<=pos && p.last_pos>pos)
+            return &p;
+    return NULL;
+}
+
+const CshPos *Csh::IsInQuotedString(int pos) const
+{
+    //'pos' is in RichEdit units: index zero is before the first char.
+    //the positions in 'Labels' is in csh units: the first char is
+    //indexed 1, and for single character ranges first_pos==last_pos
+    for (auto &p : QuotedStrings)
+        if (p.first_pos<=pos && p.last_pos>pos)
+            return &p;
+    return NULL;
 }
 
 void CshContext::SetToDesign(const Context &design)

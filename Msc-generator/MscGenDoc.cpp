@@ -1981,7 +1981,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	StartFadingAll(AnimationElement::TRACKRECT, arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
-        if (inside(i->first.IsWithin(XY(mouse.x, mouse.y))))
+        if (i->first.IsWithinBool(XY(mouse.x, mouse.y)))
             AddAnimationElement(AnimationElement::CONTROL, i->second);
     if (arc && arc->GetControls().size()) 
         AddAnimationElement(AnimationElement::CONTROL, arc);

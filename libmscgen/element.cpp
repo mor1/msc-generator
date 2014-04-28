@@ -272,7 +272,7 @@ void Element::DrawControls(cairo_t *cr, double size) const
  * @returns The type of control or MSC_CONTROL_INVALID, if xy does not point to any control.*/
 EGUIControlType Element::WhichControl(const XY &xy)
 {
-    if (!inside(control_location.IsWithin(xy))) return MSC_CONTROL_INVALID;
+    if (!control_location.IsWithinBool(xy)) return MSC_CONTROL_INVALID;
     return controls[unsigned((xy.y - control_location.y.from)/control_size.y)];
 }
 

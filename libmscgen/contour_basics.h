@@ -383,7 +383,7 @@ struct Block {
     struct Range x;
     struct Range y;
     Block() {}
-    Block(bool) { MakeInvalid(); }
+    Block(bool b) { _ASSERT(!b);  (void)(b);  MakeInvalid(); } //make sure we call it with 'false' that reminds me that this invalidates
     Block(double sx, double dx, double sy, double dy) :
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
     Block(const XY &ul, const XY &dr) :

@@ -4,10 +4,10 @@
 #ifndef VERSION_H
 #define VERSION_H
 /** The major version of libmscgen.*/
-#define LIBMSCGEN_MAJOR 3
+#define LIBMSCGEN_MAJOR 4
 /** The minor version of libmscgen.*/
-#define LIBMSCGEN_MINOR 7
+#define LIBMSCGEN_MINOR 0
 /** The micro version of libmscgen.*/
-#define LIBMSCGEN_SUPERMINOR 12
+#define LIBMSCGEN_SUPERMINOR 0
 
 #endif //VERSION_H

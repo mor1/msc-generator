@@ -3962,6 +3962,7 @@ colon_string: TOK_COLON_QUOTED_STRING
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ColonString(@1, $1, true);
+	csh.AddColonLabel(@1);
   #endif
     $$ = $1;
 };
@@ -4254,7 +4255,14 @@ vertical_shape: TOK_VERTICAL_SHAPE
 
 
 //cannot be a reserved word, symbol or style name
-entity_string: TOK_QSTRING | TOK_STRING 
+entity_string: TOK_QSTRING
+{
+  #ifdef C_S_H_IS_COMPILED
+	csh.AddQuotedString(@1);
+  #endif
+  $$ = $1;
+}
+               | TOK_STRING 
                | TOK_SHAPE_COMMAND
 {
 	$$ = (char*)malloc(2);

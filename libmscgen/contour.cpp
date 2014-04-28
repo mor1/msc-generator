@@ -390,6 +390,26 @@ struct walk_data {
         rays_size(s), result_size(s2), chosen_outgoing(c) {}
 };
 
+/** A list of node objects with a bounding box.
+* Not entirely safe: we assume users do not expand individual nodes
+* in the list in order to keep bounding box valid.
+* But this is how the ContoursHelper::InsertContour() is written.*/
+class node_list
+{
+    std::list<node> nodes;
+    Block boundingBox;
+public:
+    node_list() : boundingBox(false) {}
+    std::list<node>::iterator begin() { return nodes.begin(); }
+    std::list<node>::iterator end() { return nodes.end(); }
+    std::list<node>::const_iterator begin() const { return nodes.begin(); }
+    std::list<node>::const_iterator end() const { return nodes.end(); }
+    node& append(node &&n);
+    void splice(std::list<node>::iterator where_to, node_list &from, std::list<node>::iterator what);
+    const Block &GetBoundingBox() const { return boundingBox; }
+};
+
+
 /** Node of a tree holding SimpleContours.
  *
  * Used for post-processing after walks to determine which SimpleContour is inside which others.
@@ -397,10 +417,22 @@ struct walk_data {
 struct node
 {
     SimpleContour contour;    ///<This is part of the result.
-    std::list<node> children; ///<These SimpleContours are inside the above member.
+    node_list children; ///<These SimpleContours are inside the above member.
     explicit node(SimpleContour &&c, bool invert=false) : contour(invert ? std::move(c.Invert()) : std::move(c)) {}  ///<Move a SimpleContour
     explicit node(const SimpleContour &c, bool invert=false) : contour(invert ? c.CreateInvert() : c) {}        ///<Copy a Simplecontour
 };
+
+inline node& node_list::append(node &&n)
+{
+    boundingBox += n.contour.GetBoundingBox();
+    nodes.push_back(std::move(n));
+    return nodes.back();
+}
+
+inline void node_list::splice(std::list<node>::iterator where_to, node_list &from, std::list<node>::iterator what)
+{
+    nodes.splice(where_to, from.nodes, what);
+}
 
 
 /** A helper class to implement contour operations and walking.
@@ -712,12 +744,12 @@ protected:
     SimpleContour Walk(RayPointer start) const;
 
     //helper for post-processing
-    int CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const;
-    node *InsertContour(std::list<node> *list, node &&n) const;
-    void InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
+    int CoverageInNodeList(const node_list &list, const SimpleContour &c) const;
+    node *InsertContour(node_list *list, node &&n) const;
+    void InsertIfNotInRays(node_list *list, const ContourWithHoles *c, bool const_c,
                            const Contour *C_other, Contour::EOperationType type) const;
-    void ConvertNode(Contour::EOperationType type, std::list<node> &&list, Contour &result, bool positive) const;
-    void ConvertNode(Contour::EOperationType type, std::list<node> &&list, ContourList &result, bool positive) const;
+    void ConvertNode(Contour::EOperationType type, node_list &&list, Contour &result, bool positive) const;
+    void ConvertNode(Contour::EOperationType type, node_list &&list, ContourList &result, bool positive) const;
 
 public:
     //external interface
@@ -2137,7 +2169,7 @@ endend:
 
 /** Finds the combined coverage of elements in "list" at the area covered by "c"
  * We assume c does not overlap with any element. */
-int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const
+int ContoursHelper::CoverageInNodeList(const node_list &list, const SimpleContour &c) const
 {
     for (auto i=list.begin(); i!=list.end(); i++)
         switch(i->contour.CheckContainment(c)) {
@@ -2167,36 +2199,41 @@ int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const Simple
  * @param list The tree to insert to.
  * @param n The node to insert.
  * @returns the resulting inserted node.*/
-node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
+node * ContoursHelper::InsertContour(node_list *list, node &&n) const
 {
-    if (n.contour.size()==0) return 0;
-    for (auto i = list->begin(); i!=list->end(); /*nope*/) {
-        const EContourRelationType res = i->contour.CheckContainment(n.contour);
-        switch (res) {
-        default:
-        case REL_A_IS_EMPTY:
-        case REL_BOTH_EMPTY:  //nodes already inserted cannot be empty
-        case REL_OVERLAP:     //at this point we cannot have overlap, that was eliminated by walking or we did not find crosspoints
-            _ASSERT(0);
-        case REL_A_INSIDE_B:
-            //move "i" from the "list" to "n.children"
-            n.children.splice(n.children.end(), *list, i++);
-            //continue checking
-            break;
-        case REL_B_IS_EMPTY:
-        case REL_SAME:
-            return &*i; //easy, do nothig
-        case REL_B_INSIDE_A:
-            //insert into the children of "i" instead;
-            return InsertContour(&i->children, std::move(n));
-        case REL_APART:
-            i++;
-            break; //continue checking the remainder of the list
+    if (n.contour.size()==0) return NULL;
+    if (list->GetBoundingBox().Overlaps(n.contour.GetBoundingBox()))
+        for (auto i = list->begin(); i!=list->end(); /*nope*/) {
+            //fast path
+            if (!i->contour.GetBoundingBox().Overlaps(n.contour.GetBoundingBox())) {
+                i++;
+                continue;
+            }
+            const EContourRelationType res = i->contour.CheckContainment(n.contour);
+            switch (res) {
+            default:
+            case REL_A_IS_EMPTY:
+            case REL_BOTH_EMPTY:  //nodes already inserted cannot be empty
+            case REL_OVERLAP:     //at this point we cannot have overlap, that was eliminated by walking or we did not find crosspoints
+                _ASSERT(0);
+            case REL_A_INSIDE_B:
+                //move "i" from the "list" to "n.children"
+                n.children.splice(n.children.end(), *list, i++);
+                //continue checking
+                break;
+            case REL_B_IS_EMPTY:
+            case REL_SAME:
+                return &*i; //easy, do nothig
+            case REL_B_INSIDE_A:
+                //insert into the children of "i" instead;
+                return InsertContour(&i->children, std::move(n));
+            case REL_APART:
+                i++;
+                break; //continue checking the remainder of the list
+            }
         }
-    }
     //at this point we are APART with all elements in "list"
-    list->push_back(std::move(n));
-    return &list->back();
+    return &list->append(std::move(n));
 }
 
 
@@ -2212,7 +2249,7 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
  * @param [in] C_other One of C1 or C2 - the other than the one `c` is from.
  * @param [in] type The operation we perform.
  */
-void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
+void ContoursHelper::InsertIfNotInRays(node_list *list, const ContourWithHoles *c, bool const_c,
                                        const Contour *C_other, Contour::EOperationType type) const
 {
     if (!Rays.size() || !IsContourInRays(&c->outline)) {
@@ -2276,7 +2313,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
  * @param [out] result The result.
  * @param [in] positive True if we want to have a clockwise Contour at the end.
  */
-void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, Contour &result, bool positive) const
+void ContoursHelper::ConvertNode(Contour::EOperationType type, node_list &&list, Contour &result, bool positive) const
 {
     for (auto &n : list) {
         if (n.contour.GetClockWise() != positive)
@@ -2296,7 +2333,7 @@ void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &
  * @param [out] result The result.
  * @param [in] positive True if we want to have a clockwise Contour at the end.
  */
-void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, ContourList &result, bool positive) const
+void ContoursHelper::ConvertNode(Contour::EOperationType type, node_list &&list, ContourList &result, bool positive) const
 {
     for (auto &n : list) {
         if (n.contour.GetClockWise() != positive)
@@ -2372,7 +2409,7 @@ void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
         }
         _ASSERT(C1->IsSane() && C2->IsSane());
     }
-    std::list<node> list; //this will be the root(s) of the post-processing tree (forest).
+    node_list list; //this will be the root(s) of the post-processing tree (forest).
 #ifdef _DEBUG
     expand_debug_cps.clear();
 #endif

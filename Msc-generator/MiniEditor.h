@@ -53,7 +53,7 @@ private:
     bool m_bRedrawState;         //Store what is the redraw State, since we have no GetRedraw()
 public:
     typedef enum UpdateCSHType {
-        HINTS_AND_COLON_LABELS = 0,
+        HINTS_AND_LABELS = 0,
         CSH = 1,
         FORCE_CSH = 2
     };
