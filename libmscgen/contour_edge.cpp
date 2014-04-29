@@ -548,7 +548,7 @@ const double CP_PRECISION = 1e-8;
 
 /** Returns the crossing of a bezier with an infinite line.
  * We do not filter the result by position values falling outside [0,1]
- * Those that fall out in pos_my contains invalid values for pos_other - should be
+ * Those that fall out in pos_my contains invalid values for pos_segment - should be
  * completely ignored by the caller.*/
 unsigned Edge::CrossingLine(const XY &A, const XY &B, double pos_my[], double pos_segment[]) const
 {
@@ -785,7 +785,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
         } else { //A is curvy
             num = A.CrossingLine(start, end, loc_pos_other, loc_pos_my);
             for (unsigned u = 0; u<num; u++)
-                if (between01_adjust(loc_pos_my[u]) && between01_adjust(loc_pos_other[u]))
+                if (between01_adjust(loc_pos_other[u]) && between01_adjust(loc_pos_my[u])) //test pos_other first, since if that is outside [0..1] pos_my is uninitialized
                     if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
                         pos_my[ret] = loc_pos_my[u];
                         pos_other[ret] = loc_pos_other[u];
@@ -799,7 +799,7 @@ unsigned Edge::Crossing(const Edge &A, bool is_next, XY r[Edge::MAX_CP],
         //'this' is curvy
         num = CrossingLine(A.start, A.end, loc_pos_my, loc_pos_other);
         for (unsigned u = 0; u<num; u++)
-            if (between01_adjust(loc_pos_other[u]) && between01_adjust(loc_pos_my[u]))
+            if (between01_adjust(loc_pos_my[u]) && between01_adjust(loc_pos_other[u])) //test pos_my first, since if that is outside [0..1] pos_other is uninitialized
                 if (!is_next || loc_pos_my[u]!=1 || loc_pos_other[u]!=1) {
                     pos_my[ret] = loc_pos_my[u];
                     pos_other[ret] = loc_pos_other[u];

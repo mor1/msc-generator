@@ -133,7 +133,7 @@ FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
     LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2013 Zoltan Turanyi",IDC_STATIC,39,32,139,8
+    LTEXT           "Copyright (C) 2008-2014 Zoltan Turanyi",IDC_STATIC,39,32,139,8
     DEFPUSHBUTTON   "OK",IDOK,182,7,50,16,WS_GROUP
     PUSHBUTTON      "Go to homepage",IDC_BUTTON_URL,39,45,133,14
     PUSHBUTTON      "Download latest version",IDC_BUTTON_LATEST_URL,115,45,117,14
@@ -553,7 +553,7 @@ BEGIN
             VALUE "FileDescription", "Msc-generator"
             VALUE "FileVersion", "4.0.0.0"
             VALUE "InternalName", "Msc-generator.exe"
-            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2013.  All rights reserved."
+            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2014.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
             VALUE "ProductVersion", "4.0.0.0"

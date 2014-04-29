@@ -2340,6 +2340,7 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
         //Intersect the belt section with the map: get all the points
         //where the center of the note body can go.
         const Block &outer = region_belts[RD-1].GetBoundingBox();
+        if (outer.IsInvalid()) continue;
         const Contour region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
         const Contour region = region_mask * map;
         if (region.IsEmpty()) continue; 

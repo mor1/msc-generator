@@ -359,8 +359,10 @@ struct Ray
     mutable int    coverage_at_0_minus_inf; ///<Only at cp heads at untle operation: it holds the coverage at the RayAngle<0, -inf> direction from the cp. If very large, we do not know
     /** @} */
     Ray(const XY &point, const Contour *m_c, const SimpleContour *c, size_t v, double p, bool i, const RayAngle &a) :
-        main_contour(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a),
-        xy(point), valid(true), switch_to(link_info::no_link), coverage_at_0_minus_inf(std::numeric_limits<int>::max()) {_ASSERT(c); }
+        main_contour(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a), xy(point), 
+        valid(true), seq_num(std::numeric_limits<size_t>::max()), 
+        switch_to(link_info::no_link), coverage_at_0_minus_inf(std::numeric_limits<int>::max()) 
+        {_ASSERT(c); }
     /** Sets validity to true and erases switch_to. Afer this you can call EvaluateCorsspoints() again. 
      * Keeps coverage_at_0_minus_inf intact - that is the same for all operations.*/
     void Reset() const { valid = true; switch_to = link_info::no_link; } 
@@ -389,6 +391,8 @@ struct walk_data {
     walk_data(size_t s, size_t s2, size_t c) :
         rays_size(s), result_size(s2), chosen_outgoing(c) {}
 };
+
+struct node;
 
 /** A list of node objects with a bounding box.
 * Not entirely safe: we assume users do not expand individual nodes

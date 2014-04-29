@@ -106,7 +106,8 @@ public:
     /** Copy constructor, but does not copy comments*/
     Element(const Element&);
     virtual ~Element();
-    void SetLineEnd(FileLineColRange l, bool f=true);
+    void SetLineEnd(FileLineColRange l, bool f = true);
+    void ExpandLineEnd(FileLineColRange l, bool f = true);
     virtual void AttachComment(CommandNote *cn);
     void CombineComments(Element *); //move comments to us
     virtual bool AddAttribute(const Attribute &);
