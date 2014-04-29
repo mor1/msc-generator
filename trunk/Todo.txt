@@ -11,31 +11,19 @@ Two helpers needed:
 
 In future releases
 ADD: shadow to arrows and labels
-Divider package
-	ADD: Make divider only within a box
-	ADD: Allow divider to have entities
-To be considered
-	ADD: more styles to design lib
-	ADD: More arrow types --> ==> >>> ..> 
+ADD: more styles to design lib
+ADD: More arrow types --> ==> >>> ..> 
 ADD: variant #1 double and triple-line joints for emphasis
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
 ADD: symbol cross/text [marker] at vertxpos [rotate];
 ADD: mark centerline
-FIX: Regression Bugs in Contour Expand still remain...
-FIX: Too much compress after adding MITER_LIMIT
-FIX: Triple bevel changes size when size limited.
-FIX: Node hideentitylines, for radius bigger than 70
 CHANGE: Mesh gradients.
 ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
-CHANGE: Remove area calcualtion from arcs (if not needed)
 CHANGE: Remove note related area calculation from arcs (if not needed)
-CHANGE: move CSH calculation to a parallel thread
 ADD: Rectangle in SimpleContour
-FIX: Contour test mistakes (esp 740_006)
-FIX: EntityDef leaks
 CHANGE: Rethink entity positioning and allow freer group definitions....
 ADD: Button to disable tracking rectangles & controls (if much faster)
 ADD: Ability to change page setup during print preview
@@ -43,18 +31,27 @@ ADD: Print preview even without a printer...?
 ADD: Ability to do multipage PDF export
 ADD: diagonal gradients
 ADD: more colors
-FIX: test.signalling from Michael on end of January, draws thicker text sometimes
-FIX: Full screen not covering entire screen
-FIX: Add bitmaps to Full screen images
 ADD: ISMAPs, floating comments, none commets
 ADD: box around grouped entities all along the chart
-
-In 3.8.1
 ADD: group entities without a label
 ADD: Allow arrow to a group entity...
-ADD: hints for built-in styles after defstyle
+FIX: Node hideentitylines, for radius bigger than 70
+FIX: Add bitmaps to Full screen images toolbar
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
+
+In 4.0
+FIXED: Contour test mistakes (esp 740_006)
+CHANGED: Remove area calcualtion from arcs (if not needed)
+FIXED: test.signalling from Michael on end of January, draws thicker text sometimes
+FIXED: EntityDef leaks
+FIXED: keyword "box" is not included in file_line_col of a box specification.
+ADDED: hints for built-in styles after defstyle
+CANCELLED: Full screen not covering entire screen
+CANCELLED: move CSH calculation to a parallel thread
+CANCELLED: Regression Bugs in Contour Expand still remain...
+CANCELLED: Too much compress after adding MITER_LIMIT
+CANCELLED: Triple bevel changes size when size limited.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

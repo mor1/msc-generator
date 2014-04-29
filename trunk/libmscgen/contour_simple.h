@@ -345,7 +345,7 @@ private:
                         unsigned original_last, unsigned next, unsigned my_index,
                         int last_type, int stype) const;
 protected:
-    SimpleContour() : clockwise_fresh(true), boundingBox_fresh(true), area_fresh(true), clockwise(true), boundingBox(true), area(0)  {}  ///<Create an empty shape with no edges.
+    SimpleContour() : clockwise_fresh(true), boundingBox_fresh(true), area_fresh(true), clockwise(true), boundingBox(false), area(0)  {}  ///<Create an empty shape with no edges.
     SimpleContour(SimpleContour &&p) {swap(p);}  ///<Move content of another shape. The other shape gets undefined.
     SimpleContour(const SimpleContour &p) : edges(p.edges), clockwise_fresh(p.clockwise_fresh), boundingBox_fresh(p.boundingBox_fresh), area_fresh(p.area_fresh), clockwise(p.clockwise), boundingBox(p.boundingBox), area(p.area)  {} ///<Create a copy of another shape
     SimpleContour(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));} ///<Create a rectangle

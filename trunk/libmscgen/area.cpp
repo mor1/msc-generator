@@ -39,7 +39,7 @@ Area Area::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpan
 void Area::swap(Area &a)
 {
     std::swap(arc, a.arc);
-    std::swap(mainline, a.mainline);
+    mainline.swap(a.mainline);
     Contour::swap(a);
 }
 

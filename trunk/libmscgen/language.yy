@@ -164,7 +164,7 @@
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_VERTICAL_SHAPE
-%type <stringlist> tok_stringlist
+%type <stringlist> stylenamelist
 %type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
 %type <shapecommand> TOK_SHAPE_COMMAND
@@ -565,8 +565,9 @@ arc_with_parallel: arc
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-        if ($1) ($1)->SetLineEnd(MSC_POS(@$));
-        $$=$1;
+    if ($1) 
+		($1)->SetLineEnd(MSC_POS(@$));
+    $$=$1;
   #endif
 }
               | overlap_or_parallel arc
@@ -907,6 +908,7 @@ arc:           arcrel
     if ($1) {
         $$ = (new CommandArcList(&msc, $1));
         ($$)->AddAttributeList(NULL);
+		delete ($1);
     } else
         $$ = NULL;
   #endif
@@ -952,6 +954,21 @@ arc:           arcrel
   #endif
     free($1);
 }
+              | TOK_COMMAND_DEFCOLOR 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a color name to (re-)define.");
+    $$ = NULL;
+  #endif
+    free($1);
+}
               | TOK_COMMAND_DEFSTYLE styledeflist
 {
   #ifdef C_S_H_IS_COMPILED
@@ -961,11 +978,37 @@ arc:           arcrel
   #endif
     free($1);
 }
+              | TOK_COMMAND_DEFSTYLE 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing style name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a style name to (re-)define.");
+    $$ = NULL;
+  #endif
+    free($1);
+}
               | TOK_COMMAND_DEFDESIGN designdef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
+    $$ = NULL;
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_DEFDESIGN 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+	csh.AddCSH_ErrorAfter(@$, "Missing design name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a design name to (re-)define.");
     $$ = NULL;
   #endif
     free($1);
@@ -1653,7 +1696,7 @@ entity:       entity_string full_arcattrlist_with_label
         EntityApp::AttributeValues(csh.hintAttrName, csh);
   #else
     EntityApp *ed = new EntityApp($1, &msc);
-    ed->SetLineEnd(MSC_POS(@$));
+    ed->SetLineEnd(MSC_POS2(@1, @2));
     $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
   #endif
     free($1);
@@ -1665,7 +1708,7 @@ entity:       entity_string full_arcattrlist_with_label
     csh.AddCSH_EntityName(@1, $1);
   #else
     EntityApp *ed = new EntityApp($1, &msc);
-    ed->SetLineEnd(MSC_POS(@$));
+    ed->SetLineEnd(MSC_POS(@1));
     $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
   #endif
     free($1);
@@ -1717,7 +1760,7 @@ first_entity:  entity_string full_arcattrlist_with_label
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
     EntityApp *ed = new EntityApp($1, &msc);
-    ed->SetLineEnd(MSC_POS(@$));
+    ed->SetLineEnd(MSC_POS2(@1, @2));
     $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
   #endif
     free($1);
@@ -1732,7 +1775,7 @@ first_entity:  entity_string full_arcattrlist_with_label
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
     EntityApp *ed = new EntityApp($1, &msc);
-    ed->SetLineEnd(MSC_POS(@$));
+    ed->SetLineEnd(MSC_POS(@1));
     $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
   #endif
     free($1);
@@ -1746,7 +1789,7 @@ styledeflist: styledef
   #endif
 };
 
-styledef : tok_stringlist full_arcattrlist
+styledef : stylenamelist full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
     for (auto &str : *($1))
@@ -1790,43 +1833,107 @@ styledef : tok_stringlist full_arcattrlist
         }
         msc.Error.Error(**a, false, msg);
     }
-    delete($1);
     delete($2);
   #endif
-};
-
-tok_stringlist : string
+    delete($1);
+}  
+                 | stylenamelist 
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_STYLENAME);
-        $$ = new std::list<string>;
-        if (strcmp($1, "emphasis")==0)
-            ($$)->push_back("box");
-        else if (strcmp($1, "emptyemphasis")==0)
-            ($$)->push_back("emptybox");
-        else ($$)->push_back($1);
+	csh.AddCSH_ErrorAfter(@$, "Missing attribute definitons in brackets ('[' and ']').");
   #else
-        $$ = new std::list<string>;
-        ($$)->push_back(ConvertEmphasisToBox($1, &@1, msc));
+    msc.Error.Error(MSC_POS(@$).end, "Missing attribute definitons in brackets ('[' and ']').");
+  #endif
+    delete($1);
+};
+
+/* 'string' does not match "++", so we list it separately */
+stylenamelist : string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_STYLENAME);
+    $$ = new std::list<string>;
+    if (strcmp($1, "emphasis")==0)
+        ($$)->push_back("box");
+    else if (strcmp($1, "emptyemphasis")==0)
+        ($$)->push_back("emptybox");
+    else ($$)->push_back($1);
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+		csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    $$ = new std::list<string>;
+    ($$)->push_back(ConvertEmphasisToBox($1, &@1, msc));
   #endif
     free($1);
 }
-             | tok_stringlist TOK_COMMA string
+             | TOK_EMPH_PLUS_PLUS
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_COMMA);
-        csh.AddCSH(@3, COLOR_STYLENAME);
-        $$ = $1;
-        if (strcmp($3, "emphasis")==0)
-            ($$)->push_back("box");
-        else if (strcmp($3, "emptyemphasis")==0)
-            ($$)->push_back("emptybox");
-        else ($$)->push_back($3);
+    csh.AddCSH(@1, COLOR_STYLENAME);
+    $$ = new std::list<string>;
+	($$)->push_back("++");
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+		csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
   #else
-        ($1)->push_back(ConvertEmphasisToBox($3, &@3, msc));
-        $$ = $1;
+    $$ = new std::list<string>;
+    ($$)->push_back(ConvertEmphasisToBox("++", &@1, msc));
+  #endif
+}
+             | stylenamelist TOK_COMMA 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+	csh.AddCSH_ErrorAfter(@2, "Missing a style name to (re-)define.");
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+		csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
+	$$ = $1;
+  #else
+    $$ = $1;
+    msc.Error.Error(MSC_POS(@$).end, "Missing a style name to (re-)define.");
+  #endif
+};
+             | stylenamelist TOK_COMMA string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    csh.AddCSH(@3, COLOR_STYLENAME);
+    $$ = $1;
+    if (strcmp($3, "emphasis")==0)
+        ($$)->push_back("box");
+    else if (strcmp($3, "emptyemphasis")==0)
+        ($$)->push_back("emptybox");
+    else ($$)->push_back($3);
+    if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE)) {
+		csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    ($1)->push_back(ConvertEmphasisToBox($3, &@3, msc));
+    $$ = $1;
   #endif
     free($3);
+}
+             | stylenamelist TOK_COMMA TOK_EMPH_PLUS_PLUS
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    csh.AddCSH(@3, COLOR_STYLENAME);
+    $$ = $1;
+	($$)->push_back("++");
+    if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE)) {
+		csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    ($1)->push_back(ConvertEmphasisToBox("++", &@3, msc));
+    $$ = $1;
+  #endif
 };
 
 shapedef: entity_string
@@ -1905,7 +2012,7 @@ shapedeflist: shapeline
     $$ = new Shape;
 	if ($1) {
 		($$)->Add(std::move(*($1)));
-		free($1);
+		delete $1;
 	}
   #endif	
 }
@@ -1917,7 +2024,7 @@ shapedeflist: shapeline
     $$ = new Shape;
 	if ($2) {
 		($$)->Add(std::move(*($2)));
-		free($2);
+		delete $2;
 	}
   #endif	
 }
@@ -1926,7 +2033,7 @@ shapedeflist: shapeline
   #ifndef C_S_H_IS_COMPILED
 	if ($2) {
 		($1)->Add(std::move(*($2)));
-		free($2);
+		delete $2;
 	}
   #endif	
 }
@@ -2128,6 +2235,23 @@ colordeflist: colordef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintBetween(@2, @3, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+  #endif
+}
+             | colordeflist TOK_COMMA 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a color name to (re-)define.");
   #endif
 };
 
@@ -2142,6 +2266,10 @@ colordef : alpha_string TOK_EQUAL color_string
     ColorType color = csh.Contexts.back().Colors.GetColor($3);
     if (color.type!=ColorType::INVALID)
         csh.Contexts.back().Colors[$1] = color;
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
   #else
     msc.Contexts.back().colors.AddColor($1, $3, msc.Error, MSC_POS(@$));
   #endif
@@ -2158,12 +2286,46 @@ colordef : alpha_string TOK_EQUAL color_string
     ColorType color = csh.Contexts.back().Colors.GetColor("++"+string($4));
     if (color.type!=ColorType::INVALID)
         csh.Contexts.back().Colors[$1] = color;
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
   #else
     msc.Contexts.back().colors.AddColor($1, "++"+string($4), msc.Error, MSC_POS(@$));
   #endif
     free($1);
     free($4);
+}
+           | alpha_string TOK_EQUAL 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_COLORNAME);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing color definition.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing color definition.");
+  #endif
+    free($1);
+}
+           | alpha_string 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_COLORNAME);
+    if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing equal sign ('=') and a color definition.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing equal sign ('=') and a color definition.");
+  #endif
+    free($1);
 };
+
 
 
 designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBRACKET
@@ -2227,10 +2389,42 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
   #endif
     free($1);
 }
-              | TOK_COMMAND_DEFSTYLE styledeflist
+              | TOK_COMMAND_DEFCOLOR 
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints();
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a color name to (re-)define.");
+  #endif
+    free($1);
+}
+			  | TOK_COMMAND_DEFSTYLE styledeflist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintBetweenPlusOne(@1, @2, HINT_ATTR_NAME)) {
+        csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+	}
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_DEFSTYLE 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddStylesToHints(true);
+        csh.hintStatus = HINT_READY;
+	}
+	csh.AddCSH_ErrorAfter(@$, "Missing style name to (re-)define.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing a style name to (re-)define.");
   #endif
     free($1);
 }
@@ -2377,6 +2571,7 @@ parallel:    braced_arclist
 box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
+    ($1)->SetLineEnd(MSC_POS(@$));
     $$ = new ArcBoxSeries($1);
   #endif
 }
@@ -2396,6 +2591,7 @@ box_list: first_box
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);   
   #else
+    ($2)->ExpandLineEnd(MSC_POS(@$));
     $$ = new ArcBoxSeries($2);
   #endif
   free($1);
@@ -2472,7 +2668,7 @@ first_box:   boxrel
 {
   #ifndef C_S_H_IS_COMPILED
     ($1)->AddAttributeList(NULL);
-    ($1)->SetLineEnd(MSC_POS(@$));
+    ($1)->SetLineEnd(MSC_POS(@$), false);
     $$ = $1;
   #endif
 }
@@ -2485,7 +2681,7 @@ first_box:   boxrel
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($1)->AddAttributeList($2);
-    ($1)->SetLineEnd(MSC_POS(@$));
+    ($1)->SetLineEnd(MSC_POS(@$), false);
     $$ = ($1);
   #endif
 }
@@ -2493,7 +2689,7 @@ first_box:   boxrel
 {
   #ifndef C_S_H_IS_COMPILED
     ($1)->AddAttributeList(NULL);
-    ($1)->SetLineEnd(MSC_POS(@1));
+    ($1)->SetLineEnd(MSC_POS(@1), false);
     $$ = ($1)->AddArcList($2);
   #endif
 }
@@ -2505,7 +2701,7 @@ first_box:   boxrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($1)->SetLineEnd(MSC_POS2(@1, @2));
+    ($1)->SetLineEnd(MSC_POS2(@1, @2), false);
     ($1)->AddArcList($3)->AddAttributeList($2);
     $$ = ($1);
   #endif
@@ -4307,7 +4503,7 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
 {
     switch ($1) {
     case MSC_BOX_SOLID:  $$ = strdup("--"); break;
-    case MSC_BOX_DASHED: $$ = strdup("++"); break;
+    case MSC_BOX_DASHED: $$ = strdup("++"); break; //will likely not happen
     case MSC_BOX_DOTTED: $$ = strdup(".."); break;
     case MSC_BOX_DOUBLE: $$ = strdup("=="); break;
     default: _ASSERT(0);

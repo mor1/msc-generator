@@ -58,13 +58,31 @@ Element::Element(const Element&o) :
 
 /** Record the location of the element in the input file
  * @param [in] l The range the element occupies in the input file to record.
- * @param [in] f If true, the recording is final - any more calls to SetLineEnd() will be ignored.*/
+ * @param [in] f If true, the recording is final - any more calls to 
+ * SetLineEnd()/ExpandLineEnd() will be ignored.*/
 void Element::SetLineEnd(FileLineColRange l, bool f)
 {
     if (linenum_final) return;
     linenum_final = f;
     file_pos = l;
 }
+
+/** Expand the location of the element in the input file by adding l to 'file_pos'.
+* @param [in] l The range the element occupies in the input file to expand with.
+* @param [in] f If true, the recording is final - any more calls to 
+* SetLineEnd()/ExpandLineEnd() will be ignored.*/
+void Element::ExpandLineEnd(FileLineColRange l, bool f)
+{
+    if (linenum_final) return;
+    linenum_final = f;
+    if (file_pos.IsInvalid())
+        file_pos = l;
+    else {
+        if (l.start < file_pos.start) file_pos.start = l.start;
+        if (l.end < file_pos.end) file_pos.end = l.end;
+    }
+}
+
 
 /** Attach a comment to us.
  * The caller will remain responsible do delete `cn`, when the time comes.*/

@@ -41,6 +41,8 @@ public:
     explicit Area(const Contour &cl, Element *a=NULL) : Contour(cl), arc(a) {}
     explicit Area(Contour &&cl, Element *a = NULL) : Contour(std::move(cl)), arc(a) {}
     explicit Area(const contour::Block &b, Element *a = NULL) : Contour(b), arc(a) {}
+    Area(const Area &a) = default;
+    Area(Area &&a) { swap(a); }
 
     void clear() {Contour::clear(); mainline.clear();}
     void swap(Area &a);
@@ -56,6 +58,8 @@ public:
     Area &operator =(const contour::Block &a) {Contour::operator=(a); mainline.clear(); return *this;}
     Area &operator =(const Contour &a) {Contour::operator=(a); mainline.clear(); return *this;}
     Area &operator =(Contour &&a) {Contour::operator=(std::move(a)); mainline.clear(); return *this;}
+    Area &operator =(const Area &a) = default;
+    Area &operator =(Area &&a) { swap(a); return *this; };
 
     Area &operator += (const Area &b) {Contour::operator+=(b); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator *= (const Area &b) {Contour::operator*=(b); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}

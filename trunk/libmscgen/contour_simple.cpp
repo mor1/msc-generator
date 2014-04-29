@@ -1228,12 +1228,11 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
                                    unsigned original_last, unsigned next, unsigned my_index,
                                    int last_type, int stype) const
 {
-    XY cp, prev_tangent, next_tangent;
+    XY cp;
     double pos_a, pos_b;
-    //dummy prev and next tangents provided - they are only used on NO_CP_PARALLEL,
-    //and CP_EXPANDED to calculate cp, which we ignore then.
     if (Edge::CP_REAL == a[original_last].FindExpandedEdgesCP(a[next], cp,
-                         prev_tangent, next_tangent, true, true, pos_a, pos_b)) {
+                         a[original_last].NextTangentPoint(1), 
+                         a[next].PrevTangentPoint(0), true, true, pos_a, pos_b)) {
         a[original_last].SetEndIgn(cp, pos_a);
         a[next].SetStartIgn(cp, pos_b);
         return;
