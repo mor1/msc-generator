@@ -1,0 +1,51 @@
+msc=Dinand {
+background.color=white;
+UE [label="\bUE"],
+RGW [lblue, label="\bAP/RG\n\s\n802.1X authenticator\n"],
+BNG [lblue, label="\bBNG\n\sfirst-hop router\nDHCP server"],
+AAA [lblue, label="\bFixed AAA\n\-(proxy)"],
+PDN [lyellow, label="\bPDN-GW"],
+HSS [lyellow, label="\bAAA/HSS"];
+
+block UE<->RGW-AAA-HSS: Authentication (EAP) [lblue];
+
+++:Setup of first PDN connection [lred, line.type=none] {
+    UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="first";
+    BNG->AAA: Get UE context\n\-\c(red)MAC@;
+    AAA->BNG: UE context\n\-\c(red)NAI, APNs, etc;
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="first";
+    PDN--PDN: Allocate/HO IP prefix;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b;
+    BNG..BNG: Generate IP@\nfrom prefix;
+    BNG->UE [label= "RA\n\-\c(red)prefix=a"];
+    BNG->UE: DHCP Ack\n\-\c(red)IP@;
+};
+
+++:Setup of second PDN connection [lyellow, line.type=none] {
+    pipe UE--BNG:GRE-in-MAC tunnel (key=PDNconnID) [number=no,lyellow]{
+        UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="second";
+    };
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="second";
+    PDN--PDN: Allocate/HO IP prefix;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b;
+    BNG..BNG: Generate IP@\nfrom prefix;
+    pipe UE--BNG:GRE-in-MAC(key=PDNconnID) [number=no,lyellow]{
+        BNG->UE: RA\n\-\c(red)prefix=b;
+        BNG->UE: DHCP Ack\n\-\c(red)IP@;
+    };
+};
+
+
+pipe BNG--PDN:GTP tunnel [number=no,lred]{
+    UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (first PDN);
+};
+
+
+pipe UE--BNG:"GRE-in-MAC tunnel (key=PDNconnID)" [number=no,lyellow]{
+    pipe BNG--PDN:GTP tunnel [number=no,lyellow]{
+        UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (second PDN);
+    };
+};
+
+
+}
