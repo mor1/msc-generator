@@ -432,7 +432,7 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 {
     if (CaseInsensitiveEqual(attr, "color")) {
         if (!DoIAcceptUnqualifiedColorAttr()) return false;
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEqual(attr, "line.width")) {

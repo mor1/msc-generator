@@ -1353,13 +1353,24 @@ bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p, Csh 
 }
 
 /** Add colors available at the cursor to the list of hints.
- * We also add 4 explanatory hints on color syntax.*/
-void Csh::AddColorValuesToHints()
+ * @param [in] define If true we hint after a 'defcolor' command. 
+ *                    Else we hint at a value of a 'color' attr.
+ *                    In the second case we add explanatory hints
+ *                    on color sytnax definition. In the first
+ *                    case we add an explanatory hint to say any new
+ *                    color name can be used. */
+void Csh::AddColorValuesToHints(bool define)
 {
-    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", HINT_ATTR_VALUE, false));
-    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
-    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name,opacity\">", HINT_ATTR_VALUE, false));
-    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name+-brightness%\">", HINT_ATTR_VALUE, false));
+     if (define) {
+         AddToHints(CshHint(HintPrefixNonSelectable()+"new color name to define", HINT_ATTR_VALUE, false));
+     } else {
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++color name,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name+-brightness%\">", HINT_ATTR_VALUE, false));
+     }
     CshHint hint("", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForColors, 0);
     for (auto i=Contexts.back().Colors.begin(); i!=Contexts.back().Colors.end(); i++) {
         hint.decorated = HintPrefix(COLOR_ATTRVALUE) + i->first;

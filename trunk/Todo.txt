@@ -52,6 +52,11 @@ CANCELLED: move CSH calculation to a parallel thread
 CANCELLED: Regression Bugs in Contour Expand still remain...
 CANCELLED: Too much compress after adding MITER_LIMIT
 CANCELLED: Triple bevel changes size when size limited.
+FIX: Pipes and draw_pass issue.
+ADD: Clicking an error should move to the specified line
+FIX: Adding a # does not make comment all the rest of the line
+FIX: F2 does not always compiles
+FIX: Ctrl+Space does not expand for single-hit stuff if we are at the end of the word
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

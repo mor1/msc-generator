@@ -35,14 +35,14 @@ class Area : public contour::Contour
 {
 public:
     mutable Element *arc;
-    contour::Contour          mainline;
+    contour::Contour mainline;
 
     explicit Area(Element *a=NULL) : arc(a) {}
     explicit Area(const Contour &cl, Element *a=NULL) : Contour(cl), arc(a) {}
     explicit Area(Contour &&cl, Element *a = NULL) : Contour(std::move(cl)), arc(a) {}
     explicit Area(const contour::Block &b, Element *a = NULL) : Contour(b), arc(a) {}
     Area(const Area &a) = default;
-    Area(Area &&a) { swap(a); }
+    Area(Area &&a) : Contour(std::move(static_cast<Contour&>(a))), arc(a.arc), mainline(std::move(a.mainline)) {}
 
     void clear() {Contour::clear(); mainline.clear();}
     void swap(Area &a);
@@ -142,7 +142,7 @@ public:
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
     void SetArc(Element *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
-    AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=std::move(b.mainline); return *this;}
+    AreaList &operator+=(Area &&b) {boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; cover.push_back(std::move(b)); return *this;}
     AreaList &operator+=(const AreaList &g) {cover.insert(cover.end(), g.cover.begin(), g.cover.end()); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
     AreaList &operator+=(AreaList &&g) {cover.splice(cover.end(), g.cover); boundingBox+=g.boundingBox; mainline+=std::move(g.mainline); return *this;}
     bool IsEmpty() const {return cover.size()==0;}

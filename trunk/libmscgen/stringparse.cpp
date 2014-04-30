@@ -1271,7 +1271,7 @@ bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, C
 bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ident")) {

@@ -772,8 +772,8 @@ public:
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
     /** Helper to draw various parts of the pipe */
-    void DrawPipe(Canvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
-                  bool text, double next_lw, int drawing_variant);
+    void DrawPipe(Canvas &canvas, EDrawPassType pass, bool topSideFill, bool topSideLine,  
+                  bool backSide, bool shadow, bool text, double next_lw, int drawing_variant);
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
 };
 
