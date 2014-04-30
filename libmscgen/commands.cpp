@@ -2266,6 +2266,8 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
     if (contour_target.IsEmpty()) {
         chart->Error.Warning(file_pos.start, "The target of this note has no shape, I cannot point the note to anything. Ignoring note.");
         chart->Error.Warning(target->file_pos.start, file_pos.start, "This is the target of the note.");
+        valid = false;
+        return;
     }
     const XY target_centroid = contour_target.Centroid();
     const std::vector<std::pair<XY,XY>> target_points = GetPointerTarget(); //call only once, as it emits errors
@@ -2567,9 +2569,27 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
         //we did not succeed. Pick any point from the first region
         const region_block_t &RB = region_blocks[0];
         const Block &outer = region_belts[RD-1].GetBoundingBox();
-        const Contour region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
-        _ASSERT(!region_mask.IsEmpty());
-        if (target_points.size()) {
+        Contour region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
+        if (region_mask.IsEmpty()) {
+            Contour prev = contour_target.GetBoundingBox().CreateExpand2D(XY(region_distance_sizes[region_distances], region_distance_sizes[region_distances])+halfsize+note_gap);
+            _ASSERT(!prev.IsEmpty());
+            for (int i = region_distances-1; i>=0; i--) {
+                Contour next = contour_target.GetBoundingBox().CreateExpand2D(XY(region_distance_sizes[i], region_distance_sizes[i])+halfsize+note_gap);
+                _ASSERT(!next.IsEmpty());
+                region_belts[i] = prev - next;
+                _ASSERT(!region_belts[i].IsEmpty());
+                region_belts[i] *= total;  //limit to chart space 
+                _ASSERT(!region_belts[i].IsEmpty());
+                prev.swap(next);
+            }
+            region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
+        } 
+        if (region_mask.IsEmpty()) {
+            //Not successful
+            chart->Error.Error(file_pos.start, "Internal error: could not place this note. Sorry.");
+            valid = false;
+            return;
+        } else if (target_points.size()) {
             best_center = region_mask.Centroid();
             if (best_center.Distance(target_points[0].first) < best_center.Distance(target_points[0].second))
                 best_pointto = target_points[0].first;
@@ -2586,10 +2606,6 @@ void CommandNote::PlaceFloating(Canvas &/*canvas*/)
             }
             best_pointto = till.first;
         }
-        //Not successful
-        //chart->Error.Error(file_pos.start, "Could not place this note.");
-        //valid = false;
-        //return;
     }
     pos_center = best_center;
     point_to = best_pointto;

@@ -384,7 +384,7 @@ public:
                     CshHintGraphicCallback c=NULL);
     void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, EHintType t, 
                     CshHintGraphicCallback c, CshHintGraphicParam);
-    void AddColorValuesToHints();
+    void AddColorValuesToHints(bool define);
     void AddDesignsToHints(bool full);
     void AddStylesToHints(bool include_forbidden=false);
     void AddOptionsToHints();

@@ -459,7 +459,7 @@ bool CshHintGraphicCallbackForCornerType(Canvas *canvas, CshHintGraphicParam p, 
 bool LineAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "type")) {
@@ -865,7 +865,7 @@ void FillAttr::AttributeNames(Csh &csh, const string &prefix)
 bool FillAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color") || CaseInsensitiveEndsWith(attr, "color2")) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "gradient")) {
@@ -1008,7 +1008,7 @@ void ShadowAttr::AttributeNames(Csh &csh)
 bool ShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "offset") ||

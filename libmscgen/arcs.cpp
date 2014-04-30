@@ -4116,7 +4116,7 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
 
 void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
 {
-    if (!valid) return;
+    if (!valid || series.size()==0) return;
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
     const StyleCoW &main_style = (*series.begin())->style;
     const double lw = main_style.read().line.LineWidth();
@@ -4127,7 +4127,7 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
                   yPos + lw/2, yPos+total_height - lw/2); 
     //The radius specified in main_style.line will be that of the midpoint of the line
     //First draw the shadow.
-    if (pass==draw_pass) 
+    if (pass==series.front()->draw_pass) 
         canvas.Shadow(r, main_style.read().line, main_style.read().shadow);
     //Do a clip region for the overall box (for round/bevel/note corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
@@ -4153,11 +4153,11 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
             dy += (*next)->style.read().line.width.second/2.;
         canvas.Clip(clip);
         //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-        if (pass==draw_pass) 
+        if (pass==(*i)->draw_pass) 
             canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.read().fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
         if ((*i)->content.size()) {
-            if (pass==draw_pass && (*i)->drawEntityLines &&
+            if (pass==(*i)->draw_pass && (*i)->drawEntityLines &&
                 (*i)->collapsed==BOX_COLLAPSE_EXPAND)
                 chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.read().line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
             canvas.UnClip();
@@ -4165,18 +4165,20 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
         } else
             canvas.UnClip();
     }
-    if (pass!=draw_pass) return;
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
+        if (pass!=(*i)->draw_pass) continue;
         const double y = (*i)->yPos + (*i)->style.read().line.LineWidth()/2;
         const XY magic(1,0);  //XXX needed in windows
         canvas.Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.read().line);
     }
     //Finally draw the overall line around the box
-    canvas.Line(r, main_style.read().line);
+    if (pass==series.front()->draw_pass)
+        canvas.Line(r, main_style.read().line);
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
+        if (pass==(*i)->draw_pass) 
+            (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
     }
 }
 
@@ -4982,7 +4984,8 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
     for (auto i = series.begin(); i!=series.end(); i++)
-        chart->HideEntityLines((*i)->pipe_shadow);
+        if ((*i)->draw_pass != DRAW_BEFORE_ENTITY_LINES)
+            chart->HideEntityLines((*i)->pipe_shadow);
 }
 
 //Draw a pipe, this is called for each segment, bool params dictate which part
@@ -4990,10 +4993,13 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
 //this->left_space and right_space includes linewidth
-void ArcPipe::DrawPipe(Canvas &canvas, bool topSideFill, bool topSideLine, bool backSide, 
+void ArcPipe::DrawPipe(Canvas &canvas, EDrawPassType pass, 
+                       bool topSideFill, bool topSideLine, bool backSide,
                        bool shadow, bool text, double next_lw, 
                        int drawing_variant)
 {
+    if (pass!=draw_pass)
+        return;
     if (shadow) {
         //Shadow under the whole pipe
         canvas.Shadow(pipe_shadow, style.read().shadow);
@@ -5070,18 +5076,16 @@ void ArcPipeSeries::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
     //First shadows
-    if (pass==draw_pass) {
-        for (auto i = series.begin(); i!=series.end(); i++)
-            (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
-        for (auto i = series.begin(); i!=series.end(); i++) {
-            //Dont draw the topside fill
-            //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
-            //Draw the backside in any case.
-            //Do not draw text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.read().line.width.second : 0;
-            (*i)->DrawPipe(canvas, false, (*i)->style.read().solid.second == 0, true, false, false, next_linewidth, drawing_variant);
-        }
+    for (auto i = series.begin(); i!=series.end(); i++)
+        (*i)->DrawPipe(canvas, pass, false, false, false, true, false, 0, drawing_variant);  //dummy 0
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Dont draw the topside fill
+        //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
+        //Draw the backside in any case.
+        //Do not draw text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.read().line.width.second : 0;
+        (*i)->DrawPipe(canvas, pass, false, (*i)->style.read().solid.second == 0, true, false, false, next_linewidth, drawing_variant);
     }
     if (content.size()) {
         if (pass==DRAW_AFTER_ENTITY_LINES)
@@ -5090,16 +5094,15 @@ void ArcPipeSeries::Draw(Canvas &canvas, EDrawPassType pass)
                     chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
         chart->DrawArcList(canvas, content, chart->GetTotal().y, pass);
     }
-    if (pass==draw_pass) 
-        for (auto i = series.begin(); i!=series.end(); i++) {
-            //Draw the topside fill only if the pipe is not fully transparent.
-            //Draw the topside line in any case
-            //Do not draw the backside (that may content arrow lines already drawn)
-            //Draw the text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.read().line.width.second : 0;
-            (*i)->DrawPipe(canvas, (*i)->style.read().solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
-        }
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Draw the topside fill only if the pipe is not fully transparent.
+        //Draw the topside line in any case
+        //Do not draw the backside (that may content arrow lines already drawn)
+        //Draw the text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.read().line.width.second : 0;
+        (*i)->DrawPipe(canvas, pass, (*i)->style.read().solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

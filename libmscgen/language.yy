@@ -959,7 +959,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");
@@ -2236,7 +2236,7 @@ colordeflist: colordef
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
     if (csh.CheckHintBetween(@2, @3, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
   #endif
@@ -2246,7 +2246,7 @@ colordeflist: colordef
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
     if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");
@@ -2267,9 +2267,12 @@ colordef : alpha_string TOK_EQUAL color_string
     if (color.type!=ColorType::INVALID)
         csh.Contexts.back().Colors[$1] = color;
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
-	}
+    } else if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     msc.Contexts.back().colors.AddColor($1, $3, msc.Error, MSC_POS(@$));
   #endif
@@ -2287,10 +2290,13 @@ colordef : alpha_string TOK_EQUAL color_string
     if (color.type!=ColorType::INVALID)
         csh.Contexts.back().Colors[$1] = color;
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
-	}
-  #else
+    } else if (csh.CheckHintAtAndBefore(@2, @4, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
+#else
     msc.Contexts.back().colors.AddColor($1, "++"+string($4), msc.Error, MSC_POS(@$));
   #endif
     free($1);
@@ -2302,10 +2308,13 @@ colordef : alpha_string TOK_EQUAL color_string
     csh.AddCSH(@1, COLOR_COLORNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
-	}
-	csh.AddCSH_ErrorAfter(@$, "Missing color definition.");
+    } else if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
+        csh.AddColorValuesToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
+    csh.AddCSH_ErrorAfter(@$, "Missing color definition.");
   #else
     msc.Error.Error(MSC_POS(@$).end, "Missing color definition.");
   #endif
@@ -2316,7 +2325,7 @@ colordef : alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_COLORNAME);
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing equal sign ('=') and a color definition.");
@@ -2394,7 +2403,7 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing color name to (re-)define.");

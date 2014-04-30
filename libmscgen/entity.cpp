@@ -1011,7 +1011,7 @@ void EntityApp::AttributeNames(Csh &csh)
 bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
+        csh.AddColorValuesToHints(false);
         return true;
     }
     if (CaseInsensitiveEqual(attr,"label")) {

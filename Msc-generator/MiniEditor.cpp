@@ -1272,15 +1272,18 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         }
     }
     bool onlyOne = i==m_csh.Hints.end() && hit!=m_csh.Hints.end();
-    //if there is only one hit and it is equal to the word under cursor, cancel hit mode
-    if (onlyOne && hit->plain.c_str() == text) {
+    //if there is only one hit and it is equal to the word under cursor, cancel hit mode,
+    //but not if it was a Ctrl+Space - in that case show the only choice as a feedback
+    //to Ctrl+Space
+    if (onlyOne && !m_bUserRequested && hit->plain.c_str() == text) {
         CancelHintMode();
         return;
     }
-    //If we are about to start hint mode due to a Ctrl+Space and we are at the end of the word under cursor, 
+    //If we are about to start hint mode due to a Ctrl+Space (or are already in that,
+    //but the user pressed Ctrl+Space) and we are at the end of the word under cursor, 
     //then check how many hints do we fit on and if there is only one, auto complete without
     //popping up the hint list
-    if (onlyOne && !InHintMode() && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
+    if (onlyOne && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
         ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 
