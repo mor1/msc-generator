@@ -211,7 +211,7 @@ class StringFormat {
     /** @name Static text manipulation functions
      * @{ */
     static bool HasEscapes(const char *text);
-    static void ExtractCSH(int startpos, const char *text, Csh &csh);
+    static void ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh);
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
     static void ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                                  const StringFormat *basic, bool references, 

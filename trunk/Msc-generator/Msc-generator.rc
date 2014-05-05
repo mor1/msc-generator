@@ -748,7 +748,7 @@ END
 STRINGTABLE
 BEGIN
     IDC_OUTPUT_LIST         "Output"
-    IDC_INTERNAL_EDITOR     "Show page break indicators for multi-page charts\nShow Page Indicators"
+    IDC_INTERNAL_EDITOR     "Internal Editor"
     IDC_CHECK_PB_EMBEDDED   "Show page break indicators for multi-page charts in embedded charts\nShow Page Indicators in Embedded Charts"
     IDC_CHECK_CSH           "Enable Color Syntax Highlighting\nEnable Color Syntax Highlighting"
     IDC_CHECK_SMART_IDENT   "Automatically ident subsequent lines of a multi-line label to the first line.\nEnable Smart Ident"
@@ -769,6 +769,7 @@ BEGIN
     IDC_CHECK_CSH_ERROR     "Underline error locations in the text (in addition to first appearance of entities)\nHint Errors as You Type"
     IDC_CHECK_CSH_ERROR_IN_WINDOW 
                             "Display error messages in a separate window, as you type\nHint Errors in Window"
+    IDC_ERROR_LIST          "The Compilation Error List"
 END
 
 STRINGTABLE
@@ -860,6 +861,11 @@ BEGIN
     ID_EDIT_MARGIN_B        "Specify bottom page margin (in centimeters)\nBottom margin"
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
     ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-ident the line as opposed to inserting a tabulator."
+END
+
+STRINGTABLE
+BEGIN
+    IDC_HINT_ERROR_LIST     "The Hinted Error List"
 END
 
 #endif    // English (United States) resources

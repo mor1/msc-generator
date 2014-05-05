@@ -16,23 +16,12 @@
 
 class COutputList : public CListBox
 {
-// Construction
 public:
-	COutputList();
-
-    // Implementation
-public:
-	virtual ~COutputList();
-
-protected:
-	DECLARE_MESSAGE_MAP()
+    virtual BOOL OnChildNotify(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 };
 
 class COutputViewBar : public CDockablePane
 {
-// Construction
-public:
-	COutputViewBar();
 
 // Attributes
 	//CFont m_Font;
@@ -51,7 +40,6 @@ protected:
 
 // Implementation
 public:
-	virtual ~COutputViewBar();
     void ShowCompilationErrors(const CDrawingChartData &chart);
     void ShowCshErrors(const std::list<CString> &errors, 
                        const std::vector<std::pair<int, int>> &err_pos);
@@ -62,6 +50,7 @@ protected:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
+    afx_msg void OnDblClick() {}
 
 	DECLARE_MESSAGE_MAP()
 };

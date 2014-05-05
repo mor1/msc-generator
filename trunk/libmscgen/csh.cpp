@@ -58,6 +58,17 @@ bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) co
 }
 
 
+/**Checks if 'e' overlaps an entry already in the list */
+bool CshListType::CheckIfOverlap(const CshEntry &e) const
+{
+
+    for (const auto &p :*this)
+        if (p.first_pos<=e.last_pos && e.first_pos<=p.last_pos)
+            return true;
+    return false;
+}
+
+
 void CshErrorList::Add(const CshPos &pos, const char *t)
 {
     //check that we do not add the same error twice
@@ -416,8 +427,7 @@ void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *nam
         CaseInsensitiveEqual(name, "numbering.append") ||
         CaseInsensitiveEqual(name, "numbering.pre") ||
         CaseInsensitiveEqual(name, "numbering.post")) {
-        //This is a label or text.format
-        AddCSH(pos, COLOR_LABEL_TEXT);
+        //This is a label or text.format chart option
         //Add escape symbols
         //Note the trick here: we add +1 to the pos.
         //If the string has escapes, it must have been specified via 
@@ -425,9 +435,7 @@ void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *nam
         //quotation mark, so we add one.
         //If there are no escapes ExtractCSH() does nothing, so the passed 
         //pos will not matter anyway.
-        //For exactly this reason if "AddCSH_AttrValue" is called from
-        //"AddCSH_ColonString" below, it is called with the colon position.
-        StringFormat::ExtractCSH(pos.first_pos+1, value, *this);
+        StringFormat::ExtractCSH(pos.first_pos+1, value, strlen(value), *this);
     } else {
         // No match - regular attribute value
         AddCSH(pos, COLOR_ATTRVALUE);
@@ -456,37 +464,37 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
                 unsigned count = 0;
                 //string starts with colon, so we are limited by that
                 while (*(p-1-count) == '\\') count++;
-                //if even number then replace comment with spaces till end of line
+                //if even number then mark as comment till end of line
                 if (count%2 == 0) {
+                    //'p' points to the # symbol starting the comment
                     CshPos txt;
                     txt.first_pos = pos.first_pos + int(beginning - value);
                     txt.last_pos = pos.first_pos + int(p - value) - 1;
-                    if (txt.last_pos>=txt.first_pos) {
-                        AddCSH(txt, COLOR_LABEL_TEXT);
-                        StringFormat::ExtractCSH(txt.first_pos, beginning, *this);
-                    }
+                    if (txt.last_pos>=txt.first_pos) 
+                        StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this);
                     CshPos comment;
                     comment.first_pos = pos.first_pos + int(p - value);
                     //step to end of comment
                     while (*p!=0 && *p!=0x0d && *p!=0x0a) p++;
-                    comment.last_pos = pos.first_pos + int(p - value) - 1;
+                    comment.last_pos = pos.first_pos + int(p - value);
                     AddCSH(comment, COLOR_COMMENT);
-                    beginning = p+1;
+                    //step over (potential) newlines
+                    while (*p==0x0d || *p==0x0a) p++;
+                    beginning = p;
                 } else
-                    p++; //step over the escaped #
+                    p++; //odd number: an escaped # symbol: step over the escaped #
             }
+            //'p' points to the char after the last one (terminating zero)
             CshPos txt;
             txt.first_pos = pos.first_pos + int(beginning - value);
             txt.last_pos = pos.first_pos + int(p - value) - 1;
-            AddCSH(txt, COLOR_LABEL_TEXT);
-            StringFormat::ExtractCSH(txt.first_pos, beginning, *this); //omit the colon
+            StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this); //omit the colon
         }
     } else {
         CshPos p;
         p.first_pos = pos.first_pos+1;
         p.last_pos = pos.last_pos;
-        AddCSH(p, COLOR_LABEL_TEXT);
-        StringFormat::ExtractCSH(p.first_pos, value+1, *this); //omit the colon
+        StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value), *this); //omit the colon
     }
 }
 
