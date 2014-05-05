@@ -743,24 +743,28 @@ bool StringFormat::HasEscapes(const char *text)
 }
 
 
-/** Adds CSH entries to csh for each formatting escape.
+/** Adds CSH entries to csh for each formatting escape and the verbatim text.
  * Malformed "\c" and "\s" arguments are assumed OK
  * @param [in] startpos The location of the first byte of `text` in the input file.
  * @param [in] text The text to process.
  * @param csh The object collecting the entries.*/
-void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
+void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
 {
+    _ASSERT(len<32000000U); //safety against negative numbers
     if (text==NULL) return;
     unsigned pos=0;
     StringFormat sf;
-    const size_t len = strlen(text);
     while (pos<len) {
         unsigned length;
         const EEscapeType escape = sf.ProcessEscape(text+pos, length);
+        CshPos loc;
+        loc.first_pos = startpos + pos;
+        loc.last_pos =  startpos + std::min(pos+length, len)-1;
         switch (escape) {
         case NON_ESCAPE:
         case SOLO_ESCAPE:
         default:
+            csh.AddCSH(loc, COLOR_LABEL_TEXT);
             break;
         case NUMBERING_FORMAT:
         case NUMBERING:
@@ -770,13 +774,10 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
         case NON_FORMATTING:
         case REFERENCE:
         case INVALID_ESCAPE:
-            CshPos loc;
-            loc.first_pos = startpos+pos;
-            loc.last_pos = loc.first_pos+length-1;
             if (escape == INVALID_ESCAPE)
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
             else
-                csh.AddCSH_LabelEscape(loc);
+                csh.AddCSH(loc, COLOR_LABEL_ESCAPE);
         }
         pos+=length;
     }

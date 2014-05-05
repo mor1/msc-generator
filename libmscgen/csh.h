@@ -97,8 +97,9 @@ typedef std::vector<CshPos> CshPosList;
 /** An ordered collection of colored ranges.*/
 class CshListType : public std::vector<CshEntry>
 {
+    bool CheckIfOverlap(const CshEntry &e) const;
 public:
-    void AddToBack(const CshEntry &e) {push_back(e);}        ///<Add to the end of the collection
+    void AddToBack(const CshEntry &e) { _ASSERT(!CheckIfOverlap(e));  push_back(e); }        ///<Add to the end of the collection
 };
 
 /** An error detected during csh parse */
@@ -326,10 +327,10 @@ public:
     void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
     void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
-    void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
+    void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a (quoted or unquoted) label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
     void AddCSH_LabelEscape(const CshPos& pos); ///<Adds a COLOR_LABEL_ESCAPE. Splits any previous COLOR_LABEL_TEXT records.
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
-    void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
+    void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too. Not used for colon labels.
     void AddCSH_AttrColorValue(const CshPos& pos); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
     void AddCSH_StyleOrAttrName(const CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
     void AddCSH_EntityName(const CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.

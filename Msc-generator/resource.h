@@ -88,7 +88,9 @@
 #define IDC_RADIO_SCALING_XY            1022
 #define IDC_BUTTON_SCALE                1023
 #define IDC_EDIT_SCALE                  1023
+#define IDC_ERROR_LIST                  1023
 #define IDC_EDIT_X                      1024
+#define IDC_HINT_ERROR_LIST             1024
 #define IDC_EDIT_Y                      1025
 #define IDC_EDIT_XY_X                   1026
 #define IDC_EDIT_XY_Y                   1027

@@ -147,7 +147,7 @@ public:
 			void DoViewNexterror(bool next);  //This does the stepping
 	afx_msg void OnViewNexterror();           //User advances error
 	afx_msg void OnViewPreverror();           //User steps back in errors
-	afx_msg void OnSelChange();               //Another error is selected
+    afx_msg void OnErrorSelected(unsigned line, unsigned col); //Another error is selected
 
 	void ChangeDesign(const char *design);
     void ChangePage(unsigned page);
@@ -197,4 +197,5 @@ public:
     afx_msg void OnEditSelectAll();
 };
 
+CMscGenDoc *GetMscGenDocument();
 

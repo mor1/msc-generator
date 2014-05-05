@@ -193,8 +193,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_EDIT_UPDATE, OnEditUpdate)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_UPDATE, OnUdpateEditUpdate)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
-	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
-	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
+    ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
 	ON_COMMAND(ID_VIEW_ADJUSTWIDTH, OnViewAdjustwidth)
@@ -1099,14 +1098,10 @@ void CMscGenDoc::DoViewNexterror(bool next)
 }
 
 //Selection in the error window changes
-void CMscGenDoc::OnSelChange()
+void CMscGenDoc::OnErrorSelected(unsigned line, unsigned col)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
-	if (!pOutputView) return;
-    int line, col;
-    if (!pOutputView->GetCurrentErrorLine(line, col)) return;
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
 	if (m_ExternalEditor.IsRunning())
@@ -2110,6 +2105,18 @@ void CMscGenDoc::OnHelpHelp()
 	ShellExecute(NULL, NULL, cmdLine.c_str(), NULL, NULL, SW_SHOW); 
 }
 
+
+CMscGenDoc *GetMscGenDocument()
+{
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    if (!pApp) return NULL;
+    CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
+    ASSERT(pMainWnd!=NULL);
+    if (!pMainWnd || pMainWnd->GetActiveView() == NULL) return NULL;
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+    return pDoc;
+}
 
 
 

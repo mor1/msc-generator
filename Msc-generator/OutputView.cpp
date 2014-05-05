@@ -18,15 +18,32 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
+// COutputList1
+
+BOOL COutputList::OnChildNotify(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult)
+{
+    if (message==WM_COMMAND) 
+        switch (HIWORD(wParam)) {
+        case LBN_DBLCLK:
+            CWnd *pParent = GetParent();
+            _ASSERT(pParent);
+            if (pParent) {
+                COutputViewBar *pBar = dynamic_cast<COutputViewBar*>(pParent->GetParent());
+                CMscGenDoc *pDoc = GetMscGenDocument();
+                _ASSERT(pBar && pDoc);
+                if (pBar && pDoc) {
+                    int line, col;
+                    pBar->GetCurrentErrorLine(line, col);
+                    pDoc->OnErrorSelected(line, col);
+                    return true;
+                }
+            }
+    }
+    return CListBox::OnChildNotify(message, wParam, lParam, pResult); 
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // COutputBar
-
-COutputViewBar::COutputViewBar()
-{
-}
-
-COutputViewBar::~COutputViewBar()
-{
-}
 
 BEGIN_MESSAGE_MAP(COutputViewBar, CDockablePane)
 	ON_WM_CREATE()
@@ -46,18 +63,19 @@ int COutputViewBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// Create tabs window:
 	if (!m_wndTabs.Create(CMFCTabCtrl::STYLE_FLAT, rectDummy, this, 1))
 	{
-		TRACE0("Failed to create output tab window\n");
+		TRACE0("Failed to create output tab\n");
 		return -1;      // fail to create
 	}
     m_wndTabs.HideNoTabs();
 
-	// Create output pane:
-	const DWORD dwStyle = LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | LBS_NOTIFY;
+	// Create error lists:
+	const DWORD dwStyle = LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | 
+                          WS_HSCROLL | WS_VSCROLL | LBS_NOTIFY;
 
-	if (!m_wndOutput.Create(dwStyle, rectDummy, &m_wndTabs, 2) ||
-        !m_wndOutputHints.Create(dwStyle, rectDummy, &m_wndTabs, 2))
+	if (!m_wndOutput.Create(dwStyle, rectDummy, &m_wndTabs, IDC_ERROR_LIST) ||
+        !m_wndOutputHints.Create(dwStyle, rectDummy, &m_wndTabs, IDC_HINT_ERROR_LIST))
 	{
-		TRACE0("Failed to create output windows\n");
+		TRACE0("Failed to create error lists\n");
 		return -1;      // fail to create
 	}
 
@@ -67,8 +85,8 @@ int COutputViewBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndOutput.SetFont(&afxGlobalData.fontRegular);
 	m_wndOutputHints.SetFont(&afxGlobalData.fontRegular);
 
-	m_wndTabs.AddTab(&m_wndOutput, "Compilation Errors", (UINT)0);
-	m_wndTabs.AddTab(&m_wndOutputHints, "Error Hints", (UINT)1);
+	m_wndTabs.AddTab(&m_wndOutput, "Compilation Errors");
+	m_wndTabs.AddTab(&m_wndOutputHints, "Error Hints");
 
 	return 0;
 }
@@ -102,24 +120,6 @@ void COutputViewBar::AdjusrHorzScroll(CListBox& wndListBox)
 	wndListBox.SetHorizontalExtent(cxExtentMax);
 	dc.SelectObject(pOldFont);
 }
-
-/////////////////////////////////////////////////////////////////////////////
-// COutputList1
-
-COutputList::COutputList()
-{
-}
-
-COutputList::~COutputList()
-{
-}
-
-BEGIN_MESSAGE_MAP(COutputList, CListBox)
-	ON_WM_CONTEXTMENU()
-	ON_WM_WINDOWPOSCHANGING()
-END_MESSAGE_MAP()
-/////////////////////////////////////////////////////////////////////////////
-// COutputList message handlers
 
 void COutputViewBar::OnPaint()
 {
@@ -224,3 +224,6 @@ bool COutputViewBar::GetCurrentErrorLine(int &line, int &col)
     col = e[cursel].second;
     return true;
 }
+
+
+

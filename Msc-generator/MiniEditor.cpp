@@ -34,18 +34,6 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-CMscGenDoc *GetMscGenDocument() 
-{
-    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-    ASSERT(pApp != NULL);
-    if (!pApp) return NULL;
-    CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
-    ASSERT(pMainWnd!=NULL);
-    if (!pMainWnd || pMainWnd->GetActiveView() == NULL) return NULL;
-    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-    return pDoc;
-}
-
 CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
     m_csh(ArcBase::defaultDesign, NULL), m_hintsPopup(parent, this),
     m_parent(parent)
@@ -400,9 +388,8 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
         SetSel(lBegin+col, lBegin+col2);
         RestoreWindowUpdate(state);
     } else {
-        Csh::AdjustCSHList(m_csh.CshList,    lStart-col+1, target_ident-current_ident);
-        Csh::AdjustCSHList(m_csh.ColonLabels,lStart-col+1, target_ident-current_ident);
-        Csh::AdjustCSHList(m_csh.CshErrors,  lStart-col+1, target_ident-current_ident);
+        Csh::AdjustCSHList(m_csh.ColonLabels, lStart-col+1, target_ident-current_ident);
+        Csh::AdjustCSHList(m_csh.QuotedStrings, lStart-col+1, target_ident-current_ident);
     }
     return true;
 }
@@ -669,13 +656,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 const int ident = FindProperLineIdent(line);
                 changed = SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
             } else { 
-                //We need to save CSH info, since it will be modified by SetCurrentIdent(..., false)
-                //and will become out-of-sync with m_prev_text.
-                //No need to save m_csh.ColonLabels - that is not synced to m_prev_text
-                CshListType saved_csh_list;
-                CshErrorList saved_csh_error_list;
-                saved_csh_list = m_csh.CshList;
-                saved_csh_error_list = m_csh.CshErrors;
                 POINT scroll_pos;
                 ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
@@ -701,9 +681,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 }
                 SetSel(lStart, lEnd);
                 ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-                //restore csh info
-                m_csh.CshList = std::move(saved_csh_list);
-                m_csh.CshErrors = std::move(saved_csh_error_list);
             }
             if (changed)
                 UpdateCSH(CSH);
@@ -1319,35 +1296,6 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
     RestoreWindowUpdate(state);
 }
 
-
-CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::GetWindowUpdate()
-{
-    WindowUpdateStatus ret;
-    ret.first = m_bRedrawState;
-    ret.second = m_parent->m_bSuspendNotifications;
-    return ret;
-}
-
-CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
-{
-    WindowUpdateStatus ret;
-    ret.first = m_bRedrawState;
-    ret.second = m_parent->m_bSuspendNotifications;
-    m_bRedrawState = false;
-    m_parent->m_bSuspendNotifications = true;
-    if (ret.first)
-        SetRedraw(false);
-    return ret;
-}
-
-void CCshRichEditCtrl::RestoreWindowUpdate(const WindowUpdateStatus &s)
-{
-    m_parent->m_bSuspendNotifications = s.second;
-    if (s.first != m_bRedrawState) {
-        m_bRedrawState = s.first;
-        SetRedraw(m_bRedrawState);        if (m_bRedrawState) {            Invalidate();            UpdateWindow();        }    }}
-
-
 /////////////////////////////////////////////////////////////////////////////
 // CEditorBar
 
@@ -1614,21 +1562,21 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 
 	if (pFindReplace->ReplaceAll()) {
 		CWaitCursor wait;
+        const auto state = m_ctrlEditor.DisableWindowUpdate();
 		if (!SameAsSelected(pFindReplace->GetFindString(), pFindReplace->MatchCase())) {
 			if (!FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord())) {
+                m_ctrlEditor.RestoreWindowUpdate(state);
 				TextNotFound(pFindReplace->GetFindString());
 				return 0;
 			}
 		}
-        const bool saved_notification = m_bSuspendNotifications;
-        m_bSuspendNotifications = true;
         do {
 			m_ctrlEditor.ReplaceSel(pFindReplace->GetReplaceString());
 		} while (FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord()));
 		m_ctrlEditor.HideSelection(FALSE, FALSE);
-		m_bSuspendNotifications = saved_notification;
-        m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::CSH);
-		return 0;
+        m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+        m_ctrlEditor.RestoreWindowUpdate(state);
+        return 0;
 	}
 	bool findnext = pFindReplace->FindNext();
 	if (pFindReplace->ReplaceCurrent()) {
@@ -1782,3 +1730,50 @@ void CEditorBar::SelectAll()
     cr.cpMax = m_ctrlEditor.GetTextLength();
 	m_ctrlEditor.SetSel(cr);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::GetWindowUpdate()
+{
+    WindowUpdateStatus ret;
+    ret.first = m_bRedrawState;
+    ret.second = m_parent->m_bSuspendNotifications;
+    return ret;
+}
+
+CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
+{
+    WindowUpdateStatus ret;
+    ret.first = m_bRedrawState;
+    ret.second = m_parent->m_bSuspendNotifications;
+    m_bRedrawState = false;
+    m_parent->m_bSuspendNotifications = true;
+    if (ret.first)
+        SetRedraw(false);
+    return ret;
+}
+
+void CCshRichEditCtrl::RestoreWindowUpdate(const WindowUpdateStatus &s)
+{
+    m_parent->m_bSuspendNotifications = s.second;
+    if (s.first != m_bRedrawState) {
+        m_bRedrawState = s.first;
+        SetRedraw(m_bRedrawState);        if (m_bRedrawState) {            Invalidate();            UpdateWindow();        }    }}
+
+
