@@ -94,7 +94,7 @@ public:
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
     std::pair<bool, ESide>         side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
     std::pair<bool, bool>          numbering;///<The value of the 'number' attribute. Not set if `first` is false.
-    std::pair<bool, bool>          compress; ///<The value of the 'compress' attribute. Not set if `first` is false.
+    std::pair<bool, double>        vspacing; ///<The value of the 'compress' and 'vspacing' attribute. Not set if `first` is false. compress=yes is indicated via seting second to DBL_MIN
     std::pair<bool, bool>          indicator;///<The value of the 'indicator' attribute. Not set if `first` is false.
     std::pair<bool, bool>          makeroom; ///<The value of the 'makeroom' attribute (for verticals and notes). Not set if `first` is false.
     NoteAttr note;         ///<The note attributes
@@ -116,7 +116,7 @@ public:
     bool f_text;       ///<True if the style contains text attributes.
     bool f_solid;      ///<True if the style contains the 'solid' attributes.
     bool f_numbering;  ///<True if the style contains the 'number' attributes.
-    bool f_compress;   ///<True if the style contains the 'compress' attributes.
+    bool f_vspacing;   ///<True if the style contains the 'compress'/'vspacing' attributes.
     ESideType f_side;  ///<Shows if the style contains the 'side' attributes and what values are acceptable
     bool f_indicator;  ///<True if the style contains the 'indicator' attributes.
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
@@ -212,7 +212,7 @@ public:
     bool is_full;                        ///<True if the context contains a setting for all chart options and a complete value for all default styles.
     std::pair<bool, double> hscale;      ///<The 'hscale' chart option, unset if `first` is false.
     std::pair<bool, bool>   numbering;   ///<The 'numbering' chart option, unset if `first` is false.
-    std::pair<bool, bool>   compress;    ///<The 'compress' chart option, unset if `first` is false.
+    std::pair<bool, double> vspacing;    ///<The 'compress'/'vspacing' chart option, unset if `first` is false.
     std::pair<bool, bool>   indicator;   ///<The 'indicator' chart option, unset if `first` is false.
     std::pair<bool, double> slant_angle; ///<The 'slant_angle' chart option, unset if `first` is false.
     std::pair<bool, bool>   auto_heading;///<The 'auto_heading' chart option, unset if `first` is false.

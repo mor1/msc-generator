@@ -726,8 +726,18 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("compress")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().compress.first = true;
-        Contexts.back().compress.second = a.yes;
+        Contexts.back().vspacing.first = true;
+        Contexts.back().vspacing.second = a.yes ? DBL_MIN : 0;
+        return NULL;
+    }
+    if (a.Is("vspacing")) {
+        if (a.type == MSC_ATTR_STRING && a.value == "compress") {
+            Contexts.back().vspacing.first = true;
+            Contexts.back().vspacing.second = DBL_MIN;
+        }
+        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return NULL;
+        Contexts.back().vspacing.first = true;
+        Contexts.back().vspacing.second = a.number;
         return NULL;
     }
     if (a.Is("indicator")) {
@@ -1399,20 +1409,11 @@ void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                 outer_edge.y.till = std::min(show_till, total.y.till);
                 outer_edge.x.from = up.x - act_size; 
                 outer_edge.x.till = up.x + act_size;
-                Block clip(total);
-                bool doClip = false;
-                if (outer_edge.y.from < up.y) {
-                    clip.y.from = up.y;
-                    doClip = true;
-                }
-                if (outer_edge.y.till > down.y) {
-                    clip.y.till = down.y;
-                    doClip = true;
-                }
-                outer_edge.Expand(-style.vline.LineWidth()/2);  //From now on this is the midpoint of the line, as it should be
+                const bool doClip = outer_edge.y.from < up.y || outer_edge.y.till > down.y;
                
                 if (doClip)
-                    canvas.Clip(clip);
+                    canvas.Clip(Block(outer_edge.x, Range(up.y, down.y)));
+                outer_edge.Expand(-style.vline.LineWidth()/2);  //From now on this is the midpoint of the line, as it should be
                 canvas.Fill(style.vline.CreateRectangle_ForFill(outer_edge), style.vfill);
                 canvas.Line(style.vline.CreateRectangle_Midline(outer_edge), style.vline);
                 if (doClip)
@@ -1562,6 +1563,10 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
             double dummy_touchpoint;
             y = std::max(y, -cover->OffsetBelow(arc_cover, dummy_touchpoint));
         }
+        //Add extra space (even if above was parallel), move touchpoint by half
+        const double extra = (*i)->GetVSpacing();
+        touchpoint += extra/2;
+        y += extra;
         touchpoint = floor(touchpoint+0.5);
         y = ceil(y);
         //We got a non-zero height or a non-compressed one or a centerline one, 
@@ -1714,6 +1719,10 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
                 double dummy_touchpoint;
                 local_y = std::max(local_y, -covers[col].OffsetBelow(arc_cover, dummy_touchpoint));
             }
+            //Add extra space (even if above was parallel), move touchpoint by half
+            const double extra = (*i)->GetVSpacing();
+            touchpoint += extra/2;
+            local_y += extra;
             touchpoint = floor(touchpoint+0.5);
             local_y = ceil(local_y);
             //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
@@ -1793,7 +1802,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
  * @param [in] top_y Never compress the top of the list above this y coordinate.
  * @param [in] area_top When the list is compressed, avoid overlap with these areas
  * @param [in] forceCompress Always attempt to move the list upwards, even if the 
- *                           first arc has its compress attribute set to false.
+ *                           first arc has its vspacing attribute set to non DBL_MIN.
  * @param [out] ret_cover If not NULL, we return the resulting cover of the list 
  *                        at the final position placed.
  * @returns The bottommost y coordinate touched by any arc on the list after completion. */
@@ -1812,7 +1821,8 @@ double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
             start_y = new_start_y;    
     } else //if we shifted down, apply it in any case
         start_y = new_start_y;
-    start_y = ceil(start_y);
+    //Add extra space (even if above was parallel)
+    start_y = ceil(start_y + (*arcs.begin())->GetVSpacing());
     ShiftByArcList(arcs, start_y);
     if (ret_cover)
         ret_cover->swap(cover.Shift(XY(0, start_y)));

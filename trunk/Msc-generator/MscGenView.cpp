@@ -159,7 +159,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	//If user has made modifications reflect them
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
-	pDoc->SyncShownWithEditing("print");
+	pDoc->CompileEditingChart(false, true);
 	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages()); 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -175,7 +175,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
         XY(pApp->m_printer_usr_margins[0] + pApp->m_printer_usr_margins[1], 
            pApp->m_printer_usr_margins[2] + pApp->m_printer_usr_margins[3]);
     if (ps != new_ps && pApp->m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false);
+        pDoc->CompileEditingChart(false, true);
     pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
     return TRUE;
 }

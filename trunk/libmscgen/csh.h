@@ -87,6 +87,9 @@ struct CshEntry
     int first_pos;            ///<The first char in the range
     int last_pos;             ///<The last char in the range
     EColorSyntaxType color; ///<The type of the language element in the range
+    CshEntry() = default;
+    CshEntry(const CshEntry&) = default;
+    CshEntry(int f, int l, EColorSyntaxType c) : first_pos(f), last_pos(l), color(c) {}
     bool operator==(const CshEntry&o) const { return color == o.color && first_pos==o.first_pos && last_pos ==o.last_pos; }
 };
 

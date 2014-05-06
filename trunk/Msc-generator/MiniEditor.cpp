@@ -476,7 +476,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (pMsg->wParam == VK_DOWN)   {m_hintsPopup.m_listBox.UpDownKey(+1); return TRUE;}
             if (pMsg->wParam == VK_PRIOR)  {m_hintsPopup.m_listBox.UpDownKey(-2); return TRUE;}
             if (pMsg->wParam == VK_NEXT)   {m_hintsPopup.m_listBox.UpDownKey(+2); return TRUE;}
-            if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_TAB) {
+            if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_TAB ||
+                (pMsg->wParam == VK_SPACE && GetKeyState(VK_CONTROL) & 0x8000)) {
                 const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();
                 if (item && item->state == HINT_ITEM_SELECTED) {
                     ReplaceHintedString(item->plain.c_str(), !item->keep);
@@ -802,38 +803,47 @@ CshListType Diff(const EntryList &old_list,
                  const EntryList &new_list, 
                  EColorSyntaxType neutral)
 {
+    //A reminder about positions: first_pos==last_pos indicates a single char range.
+    //We assume here that neither old_list nor new_list have overlapping entries
+    //and we will produce a delta which also has none.
     CshListType delta;
     auto o = old_list.begin();
     auto n = new_list.begin();
+    int done_till = 0; //indicates the index beyond the last position we have handled in 'delta'
     while (o!=old_list.end() && n!= new_list.end()) {
-        //ignore NULL values in the old list (which can happen due to delete)
-        if (o->first_pos > o->last_pos) {
+        //ignore empty ranges in the old list (which can happen due to delete)
+        //also ignore if the complete old entry is before we have completely OK
+        if (o->first_pos > o->last_pos || o->last_pos < done_till) {
             o++;
             continue;
         }
-        if (o->first_pos == n->first_pos) {
-            if (o->last_pos != n->last_pos) {
-                if (o->last_pos > n->last_pos) {//if old csh is longer, we add its neutral version
-                    delta.AddToBack(*o);
-                    delta.back().color = neutral;
-                }
+        const int o_first = std::max(done_till, o->first_pos);
+        if (o_first == n->first_pos) {
+            if (o->color != n->color) //begins at same position, but different color: keep new version
                 delta.AddToBack(*n);
-            } else if (o->color != n->color) //same position, but different color: keep new version
-                delta.AddToBack(*n);
-            o++;
+            else if (o->last_pos==n->last_pos)
+                o++; //equal entries - sort of fast path
+            else if (o->last_pos<n->last_pos)
+                //old entry is shorter, add that part of 'n' that
+                //is beyond of 'o' 
+                delta.AddToBack(CshEntry(o->last_pos+1, n->last_pos, n->color));
+            done_till = n->last_pos+1;
             n++;
-        } else if (o->first_pos < n->first_pos) { //a removed item: paint with normal color
-            delta.AddToBack(*o);
-            delta.back().color = neutral;
+        } else if (o_first < n->first_pos) { 
+            //a (perhaps partially) removed item: paint with normal color
+            //up to the beginning of 'n'
+            done_till = std::min(o->last_pos+1, n->first_pos);
+            delta.AddToBack(CshEntry(o_first, done_till-1, neutral));
             o++;
         } else {//n->first_pos < o->first_pos
             delta.AddToBack(*n);
+            done_till = n->last_pos+1;
             n++;
         }
     }
     while (o!=old_list.end()) {
-        delta.AddToBack(*o);
-        delta.back().color = neutral;
+        if (o->last_pos >= done_till)
+            delta.AddToBack(CshEntry(std::max(done_till, o->first_pos), o->last_pos, neutral));
         o++;
     }
     while (n!=new_list.end()) {
@@ -1256,11 +1266,11 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         CancelHintMode();
         return;
     }
-    //If we are about to start hint mode due to a Ctrl+Space (or are already in that,
-    //but the user pressed Ctrl+Space) and we are at the end of the word under cursor, 
-    //then check how many hints do we fit on and if there is only one, auto complete without
-    //popping up the hint list
-    if (onlyOne && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
+    //If we are about to start hint mode due to a Ctrl+Space and there is only one hit 
+    //then auto complete without popping up the hint list. But if that would result in 
+    //no change to text (because the text under cursor is already complete), we pop
+    //up the hint box below, to give feedback to Ctrl+Space.
+    if (onlyOne && m_bUserRequested && !m_bTillCursorOnly && hit->plain.c_str() != text) {
         ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 
@@ -1574,7 +1584,7 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 			m_ctrlEditor.ReplaceSel(pFindReplace->GetReplaceString());
 		} while (FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord()));
 		m_ctrlEditor.HideSelection(FALSE, FALSE);
-        m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+        m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::CSH);
         m_ctrlEditor.RestoreWindowUpdate(state);
         return 0;
 	}

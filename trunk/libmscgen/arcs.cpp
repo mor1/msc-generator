@@ -53,13 +53,13 @@
     entities and settings.
   - A *context* is a set of settings valid at a given place in the file during 
     parse. It includes the current definition of colors, styles and a few global
-    option, such as 'compress', 'numbering', 'indicator', 'slant_angle' and 'hscale'.
+    option, such as 'compress', 'vspacing', 'numbering', 'indicator', 'slant_angle' and 'hscale'.
     They also include the current comment line and fill style, the default font
     and current numbering style.read(). Contexts are captured by class Context.
   - A *scope* in the chart file is an area enclosed between '{' and '} symbols.
     Any change you make to the context is valid only inside the scope.
   - A *style* is a set of attributes (line, vline, fill, vfill, shadow, 
-    arrow, text, note, solid, side, numbering, compress, indicator and
+    arrow, text, note, solid, side, numbering, compress, vspacing, indicator and
     makeroom). Not all attributes have to be set (making a style *incomplete*)
     and in some cases not all of them *can be set*. Styles are capture by
     class Style.
@@ -291,11 +291,11 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), had_add_attr_list(false), valid(true), 
-    compress(false), parallel(false), overlap(false),
+    vspacing(0), parallel(false), overlap(false),
     keep_together(true), keep_with_next(false), height(0),
     type(t), myProgressCategory(c)
 {
-    compress = chart->Contexts.back().compress.second;
+    vspacing = chart->Contexts.back().vspacing.second;
     chart->Progress.RegisterArc(myProgressCategory);
 }
 
@@ -328,14 +328,25 @@ void ArcBase::AddAttributeList(AttributeList *l)
 
 bool ArcBase::AddAttribute(const Attribute &a)
 {
-    //In case of ArcLabelled this will not be called, for a compress attribute.
+    //In case of ArcLabelled this will not be called, for 
+    //"compress" and "vspacing" attributes.
     //There the style.read().AddAtribute will process any compress attribute.
     //Then in ArcLabelled::PostParseProcess
     //we copy style.read().compress.second to the ArcBase::compress.
     if (a.Is("compress")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
-        compress = a.yes;
+        vspacing = a.yes ? DBL_MIN : 0;
+        return true;
+    }
+    if (a.Is("vspacing")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && a.value == "compress") {
+            vspacing = DBL_MIN;
+            return true;
+        }
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        vspacing = a.number;
         return true;
     }
     if (a.Is("parallel")) {
@@ -380,6 +391,7 @@ bool ArcBase::AddAttribute(const Attribute &a)
 void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
@@ -399,7 +411,12 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"refname")) 
+    if (CaseInsensitiveEqual(attr, "vspacing")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", HINT_ATTR_VALUE, true));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "refname"))
         return true;
     if (Element::AttributeValues(attr, csh)) return true;
     return false;
@@ -577,7 +594,7 @@ ArcLabelled::ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled
     //ArcBase members
     ArcBase::AddAttributeList(NULL); //to kill error
     valid = true;
-    compress = al.compress;
+    vspacing = al.vspacing;
     parallel = al.parallel;
 }
 
@@ -688,9 +705,9 @@ void ArcLabelled::AddAttributeList(AttributeList *l)
                 label_pos = pAttr->linenum_value.start;
     //Add attributest 
     ArcBase::AddAttributeList(l);
-    //compress went to the style, copy it
-    if (style.read().compress.first)
-        compress = style.read().compress.second;
+    //vspacing went to the style, copy it
+    if (style.read().vspacing.first)
+        vspacing = style.read().vspacing.second;
     //Then convert color and style names in labels
     if (label.length()>0) {
         StringFormat::ExpandReferences(label, chart, label_pos, &style.read().text,
@@ -810,7 +827,7 @@ string ArcLabelled::Print(int ident) const
 }
 
 //This assigns a running number to the label and 
-//fills the "compress" member from the style.read().
+//fills the "vspacing" member from the style.read().
 //Strictly to be called by descendants
 ArcBase *ArcLabelled::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
                                        Numbering &number, Element **target, ArcBase * vertical_target)
@@ -3558,7 +3575,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 {
     if (!valid || series.size()==0) return NULL;
     //If first segment is compressed or parallel, copy that to full series
-    compress = (*series.begin())->compress;
+    vspacing = (*series.begin())->vspacing;
     //parallel = (*series.begin())->parallel;
     keep_with_next = (*series.rbegin())->keep_with_next;
 
@@ -3839,7 +3856,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
             const double content_y = chart->PlaceListUnder(canvas, (*i)->content, y+th, 
-                                                           y, limit, compress, 
+                                                           y, limit, IsCompressed(), 
                                                            &content_cover);  //no extra margin below text
             y = std::max(y+th, content_y);
         } else {
@@ -3854,7 +3871,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
                                    limiter_line.CreateRectangle_InnerEdge(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
-            if (off>0 && compress) y-=off;
+            if (off>0 && IsCompressed()) y-=off;
             if (off<0) y-=off;
         }
         y += chart->boxVGapInside;
@@ -4020,7 +4037,7 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         (*abs->series.begin())->yPos -= shift_top;
         abs->yPos = (*abs->series.begin())->yPos;
         abs->AddAttributeList(NULL);
-        abs->compress = compress;
+        abs->vspacing = vspacing;
         abs->parallel = parallel;
         abs->keep_together = keep_together;
         abs->keep_with_next = keep_with_next;

@@ -259,7 +259,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 
  /* This is a colon-quoted string, finished by a quotation mark
  ** : "<string>"
- ** <string> can contain escaped quotation marks, but no line breaks
+ ** <string> can contain escaped quotation marks, hashmarks, but no line breaks
  */
 \:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*\" %{
   #ifdef C_S_H_IS_COMPILED
@@ -283,7 +283,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 
  /* This is a colon-quoted string, finished by a newline (trailing context)
  ** : "<string>$
- ** <string> can contain escaped quotation marks, but no line breaks
+ ** <string> can contain escaped quotation marks, hashmarks, but no line breaks
  */
 \:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*/[\x0d\x0a] %{
   #ifdef C_S_H_IS_COMPILED
@@ -309,11 +309,13 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 
  /* This is a non quoted colon-string
  ** : <string>
- ** terminated by any of: quot mark, backslash [ { or ;
+ ** terminated by any of: [ { or ;
  ** Honors escaping of the above via a backslash
  ** Can contain quotation marks (escaped or unescaped), but can not start with it
+ ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
+ ** (representing a commented section inside a label)
  */
-\:[ \t]*([^\"\;\[\{\\]|(\\.))([^\;\[\{\\]*(\\.)*)*  %{
+\:[\t]*((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*  %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else

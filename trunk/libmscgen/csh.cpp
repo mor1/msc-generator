@@ -494,7 +494,7 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
         CshPos p;
         p.first_pos = pos.first_pos+1;
         p.last_pos = pos.last_pos;
-        StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value), *this); //omit the colon
+        StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value+1), *this); //omit the colon
     }
 }
 
@@ -546,7 +546,7 @@ static const char keyword_names[][ENUM_STRING_LEN] =
  * All options shall be repeated here, not only known by class Msc.
  * We color only these where options should come.*/
 static const char opt_names[][ENUM_STRING_LEN] =
-{"msc", "hscale", "compress", "numbering", "indicator", "auto_heading",
+{"msc", "hscale", "vspacing", "compress", "numbering", "indicator", "auto_heading",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
 "text.color", "text.format", "text.ident", 
@@ -570,7 +570,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
  * We color only these where attributes should come. 
  * We do not distinguish which arc the attribute belongs to.*/
 static const char attr_names[][ENUM_STRING_LEN] =
-{"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
+{"draw_time", "vspacing", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
 "parallel", "overlap", "keep_with_next", "keep_together", "auto_heading",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",

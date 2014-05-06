@@ -751,6 +751,7 @@ bool StringFormat::HasEscapes(const char *text)
 void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
 {
     _ASSERT(len<32000000U); //safety against negative numbers
+    _ASSERT(len<=strlen(text)); //safety against idiotic callers
     if (text==NULL) return;
     unsigned pos=0;
     StringFormat sf;
@@ -762,6 +763,9 @@ void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
         loc.last_pos =  startpos + std::min(pos+length, len)-1;
         switch (escape) {
         case NON_ESCAPE:
+            if (length==0)
+                return; //len>actual string length - we are done
+            //fallthrough
         case SOLO_ESCAPE:
         default:
             csh.AddCSH(loc, COLOR_LABEL_TEXT);
