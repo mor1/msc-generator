@@ -727,7 +727,7 @@ CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah) :
     auto_heading_attr(msc->Contexts.back().auto_heading.second),
     autoHeading(ah), manual(m)
 {
-    compress=false;
+    vspacing = 0;
 }
 
 bool CommandNewpage::AddAttribute(const Attribute &a)
@@ -1645,7 +1645,7 @@ ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
                                        Numbering &number, Element **note_target, ArcBase * vertical_target)
 {
     if (!valid) return NULL;
-    compress = false; //really relevant only for endnotes...
+    vspacing = 0; //really relevant only for endnotes...
     //ensure we have label
     if (label.length()==0) {
         chart->Error.Error(file_pos.start, is_float ? "Notes" : "Comments" +
@@ -2737,7 +2737,7 @@ void CommandEndNoteSeparator::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     yPos = 0;
     height = chart->nudgeSize;
-    compress = false;
+    vspacing = 0;
     const Block b(chart->GetTotal().x.from, chart->GetTotal().x.till, 0, chart->nudgeSize);
     area.mainline = b;
 }

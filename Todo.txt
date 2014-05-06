@@ -55,8 +55,14 @@ CANCELLED: Triple bevel changes size when size limited.
 FIXED: Pipes and draw_pass issue.
 ADDED: Double+Clicking an error should move to the specified line
 FIXED: ReplaceAll screws CSH
-FIX: Adding a # does not make comment all the rest of the line
-FIX: Ctrl+Space does not expand for single-hit stuff if we are at the end of the word
+FIXED: Adding a # does not make comment all the rest of the line
+FIXED: composite_aligned_boxes() calls get_clip_surface() in cairo_spans_compositor.c, which requires clip->path!=NULL.
+FIXED: Ctrl+Space does not expand for single-hit stuff if we are at the end of the word
+CHANGED: Reviewed behavior when copying/saving/printing/exporting an uncompiled chart and made it simpler.
+ADDED: vspacing option
+DOC: vpacing, plus the two novelties already in Release Notes.doc
+FIX: vspacing does not work in a style
+FIX: Error CSHs may be overlapping - use a different Diff procedure.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

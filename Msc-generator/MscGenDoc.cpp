@@ -567,7 +567,7 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_itrSaved = m_itrEditing; //start as unmodified
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
-	CompileEditingChart(true);
+	CompileEditingChart(true, false);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
 	return TRUE;
@@ -637,7 +637,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-    CompileEditingChart(true);
+    CompileEditingChart(true, false);
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
@@ -649,26 +649,38 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	ASSERT(pApp != NULL);
     bool restartEditor = false;
 	if (lpszPathName==NULL) {
-		SyncShownWithEditing("update the container document");
-        if (!COleServerDocEx::OnSaveDocument(lpszPathName)) 
+        CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+        ASSERT(pApp != NULL);
+        if (!pApp->m_bFullScreenViewMode || m_itrEditing != m_itrShown) {
+            CString message = "I want to update the container document, but you have made changes in the text editor.\n";
+            if (m_bAttemptingToClose)
+                message.Append("Do you want to include the changes (or permanently loose them)?");
+            else
+                message.Append("Do you want to include the changes and redraw the chart before I update the container document?\n");
+
+            if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO))
+                CompileEditingChart(false, true);
+            else
+                m_itrEditing = m_itrShown;
+        }
+        //Above we either made m_itrShown equal to 
+        //m_itrEditing by compiling, or by assigning m_itrShown to m_itrEditing. 
+        //In the latter case we effectively perform an Undo to m_itrShown.
+        if (!COleServerDocEx::OnSaveDocument(lpszPathName))
             return FALSE;
 	} else {
 	    //Restart external editor only if file name changes
 	    restartEditor = lpszPathName!=GetPathName() && m_ExternalEditor.IsRunning();
 	    if (restartEditor) 
 		    m_ExternalEditor.Stop(STOPEDITOR_WAIT);
-	    SyncShownWithEditing("save");
-	    if (!m_itrShown->Save(lpszPathName)) {
+	    if (!m_itrEditing->Save(lpszPathName)) {
 		    CFileException e;
 		    ReportSaveLoadException(lpszPathName, &e,
 			    TRUE, AFX_IDP_FAILED_TO_SAVE_DOC);
 		    return FALSE;
 	    }
     }
-    //SyncShownWithEditing() above either made m_itrShown equal to 
-    //m_itrEditing by compiling, or left them different. In the latter
-    //case we effectively perform an Undo to m_itrShown.
-	m_itrSaved = m_itrEditing = m_itrShown;
+	m_itrSaved = m_itrEditing;
 	if (pApp->IsInternalEditorRunning()) 
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
     if (restartEditor) 
@@ -696,7 +708,7 @@ void CMscGenDoc::OnFileExport()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	SyncShownWithEditing("export");
+    CompileEditingChart(false, false); //Start a compilation - usually in bkg, till the user selects file
     CString name = GetPathName();
     double x_scale=1, y_scale=1;
     bool bitmap;
@@ -749,7 +761,12 @@ void CMscGenDoc::OnFileExport()
         bitmap = ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0;
         break;
     } while(1);
-    if (bitmap) { 
+    WaitForCompilationToEnd();
+    if (m_ChartShown.GetErrorNum(false))
+        if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to export it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
+            return;
+
+    if (bitmap) {
         CScaleDlg scale;
         scale.m_orig_size = m_ChartShown.GetSize();
         if (IDCANCEL == scale.DoModal())
@@ -888,8 +905,12 @@ void CMscGenDoc::OnEditReplace()
 void CMscGenDoc::OnEditCopyEntireChart()
 {
 	//Copy is handled by SrvItem
-    SyncShownWithEditing("copy the chart to the clipboard");
-	CMscGenSrvrItem *pItem = dynamic_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem());
+    CompileEditingChart(false, true);
+    if (m_ChartShown.GetErrorNum(false))
+        if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to copy it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
+            return;
+
+    CMscGenSrvrItem *pItem = dynamic_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem());
     TRY 
     {
         pItem->CopyToClipboard(TRUE);
@@ -905,8 +926,10 @@ void CMscGenDoc::OnCopyPage(UINT id)
 {
     const unsigned page = id - ID_COPY_PAGE1 + 1;
     char buff[300];
-    sprintf(buff, "copy page #%u to the clipboard", page);
-    SyncShownWithEditing(buff);
+    CompileEditingChart(false, true);
+    if (m_ChartShown.GetErrorNum(false))
+        if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to copy a page of it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
+            return;
     if (m_ChartShown.GetPages() < page) {
         sprintf(buff, "Sorry, I no longer have page #%u, "
                       "the entire chart consists of only %u page(s). "
@@ -976,7 +999,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));  //undo blocked
         m_page_serialized_in = 0; //all pages visible
 	}
-	CompileEditingChart(true);
+	CompileEditingChart(true, false);
     m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
@@ -1024,7 +1047,7 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
-	CompileEditingChart(true);
+	CompileEditingChart(true, false);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
@@ -1118,7 +1141,7 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	m_itrEditing->SetDesign(design);
     m_itrEditing->block_undo = true;
     pApp->m_designlib_csh.ForcedDesign = design;
-	CompileEditingChart(true);
+	CompileEditingChart(true, false);
 }
 
 void CMscGenDoc::ChangePage(unsigned page)
@@ -1383,22 +1406,6 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 		m_itrShown = m_charts.end();
 }
 
-void CMscGenDoc::SyncShownWithEditing(const CString &action) 
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    if (pApp->m_bFullScreenViewMode) return;
-	if (m_itrEditing == m_itrShown) return;
-	CString message = "I want to " + action + ", but you have made changes in the text editor.\n";
-	if (m_bAttemptingToClose) 
-		message.Append("Do you want to include the changes (or permanently loose them)?"); 
-	else 
-		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
-
-	if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO)) 
-		CompileEditingChart(true);
-}
-
 bool CMscGenDoc::CheckIfChanged()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1438,7 +1445,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
     m_itrEditing->block_undo = true;
     if (pApp->IsInternalEditorRunning())
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
-    CompileEditingChart(true);
+    CompileEditingChart(true, false);
 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
@@ -1602,13 +1609,17 @@ bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilin
     return true;
 }
 
-void CMscGenDoc::CompileEditingChart(bool resetZoom)
+void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
     //Change showing only if not viewing in full screen mode
     if (pApp->m_bFullScreenViewMode && m_charts.size()>1) return;
+
+    //If we are already compiled (or already compiling this text) - stop
+    if (m_itrShown == m_itrEditing)
+        return;
 
     m_itrEditing->RemoveSpacesAtLineEnds();
 	if (pApp->IsInternalEditorRunning()) {
@@ -1627,7 +1638,7 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom)
     //application to draw an embedded object, for instance.
     //This can be nil if we are shutting down...
     CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    const bool block = !pWnd || !pWnd->IsWindowVisible();
+    const bool block = force_block || !pWnd || !pWnd->IsWindowVisible();
 
     //Prepare m_ChartCompiling
     m_itrShown = m_itrEditing;
@@ -1786,6 +1797,12 @@ void CMscGenDoc::KillCompilation()
 	ASSERT(pApp != NULL);
     if (pApp->IsInternalEditorRunning()) 
         pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+}
+
+void CMscGenDoc::WaitForCompilationToEnd()
+{
+    m_SectionCompiling.Lock(); //wait for thread to exit
+    m_SectionCompiling.Unlock();
 }
 
 void CMscGenDoc::StartFadingTimer() 
@@ -1950,8 +1967,8 @@ void CMscGenDoc::SetTrackMode(bool on)
 	ASSERT(pApp != NULL);
 	StartFadingAll(); //Delete trackrects from screen (even if turned on)
 	if (on) {
-		SyncShownWithEditing("turn tracking on");
-		//We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
+        CompileEditingChart(false, true);
+        //We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
 	} else if (pApp->IsInternalEditorRunning()) {
         //Disable selection change events - we are causing selection change
         //and we do not want to be notified (and add more track rects)
@@ -2057,7 +2074,7 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     }
     if (!changed) return false;
 	InsertNewChart(chart);
-    CompileEditingChart(true);
+    CompileEditingChart(true, false);
     return true;
 }
 

@@ -34,7 +34,7 @@ bool IsValidSideValue(ESideType t, ESide v)
 MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm)
 {
     f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
-    f_solid=f_numbering=f_compress=f_indicator=true;
+    f_solid=f_numbering=f_vspacing=f_indicator=true;
     f_makeroom=f_note=f_lost=f_lsym=true;
     f_arrow = ArrowHead::ANY;
     f_side = ESideType::ANY;
@@ -52,7 +52,7 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm
  * @param [in] vl True if the style shall contain vline attributes.
  * @param [in] so True if the style shall contain the 'solid' attribute.
  * @param [in] nu True if the style shall contain the 'number' attribute.
- * @param [in] co True if the style shall contain the `compress` attribute.
+ * @param [in] co True if the style shall contain the `compress'/'vspacing` attribute.
  * @param [in] si True if the style shall contain the `side` attribute.
  * @param [in] i True if the style shall contain the `indicator` attribute.
  * @param [in] vf True if the style shall contain vfill attributes.
@@ -67,7 +67,7 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a,
                    bool lo, bool lsym) :
     arrow(a), lost_arrow(ArrowHead::ARROW), type(tt), color_meaning(cm),
     f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
-    f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
+    f_text(t), f_solid(so), f_numbering(nu), f_vspacing(co), f_side(si),
     f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a), f_lost(lo), f_lsym(lsym)
 {
     Empty();
@@ -101,8 +101,8 @@ void MscStyle::MakeCompleteButText()
     side.second = ESide::RIGHT;
     numbering.first = f_numbering;
     numbering.second = false;
-    compress.first = f_compress;
-    compress.second = false;
+    vspacing.first = f_vspacing;
+    vspacing.second = 0;
     indicator.first = f_indicator;
     indicator.second = true;
     makeroom.first = f_makeroom;
@@ -129,7 +129,7 @@ void MscStyle::Empty()
     shadow.Empty();
     solid.first = false;
     side.first = false;
-    compress.first = false;
+    vspacing.first = false;
     numbering.first = false;
     indicator.first = false;
     makeroom.first = false;
@@ -153,7 +153,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_arrow!=ArrowHead::NONE && f_arrow!=ArrowHead::NONE) arrow += toadd.arrow;
     if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
     if (toadd.f_side != ESideType::NO && toadd.side.first && IsValidSideValue(f_side, toadd.side.second)) side = toadd.side;
-    if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
+    if (toadd.f_vspacing && f_vspacing && toadd.vspacing.first) vspacing = toadd.vspacing;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
     if (toadd.f_indicator && f_indicator && toadd.indicator.first) indicator = toadd.indicator;
     if (toadd.f_makeroom && f_makeroom && toadd.makeroom.first) makeroom = toadd.makeroom;
@@ -277,15 +277,28 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         a.InvalidValueError(f_side == ESideType::LEFT_RIGHT ? "left/right" : "left/right/end", msc->Error);
         return true;
     }
-    if (a.Is("compress") && f_compress) {
+    if (a.Is("compress") && f_vspacing) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
-                compress.first = false;
+                vspacing.first = false;
             return true;
         }
         if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
-        compress.first = true;
-        compress.second = a.yes;
+        vspacing.first = true;
+        vspacing.second = a.yes ? DBL_MIN : 0;
+        return true;
+    }
+    if (a.Is("vspacing") && f_vspacing) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, type))
+                vspacing.first = false;
+        } else if (a.type == MSC_ATTR_STRING && a.value == "compress") {
+            vspacing.first = true;
+            vspacing.second = DBL_MIN;
+        } else if (a.CheckType(MSC_ATTR_NUMBER, msc->Error)) {
+            vspacing.first = true;
+            vspacing.second = a.number;
+        }
         return true;
     }
     if (a.Is("number") && f_numbering) {
@@ -305,7 +318,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
     if (a.Is("indicator") && f_indicator) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
-                compress.first = false;
+                indicator.first = false;
             return true;
         }
         if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
@@ -382,7 +395,10 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", HINT_ATTR_NAME));
     if (f_makeroom) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
-    if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
+    if (f_vspacing) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"vspacing", HINT_ATTR_NAME));
+    }
     if (f_line) LineAttr::AttributeNames(csh, "vline.");
     if (f_fill) FillAttr::AttributeNames(csh, "vfill.");
     if (f_note) NoteAttr::AttributeNames(csh);
@@ -459,11 +475,16 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if ((CaseInsensitiveEqual(attr, "compress") && f_compress) ||
+    if ((CaseInsensitiveEqual(attr, "compress") && f_vspacing) ||
         (CaseInsensitiveEqual(attr, "indicator") && f_indicator) ||
         (CaseInsensitiveEqual(attr, "makeroom") && f_makeroom)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "vspacing") && f_vspacing) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", HINT_ATTR_VALUE, true));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "side")) {
@@ -546,7 +567,7 @@ Context &Context::operator +=(const Context &o)
     is_full |= o.is_full;
     if (o.hscale.first) hscale = o.hscale;
     if (o.numbering.first) numbering = o.numbering;
-    if (o.compress.first) compress = o.compress;
+    if (o.vspacing.first) vspacing = o.vspacing;
     if (o.indicator.first) indicator = o.indicator;
     if (o.slant_angle.first) slant_angle = o.slant_angle;
     if (o.auto_heading.first) auto_heading = o.auto_heading;
@@ -572,7 +593,7 @@ void Context::Empty()
     is_full = false;
     hscale.first = false;
     numbering.first = false;
-    compress.first = false;
+    vspacing.first = false;
     indicator.first = false;
     slant_angle.first = false;
     auto_heading.first = false;
@@ -742,8 +763,8 @@ void Context::Plain()
     hscale.second = 1.0;
     numbering.first = true;
     numbering.second=false;
-    compress.first = true;
-    compress.second=false;
+    vspacing.first = true;
+    vspacing.second = 0;
     indicator.first = true;
     indicator.second = true;
     slant_angle.first = true;
@@ -777,7 +798,7 @@ void Context::Plain()
     const std::pair<bool, ColorType> faint(true, ColorType(255, 255, 255, 224, ColorType::OVERLAY));
 
     styles["arrow"].write().MakeCompleteButText();
-    styles["arrow"].write().compress.first = false;
+    styles["arrow"].write().vspacing.first = false;
     styles["arrow"].write().numbering.first = false;
     styles["arrow"].write().line.radius.second = -1;
     styles["arrow"].write().lost_line.color = faint;
@@ -794,7 +815,7 @@ void Context::Plain()
     styles["=>"].write().line.type.second = LINE_DOUBLE;
 
     styles["blockarrow"].write().MakeCompleteButText();
-    styles["blockarrow"].write().compress.first = false;
+    styles["blockarrow"].write().vspacing.first = false;
     styles["blockarrow"].write().numbering.first = false;
     styles["blockarrow"].write().line.radius.second = -1;
     styles["box_collapsed_arrow"] = styles["blockarrow"];
@@ -810,7 +831,7 @@ void Context::Plain()
     styles["block=>"].write().line.type.second = LINE_DOUBLE;
 
     styles["vertical"].write().MakeCompleteButText();
-    styles["vertical"].write().compress.first = false;
+    styles["vertical"].write().vspacing.first = false;
     styles["vertical"].write().numbering.first = false;
     styles["vertical"].write().makeroom.second = true;
     styles["vertical"].write().side.first = false;
@@ -821,7 +842,7 @@ void Context::Plain()
     //have no text.width attribute. Better if the user sets this explicitly.
 
     styles["vertical_range"].write().MakeCompleteButText();
-    styles["vertical_range"].write().compress.first = false;
+    styles["vertical_range"].write().vspacing.first = false;
     styles["vertical_range"].write().numbering.first = false;
     styles["vertical_range"].write().makeroom.second = true;
     styles["vertical_range"].write().side.first = false;
@@ -829,7 +850,7 @@ void Context::Plain()
     styles["vertical_range"].write().text.UnsetWordWrap();
 
     styles["vertical_bracket"].write().MakeCompleteButText();
-    styles["vertical_bracket"].write().compress.first = false;
+    styles["vertical_bracket"].write().vspacing.first = false;
     styles["vertical_bracket"].write().numbering.first = false;
     styles["vertical_bracket"].write().makeroom.second = true;
     styles["vertical_bracket"].write().side.first = false;
@@ -838,7 +859,7 @@ void Context::Plain()
     styles["vertical_bracket"].write().text.UnsetWordWrap();
 
     styles["vertical_pointer"].write().MakeCompleteButText();
-    styles["vertical_pointer"].write().compress.first = false;
+    styles["vertical_pointer"].write().vspacing.first = false;
     styles["vertical_pointer"].write().numbering.first = false;
     styles["vertical_pointer"].write().makeroom.second = true;
     styles["vertical_pointer"].write().side.first = false;
@@ -850,7 +871,7 @@ void Context::Plain()
     styles["vertical_pointer"].write().lost_text.SetColor(faint.second);
 
     styles["vertical_brace"].write().MakeCompleteButText();
-    styles["vertical_brace"].write().compress.first = false;
+    styles["vertical_brace"].write().vspacing.first = false;
     styles["vertical_brace"].write().numbering.first = false;
     styles["vertical_brace"].write().makeroom.second = true;
     styles["vertical_brace"].write().side.first = false;
@@ -883,7 +904,7 @@ void Context::Plain()
     styles["vertical=="].write().line.type.second = LINE_DOUBLE;
 
     styles["divider"].write().MakeCompleteButText();
-    styles["divider"].write().compress.first = false;
+    styles["divider"].write().vspacing.first = false;
     styles["divider"].write().numbering.first = false;
     styles["divider"].write().vline.Empty();
     styles["divider"].write().line.type.second = LINE_NONE;
@@ -895,7 +916,7 @@ void Context::Plain()
     styles["..."].write().text.Apply("\\mu(10)\\md(10)");
 
     styles["emptybox"].write().MakeCompleteButText();
-    styles["emptybox"].write().compress.first = false;
+    styles["emptybox"].write().vspacing.first = false;
     styles["emptybox"].write().numbering.first = false;
     styles["box_collapsed"] = styles["emptybox"];
     styles["box"] = styles["emptybox"];
@@ -912,7 +933,7 @@ void Context::Plain()
     styles["=="].write().line.type.second = LINE_DOUBLE;
 
     styles["pipe"].write().MakeCompleteButText();
-    styles["pipe"].write().compress.first = false;
+    styles["pipe"].write().vspacing.first = false;
     styles["pipe"].write().numbering.first = false;
     styles["pipe"].write().line.radius.second = 5;
 

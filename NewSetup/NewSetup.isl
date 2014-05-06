@@ -387,7 +387,7 @@
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td>{43B9C35A-4383-4AF6-B29F-1AD1BEF3D701}</td><td>INSTALLDIR</td><td>6</td><td/><td>_FC302F634BBF45E493B93DB97A6CDDB4</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>ISX_DEFAULTCOMPONENT</td><td>{7324E4F3-F2D9-45D1-8254-59DFD8050C47}</td><td>MSC_GENERATOR1</td><td>2</td><td/><td/><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>ISX_DEFAULTCOMPONENT1</td><td>{A98204CC-2F60-47F4-95B4-503327CCD0D8}</td><td>INSTALLDIR</td><td>2</td><td/><td/><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
-		<row><td>cairo.dll</td><td>{3969BC11-488A-46FA-B62D-2294C75513C2}</td><td>INSTALLDIR</td><td>2</td><td/><td>cairo.dll</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
+		<row><td>cairo.dll</td><td>{9AAFB824-8A56-4243-ABC2-D1B1E1270EC6}</td><td>INSTALLDIR</td><td>2</td><td/><td>cairo.dll</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 	</table>
 
 	<table name="Condition">
@@ -1988,7 +1988,7 @@
 		<row><td>_8D210BB11DE54BFF9295776C6C22707B</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td>Msc-generator.Primary Output</td><td>0</td><td/><td/><td>512</td><td>1</td><td>&lt;Msc-generator&gt;|Built</td><td>7</td><td/></row>
 		<row><td>_9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>C__9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>ORIGIN~1.SIG|original_designlib.signalling</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\original_designlib.signalling</td><td>5</td><td/></row>
 		<row><td>_AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>msc-gen.pdf</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\msc-gen.pdf</td><td>5</td><td/></row>
-		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.14-vs100\cairo.dll</td><td>1</td><td/></row>
+		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.14-vs120\cairo.dll</td><td>1</td><td/></row>
 	</table>
 
 	<table name="FileSFPCatalog">
@@ -2175,7 +2175,7 @@
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td/><td/><td>_7C2FFFF4_2B54_4CC7_BF65_36B5A77AC7A5_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>ISX_DEFAULTCOMPONENT</td><td/><td/><td>_0C407677_D108_4208_B918_BA27AF88FCE0_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>ISX_DEFAULTCOMPONENT1</td><td/><td/><td>_239097B1_48A4_40EF_BC7F_71B2970811A2_FILTER</td><td/><td/><td/><td/></row>
-		<row><td>cairo.dll</td><td/><td/><td>_2878D91F_2ECD_41CF_96D4_ACFA568EB7AB_FILTER</td><td/><td/><td/><td/></row>
+		<row><td>cairo.dll</td><td/><td/><td>_79DC9A29_6718_41E3_9AED_232ABB2325C4_FILTER</td><td/><td/><td/><td/></row>
 	</table>
 
 	<table name="ISCustomActionReference">

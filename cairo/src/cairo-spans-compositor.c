@@ -550,7 +550,7 @@ composite_aligned_boxes (const cairo_spans_compositor_t		*compositor,
     cairo_operator_t op = extents->op;
     const cairo_pattern_t *source = &extents->source_pattern.base;
     cairo_int_status_t status;
-    cairo_bool_t need_clip_mask = ! _clip_is_region (extents->clip);
+    cairo_bool_t need_clip_mask = ! _clip_is_region (extents->clip) /* Added by Zozo */ && extents->clip->path /* Add ends */;
     cairo_bool_t op_is_source;
     cairo_bool_t no_mask;
     cairo_bool_t inplace;

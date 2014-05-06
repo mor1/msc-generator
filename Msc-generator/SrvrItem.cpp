@@ -158,9 +158,12 @@ COleDataSource* CMscGenSrvrItem::OnGetClipboardData(BOOL bIncludeLink, LPPOINT l
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	pDoc->SyncShownWithEditing("copy the chart to the clipboard");
-
+	pDoc->CompileEditingChart(false, true);
     COleDataSource* pDataSource = new COleDataSource;
+    if (pDoc->m_ChartShown.GetErrorNum(false))
+        if (IDYES == AfxMessageBox("The chart had errors, do you want to copy it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
+            return pDataSource;
+
 	TRY
 	{
 		ASSERT(CMscGenDoc::m_cfPrivate != NULL);
@@ -181,6 +184,7 @@ COleDataSource* CMscGenSrvrItem::OnGetClipboardData(BOOL bIncludeLink, LPPOINT l
 	CATCH_ALL(e)
 	{
 		delete pDataSource;
+        pDataSource = new COleDataSource;
 		THROW_LAST();
 	}
 	END_CATCH_ALL
