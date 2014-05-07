@@ -68,48 +68,128 @@ bool CshListType::CheckIfOverlap(const CshEntry &e) const
     return false;
 }
 
-
-void CshErrorList::Add(const CshPos &pos, const char *t)
+/** Calculates the difference between two CshEntries list and stores into 'this'.
+*  That is what is new in new_list compared to old_list.
+*  Entries that have disappeared will be retained using 'neutral' color.
+* Assumes that both input lists are ordered and non-overlapping and this is,
+* how the resulting list will be.*/
+void CshListType::DiffInto(const CshListType &old_list, const CshListType &new_list,
+                            EColorSyntaxType neutral)
 {
-    //check that we do not add the same error twice
-    for (const auto &e : *this)
-        if (e.first_pos == pos.first_pos && e.text==t)
-            return;
-    resize(size()+1);
-    CshError &e = at(size()-1);
-    e.first_pos=pos.first_pos;
-    e.last_pos=pos.last_pos;
-    e.color = COLOR_ERROR;
-    if (t) e.text=t;
+    //A reminder about positions: first_pos==last_pos indicates a single char range.
+    //We assume here that neither old_list nor new_list have overlapping entries
+    //and we will produce a delta which also has none.
+    auto o = old_list.begin();
+    auto n = new_list.begin();
+    int done_till = 0; //indicates the index beyond the last position we have handled in 'delta'
+    while (o!=old_list.end() && n!= new_list.end()) {
+        //ignore empty ranges in the old list (which can happen due to delete)
+        //also ignore if the complete old entry is before we have completely OK
+        if (o->first_pos > o->last_pos || o->last_pos < done_till) {
+            o++;
+            continue;
+        }
+        const int o_first = std::max(done_till, o->first_pos);
+        if (o_first == n->first_pos) {
+            if (o->color != n->color) //begins at same position, but different color: keep new version
+                AddToBack(*n);
+            else if (o->last_pos==n->last_pos)
+                o++; //equal entries - sort of fast path
+            else if (o->last_pos<n->last_pos)
+                //old entry is shorter, add that part of 'n' that
+                //is beyond of 'o' 
+                AddToBack(CshEntry(o->last_pos+1, n->last_pos, n->color));
+            done_till = n->last_pos+1;
+            n++;
+        } else if (o_first < n->first_pos) {
+            //a (perhaps partially) removed item: paint with normal color
+            //up to the beginning of 'n'
+            done_till = std::min(o->last_pos+1, n->first_pos);
+            AddToBack(CshEntry(o_first, done_till-1, neutral));
+            o++;
+        } else {//n->first_pos < o->first_pos
+            AddToBack(*n);
+            done_till = n->last_pos+1;
+            n++;
+        }
+    }
+    while (o!=old_list.end()) {
+        if (o->last_pos >= done_till)
+            AddToBack(CshEntry(std::max(done_till, o->first_pos), o->last_pos, neutral));
+        o++;
+    }
+    while (n!=new_list.end()) {
+        AddToBack(*n);
+        n++;
+    }
 }
 
-void CshErrorList::Add(const CshPos &pos, const std::string &t)
+/** Checks if all elements are sorted and non-overlapping. 
+ *  Used in debug mode only.*/
+bool CshListType::CheckOrderedAndNonOverlapping() const
 {
-    //check that we do not add the same error twice
-    for (const auto &e : *this)
-        if (e.first_pos == pos.first_pos && e.text==t)
-            return;
-    resize(size()+1);
-    CshError &e = at(size()-1);
-    e.first_pos = pos.first_pos;
-    e.last_pos = pos.last_pos;
-    e.color = COLOR_ERROR;
-    e.text = t;
+    for (unsigned u = 1; u<size(); u++)
+        if (at(u-1).last_pos >= at(u).first_pos)
+            return false;
+    return true;
 }
 
-void CshErrorList::Add(const CshPos &pos, std::string &&t)
+/** Checks if all elements are either COLOR_ERROR or COLOR_MAX
+*  Used in debug mode only.*/
+bool CshListType::CheckIfErrorOrMaxColorsOnly() const
+{
+    for (auto &e : *this)
+        if (e.color!=COLOR_ERROR && e.color!=COLOR_MAX)
+            return false;
+    return true;
+}
+
+
+/** Helper to add 
+ * - checks if we have alread added the error or not
+ * - appends a new entry to error_texts with correct pos, but not text.
+ * - Adds 'pos' to error_ranges.
+ * Returns true if we have have created a new text entry. */
+bool CshErrorList::AddHelper(CshPos pos, const char *t)
 {
     //check that we do not add the same error twice
-    for (const auto &e : *this)
+    for (const auto &e : error_texts)
         if (e.first_pos == pos.first_pos && e.text==t)
-            return;
-    resize(size()+1);
-    CshError &e = at(size()-1);
-    e.first_pos = pos.first_pos;
-    e.last_pos = pos.last_pos;
-    e.color = COLOR_ERROR;
-    e.text = std::move(t);
+            return false;
+    error_texts.resize(error_texts.size()+1);
+    error_texts.back().first_pos = pos.first_pos;
+
+    //if (error_ranges.size()==0) {
+    //    error_ranges.emplace_back(pos, COLOR_ERROR);
+    //    return true;
+    //}
+    //Now insert 'pos'
+    int i = error_ranges.size()-1;
+    while (i>=0 && error_ranges[i].first_pos>pos.last_pos)
+        i--;
+    int j = i; 
+    while (j>=0 && error_ranges[j].last_pos>=pos.first_pos)
+        pos += error_ranges[j--];
+    //now j is *before* the range of elements
+    //we need to replace to pos, whereas i is the last element of that range. 
+    //If i==j, pos does not overlap with any entries and needs to be 
+    //inserted *after* j.
+    if (i==j) {
+        if (i==-1)
+            error_ranges.emplace(error_ranges.begin(), pos, COLOR_ERROR);
+        else 
+            error_ranges.emplace(error_ranges.begin()+j+1, pos, COLOR_ERROR);
+    } else {
+        static_cast<CshPos&>(error_ranges[i]) = pos;
+        error_ranges[i].color = COLOR_ERROR;
+        if (i-j > 1) 
+            error_ranges.erase(error_ranges.begin()+j+1, error_ranges.begin()+i); //deletes parts before i
+    }
+    _ASSERT(error_ranges.CheckOrderedAndNonOverlapping());
+    return true;
 }
+
+
 
 ColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void)

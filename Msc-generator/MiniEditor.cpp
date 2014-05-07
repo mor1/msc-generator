@@ -388,8 +388,8 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
         SetSel(lBegin+col, lBegin+col2);
         RestoreWindowUpdate(state);
     } else {
-        Csh::AdjustCSHList(m_csh.ColonLabels, lStart-col+1, target_ident-current_ident);
-        Csh::AdjustCSHList(m_csh.QuotedStrings, lStart-col+1, target_ident-current_ident);
+        CshPos::AdjustList(m_csh.ColonLabels, lStart-col+1, target_ident-current_ident);
+        CshPos::AdjustList(m_csh.QuotedStrings, lStart-col+1, target_ident-current_ident);
     }
     return true;
 }
@@ -798,60 +798,6 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr)
     }
 }
 
-template<class EntryList>
-CshListType Diff(const EntryList &old_list,
-                 const EntryList &new_list, 
-                 EColorSyntaxType neutral)
-{
-    //A reminder about positions: first_pos==last_pos indicates a single char range.
-    //We assume here that neither old_list nor new_list have overlapping entries
-    //and we will produce a delta which also has none.
-    CshListType delta;
-    auto o = old_list.begin();
-    auto n = new_list.begin();
-    int done_till = 0; //indicates the index beyond the last position we have handled in 'delta'
-    while (o!=old_list.end() && n!= new_list.end()) {
-        //ignore empty ranges in the old list (which can happen due to delete)
-        //also ignore if the complete old entry is before we have completely OK
-        if (o->first_pos > o->last_pos || o->last_pos < done_till) {
-            o++;
-            continue;
-        }
-        const int o_first = std::max(done_till, o->first_pos);
-        if (o_first == n->first_pos) {
-            if (o->color != n->color) //begins at same position, but different color: keep new version
-                delta.AddToBack(*n);
-            else if (o->last_pos==n->last_pos)
-                o++; //equal entries - sort of fast path
-            else if (o->last_pos<n->last_pos)
-                //old entry is shorter, add that part of 'n' that
-                //is beyond of 'o' 
-                delta.AddToBack(CshEntry(o->last_pos+1, n->last_pos, n->color));
-            done_till = n->last_pos+1;
-            n++;
-        } else if (o_first < n->first_pos) { 
-            //a (perhaps partially) removed item: paint with normal color
-            //up to the beginning of 'n'
-            done_till = std::min(o->last_pos+1, n->first_pos);
-            delta.AddToBack(CshEntry(o_first, done_till-1, neutral));
-            o++;
-        } else {//n->first_pos < o->first_pos
-            delta.AddToBack(*n);
-            done_till = n->last_pos+1;
-            n++;
-        }
-    }
-    while (o!=old_list.end()) {
-        if (o->last_pos >= done_till)
-            delta.AddToBack(CshEntry(std::max(done_till, o->first_pos), o->last_pos, neutral));
-        o++;
-    }
-    while (n!=new_list.end()) {
-        delta.AddToBack(*n);
-        n++;
-    }
-    return delta;
-}
 
 /** Updates CSH in the editor window and notifies the document.
 @param [in] updateCSH Tells us what to update. 
@@ -913,7 +859,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         m_csh.use_scheme = &pApp->m_nCshScheme;
         CshPos old_uc = m_csh.hintedStringPos;
         m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
-        //restore old csh and error list - the ones matching the (now unchanged) m_prev_text
+        //restore old csh and error list - the ones matching the (yet unchanged) m_prev_text
         m_csh.CshList.swap(save.CshList);
         m_csh.CshErrors.swap(save.CshErrors);
         //If we consider the hinted string only up to the cursor, trim the returned pos
@@ -1008,17 +954,18 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     if (m_csh.CshList.size()) {
         //Since start is as if the first char in the file is indexed
         //at zero, we add one (csh entries are indexed from 1).
-        Csh::AdjustCSHList(m_csh.CshList,   start+1, ins-del);
-        Csh::AdjustCSHList(m_csh.CshErrors, start+1, ins-del);
-        //We do not adjust ColonLabels here, since that is not needed
-        //for calculating coloring diffs, only to smart ident.
+        CshPos::AdjustList(m_csh.CshList,                start+1, ins-del);
+        CshPos::AdjustList(m_csh.CshErrors.error_ranges, start+1, ins-del);
+        //We do not adjust ColonLabels/QoutedStrings/CshErrors.error_texts 
+        //here, since that is not needed
+        //for calculating coloring diffs, only to smart ident and error labels.
         //If we inserted, destroy any marking overlapping with the insertion.
         if (ins) {
             for (auto &csh : m_csh.CshList)
                 if (csh.first_pos <= start+1+ins &&
                     start+1 <= csh.last_pos)
                     csh.color = COLOR_NORMAL;
-            for (auto &csh : m_csh.CshErrors)
+            for (auto &csh : m_csh.CshErrors.error_ranges)
                 if (csh.first_pos <= start+1+ins &&
                     start+1 <= csh.last_pos)
                     csh.color = COLOR_MAX;
@@ -1028,10 +975,9 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
     CshPos old_uc = m_csh.hintedStringPos;
     //move the last list to csh_delta
-    CshListType old_csh_list;
+    CshListType old_csh_list, old_csh_error_list;
     old_csh_list.swap(m_csh.CshList);
-    CshErrorList old_csh_error_list;
-    old_csh_error_list.swap(m_csh.CshErrors);
+    old_csh_error_list.swap(m_csh.CshErrors.error_ranges);
     //Take the design, color and style definitions from the designlib
     m_csh = pApp->m_designlib_csh;
     m_csh.use_scheme = &pApp->m_nCshScheme;
@@ -1054,7 +1000,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         std::vector<std::pair<int, int>> error_pos;
         //populate list only if we need to show the errors and not judt FORCE_CSH
         if (pApp->m_bShowCshErrorsInWindow) 
-            for (const auto &e : m_csh.CshErrors) {
+            for (const auto &e : m_csh.CshErrors.error_texts) {
                 int line, col;
                 ConvertPosToLineCol(e.first_pos, line, col);
                 line++; col++; //Needed as errors are indexed from one, positions from zero
@@ -1072,25 +1018,30 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             [](CshEntry const & a, CshEntry const &b) {
             return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
         });
-        std::sort(m_csh.CshErrors.begin(), m_csh.CshErrors.end(),
-            [](CshError const & a, CshError const &b) {
+        std::sort(m_csh.CshErrors.error_ranges.begin(), m_csh.CshErrors.error_ranges.end(),
+            [](CshEntry const & a, CshEntry const &b) {
             return a.first_pos==b.first_pos ? a.last_pos < b.last_pos : a.first_pos < b.first_pos;
         });
+        //Test if both m_csh.CshList and m_csh.CshErrors.error_ranges are sorted and non-overlapping
+        ASSERT(m_csh.CshErrors.error_ranges.CheckIfErrorOrMaxColorsOnly());
+        ASSERT(m_csh.CshErrors.error_ranges.CheckOrderedAndNonOverlapping());
+        ASSERT(m_csh.CshList.CheckOrderedAndNonOverlapping());
+
         CshListType csh_delta, csh_error_delta;
         if (updateCSH == FORCE_CSH) {
             csh_delta = m_csh.CshList;
-            csh_error_delta.reserve(m_csh.CshErrors.size());
-            for (const auto &e : m_csh.CshErrors)
+            csh_error_delta.reserve(m_csh.CshErrors.error_ranges.size());
+            for (const auto &e : m_csh.CshErrors.error_ranges)
                 csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
         } else {
-            csh_error_delta = Diff(old_csh_error_list, m_csh.CshErrors, COLOR_MAX);
+            csh_error_delta.DiffInto(old_csh_error_list, m_csh.CshErrors.error_ranges, COLOR_MAX);
             //kill any entries overlapping with a no_error - so they are forced to be refreshed
             for (auto &err : csh_error_delta)
                 if (err.color == COLOR_MAX)
                     for (auto &csh : old_csh_list)
                         if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
                             csh.color = COLOR_MAX;
-            csh_delta = Diff(old_csh_list, m_csh.CshList, COLOR_NORMAL);
+            csh_delta.DiffInto(old_csh_list, m_csh.CshList, COLOR_NORMAL);
         }
 
 
@@ -1270,7 +1221,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //then auto complete without popping up the hint list. But if that would result in 
     //no change to text (because the text under cursor is already complete), we pop
     //up the hint box below, to give feedback to Ctrl+Space.
-    if (onlyOne && m_bUserRequested && !m_bTillCursorOnly && hit->plain.c_str() != text) {
+    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text) {
         ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 
