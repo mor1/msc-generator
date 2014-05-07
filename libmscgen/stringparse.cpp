@@ -747,6 +747,8 @@ bool StringFormat::HasEscapes(const char *text)
  * Malformed "\c" and "\s" arguments are assumed OK
  * @param [in] startpos The location of the first byte of `text` in the input file.
  * @param [in] text The text to process.
+ * @param [in] len The length of the text to process. If text has a zero
+ *                 before len, we terminate processing there.
  * @param csh The object collecting the entries.*/
 void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
 {

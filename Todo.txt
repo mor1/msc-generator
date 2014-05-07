@@ -64,6 +64,11 @@ FIXED: vspacing does not work in a style
 FIXED: Error CSHs may be overlapping - use a different Diff procedure.
 FIXED: when I type defstyle no hints
 DOCED: vpacing, plus the two novelties already in Release Notes.doc
+FIX: verticals not seen on all pages they span.
+FIX: changing scale in print preview does not trigger an update
+FIX: we stated by top-center in print preview, but it was top-left aligned
+ADD: Multi-page export button to print preview.
+ADD: Export dialog for multi-page charts.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB
