@@ -856,10 +856,11 @@ BEGIN
     ID_EDIT_MARGIN_T        "Specify top page margin (in centimeters)\nTop margin"
     ID_COMBO_ALIGNMENT      "Select horizontal and vertical alignment within a pageage alignment"
     ID_EDIT_MARGIN_L        "Specify left page margin (in centimeters)\nLeft margin"
-    ID_COMBO_PAGES          "Select page size for automatic pagination\nPage size"
+    ID_BUTTON_PAGES         "Select page size and orientation for pagination\nPage setup"
     ID_EDIT_MARGIN_R        "Specify right page margin (in centimeters)\nRight margin"
     ID_EDIT_MARGIN_B        "Specify bottom page margin (in centimeters)\nBottom margin"
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
+    ID_EDIT_PAGES           "Select Page\nPage"
     ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-ident the line as opposed to inserting a tabulator."
 END
 

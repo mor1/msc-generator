@@ -112,7 +112,6 @@ public:
     void TriggerIfRibbonCategoryChange();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
     afx_msg void OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI);
-    afx_msg void OnComboAlignment();
 };
 
 

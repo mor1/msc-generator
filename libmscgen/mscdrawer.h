@@ -75,6 +75,8 @@ public:
     static EPageSize ConvertPageSize(const char *);
     /** Converts a fixed page size to a textual description*/
     static const char *ConvertPageSize(EPageSize);
+    /** Converts a fixed page size to a verbose textual description*/
+    static const char *ConvertPageSizeVerbose(EPageSize);
     /** Returns the physical size of `ps` in points (1/72 inch)*/
     static XY GetPhysicalPageSize(EPageSize ps);
 };
