@@ -1,0 +1,10 @@
+hscale=1.5;
+angle=10;
+H1: Host 1;
+H2: Host 2;
+overlap {
+    H1->H2: \plSYN;
+    H2->H1: \prACK;
+};
+H2->H1: \prSYN;
+H1->H2: \plACK;
