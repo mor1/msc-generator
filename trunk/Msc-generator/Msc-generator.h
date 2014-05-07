@@ -186,14 +186,14 @@ public:
     afx_msg void OnAutoHeaders();
     afx_msg void OnUpdateAutoHeaders(CCmdUI *pCmdUI);
     afx_msg void OnComboScale();
-    afx_msg void OnComboPageSize();
-    afx_msg void OnEditMarginL() {DoEditMargin(ID_EDIT_MARGIN_L);}
+    afx_msg void OnButtonPages();
+    afx_msg void OnComboAlignment();
+    afx_msg void OnEditMarginL() { DoEditMargin(ID_EDIT_MARGIN_L); }
     afx_msg void OnEditMarginR() {DoEditMargin(ID_EDIT_MARGIN_R);}
     afx_msg void OnEditMarginT() {DoEditMargin(ID_EDIT_MARGIN_T);}
     afx_msg void OnEditMarginB() {DoEditMargin(ID_EDIT_MARGIN_B);}
             void DoEditMargin(UINT id); 
     afx_msg void OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI);
-    afx_msg void OnUpdatePrintPreviewPageSize(CCmdUI *pCmdUI);
     /** @} */
 
 };

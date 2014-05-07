@@ -235,13 +235,13 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(ID_AUTO_HEADERS, &CMscGenApp::OnAutoHeaders)
     ON_UPDATE_COMMAND_UI(ID_AUTO_HEADERS, &CMscGenApp::OnUpdateAutoHeaders)
     ON_COMMAND(ID_COMBO_SCALE, &CMscGenApp::OnComboScale)
-    ON_COMMAND(ID_COMBO_PAGES, &CMscGenApp::OnComboPageSize)
+    ON_COMMAND(ID_BUTTON_PAGES, OnButtonPages)
+    ON_COMMAND(ID_COMBO_ALIGNMENT, &CMscGenApp::OnComboAlignment)
     ON_COMMAND(ID_EDIT_MARGIN_L, &CMscGenApp::OnEditMarginL)
     ON_COMMAND(ID_EDIT_MARGIN_R, &CMscGenApp::OnEditMarginR)
     ON_COMMAND(ID_EDIT_MARGIN_T, &CMscGenApp::OnEditMarginT)
     ON_COMMAND(ID_EDIT_MARGIN_B, &CMscGenApp::OnEditMarginB)
     ON_UPDATE_COMMAND_UI(ID_COMBO_SCALE, &CMscGenApp::OnUpdatePrintPreviewEdits)
-    ON_UPDATE_COMMAND_UI(ID_COMBO_PAGES, &CMscGenApp::OnUpdatePrintPreviewPageSize)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_L, &CMscGenApp::OnUpdatePrintPreviewEdits)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_R, &CMscGenApp::OnUpdatePrintPreviewEdits)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_T, &CMscGenApp::OnUpdatePrintPreviewEdits)
@@ -1372,9 +1372,9 @@ void CMscGenApp::OnAutoPaginate()
     m_bAutoPaginate = !m_bAutoPaginate;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_PAGINATE, m_bAutoPaginate);
 	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing) {
+    if (pDoc) {
         pDoc->CompileEditingChart(false, false);
-        pDoc->UpdateAllViews(NULL);
+        //pDoc->UpdateAllViews(NULL);
     }
 }
 
@@ -1392,8 +1392,9 @@ void CMscGenApp::OnAutoHeaders()
     m_bAutoHeading = !m_bAutoHeading;
     if (!m_bAutoPaginate) return;
 	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
-        pDoc->CompileEditingChart(false, false);
+    if (pDoc) {
+        if (m_bAutoPaginate)
+            pDoc->CompileEditingChart(false, false);
         pDoc->UpdateAllViews(NULL);
     }
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, m_bAutoHeading);
@@ -1420,49 +1421,54 @@ void CMscGenApp::OnComboScale()
 	CMscGenDoc *pDoc = GetDoc();
     if (!pDoc) return;
     const CString val = c->GetEditText();
-    if (1!=sscanf(val, "%i", &m_iScale4Pagination)) {
-        if (val.CompareNoCase("Fit Width")==0) m_iScale4Pagination = -1;
-        else if (val.CompareNoCase("Fit Page")==0) m_iScale4Pagination = -2;
+    int new_val = m_iScale4Pagination;
+    if (1!=sscanf(val, "%i", &new_val)) {
+        if (val.CompareNoCase("Fit Width")==0) new_val = -1;
+        else if (val.CompareNoCase("Fit Page")==0) new_val = -2;
     }
+    if (m_iScale4Pagination==new_val) 
+        return;
+    m_iScale4Pagination = new_val;
     //m_iScale4Pagination may have been left unchanged, but we normalize text
     pMainWnd->FillScale4Pagination();
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, m_iScale4Pagination);
 
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
+    if (m_bAutoPaginate) 
         pDoc->CompileEditingChart(false, false);
-        pDoc->UpdateAllViews(NULL);
-    }
+    pDoc->UpdateAllViews(NULL);
 }
 
-/** Invokes the print setup dialog. */
-void CMscGenApp::OnComboPageSize()
+
+void CMscGenApp::OnButtonPages()
 {
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CPreviewView *pView = dynamic_cast<CPreviewView *>(pMainWnd->GetActiveView());
+    if (!pView) return;
+    //TODO: Change page size in print prview
     OnFilePrintSetup();
- //   CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
- //   if (!pMainWnd) return;
- //   CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
- //   pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_PAGES, arButtons);
- //   _ASSERT(arButtons.GetSize()==1);
-	//CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
-	//CMscGenDoc *pDoc = GetDoc();
- //   if (!pDoc || !c) return;
- //   m_pageSize = PageSizeInfo::EPageSize(1+c->GetCurSel());
- //   m_PhyPrinterPageSize = PageSizeInfo::GetPhysicalPageSize(m_pageSize);
-
- //   //m_pageSize may have been left unchanged, but we normalize text
- //   pMainWnd->FillPageSize();
- //   if (NormalizeUserMargins())
- //       pMainWnd->FillMargins();
-
- //   if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing)
- //       pDoc->CompileEditingChart(false, false);
+    pMainWnd->FillPageSize();
 }
 
-/** Always disable this control (not implemented yet)*/
-void CMscGenApp::OnUpdatePrintPreviewPageSize(CCmdUI *pCmdUI)
+void CMscGenApp::OnComboAlignment()
 {
-    pCmdUI->Enable(false);
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_ALIGNMENT, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    pApp->m_iPageAlignment = c->GetCurSel() - 4;
+    pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, pApp->m_iPageAlignment);
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveDocument());
+    if (pDoc)
+        pDoc->UpdateAllViews(NULL);
 }
+
+
+
 
 /** Update our user specified margins after a change of them on the GUI.
  * Update the registry and recompile if needed.*/
@@ -1505,10 +1511,9 @@ void CMscGenApp::DoEditMargin(UINT id)
     val2.Format("%lf", m_printer_usr_margins[3]);
     WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, val2);
 
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
+    if (m_bAutoPaginate) 
         pDoc->CompileEditingChart(false, false);
-        pDoc->UpdateAllViews(NULL);
-    }
+    pDoc->UpdateAllViews(NULL);
 }
 
 /** Enable these edit boxes if we are in print preview*/
@@ -1534,10 +1539,9 @@ void CMscGenApp::OnFilePrintSetup()
 
 	CMscGenDoc *pDoc = GetDoc();
     if (!pDoc) return;
-    if (m_bAutoPaginate && pDoc->m_itrShown == pDoc->m_itrEditing) {
+    if (m_bAutoPaginate) 
         pDoc->CompileEditingChart(false, false);
-        pDoc->UpdateAllViews(NULL);
-    }
+    pDoc->UpdateAllViews(NULL);
 }
 
 /** Enable these edit boxes if we are in print preview*/

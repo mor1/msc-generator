@@ -67,6 +67,12 @@ template<> const char EnumEncapsulator<PageSizeInfo::EPageSize>::names[][ENUM_ST
     "A6P", "A6L", "LETTER_P", "LETTER_L", 
     "LEGAL_P", "LEGAL_L", "LEDGER", "TABLOID", ""};
 
+const char VerbosePageSizeNames[][ENUM_STRING_LEN] =
+{"invalid", "none",
+"A0 portrait", "A0 landscape", "A1 portrait", "A1 landscape", "A2 portrait", "A2 landscape",
+"A3 portrait", "A3 landscape", "A4 portrait", "A4 landscape", "A5 portrait", "A5 landscape",
+"A6 portrait", "A6 landscape", "letter portrait", "LETTER_ landscape",
+"legal portrait", "legal landscape", "ledger", "tabloid", ""};
 
 PageSizeInfo::EPageSize PageSizeInfo::ConvertPageSize(const char *c)
 {
@@ -78,6 +84,11 @@ PageSizeInfo::EPageSize PageSizeInfo::ConvertPageSize(const char *c)
 const char *PageSizeInfo::ConvertPageSize(EPageSize ps)
 {
     return EnumEncapsulator<EPageSize>::names[ps];
+}
+
+const char *PageSizeInfo::ConvertPageSizeVerbose(EPageSize ps)
+{
+    return VerbosePageSizeNames[ps];
 }
 
 /** Returns the page size in points (1/72 inch)*/
