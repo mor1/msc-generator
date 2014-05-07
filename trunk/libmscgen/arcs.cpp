@@ -1263,12 +1263,19 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
     for (unsigned i=0; i<segment_types.size(); i++) {
         segment_lines.push_back(save.read().line);
         const StyleCoW * const refinement = GetRefinementStyle(segment_types[i]);
-        if (refinement) 
+        if (refinement) {
+            //Add the line type of the refinement style to each segment
             *segment_lines.rbegin() += refinement->read().line;
+            //Add all other style elements of the refinement style to us
+            save.write() += refinement->read();
+        }
         *segment_lines.rbegin() += style.read().line;
     }
     save += style;
     style = save;
+    //vspacing went to the style, copy it
+    if (style.read().vspacing.first)
+        vspacing = style.read().vspacing.second;
 }
 
 bool ArcDirArrow::AddAttribute(const Attribute &a)

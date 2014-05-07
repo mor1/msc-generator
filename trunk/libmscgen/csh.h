@@ -43,9 +43,11 @@ struct CshPos
     int last_pos;  ///<The index of the last character of the range.
     CshPos() = default;
     CshPos(int a, int b) : first_pos(a), last_pos(b) {}
-    CshPos operator + (const CshPos &a) const {return CshPos(std::min(first_pos, a.first_pos), std::max(last_pos, a.last_pos));}
+    CshPos operator + (const CshPos &a) const { return CshPos(std::min(first_pos, a.first_pos), std::max(last_pos, a.last_pos)); }
+    CshPos &operator += (const CshPos &a) { first_pos = std::min(first_pos, a.first_pos); last_pos = std::max(last_pos, a.last_pos); return *this; }
     bool IsWithin(int p) const { return first_pos<=p && last_pos>=p; } ///<Returns true if positin p is inside the range.
     bool IsWithin(const CshPos &p) const {return IsWithin(p.first_pos) && IsWithin(p.last_pos);} ///<Returns true if another range is completely within the range.
+    template<class PosList> static void AdjustList(PosList &list, int start, int offset);
 };
 
 /** Describes types of language elements to color differently.*/
@@ -82,14 +84,13 @@ enum EColorSyntaxType {
 };
 
 /** Describes a colored range in the input file.*/
-struct CshEntry
+struct CshEntry : public CshPos
 {
-    int first_pos;            ///<The first char in the range
-    int last_pos;             ///<The last char in the range
     EColorSyntaxType color; ///<The type of the language element in the range
     CshEntry() = default;
     CshEntry(const CshEntry&) = default;
-    CshEntry(int f, int l, EColorSyntaxType c) : first_pos(f), last_pos(l), color(c) {}
+    CshEntry(const CshPos &a, EColorSyntaxType c) : CshPos(a), color(c) {}
+    CshEntry(int f, int l, EColorSyntaxType c) : CshPos(f, l), color(c) {}
     bool operator==(const CshEntry&o) const { return color == o.color && first_pos==o.first_pos && last_pos ==o.last_pos; }
 };
 
@@ -103,21 +104,32 @@ class CshListType : public std::vector<CshEntry>
     bool CheckIfOverlap(const CshEntry &e) const;
 public:
     void AddToBack(const CshEntry &e) { _ASSERT(!CheckIfOverlap(e));  push_back(e); }        ///<Add to the end of the collection
+    void DiffInto(const CshListType &old_list, const CshListType &new_list,
+                  EColorSyntaxType neutral);
+    bool CheckOrderedAndNonOverlapping() const;
+    bool CheckIfErrorOrMaxColorsOnly() const;
 };
 
 /** An error detected during csh parse */
-struct CshError : public CshEntry
+struct CshError 
 {
+    int first_pos;    ///<The beginning of the error
     std::string text; ///<The text of the error message.
 };
 
+
 /** A list of errors detected during csh parse */
-class CshErrorList : public std::vector<CshError> 
+class CshErrorList
 {
+    bool AddHelper(CshPos pos, const char *t);
 public:
-    void Add(const CshPos &pos, const char *t);   ///<Add an error to the collection
-    void Add(const CshPos &pos, const std::string &t); ///<Add an error to the collection
-    void Add(const CshPos &pos, std::string &&t);      ///<Add an error to the collection
+    std::vector<CshError> error_texts;  ///<The error messages. Not necessarily sorted.
+    CshListType           error_ranges; ///<The character ranges to underline. Always sorted, contains only COLOR_ERROR or COLOR_MAX types
+    void Add(const CshPos &pos, const char *t) { if (AddHelper(pos, t) && t) error_texts.back().text = t; } ///<Add an error to the collection
+    void Add(const CshPos &pos, const std::string &t) { if (AddHelper(pos, t.c_str())) error_texts.back().text = t; } ///<Add an error to the collection
+    void Add(const CshPos &pos, std::string &&t) { if (AddHelper(pos, t.c_str())) error_texts.back().text = std::move(t); } ///<Add an error to the collection
+    void clear() {error_texts.clear(); error_ranges.clear(); }
+    void swap(CshErrorList &a) { error_texts.swap(a.error_texts); error_ranges.swap(a.error_ranges); }
 };
 
 /** Flags to describe appearance of colored text*/
@@ -348,9 +360,6 @@ public:
     const CshPos *IsInColonLabel(int pos) const;        ///<After parsing return true if character 'pos' is in a colon label. (Used for smart ident.)
     const CshPos *IsInQuotedString(int pos) const;        ///<After parsing return true if character 'pos' is in a quoted string. (Used for smart ident.)
 
-    template <class EntryList>
-    static void AdjustCSHList(EntryList &, int start, int offset); 
-
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.
     std::string SetDesignTo(const std::string&design, bool full); 
@@ -411,19 +420,19 @@ void CshParse(Csh &csh, const char *buff, unsigned len);
 int FindPrefix(const std::set<std::string> &coll, const char *txt);
 
 /** Emulate inserting or removing offset chars after start & update CSH entries
- * We cancel entries that are entirely in the deleted region (if offset < 0) by setting their
- * last position to a value smaller than their first pos.
- * @param list The list (which can be a CshListType or CshErrorList) to adjust.
- *             As for normal csh entires, the first character of the file is 1.
- *             Also, if the first and last position of a csh entry equals, that means
- *             that the csh entry corresponds to a single character of the file.
- * @param [in] start The first character of the change. Again assuming the first character of
- *                   the file is named 1. When inserting we insert *before* this character;
- *                   when deleting, this is the first character we delete.
- * @param [in] offset The number of bytes inserted (for positive value) or removed (for
- *                    negative value). Value zero requires nothing to do.*/
-template <class EntryList>
-void Csh::AdjustCSHList(EntryList & list, int start, int offset)
+* We cancel entries that are entirely in the deleted region (if offset < 0) by setting their
+* last position to a value smaller than their first pos.
+* @param list The list to adjust. Any container, shall contain CshPos (or derivative) elements.
+*             As for normal csh entires, the first character of the file is 1.
+*             Also, if the first and last position of a csh entry equals, that means
+*             that the csh entry corresponds to a single character of the file.
+* @param [in] start The first character of the change. Again assuming the first character of
+*                   the file is named 1. When inserting we insert *before* this character;
+*                   when deleting, this is the first character we delete.
+* @param [in] offset The number of bytes inserted (for positive value) or removed (for
+*                    negative value). Value zero requires nothing to do.*/
+template<class PosList>
+static void CshPos::AdjustList(PosList &list, int start, int offset)
 {
     if (offset==0) return;
     const int upper = offset < 0 ? start - offset : start;
@@ -452,6 +461,5 @@ void Csh::AdjustCSHList(EntryList & list, int start, int offset)
             csh.last_pos += offset; //last pos is beyond the region deleted
     }
 }
-
 
 #endif
