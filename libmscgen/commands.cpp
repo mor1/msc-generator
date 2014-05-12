@@ -1471,6 +1471,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
     //else we are done here
     if (vpos.src.length() || vpos.dst.length()) {
         outer_edge.y.MakeInvalid();
+        //Set height to zero not to disturb layouting and automatic pagination
         height = 0;
         return; //No call to CommentHeight(), it will be done in postposprocess?
     } 
@@ -1519,6 +1520,10 @@ void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/)
     outer_edge.y.Expand(style.read().line.LineWidth()/2);
 
     CalculateAreaFromOuterEdge();
+    //set yPos and height so that GetYExtent returns the right range
+    //to determine if this element needs to be drawn on a particular page
+    yPos = outer_edge.y.from;
+    height = outer_edge.y.Spans();
 }
 
 /** Calculates the `area` field from the `outer_edge` field.*/

@@ -144,9 +144,6 @@ void CMscGenView::OnFilePrintPreview()
 void CMscGenView::OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo, 
                                     POINT point, CPreviewView* pView)
 {
-    CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
-    if (pMain) 
-        pMain->DeleteFromPrintPreviewCategory();
     CScrollView::OnEndPrintPreview(pDC, pInfo, point, pView);
 }
 

@@ -119,8 +119,10 @@ public:
 	virtual void OnCloseDocument();
 
 	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
-	afx_msg void OnFileExport();
-	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
+    afx_msg void OnFileExport();
+            void DoExport(bool pdfOnly);
+    afx_msg void OnPreviewExport();
+    afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
 	afx_msg void OnEditUndo();
 	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
 	afx_msg void OnEditRedo();

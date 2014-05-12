@@ -45,11 +45,16 @@
 #define IDD_SCALE                       315
 #define IDB_PREFLARGE                   317
 #define IDB_PREFSMALL                   318
+#define IDD_MULTI_PAGE                  320
 #define IDC_RADIO1                      1000
+#define IDC_RADIO_MP_1                  1000
+#define IDC_RADIO_MP1                   1000
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON_URL                  1001
+#define IDC_RADIO_MP3                   1001
 #define IDC_EDIT2                       1002
 #define IDC_BUTTON_LATEST_URL           1002
+#define IDC_RADIO_MP2                   1002
 #define IDC_CHECK_PEDANTIC              1003
 #define IDC_EDIT3                       1003
 #define IDC_CHECK_WARNINGS              1004
@@ -177,8 +182,8 @@
 #define ID_EDIT_MARGIN_R                33063
 #define ID_EDIT_MARGIN_B                33064
 #define ID_FULL_SCREEN_PAGE             33065
-#define ID_FULL_SCREEN_PAGE2            33066
 #define ID_EDIT_PAGES                   33066
+#define ID_BUTTON_PREVIEW_EXPORT        33067
 #define ID_BUTTON4                      33069
 #define ID_CHECK2                       33070
 #define ID_CHECK_CSH_TAB                33070
@@ -189,7 +194,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        320
+#define _APS_NEXT_RESOURCE_VALUE        321
 #define _APS_NEXT_COMMAND_VALUE         33073
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317

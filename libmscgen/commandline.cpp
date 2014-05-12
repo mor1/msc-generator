@@ -735,7 +735,7 @@ int do_main(const std::list<std::string> &args,
             oOutputFile = tmpnam(NULL);
         }
         //Now cycle through pages and write them to individual files or a full-page one
-        msc.DrawToFile(oOutType, scale, oOutputFile, false, PageSizeInfo::GetPhysicalPageSize(oPageSize),
+        msc.DrawToFile(oOutType, scale, oOutputFile, false, false, PageSizeInfo::GetPhysicalPageSize(oPageSize),
                         margins, oHA, oVA, true);
         msc.Progress.Done();
         if (load_data)

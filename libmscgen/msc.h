@@ -524,7 +524,7 @@ public:
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
     bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, 
-                    const string &fn, bool bPageBreak,
+                    const string &fn, bool bPageBreak, bool ignore_pagebreaks, 
                     const XY &pageSize=XY(0,0), const double margins[4]=NULL,
                     int ha=-1, int va=-1, bool generateErrors=false);
 #ifdef CAIRO_HAS_WIN32_SURFACE

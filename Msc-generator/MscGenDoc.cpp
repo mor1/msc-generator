@@ -145,6 +145,69 @@ void CScaleDlg::OnBnClicked()
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
 }
 
+
+class CMultipageDlg : public CDialog
+{
+public:
+    CMultipageDlg();
+
+    // Dialog Data
+    enum { IDD = IDD_MULTI_PAGE };
+
+protected:
+    //virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+    virtual BOOL OnInitDialog();
+    afx_msg void OnBnClicked();
+
+    // Implementation
+protected:
+    DECLARE_MESSAGE_MAP()
+public:
+    int m_selected;
+};
+
+BEGIN_MESSAGE_MAP(CMultipageDlg, CDialog)
+    ON_BN_CLICKED(IDC_RADIO_MP1, &CMultipageDlg::OnBnClicked)
+    ON_BN_CLICKED(IDC_RADIO_MP2, &CMultipageDlg::OnBnClicked)
+    ON_BN_CLICKED(IDC_RADIO_MP3, &CMultipageDlg::OnBnClicked)
+END_MESSAGE_MAP()
+
+CMultipageDlg::CMultipageDlg() : CDialog(CMultipageDlg::IDD)
+, m_selected(2)
+{
+}
+
+
+BOOL CMultipageDlg::OnInitDialog()
+{
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    CString opt2 = "Export the chart to a single file, where each page is an ";
+    opt2 += PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize);
+    opt2 += " page. (Use Print Setup to change; and Print Preview to set margins, scaling and alignment.)";
+    ((CButton*)GetDlgItem(IDC_RADIO_MP2))->SetWindowText(opt2);
+    ((CButton*)GetDlgItem(IDC_RADIO_MP1))->SetCheck(m_selected==1);
+    ((CButton*)GetDlgItem(IDC_RADIO_MP2))->SetCheck(m_selected==2);
+    ((CButton*)GetDlgItem(IDC_RADIO_MP3))->SetCheck(m_selected==3);
+    BOOL a = CDialog::OnInitDialog();
+    return a;
+}
+
+void CMultipageDlg::OnBnClicked()
+{
+    if (((CButton*)GetDlgItem(IDC_RADIO_MP1))->GetCheck())
+        m_selected = 1;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_MP2))->GetCheck())
+        m_selected = 2;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_MP3))->GetCheck())
+        m_selected = 3;
+    else
+        _ASSERT(0);
+}
+
+
+
+
 AnimationElement::AnimationElement(Element *a, ElementType et, int delay, 
                        int appear, int disappear) :
     arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay),
@@ -193,6 +256,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_EDIT_UPDATE, OnEditUpdate)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_UPDATE, OnUdpateEditUpdate)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
+    ON_COMMAND(ID_BUTTON_PREVIEW_EXPORT, OnPreviewExport)
     ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
@@ -627,6 +691,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	//Here we set all our m_itr* iterators to valid values afterwards
 	m_charts.erase(m_charts.begin(), m_itrEditing);
 	m_itrSaved = m_itrEditing;
+    m_itrShown = m_charts.end();
 
 	// if the app was started only to print or to display an embedded object, don't set user control
 	//Copied from COleLinkingDoc
@@ -706,26 +771,41 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnFileExport()
 {
+    DoExport(false);
+}
+
+void CMscGenDoc::OnPreviewExport()
+{
+    DoExport(true);
+}
+
+void CMscGenDoc::DoExport(bool pdfOnly)
+{
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     CompileEditingChart(false, false); //Start a compilation - usually in bkg, till the user selects file
     CString name = GetPathName();
     double x_scale=1, y_scale=1;
-    bool bitmap;
-    do {  //must not call DoModal twice for the same instance of CFileDialog
+    bool bitmap_format, multipage_format;
+    do {  //must not call DoModal twice for the same instance of CFileDialog - new scope
         CFileDialog dialog(false);
         dialog.m_pOFN->Flags &= ~OFN_OVERWRITEPROMPT & ~OFN_NOTESTFILECREATE;
         dialog.m_pOFN->lpstrTitle = "Export to file";
-        dialog.m_pOFN->lpstrFilter =	
-            "Portable Network Graphics (*.png)\0*.png\0"
-            "Windows Bitmap (*.bmp)\0*.bmp\0"
-            "Enhanced Metafile (*emf)\0*.emf\0"
-            "Scalable Vector Graphics (*svg)\0*.svg\0"
-            "Portable Document Format (*.pdf)\0*.pdf\0"
-            "Encapsulated PostScript (*.eps)\0*.eps\0";
-        dialog.m_pOFN->nFilterIndex = pApp->GetProfileInt(REG_SECTION_SETTINGS, "ExportFileType", 1);
-        if (dialog.m_pOFN->nFilterIndex>6 || dialog.m_pOFN->nFilterIndex<1)
+        if (pdfOnly) {
+            dialog.m_pOFN->lpstrFilter = "Portable Document Format (*.pdf)\0*.pdf\0";
             dialog.m_pOFN->nFilterIndex = 1;
+        } else {
+            dialog.m_pOFN->lpstrFilter =
+                "Portable Network Graphics (*.png)\0*.png\0"
+                "Windows Bitmap (*.bmp)\0*.bmp\0"
+                "Enhanced Metafile (*emf)\0*.emf\0"
+                "Scalable Vector Graphics (*svg)\0*.svg\0"
+                "Portable Document Format (*.pdf)\0*.pdf\0"
+                "Encapsulated PostScript (*.eps)\0*.eps\0";
+            dialog.m_pOFN->nFilterIndex = pApp->GetProfileInt(REG_SECTION_SETTINGS, "ExportFileType", 1);
+            if (dialog.m_pOFN->nFilterIndex>6 || dialog.m_pOFN->nFilterIndex<1)
+                dialog.m_pOFN->nFilterIndex = 1;
+        }
         char filename[1024];
         strcpy_s(filename, name);
         if (PathFindExtension(filename) == CString(".signalling"))
@@ -758,15 +838,45 @@ void CMscGenDoc::OnFileExport()
             if (IDNO == AfxMessageBox("File " + name + " exists. Do you want to overwrite?", MB_YESNO))
                 continue;
         ext = PathFindExtension(name);
-        bitmap = ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0;
+        bitmap_format = ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0;
+        multipage_format = ext.CompareNoCase(".pdf")==0;
         break;
     } while(1);
+
     WaitForCompilationToEnd();
     if (m_ChartShown.GetErrorNum(false))
         if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to export it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
             return;
 
-    if (bitmap) {
+    bool ignore_pagebreaks = false;
+    bool multipage_export = false;
+    if (pdfOnly) {  //For print preview export, we always choose #option 2 - multi-page PDF output
+        ignore_pagebreaks = false;
+        multipage_export = true;
+    } else if (multipage_format && m_ChartShown.GetPages()>1) {
+        CMultipageDlg multipage;
+        multipage.m_selected = 2;
+        if (IDCANCEL == multipage.DoModal())
+            return;
+        switch (multipage.m_selected) {
+        case 1:
+            ignore_pagebreaks = true;
+            multipage_export = false;
+            break;
+        case 2:
+            ignore_pagebreaks = false;
+            multipage_export = true;
+            break;
+        default:
+            _ASSERT(0);
+            //fallthrough
+        case 3:
+            ignore_pagebreaks = false;
+            multipage_export = false;
+        }
+    }
+
+    if (bitmap_format) {
         CScaleDlg scale;
         scale.m_orig_size = m_ChartShown.GetSize();
         if (IDCANCEL == scale.DoModal())
@@ -789,7 +899,10 @@ void CMscGenDoc::OnFileExport()
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", scale.m_xy_x);
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", scale.m_xy_y);
     }
-    m_ChartShown.DrawToFile(name, false, x_scale, y_scale);
+    m_ChartShown.DrawToFile(name, false, ignore_pagebreaks, x_scale, y_scale, 
+                            multipage_export ? PageSizeInfo::GetPhysicalPageSize(pApp->m_pageSize) : XY(0,0),
+                            pApp->m_printer_usr_margins, pApp->m_iPageAlignment - (pApp->m_iPageAlignment/3)*3,
+                            pApp->m_iPageAlignment/3);
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)

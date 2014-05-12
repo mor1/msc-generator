@@ -53,6 +53,7 @@ protected:
 	//CMFCRibbonStatusBar  m_wndStatusBar;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
+    bool              m_bHaveAddedToPreviewCategory;
 public:
     bool m_bAutoSplit;         //True if autosplit mode is on
     bool m_at_embedded_object_category;
@@ -80,7 +81,6 @@ public:
     CMFCToolBar *FindFullScreenToolBar(CPaneFrameWnd *p=NULL); //finds the fulls screen toolbar 
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
     void AddToPrintPreviewCategory();
-    void DeleteFromPrintPreviewCategory();
 // Implementation
 public:
 	virtual ~CMainFrame();

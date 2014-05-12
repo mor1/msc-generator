@@ -618,7 +618,10 @@ double CDrawingChartData::GetHeadingSize() const
     return GetMsc()->pageBreakData[m_page-1].autoHeadingSize;
 }
 
-void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, double x_scale, double y_scale) const
+void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, bool ignore_pagebreaks, 
+                                   double x_scale, double y_scale,
+                                   const XY &pageSize, const double margins[4],
+                                   int ha, int va) const
 {
 	string fn(fileName?fileName:"Untitled");
     size_t pos = fn.find_last_of('.');
@@ -639,7 +642,9 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
         ot = Canvas::PNG;
         fn += ".png";
     }
-    GetMsc()->DrawToFile(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, bPageBreaks);
+    GetMsc()->DrawToFile(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, 
+                         bPageBreaks, ignore_pagebreaks,
+                         pageSize, margins, ha, va, false);
 }
 
 //This one expects point in chart coordinates
