@@ -113,6 +113,7 @@ CMainFrame::CMainFrame()
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
     m_has_fallback_image = false;
+    m_bHaveAddedToPreviewCategory = false;
 }
 
 CMainFrame::~CMainFrame()
@@ -505,25 +506,59 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our butto
 }
 
 
+CMFCRibbonCategory* GetRibbonCategory(CMFCRibbonBar *pR, const char *name)
+{
+    const int count = pR->GetCategoryCount();
+    const CString n = name;
+    for (int i = 0; i<count; i++) {
+        CMFCRibbonCategory* p = pR->GetCategory(i);
+        if (!n.CompareNoCase(p->GetName()))
+            return p;
+    }
+    return NULL;
+}
+
 void CMainFrame::AddToPrintPreviewCategory()
 {
+    if (m_bHaveAddedToPreviewCategory)
+        return; //nothing to do
     //find print preview category
-    const int count = m_wndRibbonBar.GetCategoryCount();
-    CMFCRibbonCategory* pRC = NULL;
-    const CString name = "Print Preview";
-    for (int i = 0; i<count; i++) {
-        CMFCRibbonCategory* p = m_wndRibbonBar.GetCategory(i);
-        if (name.CompareNoCase(p->GetName())) continue;
-        pRC = p;
+    CMFCRibbonCategory* const pRC = GetRibbonCategory(&m_wndRibbonBar, "Print Preview");
+    if (!pRC || 3 < pRC->GetPanelCount()) {
+        _ASSERT(0);
+        return;
+    }
+
+    //Find the "Print" Panel and add PDF export
+    const int panelcount = pRC->GetPanelCount();
+    CMFCRibbonPanel *pRP = NULL;
+    const CString panelname = "Print";
+    for (int i = 0; i<panelcount; i++) {
+        CMFCRibbonPanel *p = pRC->GetPanel(i);
+        if (panelname.CompareNoCase(p->GetName())) continue;
+        pRP = p;
         break;
     }
-    if (!pRC || 3 < pRC->GetPanelCount()) return;
+    if (pRP) {
+        //Get Images for the file category
+        CMFCRibbonCategory* pRCMain = m_wndRibbonBar.GetMainCategory();
+        CMFCRibbonButton *pRB;
+        if (pRCMain) {
+            CMFCToolBarImages *pMainImageList = &pRCMain->GetLargeImages();
+            //pImageList->AddIcon(theApp.LoadIcon(IDI_SOME_ICON), true);        
+            pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF",
+                                       pMainImageList->ExtractIcon(9));
+        } else
+            pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF");
+        pRP->Add(pRB);
+        
+    }
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
     //Add new panel
-    CMFCRibbonPanel *pRP = pRC->AddPanel("Pagination");
+    pRP = pRC->AddPanel("Pagination");
     pRP->SetCenterColumnVert();
     pRP->SetJustifyColumns();
 
@@ -584,8 +619,10 @@ void CMainFrame::AddToPrintPreviewCategory()
     pRE->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
     pRP->Add(pRE);
 
-    CMFCRibbonButton *pRB = new CMFCRibbonButton(ID_BUTTON_PAGES, "Page setup");
-    pRP->Add(pRB);
+    CMFCRibbonLabel *pRL = new CMFCRibbonLabel("(Use Page Setup to change.)");
+    pRP->Add(pRL);
+    //CMFCRibbonButton *pRB = new CMFCRibbonButton(ID_BUTTON_PAGES, "Page setup");
+    //pRP->Add(pRB);
 
     pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 90, "Alignment:");
     pRCB->EnableDropDownListResize();
@@ -628,23 +665,8 @@ void CMainFrame::AddToPrintPreviewCategory()
     pRP->Add(pRE);
 
     m_wndRibbonBar.RecalcLayout();
+    m_bHaveAddedToPreviewCategory = true;
 }
-
-void CMainFrame::DeleteFromPrintPreviewCategory()
-{
-    const int count = m_wndRibbonBar.GetCategoryCount();
-    CMFCRibbonCategory* pRC = NULL;
-    const CString name = "Print Preview";
-    for (int i = 0; i<count; i++) {
-        CMFCRibbonCategory* p = m_wndRibbonBar.GetCategory(i);
-        if (name.CompareNoCase(p->GetName())) continue;
-        pRC = p;
-        break;
-    }
-    if (!pRC || pRC->GetPanelCount()<=3) return;
-    pRC->RemovePanel(3);
-}
-
 
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
 {

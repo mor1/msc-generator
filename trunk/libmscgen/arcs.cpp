@@ -2894,8 +2894,9 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
 void ArcVerticalArrow::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     //We will not have notes or comments, so no need to call CommentHeight()
-    height = 0;
     _ASSERT(comments.size()==0);
+    //Set height to zero not to disturb layouting and automatic pagination
+    height = 0;
 }
 
 void ArcVerticalArrow::ShiftBy(double y)
@@ -3169,6 +3170,10 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
     area.arc = this;
     area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     chart->NoteBlockers.Append(this);
+    //set yPos and height so that GetYExtent returns the right range
+    //to determine if this element needs to be drawn on a particular page
+    yPos = ypos[0];
+    height = ypos[1]-ypos[0];
 }
 
 void ArcVerticalArrow::PostPosProcess(Canvas &canvas)

@@ -178,7 +178,10 @@ public:
 	XY GetPageOrigin(unsigned page) const;
     Block GetNetPageBlock() const; //the page coordinates without autoheader and coyright text
     double GetHeadingSize() const;
-	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
+	void DrawToFile(const char* fileName, bool bPageBreaks, bool ignore_pagebreaks, 
+                    double x_scale=1.0, double y_scale=1.0, 
+                    const XY &pageSize = XY(0, 0), const double margins[4] = NULL,
+                    int ha = 0, int va = 0) const;
     /** Returns the size of the metafile or zero if error.*/
     size_t DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                   unsigned page, bool bPageBreaks,

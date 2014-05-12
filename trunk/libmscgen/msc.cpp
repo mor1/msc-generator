@@ -1851,8 +1851,8 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
         ce->AddAttributeList(NULL);
         EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
         EIterator dummy2 = AllEntities.Find_by_Ptr(NoEntity);
-        Numbering dummy3;
-        Element *dummy4;
+        Numbering dummy3; //will not be used by a CommandEntity
+        Element *dummy4=NULL; //target of any notes, pretend we have none  
         //at_to_level must be true, or else it complains...
         ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL);
     } else {
@@ -2635,6 +2635,9 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * @param [in] fn The name of the file to create. In case of multiple files, we append a number.
  * @param [in] bPageBreak If true, we draw dashed lines for page break, when the 
  *                        whole chart is drawn in one.
+ * @param [in] ignore_pagebreaks If true, we draw a multi-page chart onto a single file 
+ *                               (if pagesize is zero) or a single page (if pagesize is nonzero)
+ *                               ignoring page breaks.
  * @param [in] pageSize If non-zero, a fixed page size is used and a single multi-page 
  *                      file will be created (only with PDF).
  * @param [in] margins For fixed size pages, these are the margins
@@ -2644,14 +2647,14 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  *                            Errors are also generated on file creation and similar hard errors.
  * @returns False on error (but not on warning) irrespective of `generateErrors`. */
 bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
-                     const string &fn, bool bPageBreak,
+                     const string &fn, bool bPageBreak, bool ignore_pagebreaks, 
                      const XY &pageSize, const double margins[4], 
                      int ha, int va, bool generateErrors)
 {
     _ASSERT(scale.size()>0);
     _ASSERT(scale.size()==1 || (pageSize.x>0 && pageSize.y>0)); //Multiple scales must be fixed-size output
-    const unsigned from = pageBreakData.size()<=1 ? 0 : 1;
-    const unsigned till = pageBreakData.size()<=1 ? 0 : pageBreakData.size();
+    const unsigned from = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : 1;
+    const unsigned till = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : pageBreakData.size();
     if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
             Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
