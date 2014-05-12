@@ -90,7 +90,7 @@ public:
 
 	// Zoom related 
 	unsigned m_zoom; //In percentage. 100 is normal
-	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
+	enum EZoomMode {NONE=0, OVERVIEW, ORIGSIZE, ZOOM_FITTOWIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
     Contour m_fallback_image_location;
@@ -156,18 +156,19 @@ public:
     void StepPage(signed int step);
 
 	//Zoom functions
-			void SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar
-			void ArrangeViews(EZoomMode mode);               //Automatically adjust zoom and window size
-			void ArrangeViews() {ArrangeViews(m_ZoomMode);}  //Automatically adjust zoom and window size using existng zoom mode (if any)
-	afx_msg void OnViewZoomnormalize();                      //Automatically adjust zoom and window size: overview mode
-	afx_msg void OnViewAdjustwidth();                        //Automatically adjust zoom and window size: set window width
-	afx_msg void OnViewFittowidth();                         //Automatically adjust zoom and window size: set width to window
-			void SwitchZoomMode(EZoomMode mode);             //Set zoom mode to specified value (and adjust zoom)
+			bool SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar, Returns true if we have actually changed zoom .
+			bool ArrangeViews(EZoomMode mode);               //Automatically adjust zoom. Returns true if we have done something.
+			bool ArrangeViews() {return ArrangeViews(m_ZoomMode);}  //Automatically adjust zoom using existng zoom mode (if any) Returns true if we have done something.
+	afx_msg void OnViewZoomnormalize();                      //Automatically adjust zoom: overview mode
+	afx_msg void OnView100Percent();                         //Automatically adjust zoom: set to 100%
+	afx_msg void OnViewFittowidth();                         //Automatically adjust zoom: set width to window
+    afx_msg void OnUpdateViewZoom(CCmdUI *pCmdUI);
+            void SwitchZoomMode(EZoomMode mode);             //Set zoom mode to specified value (and adjust zoom)
 	afx_msg void OnZoommodeKeepinoverview();                 //Set zoom mode
-	afx_msg void OnZoommodeKeepadjustingwindowwidth();       //Set zoom mode
+	afx_msg void OnZoommodeKeep100Percent();       //Set zoom mode
 	afx_msg void OnZoommodeKeepfittingtowidth();             //Set zoom mode
 	afx_msg void OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI);
+    afx_msg void OnZoommodeKeep100Percent(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI);
 
 	        bool DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt);

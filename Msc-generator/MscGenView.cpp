@@ -595,13 +595,13 @@ void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
 { 
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-    //Do not adjust zoom here for ZOOM_WIDTH, since zooming 
+    //Do not adjust zoom here for ZOOM_FITTOWIDTH, since zooming 
     //while split window will trigger this - and destroy the zoom command
     //if ZOOM_WIDTH is on.
-	//if (pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH)
-	//	pDoc->ArrangeViews();
-	//else 
-    ResyncScrollSize(); 
+	if (pDoc->m_ZoomMode == CMscGenDoc::NONE)
+        ResyncScrollSize();
+    else 
+        pDoc->ArrangeViews(); 
 }
 
 void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)

@@ -260,13 +260,16 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
     ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
-	ON_COMMAND(ID_VIEW_ADJUSTWIDTH, OnViewAdjustwidth)
+    ON_COMMAND(ID_VIEW_ZOOM100, OnView100Percent)
 	ON_COMMAND(ID_VIEW_FITTOWIDTH, OnViewFittowidth)
-	ON_COMMAND(ID_ZOOMMODE_KEEPINOVERVIEW, OnZoommodeKeepinoverview)
-	ON_COMMAND(ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH, OnZoommodeKeepadjustingwindowwidth)
+    ON_UPDATE_COMMAND_UI(ID_VIEW_ZOOMNORMALIZE, OnUpdateViewZoom)
+    ON_UPDATE_COMMAND_UI(ID_VIEW_ZOOM100, OnUpdateViewZoom)
+    ON_UPDATE_COMMAND_UI(ID_VIEW_FITTOWIDTH, OnUpdateViewZoom)
+    ON_COMMAND(ID_ZOOMMODE_KEEPINOVERVIEW, OnZoommodeKeepinoverview)
+    ON_COMMAND(ID_ZOOMMODE_KEEP100, OnZoommodeKeep100Percent)
 	ON_COMMAND(ID_ZOOMMODE_KEEPFITTINGTOWIDTH, OnZoommodeKeepfittingtowidth)
 	ON_UPDATE_COMMAND_UI(ID_ZOOMMODE_KEEPINOVERVIEW, OnUpdateZoommodeKeepinoverview)
-	ON_UPDATE_COMMAND_UI(ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH, OnUpdateZoommodeKeepadjustingwindowwidth)
+    ON_UPDATE_COMMAND_UI(ID_ZOOMMODE_KEEP100, OnZoommodeKeep100Percent)
 	ON_UPDATE_COMMAND_UI(ID_ZOOMMODE_KEEPFITTINGTOWIDTH, OnUpdateZoommodeKeepfittingtowidth)
 	ON_UPDATE_COMMAND_UI(ID_FILE_SAVE, OnUpdateFileExport)
 	ON_UPDATE_COMMAND_UI(ID_FILE_SAVE_AS, OnUpdateFileExport)
@@ -1261,14 +1264,17 @@ void CMscGenDoc::ChangePage(unsigned page)
 {
     //skip if compiling
     if (m_pCompilingThread) return;
-    m_ChartShown.SetPage(page);
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    if (pWnd && pWnd->m_bAutoSplit) 
-        pWnd->SetSplitSize(unsigned(m_ChartShown.GetHeadingSize()*m_zoom/100.));
-    UpdateAllViews(NULL);
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    if (pApp->IsInternalEditorRunning()) 
+    if (page != m_ChartShown.GetPage()) {
+        m_ChartShown.SetPage(page);
+        if (pWnd && pWnd->m_bAutoSplit)
+            pWnd->SetSplitSize(unsigned(m_ChartShown.GetHeadingSize()*m_zoom/100.));
+        if (!ArrangeViews())
+            UpdateAllViews(NULL); //if zoom needed not be changed, we call update to show the new page
+    }
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    if (pApp->IsInternalEditorRunning())
         pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
     if (pWnd)
         pWnd->FillPageComboBox(m_ChartShown.GetPages(), page);
@@ -1287,37 +1293,37 @@ void CMscGenDoc::StepPage(signed int step)
 
 
 //true if actual change happened
-void CMscGenDoc::SetZoom(int zoom)
+bool CMscGenDoc::SetZoom(int zoom)
 {
-    if (m_pCompilingThread) return; //skip if compiling
+    if (m_pCompilingThread) return false; //skip if compiling
 	if (zoom < 1) zoom = m_zoom;
 	if (zoom > 10000) zoom = 10000;
 	if (zoom < 10) zoom = 10;
 
-	if (zoom == m_zoom) return;
+	if (zoom == m_zoom) return false;
 	m_zoom = zoom;
     UpdateAllViews(NULL);
 	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
 	if (pWnd)
         pWnd->FillZoomComboBox(m_zoom);
-    return;
+    return true;
 }
 
 
 #define SCREEN_MARGIN 50 
 
-void CMscGenDoc::ArrangeViews(EZoomMode mode)
+bool CMscGenDoc::ArrangeViews(EZoomMode mode)
 {
-    if (m_pCompilingThread) return; //skip if compiling
-	if (mode == NONE) return;
+    if (m_pCompilingThread) return false; //skip if compiling
+	if (mode == NONE) return false;
 	POSITION pos = GetFirstViewPosition();
-	if (pos == NULL) return;
+	if (pos == NULL) return false;
     CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-  	if (!pView) return;
-    const CSize size = m_ChartShown.GetSize();
-	if (size.cx==0 || size.cy==0) return;
+  	if (!pView) return false;
+    const CSize size = m_ChartShown.GetSize(m_ChartShown.GetPage());
+	if (size.cx==0 || size.cy==0) return false;
 	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-	if (!pWnd) return;
+	if (!pWnd) return false;
 
 	//Query size of the view, the main window and the screen
 	RECT view, window, screen;
@@ -1336,7 +1342,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 		x -= (window.right-window.left) - (view.right-view.left) + SCREEN_MARGIN;
 		y -= (window.bottom-window.top) - (view.bottom-view.top) + SCREEN_MARGIN; 
 	}
-	int zoom;
+	int zoom ;
 
 	//OK, we have a sane View, with some drawing in it and we are not in place with a sane main window
 	switch (mode) {
@@ -1347,75 +1353,26 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
             //HACK: Update this
 			//Re-query view size		
 			pos = GetFirstViewPosition();
-			if (pos == NULL) return;
 			pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-  			if (!pView) return;
+  			if (!pView) return false;
 			pView->GetClientRect(&view);
 
-            if (pWnd->GetStyle() & WS_MAXIMIZE) {
-                //Here we are maximized and do not adjust window size
-			    //See which dimension is limiting
-                if (double(view.bottom - view.top)/double(view.right - view.left) > double(size.cy)/double(size.cx)) 
-				    zoom = unsigned(double(view.right - view.left)/double(size.cx)*100.);
-			    else 
-				    zoom = unsigned(double(view.bottom - view.top)/double(size.cy)*100.);
-			    if (zoom > 100) zoom = 100;
-			    SetZoom(zoom);
-            } else {
-                //Here we fit to screen size and also change windows size
-			    //See which dimension is limiting
-			    if (double(y)/double(x) > double(size.cy)/double(size.cx)) 
-				    zoom = unsigned(double(x)/double(size.cx)*100.);
-			    else 
-				    zoom = unsigned(double(y)/double(size.cy)*100.);
-			    if (zoom > 100) zoom = 100;
-			    SetZoom(zoom);
-			    //If not fullscreen, adjust window size, too
-			    if (!pWnd->IsFullScreen()) {
-				    x = zoom*size.cx/100 + 1;
-				    y = zoom*size.cy/100 + 1;
-				    //now xy contains is the required client size
-				    x += (window.right-window.left) - (view.right-view.left);
-				    y += (window.bottom-window.top) - (view.bottom-view.top);
-				    //now xy contains is the required client size, plus any panes
-				    //next, we adjust for minimum size
-				    if (x < 550) x = 580;
-				    if (y < 300) y = 300;
-				    if (window.left + x > screen.right - SCREEN_MARGIN)
-					    window.left = screen.right - SCREEN_MARGIN - x;
-				    if (window.top + y > screen.bottom - SCREEN_MARGIN)
-					    window.top = screen.bottom - SCREEN_MARGIN - y;
-				    pWnd->SetWindowPos(NULL, window.left, window.top, x, y,  SWP_NOZORDER | SWP_NOACTIVATE);
-			    }
-            }
+			//See which dimension is limiting
+            if (double(view.bottom - view.top)/double(view.right - view.left) > double(size.cy)/double(size.cx)) 
+				zoom = unsigned(double(view.right - view.left)/double(size.cx)*100.);
+			else 
+				zoom = unsigned(double(view.bottom - view.top)/double(size.cy)*100.);
+			if (zoom > 100) zoom = 100;
 			break;
-		case CMscGenDoc::WINDOW_WIDTH:
-			//Try fit real size
-			zoom = 100;
-			//if window is big enough do nothing
-			if (view.right-view.left > zoom*size.cx/100 + 1) break;
-			//adjust zoom if there is not enough space
-			if (zoom*size.cx/100 + 1 > x)
-				zoom = unsigned((x-1)*100./size.cx);
-			SetZoom(zoom);
-			//If not fullscreen, adjust window size, too
-			if (!pWnd->IsFullScreen()) {
-				x = zoom*size.cx/100 + 1;
-                x += (window.right-window.left) - (view.right-view.left);
-                //now xy contains is the required client size, plus any panes
-				if (x < 550) x = 580;
-				if (window.left + x > screen.right - SCREEN_MARGIN)
-					window.left = screen.right - SCREEN_MARGIN - x;
-				pWnd->SetWindowPos(NULL, window.left, window.top, x, (window.bottom-window.top),  SWP_NOZORDER | SWP_NOACTIVATE);
-			}
-			break;
-		case CMscGenDoc::ZOOM_WIDTH:
+        case CMscGenDoc::ORIGSIZE:
+            zoom = 100;
+            break;
+		case CMscGenDoc::ZOOM_FITTOWIDTH:
 			zoom = unsigned((view.right-view.left)*100./size.cx);
 			if (zoom>150) zoom = 150;
-			SetZoom(zoom);
 			break;
 	}
-    UpdateAllViews(NULL);
+    return SetZoom(zoom); //if true, we also call UpdateAllViews from SetZoom();
 }
 
 void CMscGenDoc::OnViewZoomnormalize()
@@ -1423,18 +1380,22 @@ void CMscGenDoc::OnViewZoomnormalize()
 	ArrangeViews(OVERVIEW);
 }
 
-void CMscGenDoc::OnViewAdjustwidth()
+void CMscGenDoc::OnView100Percent()
 {
-	ArrangeViews(WINDOW_WIDTH);
+    ArrangeViews(ORIGSIZE);
 }
 
 void CMscGenDoc::OnViewFittowidth()
 {
-	ArrangeViews(ZOOM_WIDTH);
+    ArrangeViews(ZOOM_FITTOWIDTH);
 }
 
+void CMscGenDoc::OnUpdateViewZoom(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_pCompilingThread==NULL);
+}
 
-void CMscGenDoc::SwitchZoomMode(EZoomMode mode) 
+void CMscGenDoc::SwitchZoomMode(EZoomMode mode)
 {
 	if (m_ZoomMode == mode)
 		m_ZoomMode = NONE;
@@ -1449,14 +1410,14 @@ void CMscGenDoc::OnZoommodeKeepinoverview()
 	SwitchZoomMode(OVERVIEW);
 }
 
-void CMscGenDoc::OnZoommodeKeepadjustingwindowwidth()
+void CMscGenDoc::OnZoommodeKeep100Percent()
 {
-	SwitchZoomMode(WINDOW_WIDTH);
+	SwitchZoomMode(ORIGSIZE);
 }
 
 void CMscGenDoc::OnZoommodeKeepfittingtowidth()
 {
-	SwitchZoomMode(ZOOM_WIDTH);
+	SwitchZoomMode(ZOOM_FITTOWIDTH);
 }
 
 void CMscGenDoc::OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI)
@@ -1465,15 +1426,15 @@ void CMscGenDoc::OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI)
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
-void CMscGenDoc::OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI)
+void CMscGenDoc::OnZoommodeKeep100Percent(CCmdUI *pCmdUI)
 {
-	pCmdUI->SetCheck(m_ZoomMode == WINDOW_WIDTH);
+    pCmdUI->SetCheck(m_ZoomMode == ORIGSIZE);
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
 void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 {
-	pCmdUI->SetCheck(m_ZoomMode == ZOOM_WIDTH);
+	pCmdUI->SetCheck(m_ZoomMode == ZOOM_FITTOWIDTH);
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 

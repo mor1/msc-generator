@@ -70,9 +70,9 @@ FIXED: we stated by top-center in print preview, but it was top-left aligned
 ADDED: Multi-page export button to print preview.
 ADDED: Export dialog for multi-page charts.
 FIXED: Autopaginate crashes 
+DOCED: AutoZoom changes
+CHANGED: AutoZoom to 100%, fix that it works on resize
 FIX: vspace is compressed away in auto-pagination
-CHANGE: AutoZoom to 100%, fix that it works on resize
-DOC: AutoZoom changes
 FIX: Elements added to cover in the order they will be drawn
 
 
