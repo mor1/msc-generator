@@ -47,7 +47,6 @@
 #define IDB_PREFSMALL                   318
 #define IDD_MULTI_PAGE                  320
 #define IDC_RADIO1                      1000
-#define IDC_RADIO_MP_1                  1000
 #define IDC_RADIO_MP1                   1000
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON_URL                  1001
@@ -187,6 +186,8 @@
 #define ID_BUTTON4                      33069
 #define ID_CHECK2                       33070
 #define ID_CHECK_CSH_TAB                33070
+#define ID_ZOOMMODE_KEEP100             33073
+#define ID_VIEW_ZOOM100                 33074
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -195,7 +196,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        321
-#define _APS_NEXT_COMMAND_VALUE         33073
+#define _APS_NEXT_COMMAND_VALUE         33075
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

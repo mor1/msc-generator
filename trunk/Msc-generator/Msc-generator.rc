@@ -841,6 +841,12 @@ BEGIN
     IDC_HINT_ERROR_LIST     "The Hinted Error List"
 END
 
+STRINGTABLE
+BEGIN
+    ID_ZOOMMODE_KEEP100     "Automatically adjust the zoom to 100% after every update\nKeep 100%"
+    ID_VIEW_ZOOM100         "Set the zoom to the original size of the chart\nOriginal Size"
+END
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
