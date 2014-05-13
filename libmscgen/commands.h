@@ -84,6 +84,7 @@ public:
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/);
     virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -425,6 +426,7 @@ public:
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/)
                                              {_ASSERT(0); return -1;}
+    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) { _ASSERT(0); } //should not happen
 };
 
 class CommandEndNoteSeparator : public ArcCommand

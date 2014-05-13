@@ -711,12 +711,20 @@ void CommandEntity::PostPosProcess(Canvas &canvas)
     }
 }
 
+void CommandEntity::RegisterCover(EDrawPassType pass)
+{
+    if (!valid) return;
+    for (auto pEntity : entities) 
+        if (pEntity->draw_heading)
+            pEntity->RegisterCover(pass);
+}
+
 void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
-        if ((*i)->draw_heading && pass==draw_pass)
-            (*i)->Draw(canvas);
+    for (auto pEntity : entities) {
+        if (pEntity->draw_heading && pass==draw_pass)
+            pEntity->Draw(canvas);
     }
 }
 

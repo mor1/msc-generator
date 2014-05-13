@@ -507,6 +507,7 @@ public:
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void CountLabel(bool overflown) {noLabels++; if (overflown) noOverflownLabels++;}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
+    void RegisterCoverArcList(ArcList &arcs, EDrawPassType pass);
 
     void CompleteParse(Canvas::EOutputType, bool avoidEmpty,
                        bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);

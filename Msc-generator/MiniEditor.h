@@ -76,7 +76,7 @@ public:
     int  FindProperLineIdent(int lStart);
     int  FindCurrentLineIdent(long lStart);
 	int  FindIdentForClosingBrace(int pos_to_be_inserted);
-	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=0, bool strict=false);
+	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=-1, bool strict=false);
     bool SetCurrentIdentTo(int target_ident, int current_ident, int col, long lStart, long lEnd, bool standalone);
 	BOOL PreTranslateMessage(MSG* pMsg);
     WindowUpdateStatus GetWindowUpdate();

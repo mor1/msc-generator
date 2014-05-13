@@ -72,8 +72,10 @@ ADDED: Export dialog for multi-page charts.
 FIXED: Autopaginate crashes 
 DOCED: AutoZoom changes
 CHANGED: AutoZoom to 100%, fix that it works on resize
-FIX: vspace is compressed away in auto-pagination
-FIX: Elements added to cover in the order they will be drawn
+FIXED: Elements added to cover in the order they will be drawn
+FIXED: Clicking on options influencing appearance will now surely recompile, if needed
+FIXED: auto-pagination fails with ArcParallels on the second page 
+FIX: auto-pagination for FF4 test chart
 
 
 In 3.7.13

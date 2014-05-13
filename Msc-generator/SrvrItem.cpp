@@ -158,7 +158,7 @@ COleDataSource* CMscGenSrvrItem::OnGetClipboardData(BOOL bIncludeLink, LPPOINT l
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	pDoc->CompileEditingChart(false, true);
+	pDoc->CompileEditingChart(false, true, false);
     COleDataSource* pDataSource = new COleDataSource;
     if (pDoc->m_ChartShown.GetErrorNum(false))
         if (IDYES == AfxMessageBox("The chart had errors, do you want to copy it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))

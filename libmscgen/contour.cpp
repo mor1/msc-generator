@@ -2138,7 +2138,7 @@ SimpleContour ContoursHelper::Walk(RayPointer start) const
     if (edges.back().IsDot())
         edges.pop_back();
     if (edges.size()==0) return SimpleContour();
-    if (edges.size()==1 && (edges.front().IsStraight() || edges.front().IsDot())) return SimpleContour();
+    if (edges.size()==1 && (edges.front().IsStraight() || edges.front().IsDot() || edges.front().GetStart()!=edges.front().GetEnd())) return SimpleContour();
     if (edges.size()==2 && edges.front().IsStraight() && edges.back().IsStraight()) return SimpleContour();
 
 endend:
