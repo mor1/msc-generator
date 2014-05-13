@@ -634,7 +634,7 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_itrSaved = m_itrEditing; //start as unmodified
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
-	CompileEditingChart(true, false);
+	CompileEditingChart(true, false, false);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
 	return TRUE;
@@ -705,7 +705,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-    CompileEditingChart(true, false);
+    CompileEditingChart(true, false, false);
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
@@ -727,7 +727,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
                 message.Append("Do you want to include the changes and redraw the chart before I update the container document?\n");
 
             if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO))
-                CompileEditingChart(false, true);
+                CompileEditingChart(false, true, false);
             else
                 m_itrEditing = m_itrShown;
         }
@@ -786,7 +786,7 @@ void CMscGenDoc::DoExport(bool pdfOnly)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    CompileEditingChart(false, false); //Start a compilation - usually in bkg, till the user selects file
+    CompileEditingChart(false, false, false); //Start a compilation - usually in bkg, till the user selects file
     CString name = GetPathName();
     double x_scale=1, y_scale=1;
     bool bitmap_format, multipage_format;
@@ -1021,7 +1021,7 @@ void CMscGenDoc::OnEditReplace()
 void CMscGenDoc::OnEditCopyEntireChart()
 {
 	//Copy is handled by SrvItem
-    CompileEditingChart(false, true);
+    CompileEditingChart(false, true, false);
     if (m_ChartShown.GetErrorNum(false))
         if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to copy it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
             return;
@@ -1042,7 +1042,7 @@ void CMscGenDoc::OnCopyPage(UINT id)
 {
     const unsigned page = id - ID_COPY_PAGE1 + 1;
     char buff[300];
-    CompileEditingChart(false, true);
+    CompileEditingChart(false, true, false);
     if (m_ChartShown.GetErrorNum(false))
         if (IDCANCEL == AfxMessageBox("The chart had errors, do you want to copy a page of it nevertheless?", MB_ICONQUESTION | MB_OKCANCEL))
             return;
@@ -1115,7 +1115,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));  //undo blocked
         m_page_serialized_in = 0; //all pages visible
 	}
-	CompileEditingChart(true, false);
+	CompileEditingChart(true, false, false);
     m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
@@ -1163,7 +1163,7 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
-	CompileEditingChart(true, false);
+	CompileEditingChart(true, false, false);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
@@ -1257,7 +1257,7 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	m_itrEditing->SetDesign(design);
     m_itrEditing->block_undo = true;
     pApp->m_designlib_csh.ForcedDesign = design;
-	CompileEditingChart(true, false);
+	CompileEditingChart(true, false, false);
 }
 
 void CMscGenDoc::ChangePage(unsigned page)
@@ -1519,7 +1519,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
     m_itrEditing->block_undo = true;
     if (pApp->IsInternalEditorRunning())
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
-    CompileEditingChart(true, false);
+    CompileEditingChart(true, false, false);
 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
@@ -1580,6 +1580,7 @@ void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANG
             CString fd = m_itrEditing->GetDesign();
             m_itrEditing->Set(text); 
             m_itrEditing->SetDesign(fd); //Set destroys fd and cr
+            m_itrShown = m_charts.end(); //so that it is different from m_itrEditing and we compile if user presses F2
         } else {
             //block undo of previous. We no longer add to it even if we later undoed
             //back to it. Plus store the selection before the change that triggered us.
@@ -1683,7 +1684,7 @@ bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilin
     return true;
 }
 
-void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block)
+void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool force_compile)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1692,7 +1693,7 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block)
     if (pApp->m_bFullScreenViewMode && m_charts.size()>1) return;
 
     //If we are already compiled (or already compiling this text) - stop
-    if (m_itrShown == m_itrEditing)
+    if (m_itrShown == m_itrEditing && !force_compile)
         return;
 
     m_itrEditing->RemoveSpacesAtLineEnds();
@@ -1730,8 +1731,8 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block)
     else 
         m_ChartCompiling.SetPage(m_ChartShown.GetPage());
     m_page_serialized_in = -1;
-    m_ChartCompiling.SetFallbackResolution(m_ChartShown.GetFallbackResolution());
-    m_ChartCompiling.SetPageBreaks(m_ChartShown.GetPageBreaks());
+    m_ChartCompiling.SetFallbackResolution(pApp->m_uFallbackResolution);
+    m_ChartCompiling.SetPageBreaks(pApp->m_bPageBreaks);
     if (pWnd) {
         const CDrawingChartData::ECacheType should_be = pWnd->m_at_embedded_object_category ? 
                         CDrawingChartData::CACHE_EMF : CDrawingChartData::CACHE_RECORDING;
@@ -2041,7 +2042,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 	ASSERT(pApp != NULL);
 	StartFadingAll(); //Delete trackrects from screen (even if turned on)
 	if (on) {
-        CompileEditingChart(false, true);
+        CompileEditingChart(false, true, false);
         //We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
 	} else if (pApp->IsInternalEditorRunning()) {
         //Disable selection change events - we are causing selection change
@@ -2148,7 +2149,7 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     }
     if (!changed) return false;
 	InsertNewChart(chart);
-    CompileEditingChart(true, false);
+    CompileEditingChart(true, false, false);
     return true;
 }
 

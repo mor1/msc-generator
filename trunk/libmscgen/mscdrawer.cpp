@@ -1856,10 +1856,10 @@ void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_
         const double transp_step = double(color.a)/(steps+1);
         double alpha = 0;
         for (unsigned i=0; i<steps; i++) {
-            inner = outer.CreateExpand(-1/scale_for_shadows);
-            if (inner.IsEmpty() && outer.GetBoundingBox().x.Spans()>2 && outer.GetBoundingBox().y.Spans()>2) {
-                _ASSERT(0);
-            }
+            const double ex = 1./-scale_for_shadows;
+            inner = outer.CreateExpand(ex);
+            if (inner.IsEmpty())// && outer.GetBoundingBox().x.Spans()>-2*ex && outer.GetBoundingBox().y.Spans()>-2*ex) {
+                break;
 
             outer -= inner;
             alpha += transp_step;

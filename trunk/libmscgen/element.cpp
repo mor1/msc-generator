@@ -172,19 +172,29 @@ void Element::LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, d
     comment_height = std::max(l, r);
 }
 
+/** Register our cover (if any) if pass equals to our draw_pass.
+*  See documentation for libmscgen for more info. */
+void Element::RegisterCover(EDrawPassType pass)
+{
+    if (pass == draw_pass && !hidden && !area.IsEmpty()) 
+        chart->AllCovers += area; 
+}
+
 
 /** Do processing after our positioning on the chart is known.
  * We expand `area` and `area_draw` by `chart->trackExpandBy`
- * if we show; set `control_location` and register us in
- * chart->AllArcs.
+ * if we show; set `control_location`.
  * We do nothing if `chart->prepare_for_tracking` is false.*/
 void Element::PostPosProcess(Canvas &/*canvas*/)
 {
-    if (!chart->prepare_for_tracking) 
+    area.arc = this;
+    if (!chart->prepare_for_tracking)
         return;
-    if (!area.IsEmpty() && !hidden) {
-        //TODO: Pipe segments suck here, so if expand cannot do it,
-        //we still keep the original stuff.
+    if (area.IsEmpty() || hidden) {
+        //remove controls if we cannot pinpoint a location for them
+        controls.clear();
+    } else {
+        //If expand cannot do it,/we still keep the original stuff.
         Area expanded_area = area.CreateExpand(chart->trackExpandBy, 
                                                contour::EXPAND_MITER_ROUND, 
                                                contour::EXPAND_MITER_ROUND, 
@@ -194,17 +204,12 @@ void Element::PostPosProcess(Canvas &/*canvas*/)
         else {
             _ASSERT(0);
         }
-        area.arc = this;
-        chart->AllCovers += area;
         //Determine, where the controls shall be shown
         control_location.x = Range(area.GetBoundingBox().x.till, 
                                    area.GetBoundingBox().x.till + control_size.x);
         control_location.y = Range(area.GetBoundingBox().y.from, 
                                    area.GetBoundingBox().y.from + control_size.y*controls.size());
-    } else {
-        //remove controls if we cannot pinpoint a location for them
-        controls.clear();
-    }
+    } 
     if (!hidden && draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
         area_draw = area_draw.CreateExpand(chart->trackExpandBy, 
                                            contour::EXPAND_MITER_ROUND, 

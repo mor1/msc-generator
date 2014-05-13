@@ -1926,7 +1926,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                              bool canChangePBPos, bool dontshiftall)
 {
     //if no arcs or we are all below the page Break, there is nothing to do
-    if (arcs.size()==0 || (*arcs.begin())->GetPos() > pageBreak) return 0;
+    if (arcs.size()==0 || (*arcs.begin())->GetPos() > pageBreak) return -1;
     double shift = 0;
     /** Indicates which element was the first in a series of elemenst
      * where all of them have `keep_with_next` or `parallel` set.
@@ -1980,11 +1980,16 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                                                 addCommandNewpage, addHeading, res);
         if (s==-2) {
             //ignore (verticals, etc)
-            //but break keep_with_next
-            clear_keep_with_next__from(arcs, keep_with_next__from, i, lowest_on_prev_page);
+            //but break keep_with_next series.
+            //Note that the keep_with_next list contains elements only before
+            //we have reached pageBreak - after that it is always empty
+            if (keep_with_next__from != arcs.end())
+                clear_keep_with_next__from(arcs, keep_with_next__from, i, lowest_on_prev_page);
             continue;
         }
+        _ASSERT(lowest_on_prev_page<=pageBreak);
         const Range r = (*i)->GetYExtent();
+        const double old_lowest_on_next_page = lowest_on_next_page;
         lowest_on_next_page = std::max(lowest_on_next_page, r.till);
         if (s>=0) {
             //The element fell on the page break and split itself.
@@ -2001,7 +2006,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                 i = j; i--; //The page break (or heading) - continue processing just after this
                 arcs.splice(j, res, res.begin(), res.end());
             }
-            shift = ceil(std::max(shift, s)); //increase shift for later elements
+            shift = ceil(std::max(shift, shift+s)); //increase shift for later elements
             //we do not shift `i`, but perhaps later elements we got in 'res'
             //we also clear kwn_from so that we do not get shifted by a later element
             keep_with_next__from = arcs.end();
@@ -2035,7 +2040,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
         //- we insert PB (if not yet inserted)
         //- adjust the shift, so that we do not overshift
 
-        if (dontshiftall) return -1; //we may have not shifted anyone yet - the ist is intact
+        if (dontshiftall) return -1; //we may have not shifted anyone yet - the list is intact
 
         if (addCommandNewpage) {
             //Insert CommandPageBreak if needed. It may modify headingSize.
@@ -2057,7 +2062,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                                     pageBreak, addHeading);
                 addCommandNewpage = false;
             }
-            lowest_on_next_page = std::max(lowest_on_next_page, pageBreak+1);
+            lowest_on_next_page = std::max(lowest_on_next_page, pageBreak+1); //next page empty
         }
 
         //ensure we fall on the next page
@@ -2075,7 +2080,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
             continue;
         }
         //Test if we shift too much
-        shift = ceil(std::min(shift, lowest_on_next_page - topmost_in_kwn));
+        //shift = ceil(std::min(shift, old_lowest_on_next_page - topmost_in_kwn));
 
         //Now shift elements between 'keep_with_next__from` till 'i' (inclusive)
         //beware of the ++ in the while()
@@ -2135,8 +2140,8 @@ void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
         //We re-create the running status so that if we need to insert a heading,
         //we know what to insert.
         if (addHeading)
-            for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++)
-                (*i)->running_shown = EEntityStatus::SHOW_OFF;
+            for (auto pEntity : AllEntities)
+                pEntity->running_shown = EEntityStatus::SHOW_OFF;
         total.y.till += PageBreakArcList(canvas, Arcs, netPrevPageSize, pageBreakData[u].y + netPrevPageSize+1,
                                          addCommandNewpage, addHeading, true, false);
         //Regenerate page breaks
@@ -2404,6 +2409,14 @@ void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 	}
 }
 
+/** Calls RegisterCover for all members of the arc list */
+void Msc::RegisterCoverArcList(ArcList &arcs, EDrawPassType pass)
+{
+    for (auto pArc : arcs) 
+        pArc->RegisterCover(pass);
+}
+
+
 /** Prepares a chart for drawing after parse.
  * We perform post-parse processing, lay out the chart and perform
  * post-positioning processing. After this Draw() functions can be called.
@@ -2469,14 +2482,15 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs);
 
-    //Sort elements in AllCovers, so that the ones we draw later show up later
-    struct {
-        bool operator()(const Area &a1, const Area &a2) {
-            _ASSERT(a1.arc!=NULL && a2.arc!=NULL);
-            return a1.arc->draw_pass < a2.arc->draw_pass;
-        }
-    } comp;
-    AllCovers.sort(comp);
+    //Collect the covers in AllCovers
+    if (prepare_for_tracking) {
+        RegisterCoverArcList(Arcs, DRAW_BEFORE_ENTITY_LINES);
+        RegisterCoverArcList(Arcs, DRAW_AFTER_ENTITY_LINES);
+        RegisterCoverArcList(Arcs, DRAW_DEFAULT);
+        RegisterCoverArcList(Arcs, DRAW_AFTER_DEFAULT);
+        RegisterCoverArcList(Arcs, DRAW_NOTE);
+        RegisterCoverArcList(Arcs, DRAW_AFTER_NOTE);
+    }
 
     //Delete LSide and RSide actions if there are no side comments
     if (LNote->pos == LSide->pos) 
@@ -2512,10 +2526,6 @@ void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassTy
 void Msc::DrawChart(Canvas &canvas, Range yDrawing, bool pageBreaks)
 {
     if (total.y.Spans() <= 0) return;
-	//Draw small marks in corners, so EMF an WMF spans correctly
-	//LineAttr marker(LINE_SOLID, ColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	//canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
-	//canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
 	//draw background
     if (Background.size()) {
         FillAttr fill_bkg(ColorType(255,255,255), GRADIENT_NONE);

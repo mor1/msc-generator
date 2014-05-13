@@ -959,8 +959,8 @@ void CMscGenApp::OnCheckPedantic()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic);
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->CompileEditingChart(false, false);
+    if (pDoc)
+        pDoc->CompileEditingChart(false, false, true);
 }
 
 /** Copy the m_Pedantic flag to the button*/
@@ -978,8 +978,8 @@ void CMscGenApp::OnCheckWarnings()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings);
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->CompileEditingChart(false, false);
+    if (pDoc)
+        pDoc->CompileEditingChart(false, false, true);
 }
 
 
@@ -1000,9 +1000,8 @@ void CMscGenApp::OnCheckPageBreaks()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPageBreaks);
     //recompile
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->m_itrShown == pDoc->m_itrEditing && 
-        pDoc->m_ChartShown.GetPages()>1)
-        pDoc->CompileEditingChart(false, false);
+    if (pDoc && pDoc->m_ChartShown.GetPages()>1)
+        pDoc->CompileEditingChart(false, false, true);
 }
 
 /** Enable the button always*/
@@ -1372,10 +1371,8 @@ void CMscGenApp::OnAutoPaginate()
     m_bAutoPaginate = !m_bAutoPaginate;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_PAGINATE, m_bAutoPaginate);
 	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc) {
-        pDoc->CompileEditingChart(false, false);
-        //pDoc->UpdateAllViews(NULL);
-    }
+    if (pDoc) 
+        pDoc->CompileEditingChart(false, false, true);
 }
 
 /** Checks the button if autopaginate is enabled.*/
@@ -1392,11 +1389,8 @@ void CMscGenApp::OnAutoHeaders()
     m_bAutoHeading = !m_bAutoHeading;
     if (!m_bAutoPaginate) return;
 	CMscGenDoc *pDoc = GetDoc();
-    if (pDoc) {
-        if (m_bAutoPaginate)
-            pDoc->CompileEditingChart(false, false);
-        pDoc->UpdateAllViews(NULL);
-    }
+    if (pDoc && m_bAutoPaginate)
+        pDoc->CompileEditingChart(false, false, true);
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, m_bAutoHeading);
 }
 
@@ -1434,7 +1428,7 @@ void CMscGenApp::OnComboScale()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, m_iScale4Pagination);
 
     if (m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false, false);
+        pDoc->CompileEditingChart(false, false, true);
     pDoc->UpdateAllViews(NULL);
 }
 
@@ -1512,7 +1506,7 @@ void CMscGenApp::DoEditMargin(UINT id)
     WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_B, val2);
 
     if (m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false, false);
+        pDoc->CompileEditingChart(false, false, true);
     pDoc->UpdateAllViews(NULL);
 }
 
@@ -1540,7 +1534,7 @@ void CMscGenApp::OnFilePrintSetup()
 	CMscGenDoc *pDoc = GetDoc();
     if (!pDoc) return;
     if (m_bAutoPaginate) 
-        pDoc->CompileEditingChart(false, false);
+        pDoc->CompileEditingChart(false, false, true);
     pDoc->UpdateAllViews(NULL);
 }
 

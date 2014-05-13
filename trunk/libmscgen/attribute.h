@@ -360,6 +360,7 @@ public:
     bool operator == (const LineAttr &a);
 
     //functions about line style
+    bool IsFullyTransparent() const { _ASSERT(type.first && color.first);  return type.second<=LINE_NONE || color.second.IsFullyTransparent(); } ///<True if no line will be drawn
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);} ///<True if the line style is continuous.
     bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);} ///<True if the line style is double.
     bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);} ///<True if the line style is triple.
@@ -518,7 +519,9 @@ public:
         color(true, c), color2(true, c2), gradient(true,g) {} ///<Creates a fully specified fill style with the attributes given.
     void Empty() {color.first = color2.first = gradient.first = false;} ///<Clear all content from the fill style.
     void MakeComplete();
-    bool IsEmpty() const {return !color.first && !color2.first && !gradient.first;} ///<False if any of the line attributes are set. 
+    bool IsFullyTransparent() const { _ASSERT(IsComplete());  return color.second.IsFullyTransparent() && (color2.second.IsFullyTransparent() || gradient.second <= GRADIENT_NONE); } ///<True if no fill will be drawn
+    bool IsFullyOpaque() const { _ASSERT(IsComplete());  return color.second.IsFullyOpaque() && (color2.second.IsFullyOpaque() || gradient.second <= GRADIENT_NONE); } ///<True if no fill will be drawn
+    bool IsEmpty() const { return !color.first && !color2.first && !gradient.first; } ///<False if any of the line attributes are set. 
     bool IsComplete() const {return color.first && gradient.first;} ///<True if all of the line attributes are set. (But color2 is not needed.)
     FillAttr &operator +=(const FillAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const FillAttr &a) const;

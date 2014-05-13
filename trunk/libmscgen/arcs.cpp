@@ -223,10 +223,13 @@
        Note that if `chart->prepare_for_tracking` is not set, we do not expand these.
        No error messages shall be printed after this function by arc objects. (Msc will print some, if
        page sizes do not fit, but that is under control there.)
-   12. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
+   12: RegisterCover: This function is called recursively and it registers the cover of the element in to 
+       chart->AllCovers in exactly the same order as drawing happens. Only called if chart->prepare_for_tracking 
+       is true. (Else we do not need this cover info.)
+   13. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
        values in the elements. It can be called several times and should not change state of the element 
        including the cached values.
-   13. Destructor.
+   14. Destructor.
 
     All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
     the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
@@ -3590,6 +3593,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
     vspacing = (*series.begin())->vspacing;
     //parallel = (*series.begin())->parallel;
     keep_with_next = (*series.rbegin())->keep_with_next;
+    draw_pass = series.front()->draw_pass;
 
     ArcBase *ret = this;
     EIterator src, dst;
@@ -3605,6 +3609,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
                                "Attribute 'draw_time' can only be specified in the first "
                                "element in a box series. Ignoring it in subsequent ones.");
         }
+        (*i)->draw_pass = draw_pass; //ensure all have the same value (the one from the first)
         if ((*i)->content.size()) {
             if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
                 chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
@@ -4143,6 +4148,21 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     }
 }
 
+void ArcBoxSeries::RegisterCover(EDrawPassType pass)
+{
+    for (auto pBox : series) {
+        //transparent boxes with content go to the background
+        EDrawPassType effective_pass = pBox->draw_pass;
+        if (!pBox->style.read().fill.IsFullyOpaque() && pBox->content.size())
+            effective_pass = DRAW_BEFORE_ENTITY_LINES;
+        if (pass == effective_pass)
+            chart->AllCovers += pBox->area;
+        else
+            pBox->RegisterCover(pass);
+        chart->RegisterCoverArcList(pBox->content, pass);
+    }
+}
+
 void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid || series.size()==0) return;
@@ -4413,42 +4433,41 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
                 return NULL;
             }
         }
-
-        //Now check that segments sanity
-        if (series.size()>1) 
-            for (auto i = series.begin(); i!=series.end(); /*nope*/) {
-                const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
-                const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
-                if (i != --series.end()) {
-                    auto i_next = i; i_next++;
-                    const EIterator next_src = chart->FindLeftRightDescendant((*i_next)->src, true, false);
-                    if (loc_src == loc_dst && loc_dst == next_src) {
-                        chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the next segment but spans only a single entity."
-                            "Segment will not be shown.");
-                        series.erase(i++);
-                        continue;
-                    }
+        draw_pass = series.front()->draw_pass;
+        for (auto i = series.begin(); i!=series.end(); /*nope*/) {
+            const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
+            const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
+            if (i != --series.end()) {
+                auto i_next = i; i_next++;
+                const EIterator next_src = chart->FindLeftRightDescendant((*i_next)->src, true, false);
+                if (loc_src == loc_dst && loc_dst == next_src) {
+                    chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the next segment but spans only a single entity."
+                        "Segment will not be shown.");
+                    series.erase(i++);
+                    continue;
                 }
-                if (i != series.begin()) {
-                    auto i_prev = i; i_prev--; 
-                    const EIterator prev_dst = chart->FindLeftRightDescendant((*i_prev)->dst, false, false);
-                    if (loc_src == loc_dst && loc_src == prev_dst) {
-                        chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the previous segment but spans only a single entity."
-                            "Segment will not be shown.");
-                        series.erase(i++);
-                        continue;
-                    }
-                    if (chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) 
-                        chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
-                        "Encapsulate one in the other if you want that effect.");
-                }
-                if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
-                    chart->Error.Error((*i)->file_pos.start,
-                        "Attribute 'draw_time' can only be specified in the first "
-                        "element in a pipe series. Ignoring it in subsequent ones.");
-                }
-                i++;
             }
+            if (i != series.begin()) {
+                auto i_prev = i; i_prev--; 
+                const EIterator prev_dst = chart->FindLeftRightDescendant((*i_prev)->dst, false, false);
+                if (loc_src == loc_dst && loc_src == prev_dst) {
+                    chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the previous segment but spans only a single entity."
+                        "Segment will not be shown.");
+                    series.erase(i++);
+                    continue;
+                }
+                if (chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) 
+                    chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
+                    "Encapsulate one in the other if you want that effect.");
+            }
+            if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
+                chart->Error.Error((*i)->file_pos.start,
+                    "Attribute 'draw_time' can only be specified in the first "
+                    "element in a pipe series. Ignoring it in subsequent ones.");
+            }
+            (*i)->draw_pass = draw_pass; //ensure all segments are of same draw_time (that of the first)
+            i++;
+        }
     }
     if (series.size()==0) return NULL;
 
@@ -5101,6 +5120,37 @@ void ArcPipe::DrawPipe(Canvas &canvas, EDrawPassType pass,
         parsed_label.Draw(canvas, sx_text, dx_text, y_text);
 }
 
+void ArcPipeSeries::RegisterCover(EDrawPassType pass)
+{
+    //first place pipes that are not fully opaque
+    for (auto pPipe : series) 
+        if (pPipe->style.read().solid.second < 255) {
+            //pipes with (semi)transparent backsides and content go to the background
+            EDrawPassType effective_pass = pPipe->draw_pass;
+            if (!pPipe->style.read().fill.IsFullyOpaque() && content.size())
+                effective_pass = DRAW_BEFORE_ENTITY_LINES;
+            if (pass == effective_pass)
+                chart->AllCovers += pPipe->area;
+            else
+                pPipe->RegisterCover(pass);
+        }
+    //then the content
+    chart->RegisterCoverArcList(content, pass);
+    //finally pipes that *are* fully opaque
+    for (auto pPipe : series)
+        if (pPipe->style.read().solid.second == 255) {
+            EDrawPassType effective_pass = pPipe->draw_pass;
+            if (!pPipe->style.read().fill.IsFullyOpaque() && content.size())
+                effective_pass = DRAW_BEFORE_ENTITY_LINES;
+            if (pass == effective_pass)
+                chart->AllCovers += pPipe->area;
+            else
+                pPipe->RegisterCover(pass);
+        }
+}
+
+
+
 void ArcPipeSeries::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
@@ -5565,10 +5615,18 @@ void ArcParallel::PostPosProcess(Canvas &canvas)
         chart->PostPosProcessArcList(canvas, *i);
 }
 
+void ArcParallel::RegisterCover(EDrawPassType pass)
+{
+    if (!valid) return;
+    for (auto &pBlock : blocks)
+        chart->RegisterCoverArcList(pBlock, pass);
+}
+
+
 void ArcParallel::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
-    for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->DrawArcList(canvas, *i, chart->GetTotal().y, pass);
+    for (auto &pBlock : blocks)
+        chart->DrawArcList(canvas, pBlock, chart->GetTotal().y, pass);
 }
 

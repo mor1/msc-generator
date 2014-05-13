@@ -86,6 +86,12 @@ public:
     /** Overlays one color on top of another */
     ColorType &operator +=(const ColorType &o) 
         { return *this = *this+o; }
+    /** True if the color is completely transparent and will not 
+     *  in any way change the canvas when painted with.*/
+    bool IsFullyTransparent() const { return type==INVALID || a==0; }
+    /** True if the color is completely opaque and will completely
+    *  covert the canvas when painted with.*/
+    bool IsFullyOpaque() const { return type!=INVALID && a==255; }
 };
 
 /** A collection of named colors*/

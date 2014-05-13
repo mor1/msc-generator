@@ -133,6 +133,7 @@ public:
     void LayoutComments(Canvas &canvas, AreaList *cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
     virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void PostPosProcess(Canvas &);
+    virtual void RegisterCover(EDrawPassType pass); 
 
     /** Return the location of our GUI controls*/
     const Block &GetControlLocation() const {return control_location;}

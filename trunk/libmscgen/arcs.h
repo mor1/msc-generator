@@ -700,6 +700,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
+    virtual void RegisterCover(EDrawPassType pass) {} //will never be called
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
 };
 
@@ -734,6 +735,7 @@ public:
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -773,6 +775,7 @@ public:
     string Print(int ident=0) const;
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
+    virtual void RegisterCover(EDrawPassType pass) {} //will never be called
     /** Helper to draw various parts of the pipe */
     void DrawPipe(Canvas &canvas, EDrawPassType pass, bool topSideFill, bool topSideLine,  
                   bool backSide, bool shadow, bool text, double next_lw, int drawing_variant);
@@ -812,6 +815,7 @@ public:
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -873,6 +877,7 @@ public:
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

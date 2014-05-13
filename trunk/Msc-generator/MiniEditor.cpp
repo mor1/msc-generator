@@ -330,14 +330,15 @@ int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIdent, int pre
 		if ( forward && col<smartIdent) return smartIdent;
 		if (!forward && col>smartIdent) return smartIdent;
 	}
-	if (strict) {
+	if (strict && prevIdent>=0) {
 		if ( forward && col<prevIdent) return prevIdent;
 		if (!forward && col>prevIdent) return prevIdent;
 	}
-	if (forward) 
-		return col + ((prevIdent%m_tabsize - col%m_tabsize + m_tabsize - 1)%m_tabsize + 1);
-	col -= (col%m_tabsize - prevIdent%m_tabsize + m_tabsize - 1)%m_tabsize + 1;
-	return col<0 ? 0 : col;
+    if (forward)
+        return ((col+m_tabsize)/m_tabsize)*m_tabsize;
+    if (col<=m_tabsize)
+        return 0;
+    return ((col-1)/m_tabsize)*m_tabsize;
 }
 
 /** Sets the identation of current line by adding or removing leading whitespace
@@ -633,9 +634,28 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             return CRichEditCtrl::PreTranslateMessage(pMsg);
 		//in leading whitespace, consider smart ident and/or previous line indent
         if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (lStart!=lEnd) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        //OK, here either there is nothing in the line or we are in leading whitespace,
+        //but never at the beginning of the line.
         const int smartIdent = FindProperLineIdent(line);
-		int ident = CalcTabStop(col, false, smartIdent, current_ident, true);
-        SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
+        if (current_ident==col && smartIdent<col) {
+            //if at the head of the text and required pos is before us - indent line
+            SetCurrentIdentTo(smartIdent, current_ident, col, lStart, lEnd, true);
+            return TRUE;
+        }
+        const int ident = CalcTabStop(col, false, smartIdent, current_ident, true);
+        if (current_ident!=-1) {
+            //if at the head of the text and required pos is NOT before us - 
+            //move to previous tab stop
+            SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
+        } else {
+            //backspace from col to ident
+            _ASSERT(ident<col);
+            auto state = DisableWindowUpdate();
+            SetSel(ConvertLineColToPos(line, ident), lEnd);
+            ReplaceSel("");
+            RestoreWindowUpdate(state);
+        } 
         return TRUE;
 	}
     //Here are the rules for TAB
