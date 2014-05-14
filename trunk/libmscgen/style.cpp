@@ -50,9 +50,9 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm
  * @param [in] f True if the style shall contain fill attributes.
  * @param [in] s True if the style shall contain shadow attributes.
  * @param [in] vl True if the style shall contain vline attributes.
- * @param [in] so True if the style shall contain the 'solid' attribute.
- * @param [in] nu True if the style shall contain the 'number' attribute.
- * @param [in] co True if the style shall contain the `compress'/'vspacing` attribute.
+ * @param [in] so True if the style shall contain the `solid` attribute.
+ * @param [in] nu True if the style shall contain the `number` attribute.
+ * @param [in] co True if the style shall contain the `compress`/`vspacing` attribute.
  * @param [in] si True if the style shall contain the `side` attribute.
  * @param [in] i True if the style shall contain the `indicator` attribute.
  * @param [in] vf True if the style shall contain vfill attributes.

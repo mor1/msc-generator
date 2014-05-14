@@ -279,7 +279,7 @@ struct PageBreakData {
     CommandEntity *autoHeading;  ///<A pointer to the automatically inserted heading command. NULL if none.
     double autoHeadingSize;      ///<The height of the automaically inserted heading. 0 if none.
     PageBreakData(double _y, bool m, CommandEntity *ce=NULL, double h=0) :
-        y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetHeight() : 0) {}
+        y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetFormalHeight() : 0) {}
 };
 
 /** The main class holding a chart 

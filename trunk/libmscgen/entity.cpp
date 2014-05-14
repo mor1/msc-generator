@@ -1210,7 +1210,7 @@ void EntityApp::PostPosProcess(Canvas &canvas)
             Element::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
     }
     const double yUse = centerline_target  && centerline_target->GetCenterline(chart->XCoord(itr))>=0 ?
-        centerline_target->GetCenterline(chart->XCoord(itr)) + centerline_target->GetPos() :
+        centerline_target->GetCenterline(chart->XCoord(itr)) + centerline_target->GetFormalPos() :
         draw_heading ?
             yPos + chart->headingVGapAbove :
             yPos;

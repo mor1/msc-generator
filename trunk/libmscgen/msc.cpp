@@ -1524,7 +1524,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
         AreaList arc_cover;
         (*i)->Layout(canvas, cover ? &arc_cover : NULL);
         Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
-        double h = (*i)->GetHeight();
+        double h = (*i)->GetFormalHeight();
 
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
         //maintain at least compressGap/2 amount of space between elements even without compress
@@ -1681,7 +1681,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
             AreaList arc_cover;
             (*i)->Layout(canvas, &arc_cover);
             Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
-            double h = (*i)->GetHeight();
+            double h = (*i)->GetFormalHeight();
 
             //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
             //maintain at least compressGap/2 amount of space between elements even without compress
@@ -1845,23 +1845,19 @@ void Msc::ShiftByArcList(ArcList &arcs, double y)
 void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i,
                               double pageBreak, bool addHeading)
 {
-    CommandEntity *ce;
-    if (addHeading) {
-        ce = static_cast<CommandEntity*>(new CommandEntity(NULL, this, false));
-        ce->AddAttributeList(NULL);
-        EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
-        EIterator dummy2 = AllEntities.Find_by_Ptr(NoEntity);
-        Numbering dummy3; //will not be used by a CommandEntity
-        Element *dummy4=NULL; //target of any notes, pretend we have none  
-        //at_to_level must be true, or else it complains...
-        ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL);
-    } else {
-        ce = NULL;
-    }
-    CommandNewpage *cnp = new CommandNewpage(this, false, ce);
+    CommandNewpage *cnp = new CommandNewpage(this, false);
+    const Attribute a("auto_heading", addHeading, FileLineColRange(), FileLineColRange(), "love");
+    cnp->AddAttribute(a);
     cnp->AddAttributeList(NULL);
-    //We skip PostParseProcess & FinalizeLabels
-    //this will leave at_top_level uninitialized, but heck!
+    //We skip FinalizeLabels as they do nothing for CommandNewpage nor CommandEntity
+    EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
+    EIterator dummy2 = AllEntities.Find_by_Ptr(NoEntity);
+    Numbering dummy3; //will not be used by a CommandEntity
+    Element *dummy4 = NULL; //target of any notes, pretend we have none  
+    cnp->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL); //if addheading is set it will generate a CommandEntity and call its PostParseProcess
+    EntityDistanceMap distances;
+    DistanceMapVertical vd;
+    cnp->Width(canvas, distances, vd);
     cnp->Layout(canvas, NULL);
     cnp->ShiftBy(pageBreak);
     arcs.insert(i, cnp);
@@ -1876,11 +1872,11 @@ void clear_keep_with_next__from(ArcList &arcs, ArcList::iterator &keep_with_next
 {
     if (keep_with_next__from != arcs.end()) {
         do {
-            lowest = std::max(lowest, (*keep_with_next__from)->GetYExtent().till);
+            lowest = std::max(lowest, (*keep_with_next__from)->GetVisualYExtent(true).till);
         } while (keep_with_next__from++!=i);
         keep_with_next__from = arcs.end();
     } else
-        lowest = std::max(lowest, (*i)->GetYExtent().till);
+        lowest = std::max(lowest, (*i)->GetVisualYExtent(true).till);
 }
 
 /** Walks an ArcList and inserts a page break and optionally a heading.
@@ -1926,7 +1922,9 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                              bool canChangePBPos, bool dontshiftall)
 {
     //if no arcs or we are all below the page Break, there is nothing to do
-    if (arcs.size()==0 || (*arcs.begin())->GetPos() > pageBreak) return -1;
+    //Here we test for formal beginning as it may be that it is not the first element 
+    //that has its visual top the topmost.
+    if (arcs.size()==0 || (*arcs.begin())->GetFormalPos() > pageBreak) return -1;
     double shift = 0;
     /** Indicates which element was the first in a series of elemenst
      * where all of them have `keep_with_next` or `parallel` set.
@@ -1988,8 +1986,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
             continue;
         }
         _ASSERT(lowest_on_prev_page<=pageBreak);
-        const Range r = (*i)->GetYExtent();
-        const double old_lowest_on_next_page = lowest_on_next_page;
+        const Range r = (*i)->GetVisualYExtent(true);
         lowest_on_next_page = std::max(lowest_on_next_page, r.till);
         if (s>=0) {
             //The element fell on the page break and split itself.
@@ -2006,7 +2003,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                 i = j; i--; //The page break (or heading) - continue processing just after this
                 arcs.splice(j, res, res.begin(), res.end());
             }
-            shift = ceil(std::max(shift, shift+s)); //increase shift for later elements
+            shift = ceil(std::max(shift, s)); //increase shift for later elements
             //we do not shift `i`, but perhaps later elements we got in 'res'
             //we also clear kwn_from so that we do not get shifted by a later element
             keep_with_next__from = arcs.end();
@@ -2049,12 +2046,12 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
 
             //first find if next element is a page break
             auto iii = keep_with_next__from==arcs.end() ? i : keep_with_next__from;
-            while (iii != arcs.end() && (*iii)->GetHeight()==0 &&
+            while (iii != arcs.end() && (*iii)->GetFormalHeight()==0 &&
                    (*iii)->type!=MSC_COMMAND_NEWPAGE)
                 iii++;
             if (iii != arcs.end() && (*iii)->type==MSC_COMMAND_NEWPAGE) {
                 //an upcoming page break. Adjust shift so that that element gets to `pageBreak`
-                shift = ceil(pageBreak - (*iii)->GetPos());
+                shift = ceil(pageBreak - (*iii)->GetVisualYExtent(true).from);
                 keep_with_next__from = arcs.end(); //do not move prior elements
             } else {
                 InsertAutoPageBreak(canvas, arcs,
@@ -2087,7 +2084,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
         do {
             (*keep_with_next__from)->ShiftBy(shift);
             lowest_on_next_page = std::max(lowest_on_next_page,
-                (*keep_with_next__from)->GetPos() + (*keep_with_next__from)->GetHeight());
+                (*keep_with_next__from)->GetVisualYExtent(true).till);
         } while (keep_with_next__from++ != i && keep_with_next__from != arcs.end());
 
         keep_with_next__from  = arcs.end();
@@ -2097,20 +2094,17 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
     lowest_on_prev_page = ceil(lowest_on_prev_page);
     if (!canChangePBPos || lowest_on_prev_page >= pageBreak-1)
         return shift;
-    for (auto i = arcs.begin(); i!=arcs.end(); i++)
-        if ((*i)->GetPos()>=pageBreak)
-            (*i)->ShiftBy(lowest_on_prev_page - (pageBreak-1)); //negative
+    for (auto &pArc : arcs)
+        if (pArc->GetVisualYExtent(true).from>=pageBreak)
+            pArc->ShiftBy(lowest_on_prev_page - (pageBreak-1)); //negative
     return shift + lowest_on_prev_page - (pageBreak-1);
 }
 
  /** Collect the y position of page breaks in the list to pageBreakData. */
 void Msc::CollectPageBreakArcList(ArcList &arcs)
 {
-    for (auto i= arcs.begin(); i!=arcs.end(); i++) {
-        auto j = i; j++;
-        (*i)->CollectPageBreak((j!=arcs.end() && (*j)->type == MSC_COMMAND_ENTITY) ?
-                               (*j)->GetHeight() : 0);
-    }
+    for (auto &pArc : arcs)
+        pArc->CollectPageBreak();
 }
 
 /** Automatically paginate an already laid out chart.
@@ -2510,7 +2504,7 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
 void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, Range yDrawing, EDrawPassType pass)
 {
     for (auto pArc : arcs)
-        if (pArc->GetYExtent().Overlaps(yDrawing)) {
+        if (pArc->GetVisualYExtent(true).Overlaps(yDrawing)) {
             pArc->Draw(canvas, pass);
             if (pArc->draw_pass == pass)
                 Progress.DoneItem(MscProgress::DRAW, pArc->myProgressCategory);

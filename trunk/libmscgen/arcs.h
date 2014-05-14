@@ -189,12 +189,20 @@ public:
     virtual bool CanBeNoted() const {return false;}
     /** True if the entity is likely to produce height and can be the target of a vertical*/
     virtual bool CanBeAlignedTo() const { return false; }
-    /** Get the Y coordinate of the top of the arc. */
-    double GetPos() const {return yPos;}
-    /** Return the height of the element with its side comments */
-    double GetHeight() const {return std::max(height, comment_height);}
-    /** Get the Y coordinate range occupied by the arc.*/
-    virtual Range GetYExtent() const {return Range(yPos, yPos+GetHeight());}
+    /** Get the Y coordinate of the top of the arc. 
+     * The actual visual part may not start here, 
+     * if we have gap proscribed above in 'chart'*/
+    double GetFormalPos() const {return yPos;}
+    /** Return the height of the element with its side comments - 
+     * the this may be more than the visual height as the arc may have
+     * gap above and/or below proscribed by the 'chart'.*/
+    double GetFormalHeight() const {return std::max(height, comment_height);}
+    /** Get the Y coordinate range occupied by the arc.
+     * This may be wider than the actual visual effect and is used for
+     * layout and to gauge associated verticals.*/
+    virtual Range GetFormalYExtent() const {return Range(yPos, yPos+GetFormalHeight());}
+    /** Get the Y coordinate range actually occupied by visual elements of the arc. */
+    virtual Range GetVisualYExtent(bool include_comments) const;
     /** Get an (ordered) list of entities that this arrow or box touches.
       * @return the direction of the arrows inside (left is all arrows are left; bidir if mixed.*/
     virtual EDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -246,7 +254,7 @@ public:
     virtual void ShiftBy(double y) {if (valid) {Element::ShiftBy(y);}}
     /** Collect the y position of page breaks into Msc::pageBreakData. 
      * See documentation for libmscgen for more info.*/
-    virtual void CollectPageBreak(double /*hSize*/) {}
+    virtual void CollectPageBreak() {}
     /** Split the element into two by a page break. 
      * Maintain running_state of entities. 
      * @returns The amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.
@@ -590,6 +598,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
+    virtual Range GetVisualYExtent(bool include_comments) const;
 
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(Canvas &cover);
@@ -653,6 +662,7 @@ public:
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
+    virtual Range GetVisualYExtent(bool include_comments) const;
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
@@ -700,7 +710,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
-    virtual void RegisterCover(EDrawPassType pass) {} //will never be called
+    virtual void RegisterCover(EDrawPassType /*pass*/) {} //will never be called
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
 };
 
@@ -728,8 +738,10 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
+    virtual Range GetVisualYExtent(bool include_comments) const;
+
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(double hSize);
+    virtual void CollectPageBreak();
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
@@ -775,7 +787,7 @@ public:
     string Print(int ident=0) const;
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
-    virtual void RegisterCover(EDrawPassType pass) {} //will never be called
+    virtual void RegisterCover(EDrawPassType /*pass*/) {} //will never be called
     /** Helper to draw various parts of the pipe */
     void DrawPipe(Canvas &canvas, EDrawPassType pass, bool topSideFill, bool topSideLine,  
                   bool backSide, bool shadow, bool text, double next_lw, int drawing_variant);
@@ -807,9 +819,9 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     void CalculateContours(Area *pipe_body_cover=NULL);
     virtual void Layout(Canvas &canvas, AreaList *cover);
-
+    virtual Range GetVisualYExtent(bool include_comments) const;
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(double hSize);
+    virtual void CollectPageBreak();
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
@@ -869,9 +881,10 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
+    virtual Range GetVisualYExtent(bool include_comments) const;
 
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(double hSize);
+    virtual void CollectPageBreak();
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);

@@ -1113,7 +1113,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = (new CommandNewpage(&msc, true, NULL));
+    $$ = (new CommandNewpage(&msc, true));
     ($$)->AddAttributeList(NULL);
   #endif
     free($1);
@@ -1127,7 +1127,7 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandNewpage(&msc, true, NULL));
+    $$ = (new CommandNewpage(&msc, true));
     ($$)->AddAttributeList($2);
   #endif
     free($1);
