@@ -113,7 +113,6 @@ CMainFrame::CMainFrame()
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
     m_has_fallback_image = false;
-    m_bHaveAddedToPreviewCategory = false;
 }
 
 CMainFrame::~CMainFrame()
@@ -518,10 +517,23 @@ CMFCRibbonCategory* GetRibbonCategory(CMFCRibbonBar *pR, const char *name)
     return NULL;
 }
 
+CMFCRibbonPanel *GetRibbonPanel(CMFCRibbonCategory*pRC, const char *name)
+{
+    if (pRC==NULL) 
+        return NULL;
+    const int panelcount = pRC->GetPanelCount();
+    const CString panelname = name ? name : "";
+    for (int i = 0; i<panelcount; i++) {
+        CMFCRibbonPanel *p = pRC->GetPanel(i);
+        if (panelname.CompareNoCase(p->GetName())) continue;
+        return p;
+    }
+    return NULL;
+}
+
 void CMainFrame::AddToPrintPreviewCategory()
 {
-    if (m_bHaveAddedToPreviewCategory)
-        return; //nothing to do
+    bool changed = false;
     //find print preview category
     CMFCRibbonCategory* const pRC = GetRibbonCategory(&m_wndRibbonBar, "Print Preview");
     if (!pRC || 3 < pRC->GetPanelCount()) {
@@ -530,142 +542,167 @@ void CMainFrame::AddToPrintPreviewCategory()
     }
 
     //Find the "Print" Panel and add PDF export
-    const int panelcount = pRC->GetPanelCount();
-    CMFCRibbonPanel *pRP = NULL;
-    const CString panelname = "Print";
-    for (int i = 0; i<panelcount; i++) {
-        CMFCRibbonPanel *p = pRC->GetPanel(i);
-        if (panelname.CompareNoCase(p->GetName())) continue;
-        pRP = p;
-        break;
-    }
-    if (pRP) {
-        //Get Images for the file category
-        CMFCRibbonCategory* pRCMain = m_wndRibbonBar.GetMainCategory();
-        CMFCRibbonButton *pRB;
-        if (pRCMain) {
-            CMFCToolBarImages *pMainImageList = &pRCMain->GetLargeImages();
-            //pImageList->AddIcon(theApp.LoadIcon(IDI_SOME_ICON), true);        
-            pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF",
-                                       pMainImageList->ExtractIcon(9));
-        } else
-            pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF");
-        pRP->Add(pRB);
-        
-    }
+    CMFCRibbonPanel *pRP = GetRibbonPanel(pRC, "Print");
+    if (pRP) 
+        //Add button if it is not yet already added
+        if (pRP->GetCount()== 0 || pRP->GetElement(pRP->GetCount()-1)==NULL ||
+            pRP->GetElement(pRP->GetCount()-1)->GetID() != ID_BUTTON_PREVIEW_EXPORT) {
+            //Get Images for the file category
+            CMFCRibbonCategory* pRCMain = m_wndRibbonBar.GetMainCategory();
+            CMFCRibbonButton *pRB;
+            if (pRCMain) {
+                CMFCToolBarImages *pMainImageList = &pRCMain->GetLargeImages();
+                //pImageList->AddIcon(theApp.LoadIcon(IDI_SOME_ICON), true);        
+                pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF",
+                    pMainImageList->ExtractIcon(9));
+            } else
+                pRB = new CMFCRibbonButton(ID_BUTTON_PREVIEW_EXPORT, "Export to PDF");
+            pRP->Add(pRB);
+            changed = true;
+        }
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
-    //Add new panel
-    pRP = pRC->AddPanel("Pagination");
-    pRP->SetCenterColumnVert();
-    pRP->SetJustifyColumns();
+    //Find the "Pagination" to see if we need to add it
+    pRP = GetRibbonPanel(pRC, "Pagination");
+    if (pRP == NULL) {
+        //Add new panel
+        pRP = pRC->AddPanel("Pagination");
+        pRP->SetCenterColumnVert();
+        pRP->SetJustifyColumns();
 
-    //Add panel content
-    CMFCRibbonCheckBox *pRButt = new CMFCRibbonCheckBox(ID_AUTO_PAGINATE, "Auto Paginate");
-    pRP->Add(pRButt);
-    pRButt = new CMFCRibbonCheckBox(ID_AUTO_HEADERS, "Auto Heading");
-    pRP->Add(pRButt);
-    CMFCRibbonComboBox *pRCB = new CMFCRibbonComboBox(ID_COMBO_SCALE, true, 60, "Scale");
-    pRCB->EnableDropDownListResize();
-    pRCB->AddItem("25%");
-    pRCB->AddItem("50%");
-    pRCB->AddItem("75%");
-    pRCB->AddItem("100%");
-    pRCB->AddItem("125%");
-    pRCB->AddItem("150%");
-    pRCB->AddItem("Fit width");
-    pRCB->AddItem("Fit page");
-    if (pApp->m_iScale4Pagination<=-2)
-        pRCB->SelectItem(8);
-    else if (pApp->m_iScale4Pagination==-1)
-        pRCB->SelectItem(7);
-    else {
+        //Add panel content
+        CMFCRibbonCheckBox *pRButt = new CMFCRibbonCheckBox(ID_AUTO_PAGINATE, "Auto Paginate");
+        pRP->Add(pRButt);
+        pRButt = new CMFCRibbonCheckBox(ID_AUTO_HEADERS, "Auto Heading");
+        pRP->Add(pRButt);
+        CMFCRibbonComboBox *pRCB = new CMFCRibbonComboBox(ID_COMBO_SCALE, true, 60, "Scale");
+        pRCB->EnableDropDownListResize();
+        pRCB->AddItem("25%");
+        pRCB->AddItem("50%");
+        pRCB->AddItem("75%");
+        pRCB->AddItem("100%");
+        pRCB->AddItem("125%");
+        pRCB->AddItem("150%");
+        pRCB->AddItem("Fit width");
+        pRCB->AddItem("Fit page");
+        if (pApp->m_iScale4Pagination<=-2)
+            pRCB->SelectItem(8);
+        else if (pApp->m_iScale4Pagination==-1)
+            pRCB->SelectItem(7);
+        else {
+            CString val;
+            val.Format("%u%%", pApp->m_iScale4Pagination);
+            pRCB->SetEditText(val);
+        }
+        pRP->Add(pRCB);
+
+        pRP->AddSeparator();
+
+        //pRCB = new CMFCRibbonComboBox(ID_COMBO_PAGES, false, 70, "Page Size");
+        //pRCB->AddItem("none");    
+        //pRCB->AddItem("A0 portrait");    
+        //pRCB->AddItem("A0 landscape");    
+        //pRCB->AddItem("A1 portrait");    
+        //pRCB->AddItem("A1 landscape");    
+        //pRCB->AddItem("A2 portrait");    
+        //pRCB->AddItem("A2 landscape");    
+        //pRCB->AddItem("A3 portrait");   
+        //pRCB->AddItem("A3 landscape");  
+        //pRCB->AddItem("A4 portrait");   
+        //pRCB->AddItem("A4 landscape");  
+        //pRCB->AddItem("A5 portrait");   
+        //pRCB->AddItem("A5 landscape"); 
+        //pRCB->AddItem("A6 portrait");  
+        //pRCB->AddItem("A6 landscape");   
+        //pRCB->AddItem("Letter portrait"); 
+        //pRCB->AddItem("Letter landscape"); 
+        //pRCB->AddItem("Legal portrait");   
+        //pRCB->AddItem("Legal landscape"); 
+        //pRCB->AddItem("Ledger");  
+        //pRCB->AddItem("Tabloid");
+        //pRCB->SelectItem(PageSizeInfo::EPageSize(pApp->m_pageSize));
+        //pRP->Add(pRCB);
+
+        CMFCRibbonEdit* pRE = new CMFCRibbonEdit(ID_EDIT_PAGES, 90, "Page size:");
+        pRE->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
+        pRP->Add(pRE);
+
+        CMFCRibbonLabel *pRL = new CMFCRibbonLabel("(Use Page Setup to change.)");
+        pRP->Add(pRL);
+        //CMFCRibbonButton *pRB = new CMFCRibbonButton(ID_BUTTON_PAGES, "Page setup");
+        //pRP->Add(pRB);
+
+        pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 90, "Alignment:");
+        pRCB->EnableDropDownListResize();
+        pRCB->AddItem("Top - Left");
+        pRCB->AddItem("Top - Center");
+        pRCB->AddItem("Top - Right");
+        pRCB->AddItem("Middle - Left");
+        pRCB->AddItem("Middle - Center");
+        pRCB->AddItem("Middle - Right");
+        pRCB->AddItem("Bottom - Left");
+        pRCB->AddItem("Bottom - Center");
+        pRCB->AddItem("Bottom - Right");
+        pRCB->SelectItem(pApp->m_iPageAlignment + 4);
+        pRP->Add(pRCB);
+
+        pRP->AddSeparator();
+        pRP->Add(new CMFCRibbonLabel("Margins (cm)"));
+
+        pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_L, 35, "Left");
         CString val;
-        val.Format("%u%%", pApp->m_iScale4Pagination);
-        pRCB->SetEditText(val);
+        val.Format("%lg", pApp->m_printer_usr_margins[0]/PT_PER_CM);
+        pRE->SetEditText(val);
+        pRP->Add(pRE);
+
+        pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_R, 35, "Right");
+        val.Format("%lg", pApp->m_printer_usr_margins[1]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+        pRE->SetEditText(val);
+        pRP->Add(pRE);
+
+        pRP->Add(new CMFCRibbonLabel(":"));
+
+        pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_T, 35, "Top");
+        val.Format("%lg", pApp->m_printer_usr_margins[2]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+        pRE->SetEditText(val);
+        pRP->Add(pRE);
+
+        pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_B, 35, "Bottom");
+        val.Format("%lg", pApp->m_printer_usr_margins[3]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+        pRE->SetEditText(val);
+        pRP->Add(pRE);
+        changed = true;
     }
-    pRP->Add(pRCB);
+    if (changed)
+        m_wndRibbonBar.RecalcLayout();
+}
 
-    pRP->AddSeparator();
+void CMainFrame::DeleteFromPrintPreviewCategory()
+{
+    bool changed = false;
+    CMFCRibbonCategory* const pRC = GetRibbonCategory(&m_wndRibbonBar, "Print Preview");
+    if (!pRC) return;
 
-    //pRCB = new CMFCRibbonComboBox(ID_COMBO_PAGES, false, 70, "Page Size");
-    //pRCB->AddItem("none");    
-    //pRCB->AddItem("A0 portrait");    
-    //pRCB->AddItem("A0 landscape");    
-    //pRCB->AddItem("A1 portrait");    
-    //pRCB->AddItem("A1 landscape");    
-    //pRCB->AddItem("A2 portrait");    
-    //pRCB->AddItem("A2 landscape");    
-    //pRCB->AddItem("A3 portrait");   
-    //pRCB->AddItem("A3 landscape");  
-    //pRCB->AddItem("A4 portrait");   
-    //pRCB->AddItem("A4 landscape");  
-    //pRCB->AddItem("A5 portrait");   
-    //pRCB->AddItem("A5 landscape"); 
-    //pRCB->AddItem("A6 portrait");  
-    //pRCB->AddItem("A6 landscape");   
-    //pRCB->AddItem("Letter portrait"); 
-    //pRCB->AddItem("Letter landscape"); 
-    //pRCB->AddItem("Legal portrait");   
-    //pRCB->AddItem("Legal landscape"); 
-    //pRCB->AddItem("Ledger");  
-    //pRCB->AddItem("Tabloid");
-    //pRCB->SelectItem(PageSizeInfo::EPageSize(pApp->m_pageSize));
-    //pRP->Add(pRCB);
-    
-    CMFCRibbonEdit* pRE = new CMFCRibbonEdit(ID_EDIT_PAGES, 90, "Page size:");
-    pRE->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
-    pRP->Add(pRE);
-
-    CMFCRibbonLabel *pRL = new CMFCRibbonLabel("(Use Page Setup to change.)");
-    pRP->Add(pRL);
-    //CMFCRibbonButton *pRB = new CMFCRibbonButton(ID_BUTTON_PAGES, "Page setup");
-    //pRP->Add(pRB);
-
-    pRCB = new CMFCRibbonComboBox(ID_COMBO_ALIGNMENT, false, 90, "Alignment:");
-    pRCB->EnableDropDownListResize();
-    pRCB->AddItem("Top - Left");
-    pRCB->AddItem("Top - Center");
-    pRCB->AddItem("Top - Right");
-    pRCB->AddItem("Middle - Left");
-    pRCB->AddItem("Middle - Center");
-    pRCB->AddItem("Middle - Right");
-    pRCB->AddItem("Bottom - Left");
-    pRCB->AddItem("Bottom - Center");
-    pRCB->AddItem("Bottom - Right");
-    pRCB->SelectItem(pApp->m_iPageAlignment + 4);
-    pRP->Add(pRCB);
-
-    pRP->AddSeparator();
-    pRP->Add(new CMFCRibbonLabel("Margins (cm)"));
-
-    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_L, 35, "Left");
-    CString val;
-    val.Format("%lg", pApp->m_printer_usr_margins[0]/PT_PER_CM); 
-    pRE->SetEditText(val);
-    pRP->Add(pRE);
-
-    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_R, 35, "Right");
-    val.Format("%lg", pApp->m_printer_usr_margins[1]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-    pRE->SetEditText(val);
-    pRP->Add(pRE);
-    
-    pRP->Add(new CMFCRibbonLabel(":"));
-
-    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_T, 35, "Top");
-    val.Format("%lg", pApp->m_printer_usr_margins[2]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-    pRE->SetEditText(val);
-    pRP->Add(pRE);
-
-    pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_B, 35, "Bottom");
-    val.Format("%lg", pApp->m_printer_usr_margins[3]/PT_PER_CM); //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-    pRE->SetEditText(val);
-    pRP->Add(pRE);
-
-    m_wndRibbonBar.RecalcLayout();
-    m_bHaveAddedToPreviewCategory = true;
+    //Find the "Print" Panel and add PDF export
+    CMFCRibbonPanel *pRP = GetRibbonPanel(pRC, "Print");
+    if (pRP) {
+            CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arElements;
+            pRP->GetElementsByID(ID_BUTTON_PREVIEW_EXPORT, arElements);
+            for (unsigned u = 0; u<arElements.GetSize(); u++)
+                if (pRP->GetIndex(arElements[u])>=0) {
+                    pRP->Remove(pRP->GetIndex(arElements[u]));
+                    changed = true;
+                }
+    }
+    pRP = GetRibbonPanel(pRC, "Pagination");
+    if (pRP) {
+        pRC->RemovePanel(pRC->GetPanelIndex(pRP));
+        changed = true;
+    }
+    if (changed)
+        m_wndRibbonBar.RecalcLayout();
 }
 
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)

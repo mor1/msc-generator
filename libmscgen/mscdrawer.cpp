@@ -1846,22 +1846,22 @@ void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_
         cairo_clip(cr);
     }
     const Contour &substract = area;//.CreateExpand(-0.5);
-    Contour outer(area), inner;
+    Contour outer(area);
     XY off(shadow.offset.second, shadow.offset.second);
     off.Rotate(cos(-angle_radian), sin(-angle_radian));
     outer.Shift(off);
     ColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
+        const Contour original(outer);
         const unsigned steps = unsigned(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
         const double transp_step = double(color.a)/(steps+1);
         double alpha = 0;
         for (unsigned i=0; i<steps; i++) {
-            const double ex = 1./-scale_for_shadows;
-            inner = outer.CreateExpand(ex);
-            if (inner.IsEmpty())// && outer.GetBoundingBox().x.Spans()>-2*ex && outer.GetBoundingBox().y.Spans()>-2*ex) {
+            const double ex = double(i+1)/-scale_for_shadows;
+            Contour inner = original.CreateExpand(ex);
+            if (inner.IsEmpty())
                 break;
 
-            outer -= inner;
             alpha += transp_step;
             color.a = (unsigned char)alpha;
             if (fake_shadows)
@@ -1869,7 +1869,7 @@ void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_
             else
                 SetColor(color);
             //since clip is not working so well, we substract the original area
-            (outer-=substract).Fill(cr);
+            ((outer-inner)-substract).Fill(cr);
             std::swap(inner, outer);
         }
     }
@@ -1879,7 +1879,7 @@ void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_
         else
             SetColor(shadow.color.second);
     }
-    (outer-=substract).Fill(cr);
+    (outer-substract).Fill(cr);
     if (clip)
         cairo_restore(cr);
 }
@@ -1890,8 +1890,7 @@ void Canvas::Shadow(const Block &b, const LineAttr &line, const ShadowAttr &shad
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete() && line.radius.first);
     if (shadow.offset.second==0) return;
-    if (shadow.color.second.type==ColorType::INVALID || 
-        shadow.color.second.a==0) return;
+    if (shadow.color.second.IsFullyTransparent()) return;
     //For now just call the other Shadow Routine
     Contour c = line.CreateRectangle_OuterEdge(b);
     c.Expand(-line.width.second);

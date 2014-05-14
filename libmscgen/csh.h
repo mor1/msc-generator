@@ -432,7 +432,7 @@ int FindPrefix(const std::set<std::string> &coll, const char *txt);
 * @param [in] offset The number of bytes inserted (for positive value) or removed (for
 *                    negative value). Value zero requires nothing to do.*/
 template<class PosList>
-static void CshPos::AdjustList(PosList &list, int start, int offset)
+void CshPos::AdjustList(PosList &list, int start, int offset)
 {
     if (offset==0) return;
     const int upper = offset < 0 ? start - offset : start;

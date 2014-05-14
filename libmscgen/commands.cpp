@@ -601,14 +601,14 @@ void CommandEntity::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVer
         }
     }
     //Now add some distances for activation (only for non-grouped or collapsed entities)
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
-        if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
-            if ((*i)->show.first) 
-                (*(*i)->itr)->running_shown.Show((*i)->show.second);
-            if ((*i)->active.first) 
-                (*(*i)->itr)->running_shown.Activate((*i)->active.second);
-            if ((*(*i)->itr)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
-                distances.was_activated.insert((*(*i)->itr)->index);
+    for (auto pEntityApp : entities) {
+        if ((*pEntityApp->itr)->children_names.size() == 0 || (*pEntityApp->itr)->collapsed) {
+            if (pEntityApp->show.first) 
+                (*pEntityApp->itr)->running_shown.Show(pEntityApp->show.second);
+            if (pEntityApp->active.first) 
+                (*pEntityApp->itr)->running_shown.Activate(pEntityApp->active.second);
+            if ((*pEntityApp->itr)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
+                distances.was_activated.insert((*pEntityApp->itr)->index);
         }
     }
     //Add a new element to vdist
@@ -673,11 +673,25 @@ void CommandEntity::Layout(Canvas &canvas, AreaList *cover)
     LayoutComments(canvas, cover);
 }
 
+Range CommandEntity::GetVisualYExtent(bool include_comments) const
+{
+    Range ret(yPos, yPos);
+    if (valid)
+        for (auto &pEntityApp : entities) {
+            ret += pEntityApp->outer_edge.y;
+            ret += pEntityApp->outer_edge.y.till + pEntityApp->style.read().shadow.offset.second;
+        }
+    if (include_comments && valid)
+        ret += yPos+comment_height;
+    return ret;
+
+}
+
 void CommandEntity::ShiftBy(double y)
 {
     if (!valid) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->ShiftBy(y);
+    for (auto &pEntityApp : entities)
+        pEntityApp->ShiftBy(y);
     ArcCommand::ShiftBy(y);
 }
 
@@ -688,12 +702,13 @@ double CommandEntity::SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageS
                                     bool addHeading, ArcList &/*res*/)
 {
     if (addHeading)
-        for (auto i_app = entities.begin(); i_app!=entities.end(); i_app++) {
-            Entity *ent = *(*i_app)->itr;
-            ent->running_draw_pass = (*i_app)->draw_pass;
+        for (auto &pEntityApp : entities) {
+            Entity *ent = *pEntityApp->itr;
+            ent->running_draw_pass = pEntityApp->draw_pass;
             //We ignore active state, just store on/off
-            ent->running_shown = (*i_app)->draw_heading ? EEntityStatus::SHOW_ON : EEntityStatus::SHOW_OFF;
-            ent->running_style = (*i_app)->style;
+            if (pEntityApp->show.first)
+                ent->running_shown = pEntityApp->show.second ? EEntityStatus::SHOW_ON : EEntityStatus::SHOW_OFF;
+            ent->running_style = pEntityApp->style;
         }
     return -1; //we could not split
 }
@@ -730,10 +745,10 @@ void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah) :
+CommandNewpage::CommandNewpage(Msc *msc, bool m) :
     ArcCommand(MSC_COMMAND_NEWPAGE, MscProgress::NEWPAGE, msc),
     auto_heading_attr(msc->Contexts.back().auto_heading.second),
-    autoHeading(ah), manual(m)
+    autoHeading(NULL), manual(m)
 {
     vspacing = 0;
 }
@@ -769,13 +784,12 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
                                           Element **note_target, ArcBase *vertical_target)
 {
     if (auto_heading_attr && !autoHeading) {
-        autoHeading = static_cast<CommandEntity*>(new CommandEntity(NULL, chart, false));
+        autoHeading = new CommandEntity(NULL, chart, false);
         autoHeading->AddAttributeList(NULL);
         EIterator dummy1 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
         EIterator dummy2 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
-        Numbering dummy3;
-        Element *dummy4=NULL;
-        //at_to_level must be true, or else it complains...
+        Numbering dummy3; //will not be used by a CommandEntity
+        Element *dummy4 = NULL; //target of any notes, pretend we have none  
         autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, &dummy4, NULL);
         chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->myProgressCategory);
     }
@@ -790,6 +804,7 @@ void CommandNewpage::FinalizeLabels(Canvas &)
 
 void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/) 
 {
+    _ASSERT(!autoheading); //should not happen here as we insert auto headings after Layout()
     if (autoHeading) {
         //Do not add space requirements for verticals here - they will never
         //conflict with auto headings.
@@ -802,6 +817,7 @@ void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances, Distanc
 
 void CommandNewpage::Layout(Canvas &canvas, AreaList *cover)
 {
+    _ASSERT(!autoheading); //should not happen here as we insert auto headings after Layout()
     ArcCommand::Layout(canvas, cover);
     if (autoHeading) {
         autoHeading->Layout(canvas, NULL); 
@@ -814,11 +830,11 @@ void CommandNewpage::ShiftBy(double y)
     ArcCommand::ShiftBy(y);
     //Shift autoheading to be just above us, irrespective of where it was before
     if (autoHeading)
-        autoHeading->ShiftBy(yPos-autoHeading->GetHeight() - autoHeading->GetPos());
+        autoHeading->ShiftBy(yPos - autoHeading->GetFormalYExtent().till);
 }
 
 
-void CommandNewpage::CollectPageBreak(double /*hSize*/)
+void CommandNewpage::CollectPageBreak()
 {
     if (!valid) return;
     chart->pageBreakData.push_back(PageBreakData(yPos, manual, autoHeading));

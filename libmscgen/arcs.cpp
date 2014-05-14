@@ -309,6 +309,14 @@ ArcBase::~ArcBase()
         chart->Progress.UnRegisterArc(myProgressCategory);
 }
 
+Range ArcBase::GetVisualYExtent(bool include_comments) const
+{
+    Range ret = area.GetBoundingBox().y;
+    if (include_comments && ret.till < yPos+comment_height)
+        ret.till = yPos+comment_height;
+    return ret;
+}
+
 Area ArcBase::GetCover4Compress(const Area &a) const
 {
     Area ret(static_cast<const Contour &>(a).CreateExpand(chart->compressGap/2, 
@@ -2287,6 +2295,15 @@ void ArcBigArrow::Layout(Canvas &canvas, AreaList *cover)
     LayoutComments(canvas, cover);
 }
 
+Range ArcBigArrow::GetVisualYExtent(bool include_comments) const
+{
+    Range ret = area.GetBoundingBox().y;
+    ret.till += style.read().shadow.offset.second;
+    if (include_comments && ret.till < yPos+comment_height)
+        ret.till = yPos+comment_height;
+    return ret;
+}
+
 void ArcBigArrow::ShiftBy(double y)
 {
     if (!valid) return;
@@ -2929,6 +2946,7 @@ Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
     return edges;
 }
 
+
 void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
 {
     if (!valid) return;
@@ -2939,8 +2957,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
         ypos[1] = dst == MARKER_HERE_STR ? yPos : chart->Markers.find(dst)->second.y;
 
     } else if (prev_arc) {
-        ypos[0] = prev_arc->GetYExtent().from;
-        ypos[1] = prev_arc->GetYExtent().till;
+        ypos[0] = prev_arc->GetFormalYExtent().from;
+        ypos[1] = prev_arc->GetFormalYExtent().till;
     } else {
         _ASSERT(0); // this should have been caught in PostParseProcess()
         valid = false;
@@ -3173,11 +3191,24 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
     area.arc = this;
     area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     chart->NoteBlockers.Append(this);
-    //set yPos and height so that GetYExtent returns the right range
+    //set yPos and height so that GetFormalYExtent returns the right range
     //to determine if this element needs to be drawn on a particular page
     yPos = ypos[0];
     height = ypos[1]-ypos[0];
 }
+
+Range ArcVerticalArrow::GetVisualYExtent(bool include_comments) const
+{
+    Range ret = area.GetBoundingBox().y;
+    //extend with shadow, if we may draw one
+    if (shape == BOX || shape == ARROW_OR_BOX)
+        //Use ypos[1], since BB.y.till may be below it due to text being longer
+        ret += ypos[1] + style.read().shadow.offset.second;
+    if (include_comments && ret.till < yPos+comment_height)
+        ret.till = yPos+comment_height;
+    return ret;
+}
+
 
 void ArcVerticalArrow::PostPosProcess(Canvas &canvas)
 {
@@ -3826,7 +3857,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     //left_space and right_space includes linewidth
     //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, but not lower lw
     //sx and dx are the inner edges of the lines of the whole box
-    StyleCoW &main_style = (*series.begin())->style;
+    StyleCoW &main_style = series.front()->style;
     const double lw = main_style.read().line.LineWidth();
     const double sx = chart->XCoord((*series.begin())->src) - left_space + lw;
     const double dx = chart->XCoord((*series.begin())->dst) + right_space - lw;
@@ -3960,7 +3991,6 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     //We do not call CommentHeight for "this" since a box series cannot take notes, only its
     //box elements do and those were handled above
     comment_height = comment_end;
-
 }
 
 void ArcBox::ShiftBy(double y)
@@ -3974,6 +4004,16 @@ void ArcBox::ShiftBy(double y)
         chart->ShiftByArcList(content, y);
 }
 
+Range ArcBoxSeries::GetVisualYExtent(bool include_comments) const
+{
+    const double h = valid ? std::max(0., height - 2*chart->boxVGapOutside) : 0;
+    Range ret(yPos+chart->boxVGapOutside, yPos+chart->boxVGapOutside+h);
+    if (include_comments && valid)
+        ret += yPos+comment_height;
+    return ret;
+}
+
+
 void ArcBoxSeries::ShiftBy(double y)
 {
     if (!valid) return;
@@ -3983,7 +4023,7 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::CollectPageBreak(double /*hSize*/)
+void ArcBoxSeries::CollectPageBreak()
 {
     if (!valid) return;
     for (auto i=series.begin(); i!=series.end(); i++) 
@@ -3995,11 +4035,12 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                        bool addHeading, ArcList &res)
 {
     if (series.size()==0) return -1; //we cannot split if no content
-    if (pageBreak <= yPos || pageBreak >= yPos + GetHeight()) return -1; //pb does not cut us
+    if (GetVisualYExtent(true).IsWithin(pageBreak) != contour::WI_INSIDE) return -1; //pb does not cut us
     //if pageBreak goes through a label (or is above) we cannot split there
     auto kwn_from = series.end();
     for (auto i = series.begin(); i!=series.end(); i++) {
-        if (pageBreak >= (*i)->GetPos()+(*i)->GetHeight()) {
+        const Range visualYExtent = (*i)->GetVisualYExtent(true);
+        if (pageBreak >= visualYExtent.till) {
             if ((*i)->IsKeepWithNext()) {
                 if (kwn_from == series.end())
                     kwn_from = i;
@@ -4013,7 +4054,7 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         //(bottom: height contains height without the lower line)
         if ((*i)->content.size() && !(*i)->keep_together &&
             ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
-            ((*i)->yPos + (*i)->height) >= pageBreak) {
+            (visualYExtent.till >= pageBreak)) {
             //break the list, but do not shift all of it to the next page
             const double ret = chart->PageBreakArcList(canvas, (*i)->content, netPrevPageSize,
                                                        pageBreak, addCommandNewpage, addHeading,
@@ -4944,6 +4985,15 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
     comment_height = std::max(note_l, note_r);
 }
 
+Range ArcPipeSeries::GetVisualYExtent(bool include_comments) const
+{
+    const double h = valid ? std::max(0., height - 2*chart->boxVGapOutside) : 0;
+    Range ret(yPos+chart->boxVGapOutside, yPos+chart->boxVGapOutside+h);
+    if (include_comments && valid)
+        ret += yPos+comment_height;
+    return ret;
+}
+
 
 void ArcPipe::ShiftBy(double y)
 {
@@ -4962,6 +5012,7 @@ void ArcPipe::ShiftBy(double y)
     pipe_hole_curve.Shift(XY(0,y));
 }
 
+
 void ArcPipeSeries::ShiftBy(double y)
 {
     if (!valid) return;
@@ -4973,7 +5024,7 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::CollectPageBreak(double /*hSize*/)
+void ArcPipeSeries::CollectPageBreak()
 {
     chart->CollectPageBreakArcList(content);
 }
@@ -5534,19 +5585,32 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
     LayoutComments(canvas, cover);
 }
 
+Range ArcParallel::GetVisualYExtent(bool include_comments) const
+{
+    Range ret(yPos, yPos);
+    for (auto &block : blocks)
+        for (auto &pArc : block)
+            ret += pArc->GetVisualYExtent(include_comments);
+    if (include_comments && valid)
+        ret += yPos+comment_height;
+    return ret;
+}
+
+
+
 void ArcParallel::ShiftBy(double y)
 {
     if (!valid) return;
-    for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->ShiftByArcList(*i, y);
+    for (auto &block : blocks)
+        chart->ShiftByArcList(block, y);
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::CollectPageBreak(double /*hSize*/)
+void ArcParallel::CollectPageBreak()
 {
     if (!valid) return;
-    for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->CollectPageBreakArcList(*i);
+    for (auto &block : blocks)
+        chart->CollectPageBreakArcList(block);
 }
 
 
@@ -5555,7 +5619,7 @@ void ArcParallel::CollectPageBreak(double /*hSize*/)
 //result
 void FindFirstNonZero(ArcList::iterator &e, ArcList *list, ArcList &result) 
 {
-    while (e != list->end() && (*e)->GetHeight() == 0)
+    while (e != list->end() && (*e)->GetVisualYExtent(true).Spans() == 0)
         e++;
     if (e == list->end())
         result.Append(list);
@@ -5582,7 +5646,7 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
             FindFirstNonZero(e[0], list[0], result);
             FindFirstNonZero(e[1], list[1], result);
             while (list[0]->size() >0 && list[1]->size() > 0) {
-                unsigned u = (*e[0])->GetPos() > (*e[1])->GetPos();
+                unsigned u = (*e[0])->GetVisualYExtent(true).from > (*e[1])->GetVisualYExtent(true).from;
                 result.splice(result.end(), *list[u], list[u]->begin(), ++e[u]);
                 FindFirstNonZero(e[u], list[u], result);
             }
@@ -5592,41 +5656,43 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         }
         blocks.resize(1);
     }
-    //We may return -1 if all of us would move to the next page
-    return chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize,
-                                   pageBreak, addCommandNewpage, addHeading,
-                                   false, true);
+    //We may get -1 if all of us would move to the next page -> we pass that to our caller, too
+    const double incr = chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize,
+                                                pageBreak, addCommandNewpage, addHeading,
+                                                false, true);
+    //if we have increased in size, adjust our height (so that verticals attached to us
+    //scale correctly and also we get drawn on both pages.
+    if (incr>0) height += incr;
+    return incr;
 }
 
 void ArcParallel::PlaceWithMarkers(Canvas &canvas)
 {
     if (!valid) return;
-    int n=0;
-    //For automarker, give the bottom of the largest blocks
-    for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PlaceWithMarkersArcList(canvas, *i);
+    for (auto &block : blocks)
+        chart->PlaceWithMarkersArcList(canvas, block);
 }
 
 void ArcParallel::PostPosProcess(Canvas &canvas)
 {
     if (!valid) return;
     ArcBase::PostPosProcess(canvas);
-    for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->PostPosProcessArcList(canvas, *i);
+    for (auto &block : blocks)
+        chart->PostPosProcessArcList(canvas, block);
 }
 
 void ArcParallel::RegisterCover(EDrawPassType pass)
 {
     if (!valid) return;
-    for (auto &pBlock : blocks)
-        chart->RegisterCoverArcList(pBlock, pass);
+    for (auto &block : blocks)
+        chart->RegisterCoverArcList(block, pass);
 }
 
 
 void ArcParallel::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
-    for (auto &pBlock : blocks)
-        chart->DrawArcList(canvas, pBlock, chart->GetTotal().y, pass);
+    for (auto &block : blocks)
+        chart->DrawArcList(canvas, block, chart->GetTotal().y, pass);
 }
 

@@ -78,6 +78,7 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void LayoutCommentsHelper(Canvas &canvas, AreaList *cover, double &l, double &r);
     virtual void Layout(Canvas &canvas, AreaList *cover);
+    virtual Range GetVisualYExtent(bool include_comments) const;
 
     virtual void ShiftBy(double y);
     virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
@@ -95,7 +96,7 @@ class CommandNewpage : public ArcCommand
     CommandEntity *autoHeading;       ///<The automatically inserted heading that follows, NULL if none
 public:
     const bool manual;                ///<True if this was inserted by the user manually via the `newpage` command
-    CommandNewpage(Msc *msc, bool m, CommandEntity *ah);
+    CommandNewpage(Msc *msc, bool m);
     ~CommandNewpage() {if (autoHeading) delete autoHeading;}
 	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::NEWPAGE;}
     bool AddAttribute(const Attribute &a);
@@ -108,7 +109,7 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(double hSize);
+    virtual void CollectPageBreak();
     virtual void PlaceWithMarkers(Canvas &/*cover*/);
     virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/);
