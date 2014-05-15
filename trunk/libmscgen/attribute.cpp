@@ -1224,7 +1224,7 @@ bool NoteAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             }
             return true;
         }
-        a.InvalidValueError(CandidatesFor(tmp), msc->Error);
+        a.InvalidValueError(CandidatesFor(POS_INVALID), msc->Error);
         return true;
     }
     if (width.AddAttribute(a, msc, t))

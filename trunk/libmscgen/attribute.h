@@ -134,7 +134,7 @@ public:
     using std::list<Object*>::splice;
     using std::list<Object*>::clear;
 
-    explicit PtrList(bool r=true) : std::list<Object*>(), responsible(r) {}
+    explicit PtrList(bool r=true) : responsible(r) {}
     /** Copy constructor. 
      * Does not work, if the list is responsible for its content and not empty*/
     PtrList(const PtrList<Object> &o) : std::list<Object*>(o), responsible(o.responsible) {_ASSERT(!responsible || o.size()==0);}
@@ -150,7 +150,7 @@ public:
     PtrList *Prepend(PtrList<Object> *l)
 	    {if (l) {_ASSERT(responsible==l->responsible); splice(begin(), *l);} return this;} ///<Prepend a list to us
     void Empty() 
-        {if (responsible) for (auto i=begin(); i!=end(); i++) delete(*i); clear();} ///<Empty the list, deleting objets if `responsible` is true.
+        {if (responsible) for (auto p : *this) delete(p); clear();} ///<Empty the list, deleting objets if `responsible` is true.
 	~PtrList() 
         {Empty();}
     string Print(int ident=0) const 

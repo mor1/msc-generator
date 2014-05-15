@@ -104,7 +104,6 @@
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(EArcType)          arctype;
-    CHAR_IF_CSH(EntityApp)        *entity;
     CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
@@ -173,7 +172,7 @@
 
 %destructor {if (!C_S_H) delete $$;} <arcbase> <arclist> <arcarrow> <arcvertarrow> 
 %destructor {if (!C_S_H) delete $$;} <arcbox> <arcpipe> <arcboxseries> <arcpipeseries> <arcparallel>
-%destructor {if (!C_S_H) delete $$;} <entity> <entitylist> <attrib> <attriblist> 
+%destructor {if (!C_S_H) delete $$;} <entitylist> <attrib> <attriblist> 
 %destructor {if (!C_S_H) delete $$;} <vertxpos> <extvertxpos> <namerel> <stringlist>
 %destructor {free($$);} <str> 
 
@@ -193,14 +192,14 @@
 //redefine default loc action for CSH
 #define YYLLOC_DEFAULT(Current, Rhs, N)                     \
     do                                                      \
-        if (YYID (N)) {                                     \
+        if (N) {                                            \
             (Current).first_pos = YYRHSLOC(Rhs,1).first_pos;\
             (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos; \
         } else {                                            \
             (Current).first_pos = (Current).last_pos =      \
                 YYRHSLOC (Rhs, 0).last_pos;                 \
         }                                                   \
-    while (YYID (0))
+    while (0)
 
 /* yyerror
  *  Error handling function.  Do nothing for CSH
@@ -2982,13 +2981,13 @@ vertxpos: TOK_AT entity_string
     case MSC_BOX_DOTTED:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '..', expected '-', '--', '+' or '++'."
-                        " Ignoring vertical."); break;
+                        " Ignoring vertical."); 
         $$ = NULL;
         break;
     case MSC_BOX_DOUBLE:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '==', expected '-', '--', '+' or '++'."
-                        " Ignoring vertical."); break;
+                        " Ignoring vertical."); 
         $$ = NULL;
         break;
     }

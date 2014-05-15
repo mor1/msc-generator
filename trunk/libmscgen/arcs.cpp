@@ -1592,7 +1592,7 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     vdist.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, d);
 
     if (middle.size()) {
-        EntityDistanceMap d;
+        EntityDistanceMap dmap;
         for (unsigned i = 0; i<middle.size(); i++) {
             DoublePair mid = style.read().arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.read().line);
             const double left = (mid.first  + act_size[i+1])*cos_slant;
@@ -1602,8 +1602,8 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
             vdist.Insert((*middle[i])->index, DISTANCE_LEFT, left);
             vdist.Insert((*middle[i])->index, DISTANCE_RIGHT, right);
         }
-        d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
-        distances += d;
+        dmap.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
+        distances += dmap;
     }
     //If a lost symbol is generated, do some
     if (lost_pos.valid) {
@@ -5377,11 +5377,13 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
         y += style.read().line.LineWidth();
     const double charheight = style.read().text.getCharHeight(canvas);
     //reflow text if needed
-    if (parsed_label.IsWordWrap()) {
-        const double overflow = parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
-        OverflowWarning(overflow, "", chart->AllEntities.begin(), chart->AllEntities.begin());
-    } else {
-        CountOverflow(chart->GetDrawing().x.Spans() - 2*text_margin);
+    if (parsed_label.size()) {
+        if (parsed_label.IsWordWrap()) {
+            const double overflow = parsed_label.Reflow(canvas, chart->GetDrawing().x.Spans() - 2*text_margin);
+            OverflowWarning(overflow, "", chart->AllEntities.begin(), chart->AllEntities.begin());
+        } else {
+            CountOverflow(chart->GetDrawing().x.Spans() - 2*text_margin);
+        }
     }
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;

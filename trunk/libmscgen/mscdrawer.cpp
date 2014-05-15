@@ -832,7 +832,6 @@ Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth,
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
     original_device_size.x *= scale.x;//*fake_scale;
     original_device_size.y *= scale.y;//*fake_scale;
-    RECT r;
 
     switch (ot) {
     case WIN:

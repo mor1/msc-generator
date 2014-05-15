@@ -677,10 +677,11 @@ Range CommandEntity::GetVisualYExtent(bool include_comments) const
 {
     Range ret(yPos, yPos);
     if (valid)
-        for (auto &pEntityApp : entities) {
-            ret += pEntityApp->outer_edge.y;
-            ret += pEntityApp->outer_edge.y.till + pEntityApp->style.read().shadow.offset.second;
-        }
+        for (auto &pEntityApp : entities) 
+            if (pEntityApp->draw_heading) {
+                ret += pEntityApp->outer_edge.y;
+                ret += pEntityApp->outer_edge.y.till + pEntityApp->style.read().shadow.offset.second;
+            }
     if (include_comments && valid)
         ret += yPos+comment_height;
     return ret;
@@ -804,7 +805,6 @@ void CommandNewpage::FinalizeLabels(Canvas &)
 
 void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &/*vdist*/) 
 {
-    _ASSERT(!autoheading); //should not happen here as we insert auto headings after Layout()
     if (autoHeading) {
         //Do not add space requirements for verticals here - they will never
         //conflict with auto headings.
@@ -817,7 +817,6 @@ void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances, Distanc
 
 void CommandNewpage::Layout(Canvas &canvas, AreaList *cover)
 {
-    _ASSERT(!autoheading); //should not happen here as we insert auto headings after Layout()
     ArcCommand::Layout(canvas, cover);
     if (autoHeading) {
         autoHeading->Layout(canvas, NULL); 

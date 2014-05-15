@@ -266,7 +266,6 @@ public:
 /** A class holding a list of parsed lines*/
 class Label : public std::vector<ParsedLine>
 {
-    using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
     using std::vector<ParsedLine>::clear;
     using std::vector<ParsedLine>::swap;
@@ -275,6 +274,7 @@ protected:
     /** Helper to determine cover & to draw*/
     void CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
 public:
+    using std::vector<ParsedLine>::size;
     /** Creates a Label from a string.
      * We also specify a canvas to be used at calculating the geometry
      * and a starting format. We pre-parse the text and determine geometry.*/

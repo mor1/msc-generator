@@ -549,7 +549,7 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
                     ar >> name;
                     if (!added && pApp->m_Shapes.GetShapeNo(string(name))<0) {
                         if (url.GetLength()+info.GetLength()>0) {
-                            message.AppendFormat("%d. ", enumerator++);
+                            message.AppendFormat("%u. ", enumerator++);
                             if (info.GetLength()) {
                                 message.Append(info);
                                 if (url.GetLength()) {
@@ -714,11 +714,10 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    if (!pApp) return FALSE;
 	ASSERT(pApp != NULL);
     bool restartEditor = false;
 	if (lpszPathName==NULL) {
-        CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-        ASSERT(pApp != NULL);
         if (!pApp->m_bFullScreenViewMode || m_itrEditing != m_itrShown) {
             CString message = "I want to update the container document, but you have made changes in the text editor.\n";
             if (m_bAttemptingToClose)
@@ -1342,7 +1341,7 @@ bool CMscGenDoc::ArrangeViews(EZoomMode mode)
 		x -= (window.right-window.left) - (view.right-view.left) + SCREEN_MARGIN;
 		y -= (window.bottom-window.top) - (view.bottom-view.top) + SCREEN_MARGIN; 
 	}
-	int zoom ;
+	int zoom = m_zoom;
 
 	//OK, we have a sane View, with some drawing in it and we are not in place with a sane main window
 	switch (mode) {
@@ -1567,7 +1566,7 @@ void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANG
         if (m_itrEditing->start == start) {
             append = true;
             m_itrEditing->del += del;
-        } else if (m_itrEditing->start = start + del) {
+        } else if (m_itrEditing->start == start + del) {
             append = true;
             m_itrEditing->start -= del;
         } else
@@ -1656,12 +1655,12 @@ UINT CompileThread( LPVOID pParam )
     return 0;
 }
 
-bool ProgressCallbackBlocking(double percent, void *data) throw(AbortCompilingException)
+bool ProgressCallbackBlocking(double percent, void *data) throw(...)
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
     pDoc->m_Progress = percent/100;
     if (pDoc->m_killCompilation) 
-        throw (AbortCompilingException());
+        throw AbortCompilingException();
     pDoc->DoFading();
 	POSITION pos = pDoc->GetFirstViewPosition();
 	while(pos) {
@@ -1697,16 +1696,9 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool forc
         return;
 
     m_itrEditing->RemoveSpacesAtLineEnds();
-	if (pApp->IsInternalEditorRunning()) {
-		//Adjust text in the internal editor
-		int lStartLine, lStartCol, lEndLine, lEndCol;
-		//Save selection in terms of line:column values
-		//pApp->m_pWndEditor->m_ctrlEditor.GetSelLineCol(lStartLine, lStartCol, lEndLine, lEndCol);
-		//Apply selection in those terms
-		//pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), lStartLine, lStartCol, lEndLine, lEndCol, true);
+	if (pApp->IsInternalEditorRunning()) 
 		//Save new selection in character index terms
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
-	}
 
     //if the main window is invisible, do a blocking compilation
     //Needed for single thread operation when the system DLLs start our

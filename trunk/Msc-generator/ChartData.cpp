@@ -681,7 +681,7 @@ Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 //"clip" contains the coordinates of the visible part of the screen in scaled chart coordinates.
 //E.g., if the chart is 100x100, scale is 2, and we can see 80x80 pixels in the middle of the
 //chart (a small window), then the scaled chart is 200x200 and clip will be (60x60)->(140x140)
-void CDrawingChartData::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks) 
+void CDrawingChartData::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip) 
 {
     _ASSERT(m_msc);
     if (!m_msc) return;

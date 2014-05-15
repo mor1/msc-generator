@@ -80,7 +80,7 @@ public:
         {return ColorType(r, g, b, (unsigned char)(a+p*(255-a)), type);}
     /** Creates a non-transparent version as if on white background*/
 	ColorType FlattenAlpha(void) const
-	    {return ColorType(unsigned(255-r)*(255-a)/255+r, unsigned(255-g)*(255-a)/255+g, unsigned(255-b)*(255-a)/255+b, type);}
+	    {return ColorType(unsigned(255-r)*(255-a)/255+r, unsigned(255-g)*(255-a)/255+g, unsigned(255-b)*(255-a)/255+b, 255, type);}
     /** Overlays one color on top of another */
     ColorType operator +(const ColorType &c) const;
     /** Overlays one color on top of another */

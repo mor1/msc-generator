@@ -75,7 +75,7 @@ CHANGED: AutoZoom to 100%, fix that it works on resize
 FIXED: Elements added to cover in the order they will be drawn
 FIXED: Clicking on options influencing appearance will now surely recompile, if needed
 FIXED: auto-pagination fails with ArcParallels on the second page 
-FIX: random layout problems with auto-pagination for FF4 test chart in release mode (headings disappear, big gaps in the procedure, etc.)
+FIXED: random layout problems with auto-pagination for FF4 test chart in release mode (headings disappear, big gaps in the procedure, etc.)
 
 
 
