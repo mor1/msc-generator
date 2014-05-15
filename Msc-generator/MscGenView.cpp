@@ -284,7 +284,7 @@ BOOL CMscGenView::OnEraseBkgnd(CDC * /*pDC*/)
 	return true;
 }
 
-void CMscGenView::InvalidateBlock(const Block &b) 
+void CMscGenView::InvalidateBlock(const Block &) 
 {
 	//CMscGenDoc *pDoc = GetDocument();
 	//ASSERT(pDoc);
@@ -463,7 +463,7 @@ void CMscGenView::OnDraw(CDC* pDC)
         m_view.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
         CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
         memoryDC.FillSolidRect(0,0, clip.Width(), clip.Height(), pDC->GetBkColor());
-        pDoc->m_ChartShown.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPageBreaks);
+        pDoc->m_ChartShown.DrawToMemDC(memoryDC, scale, scale, clip);
         memoryDC.SelectObject(oldBitmap2);
         m_view_pos = clip;
     }
@@ -594,7 +594,7 @@ void CMscGenView::ResyncScrollSize(void)
         SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
-void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
+void CMscGenView::OnSize(UINT /*nType*/, int /*cx*/, int /*cy*/)
 { 
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);

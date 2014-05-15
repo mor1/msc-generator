@@ -5,7 +5,7 @@
 #include "contour_test.h"
 #include <cairo-win32.h>
 
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int /*argc*/, _TCHAR* /*argv*/[])
 {
     //Test if cairo can do fonts on EMF files
     //HDC hdc = CreateEnhMetaFile(NULL, _T("aaa.emf"), NULL, _T("Msc-generator\0\0"));

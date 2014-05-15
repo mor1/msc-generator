@@ -188,7 +188,7 @@ public:
                   double fallback_image_resolution=-1, 
                   bool generateErrors=false) const
     {return GetMsc()->DrawToDC(ot, hdc, scale, page, bPageBreaks, fallback_image_resolution, generateErrors);}
-    void DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
+    void DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip);
 
     size_t GetWMFSize() const {_ASSERT(m_cacheType==CACHE_EMF && m_cache_EMF); return m_wmf_size;}
     const Contour &GetWMFFallbackImagePos() const {_ASSERT(m_cacheType==CACHE_EMF && m_cache_EMF); return m_fallback_image_places;}

@@ -1194,7 +1194,7 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
         last = i;
     }
     //now close holds the number of cps close to xy
-    if (close>(self ? 1 : 0)) {
+    if (close>(self ? 1U : 0U)) {
         //refine the relevant cps
         for (unsigned i = 0; i<num; i++) {
             if (x[i]+threshold < xy.x) continue;
@@ -1422,7 +1422,7 @@ XY Edge::XMaxExtreme(double &p) const
 
 /**Solves a cubic equation of x^3 + a*x^2 + b*x + c
  * Returns the number of roots.*/
-int solveCubic(double a, double b, double c, float* r)
+int solveCubic(double a, double b, double c, double* r)
 {
     double p = b - a*a / 3;
     double q = a * (2*a*a - 9*b) / 27 + c;
@@ -1430,7 +1430,7 @@ int solveCubic(double a, double b, double c, float* r)
     double d = q*q + 4*p3 / 27;
     double offset = -a / 3;
     if (d >= 0) { // Single solution
-        double z = sqrtf(d);
+        double z = sqrt(d);
         double u = (-q + z) / 2;
         double v = (-q - z) / 2;
         u = pow(u,1/3);
@@ -1438,8 +1438,8 @@ int solveCubic(double a, double b, double c, float* r)
         r[0] = offset + u + v;
         return 1;
     }
-    double u = sqrtf(-p / 3);
-    double v = acos(-sqrtf(-27 / p3) * q / 2) / 3;
+    double u = sqrt(-p / 3);
+    double v = acos(-sqrt(-27 / p3) * q / 2) / 3;
     double m = cos(v), n = sin(v)*1.732050808;
     r[0] = offset + u * (m + m);
     r[1] = offset - u * (n + m);

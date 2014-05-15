@@ -473,11 +473,12 @@ void CMscGenApp::OnAppAbout()
 void CMscGenApp::OnHelp()
 {
     char buff[2048];
-    GetModuleFileName(NULL, buff, 2048);
-    PathRemoveFileSpec(buff);
-    CString help = buff;
-    help += "\\msc-gen.chm";
-    ShellExecute(NULL, NULL, help, NULL, NULL, SW_SHOWNORMAL);
+    if (GetModuleFileName(NULL, buff, 2048)) {
+        PathRemoveFileSpec(buff);
+        CString help = buff;
+        help += "\\msc-gen.chm";
+        ShellExecute(NULL, NULL, help, NULL, NULL, SW_SHOWNORMAL);
+    }
 }
 
 /** CMscGenApp customization load/save methods*/
@@ -590,7 +591,7 @@ void CMscGenApp::DisplayErrors(const MscError &error, bool warnings, const char 
 
 /** Read our stored settings from the registry and reads the design library.
  * @param [in] reportProblem If true, we report any problems.*/
-void CMscGenApp::ReadRegistryValues(bool reportProblem) 
+void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/) 
 {
 	//Load Registry values
 	m_Pedantic       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, FALSE);
@@ -1139,7 +1140,6 @@ void CMscGenApp::OnEditPreferences()
 	optionDlg.m_TextEditStartCommand = m_sStartTextEditor;
 	optionDlg.m_TextEditorJumpToLineCommand = m_sJumpToLine;
 
-    bool bRestartEditor = false;
     if (optionDlg.DoModal() == IDOK) {
         if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
 			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
@@ -1523,7 +1523,6 @@ void CMscGenApp::OnFilePrintSetup()
 {
     CMainFrame *pMainWnd= dynamic_cast<CMainFrame *>(GetMainWnd());
     if (!pMainWnd) return;
-    const bool preview = pMainWnd->IsPrintPreview();
     XY ps = m_PhyPrinterPageSize;
     CWinAppEx::OnFilePrintSetup();
     UpdatePrinterData();

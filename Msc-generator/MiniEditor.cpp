@@ -231,21 +231,21 @@ int  CCshRichEditCtrl::FindProperLineIdent(int line)
     //Find the ident of the previous line, but ignore if part of a label
     for (--line; line>=0; line--) {
         //skip empty lines
-        CString strLine;
-        GetLineString(line, strLine);
-        int ident = FirstNonWhitespaceIdent(strLine);
+        CString strLine2;
+        GetLineString(line, strLine2);
+        int ident = FirstNonWhitespaceIdent(strLine2);
         if (ident == -1) continue;
 
         //OK, we have found the line above the start pos that has a non-whitespace
         //if the beginning of that line is inside a label, we have to find the beginning of the label
         //because we must ident to that line
-        if (strLine[ident] != '{' && FindColonLabelIdent(ConvertLineColToPos(line, ident)) >= 0)
+        if (strLine2[ident] != '{' && FindColonLabelIdent(ConvertLineColToPos(line, ident)) >= 0)
             continue;
 
         //If no label is above us, check if the line ends in an '{'
         //if yes, add extra identation
-        int last_col = LastNonWhitespaceIdent(strLine);
-        if (last_col>=0 && strLine[last_col] == '{')
+        int last_col = LastNonWhitespaceIdent(strLine2);
+        if (last_col>=0 && strLine2[last_col] == '{')
             ident += m_tabsize;
         return ident;
     }
@@ -395,7 +395,7 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
     return true;
 }
 
-LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM lParam)
+LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM /*lParam*/)
 {
     //if we do not paste CF_TEXT, we use regular paste
     if (wParam!=CF_TEXT) {
@@ -419,7 +419,7 @@ LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM lParam)
         CString strFromClipboard = pchData;
         const auto state = GetWindowUpdate();
         SetRedraw(false);
-        ReplaceSel(pchData);
+        ReplaceSel(pchData ? pchData : "");
         RestoreWindowUpdate(state);
 
         // Unlock the global memory.
@@ -560,6 +560,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
+    if (pApp==NULL)
+        return CRichEditCtrl::PreTranslateMessage(pMsg);
 
 	int line, col;
 	ConvertPosToLineCol(lStart, line, col);
@@ -612,7 +614,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             ident++;
         lStart = ConvertLineColToPos(line, ident);
         SetSel(lStart, lStart);
-        UpdateCSH(CSH);
+        if (changed)
+            UpdateCSH(CSH);
         RestoreWindowUpdate(state);
         return TRUE;
     }
@@ -651,10 +654,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         } else {
             //backspace from col to ident
             _ASSERT(ident<col);
-            auto state = DisableWindowUpdate();
+            auto state2 = DisableWindowUpdate();
             SetSel(ConvertLineColToPos(line, ident), lEnd);
             ReplaceSel("");
-            RestoreWindowUpdate(state);
+            RestoreWindowUpdate(state2);
         } 
         return TRUE;
 	}
@@ -671,7 +674,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         if (pApp->m_bTABIdents && pApp->m_bSmartIdent) { //TAB mode
             int eLine, eCol;
             ConvertPosToLineCol(lEnd, eLine, eCol);
-            const auto state = DisableWindowUpdate();
+            const auto state2 = DisableWindowUpdate();
             bool changed = false;
             if (line == eLine) {
                 const int ident = FindProperLineIdent(line);
@@ -705,7 +708,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             }
             if (changed)
                 UpdateCSH(CSH);
-            RestoreWindowUpdate(state);
+            RestoreWindowUpdate(state2);
         } else { //no smart ident or no tab mode
             //if no selection:
             if (lStart == lEnd) {
@@ -755,7 +758,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 const int offset = CalcTabStop(headCol, !shift, smartIdent, headCol, true) - headCol;
 
                 //Insert/remove "offset" amount of space from the beginning of each line
-                const auto state = DisableWindowUpdate();
+                const auto state2 = DisableWindowUpdate();
                 POINT scroll_pos;
                 ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
                 CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
@@ -778,7 +781,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 SetSel(lStart, lEnd);
                 ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
                 UpdateCSH(CSH);
-                RestoreWindowUpdate(state);
+                RestoreWindowUpdate(state2);
             }
         }
         return TRUE;
@@ -911,7 +914,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         ins = ldiff>=0 ? 0 : -ldiff;
     } else {
         //search for the end of the differences
-        for (last_diff = l1; last_diff>std::max(0, -ldiff); last_diff--)
+        for (last_diff = l1; last_diff>size_t(std::max(0, -ldiff)); last_diff--)
             if (text[last_diff-1]!=m_prev_text[last_diff-1+ldiff])
                 break;
         //last_diff is the index of the last different char plus one
@@ -1358,7 +1361,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ASSERT(pApp != NULL);
 	CFrameWnd *pMainWnd = pApp ? dynamic_cast<CFrameWnd*>(pApp->GetMainWnd()) : NULL;
 	ASSERT(pMainWnd!=NULL);
-	if (pMainWnd->GetActiveView() != NULL) {
+	if (pMainWnd && pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 		if (pDoc != NULL) {
             if (pDoc->m_ExternalEditor.IsRunning())
@@ -1600,6 +1603,7 @@ BOOL CEditorBar::SameAsSelected(LPCTSTR lpszCompare, BOOL bCase)
 void CEditorBar::AdjustDialogPosition(CDialog* pDlg)
 {
 	ASSERT(pDlg != NULL);
+    if (pDlg==NULL) return;
 	long lStart, lEnd;
 	m_ctrlEditor.GetSel(lStart, lEnd);
 	CPoint point = m_ctrlEditor.GetCharPos(lStart);

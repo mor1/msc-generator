@@ -1599,7 +1599,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
                     } else {
                         //else find the closest crosspoint and compare the angle halfway there
                         _ASSERT(pos==0); //should not be a self-crossing edge on a well-behaving contour
-                        unsigned l = std::min_element(n_pos, n_pos+num) - n_pos;
+                        int l = std::min_element(n_pos, n_pos+num) - n_pos;
                         _ASSERT(l == std::max_element(p_pos, p_pos+num) - p_pos);
                         const XY p_xy = c->at_prev(edge).Split((1+p_pos[l])/2);
                         const XY n_xy = c->at(edge).Split((0+n_pos[l])/2);

@@ -102,7 +102,7 @@ bool progressbar(double percent, void *p)
     crStart.X = 0;
     crStart.Y = crCurr.Y;
     SetConsoleCursorPosition(hOut, crStart);
-    printf("%3d%%", unsigned(floor(percent+0.5)));
+    printf("%3d%%", int(floor(percent+0.5)));
     SetConsoleCursorPosition(hOut, crCurr);
     return false;
 }
@@ -113,7 +113,6 @@ bool progressbar(double percent, void *p)
 int _tmain(int argc, _TCHAR* argv[])
 {
     std::list<std::pair<std::string, std::string>> designs, shapes;
-    bool oLoadShapes = true;
     bool oLoadDesigns = true;
     std::list<std::string> args;
     for (int i = 1; i<argc; i++) {
@@ -136,14 +135,14 @@ int _tmain(int argc, _TCHAR* argv[])
         buffer = (char*)malloc(len+1);
         res = RegGetValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
                           REG_KEY_LOAD_DATA, RRF_RT_REG_SZ, NULL, buffer, &len);
-        if (res==ERROR_SUCCESS) {
+        if (res==ERROR_SUCCESS && buffer) {
             buffer[len] = 0;
             load_data = buffer;
         }
     }
 
     int ret = do_main(args, designs, "\\f(courier new)\\mn(12)", 
-                      progressbar, hOut, &load_data);
+                      progressbar, hOut, load_data.length() ? &load_data : NULL);
     RegSetKeyValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
                    REG_KEY_LOAD_DATA, REG_SZ, load_data.c_str(), load_data.length()+1);
     return ret;

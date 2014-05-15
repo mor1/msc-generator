@@ -127,8 +127,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CFrameWndEx::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	BOOL bNameValid;
-	// set the visual manager and style based on persisted value
+    // set the visual manager and style based on persisted value
 	OnApplicationLook(theApp.m_nAppLook);
 
 	m_wndRibbonBar.Create(this);
@@ -136,7 +135,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(0, arButtons);
-    for (unsigned i = 0; i<arButtons.GetSize(); i++) {
+    for (int i = 0; i<arButtons.GetSize(); i++) {
         const char *c = arButtons[i]->GetText();
         if (!strcmp("ObjectSize", c))
             m_labelObjectSize = dynamic_cast<CMFCRibbonLabel*>(arButtons[i]);
@@ -426,7 +425,7 @@ void CMainFrame::OnViewFullScreen()
 	}
 }
 
-LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
+LRESULT CMainFrame::OnCompilationDone(WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     if (pDoc) 
@@ -593,7 +592,7 @@ void CMainFrame::AddToPrintPreviewCategory()
             pRCB->SelectItem(7);
         else {
             CString val;
-            val.Format("%u%%", pApp->m_iScale4Pagination);
+            val.Format("%d%%", pApp->m_iScale4Pagination);
             pRCB->SetEditText(val);
         }
         pRP->Add(pRCB);
@@ -690,7 +689,7 @@ void CMainFrame::DeleteFromPrintPreviewCategory()
     if (pRP) {
             CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arElements;
             pRP->GetElementsByID(ID_BUTTON_PREVIEW_EXPORT, arElements);
-            for (unsigned u = 0; u<arElements.GetSize(); u++)
+            for (int u = 0; u<arElements.GetSize(); u++)
                 if (pRP->GetIndex(arElements[u])>=0) {
                     pRP->Remove(pRP->GetIndex(arElements[u]));
                     changed = true;
@@ -816,7 +815,6 @@ bool CMainFrame::FillDesignComboBox(const char *current, bool updateComboContent
         if (pApp->m_Designs.size()) {
 			c->AddItem("(use chart-defined)");
 			c->AddItem("plain"); //place 'plain' as first
-			int pos = 0;
             for (auto i=pApp->m_Designs.begin(); i!=pApp->m_Designs.end(); i++) 
                 if (i->first != "plain" && i->second.is_full)
                     c->AddItem(i->first.c_str());
@@ -1012,7 +1010,7 @@ void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
         m_has_fallback_image = bool(percent);
         if (m_has_fallback_image) {
             CString fi;
-            fi.AppendFormat("%u%% of chart area is fallback image", abs(int(floor(percent+0.5))));
+            fi.AppendFormat("%d%% of chart area is fallback image", abs(int(floor(percent+0.5))));
             m_labelFallbackImage->SetText(fi);
         } else
             m_labelFallbackImage->SetText("No fallback images in this chart.");
@@ -1039,7 +1037,7 @@ void CMainFrame::FillScale4Pagination()
         c->SetEditText("Fit Width");
     else {
         CString val;
-        val.Format("%u%%", pApp->m_iScale4Pagination);
+        val.Format("%d%%", pApp->m_iScale4Pagination);
         c->SetEditText(val);
     }
 }
@@ -1115,7 +1113,7 @@ void CMainFrame::TriggerIfRibbonCategoryChange()
 }
 
 
-void CMainFrame::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
+void CMainFrame::OnUpdateButtonDefaultText(CCmdUI * /*pCmdUI*/)
 {
     //This is just used to test if we have switched to "Embedded Object" category
     //This is only called if this category is visible

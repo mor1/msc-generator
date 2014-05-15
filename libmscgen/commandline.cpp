@@ -688,7 +688,7 @@ int do_main(const std::list<std::string> &args,
             pageSize = PageSizeInfo::GetPhysicalPageSize(oPageSize);
             pageSize.x -= margins[0] + margins[1];
             pageSize.y -= margins[2] + margins[3];
-            if (oScale[0]>0)
+            if (oScale.size() && oScale[0]>0)
                 pageSize /= oScale[0];
             if (pageSize.x<10 || pageSize.y<10)
                 oA=false;

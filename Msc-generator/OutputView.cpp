@@ -144,6 +144,7 @@ void COutputViewBar::ShowCompilationErrors(const CDrawingChartData &chart)
 {
     if (!::IsWindow(m_wndOutput)) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    if (!pApp) return;
 	ASSERT(pApp != NULL);
 	m_wndOutput.ResetContent();
     compilation_errors.clear();
@@ -172,7 +173,6 @@ void COutputViewBar::ShowCshErrors(const std::list<CString> &errors,
     if (!::IsWindow(m_wndOutputHints)) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    const bool had_errors_before = error_pos_hint.size()>0;
     m_wndOutputHints.SetRedraw(false);
 	m_wndOutputHints.ResetContent();
     for (auto i=errors.begin(); i!=errors.end(); i++) 
@@ -183,7 +183,7 @@ void COutputViewBar::ShowCshErrors(const std::list<CString> &errors,
     //turn off only if m_bShowCshErrorsInWindow is false && no errors
     if (error_pos.size()==0 && error_pos_hint.size()>0) 
         m_wndTabs.SetActiveTab(1); //bring us forth if new syntax errors appear and there are no comp errors
-    if (error_pos.size()>0 || (pApp->m_bShowCshErrorsInWindow && error_pos_hint.size()>0))
+    if (error_pos.size()>0 || (pApp && pApp->m_bShowCshErrorsInWindow && error_pos_hint.size()>0))
         ShowPane(true, false, true);
 }
 
