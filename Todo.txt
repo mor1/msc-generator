@@ -76,8 +76,13 @@ FIXED: Elements added to cover in the order they will be drawn
 FIXED: Clicking on options influencing appearance will now surely recompile, if needed
 FIXED: auto-pagination fails with ArcParallels on the second page 
 FIXED: random layout problems with auto-pagination for FF4 test chart in release mode (headings disappear, big gaps in the procedure, etc.)
-
-
+FIXED: at the end of label, no auto-ident for labels.
+FIX: Nested } ends up at ident 0.
+FIX: Always asks when updates chart, when I press F2 (or not)
+FIX: Add keyword 'box' to the string list
+FIX: No hints after a last comma in an attr list.
+FIX: Uncolored parts remain in errored state after error disappears
+FIX: (empty) boxes do not honour a text.color chart option inside a parallel block
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB
