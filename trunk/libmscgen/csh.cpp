@@ -953,7 +953,7 @@ const CshPos *Csh::IsInColonLabel(int pos) const
     //the positions in 'Labels' is in csh units: the first char is
     //indexed 1, and for single character ranges first_pos==last_pos
     for (auto &p : ColonLabels)
-        if (p.first_pos<=pos && p.last_pos>pos)
+        if (p.first_pos<=pos && p.last_pos>=pos)
             return &p;
     return NULL;
 }
