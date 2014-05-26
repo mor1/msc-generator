@@ -718,21 +718,21 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	ASSERT(pApp != NULL);
     bool restartEditor = false;
 	if (lpszPathName==NULL) {
-        if (!pApp->m_bFullScreenViewMode || m_itrEditing != m_itrShown) {
-            CString message = "I want to update the container document, but you have made changes in the text editor.\n";
-            if (m_bAttemptingToClose)
-                message.Append("Do you want to include the changes (or permanently loose them)?");
-            else
-                message.Append("Do you want to include the changes and redraw the chart before I update the container document?\n");
-
-            if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO))
-                CompileEditingChart(false, true, false);
-            else
-                m_itrEditing = m_itrShown;
-        }
-        //Above we either made m_itrShown equal to 
-        //m_itrEditing by compiling, or by assigning m_itrShown to m_itrEditing. 
-        //In the latter case we effectively perform an Undo to m_itrShown.
+        CompileEditingChart(false, true, false);
+        //if (!pApp->m_bFullScreenViewMode || m_itrEditing != m_itrShown) {
+        //    CString message = "I want to update the container document, but you have made changes in the text editor.\n";
+        //    if (m_bAttemptingToClose)
+        //        message.Append("Do you want to include the changes (or permanently loose them)?");
+        //    else
+        //        message.Append("Do you want to include the changes and redraw the chart before I update the container document?\n");
+        //    if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO))
+        //        CompileEditingChart(false, true, false);
+        //    else
+        //        m_itrEditing = m_itrShown;
+        //}
+        ////Above we either made m_itrShown equal to 
+        ////m_itrEditing by compiling, or by assigning m_itrShown to m_itrEditing. 
+        ////In the latter case we effectively perform an Undo to m_itrShown.
         if (!COleServerDocEx::OnSaveDocument(lpszPathName))
             return FALSE;
 	} else {

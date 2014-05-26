@@ -803,7 +803,7 @@ void Context::Plain()
     styles["arrow"].write().line.radius.second = -1;
     styles["arrow"].write().lost_line.color = faint;
     styles["arrow"].write().lost_arrow.line.color = faint;
-    styles["arrow"].write().lost_text.SetColor(faint.second);
+    //styles["arrow"].write().lost_text.SetColor(faint);  do not change label in the lost part
 
     styles["->"].write().line.type.first = true;
     styles["->"].write().line.type.second = LINE_SOLID;
@@ -868,7 +868,7 @@ void Context::Plain()
     styles["vertical_pointer"].write().text.UnsetWordWrap();
     styles["vertical_pointer"].write().lost_line.color = faint;
     styles["vertical_pointer"].write().lost_arrow.line.color = faint;
-    styles["vertical_pointer"].write().lost_text.SetColor(faint.second);
+    //styles["vertical_pointer"].write().lost_text.SetColor(faint.second); do not change label in lost part
 
     styles["vertical_brace"].write().MakeCompleteButText();
     styles["vertical_brace"].write().vspacing.first = false;

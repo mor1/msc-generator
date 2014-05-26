@@ -114,17 +114,45 @@ int CCshRichEditCtrl::FirstNonWhitespaceIdent(const char *str, int Max)
 	return i;
 }
 
-/** Return the offset of the last non-whitespace
+/** Return the last non-whitespace character of the line, which is not a comment.
 * @param [in] str The string in which to search
-* @param [in] Max The maximum value to return.
-* @returns -1 if all the line is whitespace (or the first Max chars)
-*          else the offset of the last non-whitespace character within Max*/
-int CCshRichEditCtrl::LastNonWhitespaceIdent(const char *str, int Max)
+* @param [in] pos The position of the first char of 'str' in the editor
+*                 (used to test for quoted strings)
+* @returns 0 if all the line is whitespace or comment, or if the line ends
+*          with a colon string. Else the last non-whitespace character.*/
+char CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
 {
-	if (Max == -1) 
-		Max = strlen(str)-1;
-	while (Max>=0 && (str[Max]==' ' || str[Max]=='\t')) Max--;
-	return Max;
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    if (!pApp || !pApp->m_bSmartIdent) return 0;
+    int index = strlen(str)-1;
+    while(1) {
+        while (index>=0 && (str[index]==' ' || str[index]=='\t')) index--;
+        //see if all the line is whitespace
+        if (index<0)
+            return 0;
+        //See if last char is inside a colon label or in an (unterminated) qouted
+        //string.
+        if (m_csh.IsInColonLabel(pos+index+1) || m_csh.IsInQuotedString(pos+index+1))
+            return 0;
+        //find potential # characters
+        int index2 = index;
+        while (index2>=0 && str[index2]!='#') index2--;
+        //if no #-marks, we are not ending in comments - return last char
+        if (index2<0)
+            return str[index];
+        //if # is in quoted string, line-end is not in the comment
+        if (m_csh.IsInQuotedString(pos+index2))
+            return str[index];
+        //# is not in a quoted string, it is a comment.
+        //if starts at beginning of line, return 0
+        if (index2==0)
+            return 0;
+        //cycle again and search for #s prior
+        index = index2-1;
+    };
+    _ASSERT(0);
+	return 0;
 }
 
 /** Return the ident of a colon-label's applicable ident.
@@ -228,7 +256,7 @@ int  CCshRichEditCtrl::FindProperLineIdent(int line)
     }
     
     //Ok, we are not in a label, neither start with '}'
-    //Find the ident of the previous line, but ignore if part of a label
+    //Find the ident of the previous line, if the line above that ends in a semicolon
     for (--line; line>=0; line--) {
         //skip empty lines
         CString strLine2;
@@ -236,18 +264,27 @@ int  CCshRichEditCtrl::FindProperLineIdent(int line)
         int ident = FirstNonWhitespaceIdent(strLine2);
         if (ident == -1) continue;
 
+        const char last_ch = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
+        //special case: a line starting with '}' and ending with ';' -> ident to '}'
+        if (';' == last_ch && strLine2[ident]=='}')
+            return ident;
+        const int offset = ';' == last_ch ? 0 : m_tabsize;
         //OK, we have found the line above the start pos that has a non-whitespace
-        //if the beginning of that line is inside a label, we have to find the beginning of the label
-        //because we must ident to that line
-        if (strLine2[ident] != '{' && FindColonLabelIdent(ConvertLineColToPos(line, ident)) >= 0)
-            continue;
-
-        //If no label is above us, check if the line ends in an '{'
-        //if yes, add extra identation
-        int last_col = LastNonWhitespaceIdent(strLine2);
-        if (last_col>=0 && strLine2[last_col] == '{')
-            ident += m_tabsize;
-        return ident;
+        //find the line above that ends in a semicolon
+        while (--line>=0) {
+            GetLineString(line, strLine2);
+            const char last_char = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
+            if (last_char == ';')
+                return ident + offset;
+            if (last_char == '{')
+                return ident + offset;
+            //skip empty lines
+            const int tmp_ident = FirstNonWhitespaceIdent(strLine2);
+            if (tmp_ident>=0) 
+                ident = tmp_ident;
+        }
+        //reached end of line - no command above us
+        return ident+ offset;
     }
     //reached the beginning of the file, no whitespace above us
     return 0;
@@ -298,7 +335,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 			//if color syntax highlighting is not enabled we cannot check for label
 			if (haveSmartIdent) {
 				//if a brace, but in a label, ignore
-                const long lPos = ConvertLineColToPos(nLine, nLineLength)+1;
+                const long lPos = ConvertLineColToPos(line, nLineLength)+1;
                 if (m_csh.IsInColonLabel(lPos) ||
                     m_csh.IsInQuotedString(lPos))
                     continue;
@@ -362,7 +399,7 @@ bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, in
                                          long lStart, long lEnd, bool standalone)
 {
     if (current_ident == -1) 
-        current_ident = 0; //empty line
+        current_ident = col; //empty line - use current cursor pos as ident
     if (target_ident == current_ident) return false; //nothing to do
     WindowUpdateStatus state;
     if (standalone)
@@ -1057,13 +1094,12 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             for (const auto &e : m_csh.CshErrors.error_ranges)
                 csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
         } else {
-            csh_error_delta.DiffInto(old_csh_error_list, m_csh.CshErrors.error_ranges, COLOR_MAX);
+            //csh_error_delta.DiffInto(old_csh_error_list, m_csh.CshErrors.error_ranges, COLOR_MAX);
             //kill any entries overlapping with a no_error - so they are forced to be refreshed
-            for (auto &err : csh_error_delta)
-                if (err.color == COLOR_MAX)
-                    for (auto &csh : old_csh_list)
-                        if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
-                            csh.color = COLOR_MAX;
+            for (auto &err : old_csh_error_list)
+                for (auto &csh : old_csh_list)
+                    if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
+                        csh.color = COLOR_MAX;
             csh_delta.DiffInto(old_csh_list, m_csh.CshList, COLOR_NORMAL);
         }
 
@@ -1071,7 +1107,8 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         //See if we actually need to touch the screen
         //Note: if we have inserted, we need to make that text COLOR_NORMAL even if csh_delta is
         //empty.
-        if (ins || csh_delta.size() || csh_error_delta.size() || updateCSH==FORCE_CSH) {
+        if (ins || csh_delta.size() || old_csh_error_list.size() || 
+            m_csh.CshErrors.error_ranges.size() || updateCSH==FORCE_CSH) {
 
             //Ok now copy the delta to the editor window
             //record scroll position 
@@ -1080,6 +1117,13 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
 
             //freeze screen, prevent visual updates
             DisableWindowUpdate();
+
+            //First erase formatting from parts, where errors ceased to exist
+            for (auto &e : old_csh_error_list) {
+                SetSel(e.first_pos-1, e.last_pos);
+                SetSelectionCharFormat(scheme[COLOR_NORMAL]); 
+            }
+
             //Erase all formatting on a full update (deltas contain all entries in this case)
             if (updateCSH == FORCE_CSH) {
                 SetSel(0, -1); //select all
@@ -1088,13 +1132,6 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
                 SetSel(start, start+ins); //select inserted text
                 SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
             }
-
-            //First erase formatting from parts, where errors ceased to exist
-            for (auto &e : csh_error_delta)
-                if (e.color==COLOR_MAX) {
-                    SetSel(e.first_pos-1, e.last_pos);
-                    SetSelectionCharFormat(scheme[COLOR_NORMAL]);
-                }
 
             //Now add coloring to parts where it changed 
             if (pApp->m_bShowCsh)
@@ -1105,11 +1142,10 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
                     }
             //Now add errors, if we show them
             if (pApp->m_bShowCshErrors)
-                for (auto &e : csh_error_delta)
-                    if (e.color<COLOR_MAX) {
-                        SetSel(e.first_pos-1, e.last_pos);
-                        SetSelectionCharFormat(scheme[e.color]);
-                    }
+                for (auto &e : m_csh.CshErrors.error_ranges) {
+                    SetSel(e.first_pos-1, e.last_pos);
+                    SetSelectionCharFormat(scheme[COLOR_ERROR]); //toggle
+                }
 
             //restore cursor and scroll position
             SetSel(cr);

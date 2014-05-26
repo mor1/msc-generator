@@ -256,23 +256,19 @@ public:
     mutable bool     error;          ///<True if the attribute specification had an error.
 
     /** Creates a string attribute or one with no value (MSC_ATTR_CLEAR) */
-    Attribute(const char*a, const char *s, FileLineColRange l, FileLineColRange v) :
-        type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), name(a), value(s?s:""),
-        linenum_attr(l), linenum_value(v), error(false) {}
+    Attribute(const char*a, const char *s, const FileLineColRange &l, 
+              const FileLineColRange &v);
     /** Creates a string attribute or one with no value (MSC_ATTR_CLEAR) */
-    Attribute(const char*a, const string &s, FileLineColRange l, FileLineColRange v) :
-        type(MSC_ATTR_STRING), name(a), value(s),
-        linenum_attr(l), linenum_value(v), error(false) {}
+    Attribute(const char*a, const string &s, const FileLineColRange &l, 
+        const FileLineColRange &v) :
+        Attribute(a, s.c_str(), l, v) {}
     /** Creates an attribute with a number as value */
-    Attribute(const char*a, double n, FileLineColRange l, FileLineColRange v, const char *s) :
+    Attribute(const char*a, double n, const FileLineColRange &l, 
+        const FileLineColRange &v, const char *s) :
         type(MSC_ATTR_NUMBER), name(a), value(s), number(n),
         linenum_attr(l), linenum_value(v), error(false)  {}
-    /** Creates an attribute with a bool as value */
-    Attribute(const char*a, bool b, FileLineColRange l, FileLineColRange v, const char *s) :
-        type(MSC_ATTR_BOOL), name(a), value(s), yes(b),
-        linenum_attr(l), linenum_value(v), error(false) {}
     /** Creates a style specification */
-    Attribute(const char*a, FileLineColRange l) :
+    Attribute(const char*a, const FileLineColRange &l) :
         type(MSC_ATTR_STYLE), name(a),
         linenum_attr(l), linenum_value(l), error(false) {}
 
