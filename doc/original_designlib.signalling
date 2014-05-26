@@ -179,7 +179,6 @@ defdesign Dinand {
       defstyle entity, entitygroup_collapsed [fill.color=lgray, fill.gradient=up, vline.color=lgray];
       defstyle box [fill.gradient=down, text.color = "125, 125, 125"];
       defstyle vertical, note [fill.gradient=down];
-      defstyle emptybox [fill.gradient=none, text.color=black];
       defstyle arrow [arrow.midtype=dot];
       defstyle blockarrow, box_collapsed_arrow [arrow.midtype=dot, fill.gradient=down];
 };
@@ -270,51 +269,51 @@ defdesign norton_commander {
 };
 
 defshape def.trapezoid {
-T 1 1 10 9
-S 2
-M 0 0
-L 15 0
-L 10 10
-L 0 10
-E
-S 0
-M 0 0
-L 20 0
-L 10 10
-L 0 10
-E
+T 1 1 10 9;
+S 2;
+M 0 0;
+L 15 0;
+L 10 10;
+L 0 10;
+E;
+S 0;
+M 0 0;
+L 20 0;
+L 10 10;
+L 0 10;
+E;
 };
 
 
 
 defshape def.double_trapezoid {
-T 0 1 10 9
-S 2
-M -5 0
-L 15 0
-L 10 10
-L 0 10
-E
-S 0
-M -5 0
-L 15 0
-L 10 10
-L 0 10
-E
+T 0 1 10 9;
+S 2;
+M -5 0;
+L 15 0;
+L 10 10;
+L 0 10;
+E;
+S 0;
+M -5 0;
+L 15 0;
+L 10 10;
+L 0 10;
+E;
 };
 
 
 
 defshape def.oval {
-T 2 2 18 8
-S 2
-M 0 5
-C 20 5 0 0 20 0
-C 0 5 20 10 0 10
-E
-S 0
-M 0 5
-C 20 5 0 0 20 0
-C 0 5 20 10 0 10
-E
+T 2 2 18 8;
+S 2;
+M 0 5;
+C 20 5 0 0 20 0;
+C 0 5 20 10 0 10;
+E;
+S 0;
+M 0 5;
+C 20 5 0 0 20 0;
+C 0 5 20 10 0 10;
+E;
 };

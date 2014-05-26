@@ -77,12 +77,18 @@ FIXED: Clicking on options influencing appearance will now surely recompile, if 
 FIXED: auto-pagination fails with ArcParallels on the second page 
 FIXED: random layout problems with auto-pagination for FF4 test chart in release mode (headings disappear, big gaps in the procedure, etc.)
 FIXED: at the end of label, no auto-ident for labels.
-FIX: Nested } ends up at ident 0.
-FIX: Always asks when updates chart, when I press F2 (or not)
-FIX: Add keyword 'box' to the string list
-FIX: No hints after a last comma in an attr list.
-FIX: Uncolored parts remain in errored state after error disappears
-FIX: (empty) boxes do not honour a text.color chart option inside a parallel block
+FIXED: Nested } ends up at ident 0.
+FIXED: Always asks when updates chart, when I press F2 (or not)
+FIXED: Add keyword 'box' to the string list
+FIXED: No hints after a last comma in an attr list.
+FIXED: Ident shall go back after an idented [
+FIXED: Uncolored parts remain in errored state after error disappears
+FIXED: (empty) boxes do not honour a text.color chart option inside a parallel block (problem in design 'Dinand'')
+DOC: Changes to shape syntax (semicolon)
+FIX: Re-layouting nested parallel blocks - introduce keep together.
+FIX: Add text to rectange symbol
+FIX: Alignment of <> arrow labels
+
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

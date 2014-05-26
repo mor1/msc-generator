@@ -71,7 +71,7 @@ public:
 
 	//Functions for intelligent identation
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
-	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
+	char LastNonWhitespaceChar(const char *str, long pos) const;
 	int  FindColonLabelIdent(long lStart, int *line=NULL);
     int  FindProperLineIdent(int lStart);
     int  FindCurrentLineIdent(long lStart);

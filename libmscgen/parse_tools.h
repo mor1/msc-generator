@@ -44,11 +44,5 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no);
 
 std::string ConvertEmphasisToBox(const std::string &style, const YYLTYPE *loc, Msc &msc);
 
-/** Converts 'yes' and 'no' to a bool value.*/
-inline bool str2bool(const char*s)
-{
-   return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
-}
-
 void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str);
 

@@ -74,7 +74,6 @@
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
        TOK_ASTERISK
        TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME TOK_COLORDEF
-       TOK_BOOLEAN
        TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM    TOK_REL_SOLID_BIDIR
        TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM    TOK_REL_DOUBLE_BIDIR
        TOK_REL_DASHED_TO   TOK_REL_DASHED_FROM    TOK_REL_DASHED_BIDIR
@@ -157,7 +156,7 @@
                    TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_OVERLAP TOK_COMMAND_MARK TOK_BYE
-                   TOK_NUMBER TOK_BOOLEAN 
+                   TOK_NUMBER  
                    TOK_VERTICAL  TOK_AT TOK_LOST TOK_AT_POS
                    TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
@@ -1469,26 +1468,7 @@ optlist:     opt
 };
 
 
-opt:         entity_string TOK_EQUAL TOK_BOOLEAN
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
-    csh.AddCSH(@2, COLOR_EQUAL);
-    csh.AddCSH(@3, COLOR_ATTRVALUE);
-    if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
-        csh.AddOptionsToHints();
-        csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1)) {
-        Msc::AttributeValues($1, csh);
-        csh.hintStatus = HINT_READY;
-    }
-  #else
-    $$ = msc.AddAttribute(Attribute($1, str2bool($3), MSC_POS(@1), MSC_POS(@3), $3));
-  #endif
-    free($1);
-    free($3);
-}
-            | entity_string TOK_EQUAL TOK_NUMBER
+opt:         entity_string TOK_EQUAL TOK_NUMBER
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
@@ -2005,9 +1985,11 @@ shapedef: entity_string
   free($1);
 };
 
-shapedeflist: shapeline
+shapedeflist: shapeline TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_SEMICOLON);
+  #else
     $$ = new Shape;
 	if ($1) {
 		($$)->Add(std::move(*($1)));
@@ -2015,11 +1997,12 @@ shapedeflist: shapeline
 	}
   #endif	
 }
-             | error shapeline
+             | error shapeline TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_Error(@1, "I do not understand this.");
-  #else
+    csh.AddCSH(@3, COLOR_SEMICOLON);
+#else
     $$ = new Shape;
 	if ($2) {
 		($$)->Add(std::move(*($2)));
@@ -2027,9 +2010,11 @@ shapedeflist: shapeline
 	}
   #endif	
 }
-             | shapedeflist shapeline
+             | shapedeflist shapeline TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@3, COLOR_SEMICOLON);
+  #else
 	if ($2) {
 		($1)->Add(std::move(*($2)));
 		delete $2;
@@ -2452,26 +2437,7 @@ designoptlist: designopt
   #endif
 };
 
-designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
-    csh.AddCSH(@2, COLOR_EQUAL);
-    csh.AddCSH(@3, COLOR_ATTRVALUE);
-    if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
-        csh.AddDesignOptionsToHints();
-        csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1)) {
-        Msc::AttributeValues($1, csh);
-        csh.hintStatus = HINT_READY;
-    }
-  #else
-    msc.AddDesignAttribute(Attribute($1, str2bool($3), MSC_POS(@$), MSC_POS(@3), $3));
-  #endif
-    free($1);
-    free($3);
-}
-            | entity_string TOK_EQUAL TOK_NUMBER
+designopt:         entity_string TOK_EQUAL TOK_NUMBER
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
@@ -4390,20 +4356,6 @@ arcattr:         alpha_string TOK_EQUAL color_string
     free($1);
     free($3);
 }
-        | alpha_string TOK_EQUAL TOK_BOOLEAN
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_ATTRVALUE);
-        csh.CheckHintAt(@1, HINT_ATTR_NAME);
-        csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
-  #else
-        $$ = new Attribute($1, str2bool($3), MSC_POS(@$), MSC_POS(@3), $3);
-  #endif
-    free($1);
-    free($3);
-}
         | alpha_string TOK_EQUAL
 {
   #ifdef C_S_H_IS_COMPILED
@@ -4474,18 +4426,15 @@ entity_string: TOK_QSTRING
 	($$)[1] = 0;
 };
 
-reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
-                       TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN |
-                       TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_BOX | 
-                       TOK_COMMAND_PIPE |
-                       TOK_VERTICAL | TOK_COMMAND_PARALLEL | TOK_COMMAND_OVERLAP |
-                       TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
-                       TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
-                       TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
-                       TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
-                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT | TOK_COMMAND_ENDNOTE |
-                       TOK_COMMAND_FOOTNOTE | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE |
-                       TOK_VERTICAL_SHAPE;
+reserved_word_string: TOK_MSC 
+    | TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE | TOK_COMMAND_NEWPAGE
+    | TOK_COMMAND_DEFSHAPE | TOK_COMMAND_DEFCOLOR | TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN
+    | TOK_COMMAND_BIG | TOK_COMMAND_BOX | TOK_COMMAND_PIPE | TOK_COMMAND_MARK | TOK_COMMAND_PARALLEL | TOK_COMMAND_OVERLAP
+    | TOK_VERTICAL | TOK_VERTICAL_SHAPE | TOK_AT | TOK_LOST | TOK_AT_POS
+    | TOK_SHOW | TOK_HIDE | TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE
+    | TOK_COMMAND_VSPACE | TOK_COMMAND_HSPACE | TOK_COMMAND_SYMBOL | TOK_COMMAND_NOTE
+    | TOK_COMMAND_COMMENT | TOK_COMMAND_ENDNOTE | TOK_COMMAND_FOOTNOTE
+    | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM      {$$ = strdup("<-");}
@@ -4511,7 +4460,7 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
 {
     switch ($1) {
     case MSC_BOX_SOLID:  $$ = strdup("--"); break;
-    case MSC_BOX_DASHED: $$ = strdup("++"); break; //will likely not happen
+    case MSC_BOX_DASHED: $$ = strdup("++"); break; //will likely not happen due to special handling in TOK_COLORDEF
     case MSC_BOX_DOTTED: $$ = strdup(".."); break;
     case MSC_BOX_DOUBLE: $$ = strdup("=="); break;
     default: _ASSERT(0);

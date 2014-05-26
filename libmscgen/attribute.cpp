@@ -61,6 +61,21 @@ bool CaseInsensitiveEndsWith(const char *base, const char *a)
     return i2<0 || base[i2]=='.';
 }
 
+Attribute::Attribute(const char*a, const char *s, const FileLineColRange &l, 
+    const FileLineColRange &v) :
+    type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), name(a), value(s?s:""),
+    linenum_attr(l), linenum_value(v), error(false) 
+{
+    if (CaseInsensitiveEqual(s, "no")) {
+        type = MSC_ATTR_BOOL;
+        yes = false;
+    } else if (CaseInsensitiveEqual(s, "yes")) {
+        type = MSC_ATTR_BOOL;
+        yes = true;
+    }
+}
+
+
 /** Converts the attribute to a string
  * @param [in] ident Tells how much space to prepend each line.
  * @returns The string */
@@ -220,6 +235,8 @@ bool Attribute::EnsureNotClear(MscError &error, EStyleType t) const
     case STYLE_DEF_ADD:
         return true;
     case STYLE_ARC:
+        //loss attributes are delta, so they may be unset
+        if (StartsWith("lost")) return true;
         s << "Can not unset element attribute '" << name << "'.";
         break;
     case STYLE_DEFAULT:
