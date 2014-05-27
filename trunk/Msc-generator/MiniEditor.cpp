@@ -645,14 +645,15 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         ConvertPosToLineCol(lStart, line, col);
         int ident = FindProperLineIdent(line);
         const int current_ident2 = FindCurrentLineIdent(lStart);
-        const bool changed = SetCurrentIdentTo(ident, current_ident2, col, lStart, lEnd, true);
+        SetCurrentIdentTo(ident, current_ident2, col, lStart, lEnd, true);
         //if we have inserted a char, set cursor after it
         if (pMsg->wParam != VK_RETURN)
             ident++;
         lStart = ConvertLineColToPos(line, ident);
         SetSel(lStart, lStart);
-        if (changed)
-            UpdateCSH(CSH);
+        //always call it: we get here only if we insert {, [, or RETURN, so we 
+        //have always changed the text and need to update coloring/
+        UpdateCSH(CSH);
         RestoreWindowUpdate(state);
         return TRUE;
     }
@@ -1094,12 +1095,13 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             for (const auto &e : m_csh.CshErrors.error_ranges)
                 csh_error_delta.push_back(e); //copy only the CshEntry part of e (which is of type CshError)
         } else {
-            //csh_error_delta.DiffInto(old_csh_error_list, m_csh.CshErrors.error_ranges, COLOR_MAX);
+            csh_error_delta.DiffInto(old_csh_error_list, m_csh.CshErrors.error_ranges, COLOR_MAX);
             //kill any entries overlapping with a no_error - so they are forced to be refreshed
-            for (auto &err : old_csh_error_list)
-                for (auto &csh : old_csh_list)
-                    if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
-                        csh.color = COLOR_MAX;
+            for (auto &err : csh_error_delta)
+                if (err.color == COLOR_MAX)
+                    for (auto &csh : old_csh_list)
+                        if (csh.first_pos <= err.last_pos && err.first_pos <= csh.last_pos)
+                            csh.color = COLOR_MAX;
             csh_delta.DiffInto(old_csh_list, m_csh.CshList, COLOR_NORMAL);
         }
 
@@ -1107,8 +1109,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         //See if we actually need to touch the screen
         //Note: if we have inserted, we need to make that text COLOR_NORMAL even if csh_delta is
         //empty.
-        if (ins || csh_delta.size() || old_csh_error_list.size() || 
-            m_csh.CshErrors.error_ranges.size() || updateCSH==FORCE_CSH) {
+        if (ins || csh_delta.size() || csh_error_delta.size() || updateCSH==FORCE_CSH) {
 
             //Ok now copy the delta to the editor window
             //record scroll position 
@@ -1117,13 +1118,6 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
 
             //freeze screen, prevent visual updates
             DisableWindowUpdate();
-
-            //First erase formatting from parts, where errors ceased to exist
-            for (auto &e : old_csh_error_list) {
-                SetSel(e.first_pos-1, e.last_pos);
-                SetSelectionCharFormat(scheme[COLOR_NORMAL]); 
-            }
-
             //Erase all formatting on a full update (deltas contain all entries in this case)
             if (updateCSH == FORCE_CSH) {
                 SetSel(0, -1); //select all
@@ -1132,6 +1126,13 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
                 SetSel(start, start+ins); //select inserted text
                 SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
             }
+
+            //First erase formatting from parts, where errors ceased to exist
+            for (auto &e : csh_error_delta)
+                if (e.color==COLOR_MAX) {
+                    SetSel(e.first_pos-1, e.last_pos);
+                    SetSelectionCharFormat(scheme[COLOR_NORMAL]);
+                }
 
             //Now add coloring to parts where it changed 
             if (pApp->m_bShowCsh)
@@ -1142,10 +1143,11 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
                     }
             //Now add errors, if we show them
             if (pApp->m_bShowCshErrors)
-                for (auto &e : m_csh.CshErrors.error_ranges) {
-                    SetSel(e.first_pos-1, e.last_pos);
-                    SetSelectionCharFormat(scheme[COLOR_ERROR]); //toggle
-                }
+                for (auto &e : csh_error_delta)
+                    if (e.color<COLOR_MAX) {
+                        SetSel(e.first_pos-1, e.last_pos);
+                        SetSelectionCharFormat(scheme[e.color]);
+                    }
 
             //restore cursor and scroll position
             SetSel(cr);

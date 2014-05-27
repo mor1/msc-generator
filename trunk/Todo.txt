@@ -39,6 +39,7 @@ FIX: Node hideentitylines, for radius bigger than 70
 FIX: Add bitmaps to Full screen images toolbar
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
+FIX: Re-layouting nested parallel blocks - introduce keep together, take care of overlapped ArcParallels
 
 In 4.0
 FIXED: Contour test mistakes (esp 740_006)
@@ -84,10 +85,11 @@ FIXED: No hints after a last comma in an attr list.
 FIXED: Ident shall go back after an idented [
 FIXED: Uncolored parts remain in errored state after error disappears
 FIXED: (empty) boxes do not honour a text.color chart option inside a parallel block (problem in design 'Dinand'')
-DOC: Changes to shape syntax (semicolon)
-FIX: Re-layouting nested parallel blocks - introduce keep together.
-FIX: Add text to rectange symbol
-FIX: Alignment of <> arrow labels
+FIXED: Alignment of <> arrow labels
+FIXED: Add text to symbols (will require new styles, too)
+DOCED: Changes to shape syntax (semicolon)
+DOCED: Changes to the left/right margin definition
+DOCED: Explain text.* + style (design, incr design, local file)+ refinement style+ arc spec
 
 
 In 3.7.13

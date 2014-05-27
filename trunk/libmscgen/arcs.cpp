@@ -1577,15 +1577,17 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
             i = floor(i);
 
     //we lie about us being forward (we do not check), so we know which of first/second to use
-    DoublePair end = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.read().line);
-    DoublePair start = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.read().line);
-    distances.Insert((*src)->index, (*dst)->index,
-                     (end.first + start.second + parsed_label.getSpaceRequired() +
-                     *act_size.begin() + *act_size.rbegin())*cos_slant);
-    //Add distances for arrowheads
+    const DoublePair end = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.read().line);
+    const DoublePair start = style.read().arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.read().line);
+    //Expand margins so that we avoid arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
-    const double s = (start.second + *act_size.begin())*cos_slant;
-    const double d = (end.first    + *act_size.rbegin())*cos_slant;
+    parsed_label.EnsureMargins(fw ? start.second : end.first, fw ? end.first : start.second);
+    distances.Insert((*src)->index, (*dst)->index,
+        (act_size.front() + act_size.back() +
+        parsed_label.getSpaceRequired())*cos_slant);
+    //Add distances for arrowheads
+    const double s = (start.second + act_size.front())*cos_slant;
+    const double d = (end.first    + act_size.back() )*cos_slant;
     distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, s);
     distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, d);
     vdist.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, s);
@@ -1708,14 +1710,14 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     double lw_max = style.read().line.LineWidth();
     for (auto i : segment_lines)
         lw_max = std::max(lw_max, i.LineWidth());
-    const XY xy_e = style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
-    const XY xy_s = style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
+    const double y_e = style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_END).y;
+    const double y_s = style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_START).y;
     //If there are middle arrows, make aH be the highest of endType/startType
     //and midType arrows.
     //If not use endType/startType only
     //aH.y is _half_ the height of the arrowhead (the height above/below the centerline)
     //aH.x is the width on one side on the entity line only.
-    double aH = std::max(std::max(xy_e.y, xy_s.y), lsym_size.y/2);
+    double aH = std::max(std::max(y_e, y_s), lsym_size.y/2);
     if (middle.size()>0)
         aH = max(aH, style.read().arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE).y);
 
@@ -1724,11 +1726,11 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     if (text_wh.y) {
         //Determine space for the text, reflow if needed and calculate cover
         if (sx<dx) {
-            sx_text = sx + xy_s.x + *act_size.begin();
-            dx_text = dx - xy_e.x - *act_size.rbegin();
+            sx_text = sx + act_size.front();
+            dx_text = dx - act_size.back();
         } else {
-            sx_text = dx + xy_e.x + *act_size.rbegin();
-            dx_text = sx - xy_s.x - *act_size.begin();
+            sx_text = dx + act_size.back();
+            dx_text = sx - act_size.front();
         }
         if (parsed_label.IsWordWrap()) {
             const double overflow = parsed_label.Reflow(canvas, dx_text - sx_text);
@@ -5573,15 +5575,15 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
     height = 0;
     if (!valid) return;
     if (chart->simple_arc_parallel_layout) {
-        for (auto i=blocks.begin(); i != blocks.end(); i++) {
+        for (auto &block : blocks) {
             //Each parallel block is compressed without regard to the others
-            double h = chart->LayoutArcList(canvas, *i, cover);
+            const double h = chart->LayoutArcList(canvas, block, cover);
             height = std::max(height, h);
         }
     } else {
-        std::vector<double> heights = chart->LayoutArcLists(canvas, blocks, cover);
-        for (unsigned u = 0; u<blocks.size(); u++)
-            height = std::max(height, heights[u]);
+        const std::vector<double> heights = chart->LayoutArcLists(canvas, blocks, cover);
+        for (double d: heights)
+            height = std::max(height, d);
     }
     //Do not expand cover, it has already been expanded
     LayoutComments(canvas, cover);

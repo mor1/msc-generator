@@ -1783,6 +1783,227 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
     return y_bottom_all;
 }
 
+///** Places a set of parallel lists of elements starting at y position==0.
+//* Calls Layout() for each element (recursively) and takes "compress" and
+//* "parallel" attributes into account.
+//* Attempts to avoid collisions and a balanced progress in each list.
+//* We always place each element on an integer y coordinate.
+//* Automatic pagination is ignored by this function and is applied later instead.
+//* Ensures that elements in the list will have non-decreasing yPos order -
+//* thus an element later in the list will have same or higher yPos as any previous.
+//* If a list contains an ArcParallel that is expanded and not handled as a single
+//* block.
+//* @param canvas The canvas to calculate geometry on.
+//* @param arcs The list of arc lists to place
+//* @param cover We add the area covered by each arc to this list.
+//* @returns the maximum of total height of the lists*/
+//std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs,
+//    AreaList *cover)
+//{
+//    /**Helper struct to manage multiple list of arcs, sorted by y */
+//    struct arc_list
+//    {
+//        unsigned col; ///<Which original block this list belongs to.
+//        ArcList arcs; ///<The arcs in this list
+//        ArcList::iterator arc; ///<The next arc to process in the list above
+//        double y; ///<Our lowest element
+//        /** We will never shift compress higher than this runnning value
+//        * (any element marked with "parallel" will set this to its top)*/
+//        double y_upper_limit;
+//        bool previous_was_parallel;
+//        /** The bottom of the lowest element except elements marked as
+//        * "overlap". We use this when laying out the next element.*/
+//        double y_bottom;
+//        /** These contain all arc_covers, without the mainlines,
+//        * plus the mainlines of the arcs in their own column.*/
+//        AreaList covers;
+//        arc_list(unsigned C, double Y, const ArcList &A) : col(C), arcs(false),
+//            y(Y), y_upper_limit(0), previous_was_parallel(false), y_bottom(0)
+//        {
+//            for (auto &pArc : A) arcs.push_back(pArc); arc = arcs.begin();
+//        }
+//        bool operator <(const arc_list &o) const
+//        { return y < o.y ? true : y == o.y ? col < o.col : false; }
+//    };
+//
+//    struct arc_list_set : public std::list<arc_list>
+//    {
+//        //sort by our smallest y, then the "col" of it, then tie break
+//        //on pointer values
+//        bool operator <(const arc_list_set &o) const
+//        {
+//            return begin()->y < o.begin()->y ? true : begin()->y == o.begin()->y ?
+//                begin()->col < o.begin()->col ? true : begin()->col == o.begin()->col ?
+//                this < &o : false : false;
+//        }
+//        arc_list_set(const std::vector<ArcList> &arcs, double y, unsigned C)
+//        {
+//            for (auto &al : arcs)
+//                emplace_back(C, y, al);
+//            //sorted order
+//        }
+//        arc_list_set(const ArcList &arcs, double y, int C)
+//        {
+//            emplace_back(C, y, arcs);
+//        };
+//    };
+//
+//    struct arc_list_set_stack : public std::list<arc_list_set>
+//    {
+//        bool operator <(const arc_list_set_stack &o) const
+//        { return back()<o.back(); }
+//        arc_list_set_stack(const std::vector<ArcList> &arcs, double y, int C)
+//        { emplace_back(arcs, y, C); }
+//        arc_list_set_stack(const ArcList &arcs, double y, int C)
+//        { emplace_back(arcs, y, C); }
+//    };
+//
+//    /** The lowest element bottom (largest num value) we have seen
+//    * (will be returned, not always that of a last element)*/
+//    std::vector<double> y_bottom_all(arcs.size(), 0);
+//
+//    //This is a set where each initial element coresponds to a block
+//    //However, if we encounter an ArcParallel inside, say, block X, 
+//    //we push the blocks of that ArcParallel to the stack of block X.
+//    //Hence this is a set of stacks, where each stack contains sets of arclists.
+//    std::list<arc_list_set_stack> blocks;
+//    for (unsigned u = 0; u<arcs.size(); u++)
+//        blocks.emplace_back(arcs[u], 0, u);
+//    //blocks is now sorted
+//
+//    while (blocks.size()) {
+//        //quick ref to the actual list we process
+//        arc_list &L = blocks.front().back().front();
+//        //Zero-height arcs shall be positioned to the same place
+//        //as the first non-zero height arc below them (so that
+//        //if that arc is compressed up, they are not _below_
+//        //that following arc. So we store what was the last non-zero
+//        //height arc so we can go back and adjust the zero height ones
+//        ArcList::iterator first_zero_height = L.arcs.end();
+//
+//        //Start cycle till the last, but we will exit as soon as we added
+//        //an element of nonzero height. (Thus this for cycle will handle
+//        //only subsequent elements of zero height.
+//        auto i = L.arc;
+//        double local_y = L.y;
+//        //This loop is here just for zero-height elements.
+//        //As soon as we hit something non-zero height, we break at the end
+//        for (; i!=L.arcs.end(); i++) {
+//            AreaList arc_cover;
+//            (*i)->Layout(canvas, &arc_cover);
+//            Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
+//            double h = (*i)->GetFormalHeight();
+//
+//            //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
+//            //maintain at least compressGap/2 amount of space between elements even without compress
+//            h = std::max(h, arc_cover.GetBoundingBox().y.till);
+//            double touchpoint = local_y;
+//            if ((*i)->IsCompressed() || L.previous_was_parallel) {
+//                //if arc is of zero height, just collect it.
+//                //Its position may depend on the next arc if that is compressed.
+//                if (h==0) {
+//                    if (first_zero_height == L.arcs.end()) first_zero_height = i;
+//                    continue;
+//                }
+//                const double new_y = std::max(L.y_upper_limit, -L.covers.OffsetBelow(arc_cover, touchpoint));
+//                //Here the new_y can be larger than the one before, if some prior element 
+//                //prevented the current one to shift all the way to below the previous one.
+//                if ((*i)->IsCompressed())
+//                    local_y = new_y;
+//                else //we must have previous_was_parallel==true here
+//                    //if the immediately preceeding element (not including zero_height_ones) was
+//                    //marked with "parallel", we attempt to shift this element up to the top of that one
+//                    //even if the current element is not marked by "compress".
+//                    //If we can shift it all the way to the top of the previous element, we place it
+//                    //there. But if we can shift only halfway, we place it strictly under the previous
+//                    //element - as we are not compressing.
+//                    //Note that "y_upper_limit" contains the top of the preceeding element (marked with "parallel")
+//                    if (new_y == L.y_upper_limit)
+//                        touchpoint = local_y = L.y_upper_limit;
+//                    else
+//                        touchpoint = local_y; //OffsetBelow() may have destroyed it above
+//            } else if (h>0) {
+//                //This element is not compressed, as we lay out parallel blocks
+//                //it may be that we overlap with a prior element, so we want to avoid that.
+//                //But we place zero_height elements to just below the previous one nevertheless
+//                //We also keep touchpoint==y for the very same reason
+//                double dummy_touchpoint;
+//                local_y = std::max(local_y, -L.covers.OffsetBelow(arc_cover, dummy_touchpoint));
+//            }
+//            //Add extra space (even if above was parallel), move touchpoint by half
+//            const double extra = (*i)->GetVSpacing();
+//            touchpoint += extra/2;
+//            local_y += extra;
+//            touchpoint = floor(touchpoint+0.5);
+//            local_y = ceil(local_y);
+//            //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
+//            while (first_zero_height != L.arcs.end() && first_zero_height != i)
+//                (*first_zero_height++)->ShiftBy(touchpoint);
+//            first_zero_height = L.arcs.end();
+//            //Shift the arc in question to its place
+//            (*i)->ShiftBy(local_y);
+//            arc_cover.Shift(XY(0, local_y));
+//            y_bottom_all[L.col] = std::max(y_bottom_all[L.col], local_y+h);
+//            //If we are parallel draw the rest of the block in one go
+//            if ((*i)->IsParallel()) {
+//                //kill the mainline of the last arc (in "i")
+//                arc_cover.InvalidateMainLine();
+//                //Do not allow anyone to be placed above us
+//                L.y_upper_limit = local_y;
+//            }
+//            if ((*i)->IsOverlap()) {
+//                //Do not allow anyone to be placed above us
+//                L.y_upper_limit = local_y;
+//                //Keep y as the top of the current arc
+//            } else {
+//                //Update covers
+//                L.covers += arc_cover; //arc_cover contains the mainline here (unless parallel)
+//                local_y = L.y_bottom = std::max(L.y_bottom, local_y+h);
+//            }
+//            //Add i's cover (without the mainline) to all other column 
+//            //even if it is marked as "overlay". Other columns shall not
+//            //overlap with "i", just the subsequent elements in this column.
+//            arc_cover.InvalidateMainLine();
+//            for (auto &blockstack: blocks)
+//                for (auto &list: blockstack.back())
+//                    if (&list != &L)
+//                        list.covers += arc_cover;
+//            //record cover for output (if requested)
+//            if (cover)
+//                *cover += arc_cover;
+//            //record parallel status
+//            L.previous_was_parallel = (*i)->IsParallel();
+//            //This was a non-zero height element, we break and pick
+//            //the next arc from the column with the topmost current bottom.
+//            i++; //for loop increment will not be called(since we break), so we increment i here.
+//            break;
+//        }
+//        //Test if we are done with this column
+//        if (i==L.arcs.end()) {
+//            //position any remaining zero-heright items at the bottom
+//            while (first_zero_height != L.arcs.end())
+//                (*first_zero_height++)->ShiftBy(local_y);
+//            //Kill this block - no more elements left
+//            //But first reflect the 
+//            blocks.front().back().pop_front();
+//            if (blocks.front().back().size()==0) {
+//                //all elements processed - pop the stack 
+//                blocks.front().pop_back();
+//                if (blocks.front().size()==0)
+//                    blocks.pop_front();
+//            } else
+//                blocks.front().back().sort();
+//            blocks.sort();
+//
+//
+//        } else
+//            y.insert(TY(col, local_y, i)); //re-add column for layout of its remaining element
+//    }
+//    return y_bottom_all;
+//}
+
+
+
 /** Places a list of arcs at below an already laid out part of the chart.
  * The list of arcs is normally placed at y coordinate `start_y` (which is supposed 
  * to be well below the already laid out part. The elements in the arc list are
