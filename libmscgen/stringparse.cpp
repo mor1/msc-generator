@@ -1638,6 +1638,62 @@ void Label::ApplyStyle(const StringFormat &sf)
         line.startFormat += sf;
 }
 
+void Label::EnsureMargins(double left, double right)
+{
+    if (size()==0) return;
+    double lmin = DBL_MAX, rmin = DBL_MAX;
+    for (const auto &l : *this) {
+        if (lmin > l.startFormat.textHGapPre.second)
+            lmin = l.startFormat.textHGapPre.second;
+        if (rmin > l.startFormat.textHGapPost.second)
+            rmin = l.startFormat.textHGapPost.second;
+    }
+    lmin = std::max(0., left-lmin);  //we need to add this much so that all margins are >= 'left'
+    rmin = std::max(0., right-lmin); //we need to add this much so that all margins are >= 'right'
+    if (lmin || rmin)
+        for (auto &l : *this) {
+            l.startFormat.textHGapPre.second += lmin;
+            l.startFormat.textHGapPost.second += rmin;
+        }
+}
+
+
+/* Get the width of a (potentially multi-line) text or one of its lines
+*  If text is empty return 0
+* we add spacings around,
+* for an individual line, we add the spacings above, but not the ones below,
+*/
+XY Label::getTextWidthHeight(int line) const
+{
+    XY xy(0, 0);
+    if (size()==0) return xy;
+    if (line>=0) {
+        if (size()<=unsigned(line)) return xy;
+        xy = at(line).getWidthHeight();
+        if (line == 0)  //First line
+            xy.y += at(0).startFormat.textVGapAbove.second;
+        else
+            xy.y += at(line-1).startFormat.textVGapLineSpacing.second +
+            at(line-1).startFormat.spacingBelow.second;
+    } else {
+        for (unsigned i = 0; i<size(); i++) {
+            double x = at(i).getWidthHeight().x +
+                at(i).startFormat.textHGapPre.second +
+                at(i).startFormat.textHGapPost.second;
+            if (xy.x < x)
+                xy.x = x;
+            xy.y += at(i).getWidthHeight().y;
+            if (i!=size()-1)
+                xy.y += at(i).startFormat.textVGapLineSpacing.second +
+                at(i).startFormat.spacingBelow.second;
+        }
+        xy.y += at(0).startFormat.textVGapAbove.second +
+            at(size()-1).startFormat.textVGapBelow.second;
+    }
+    if (xy.x == 0 || xy.y == 0)
+        xy.x = xy.y = 0;
+    return xy;
+};
 
 #define LETTERS_NUMBERS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
 
@@ -1748,42 +1804,6 @@ double Label::getSpaceRequired(double def, int line) const
 }
 
 
-/* Get the width of a (potentially multi-line) text or one of its lines
- *  If text is empty return 0
- * we add spacings around,
- * for an individual line, we add the spacings above, but not the ones below,
- */
-XY Label::getTextWidthHeight(int line) const
-{
-    XY xy(0,0);
-    if (size()==0) return xy;
-    if (line>=0) {
-        if (size()<=unsigned(line)) return xy;
-        xy = at(line).getWidthHeight();
-        if (line == 0)  //First line
-            xy.y += at(0).startFormat.textVGapAbove.second;
-        else
-            xy.y += at(line-1).startFormat.textVGapLineSpacing.second +
-                at(line-1).startFormat.spacingBelow.second;
-    } else {
-        for (unsigned i = 0; i<size(); i++) {
-            double x = at(i).getWidthHeight().x +
-                at(i).startFormat.textHGapPre.second +
-                at(i).startFormat.textHGapPost.second;
-            if (xy.x < x)
-                xy.x = x;
-            xy.y += at(i).getWidthHeight().y;
-            if (i!=size()-1)
-                xy.y += at(i).startFormat.textVGapLineSpacing.second +
-                    at(i).startFormat.spacingBelow.second;
-        }
-        xy.y += at(0).startFormat.textVGapAbove.second +
-            at(size()-1).startFormat.textVGapBelow.second;
-    }
-    if (xy.x == 0 || xy.y == 0)
-        xy.x=xy.y=0;
-    return xy;
-};
 
 void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const
 {

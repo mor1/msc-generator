@@ -266,7 +266,7 @@ public:
 };
 
 /** Represents the `symbol` command.*/
-class CommandSymbol : public ArcCommand
+class CommandSymbol : public ArcLabelled
 {
 protected:
     /** Describes what type of a symbol it is */
@@ -277,7 +277,6 @@ protected:
     };
     static const double     ellipsis_space_ratio; ///<The ratio of the height of the dots and the space between them for ellipsises
     ESymbolType             symbol_type;          ///<What type of symbol this is
-    StyleCoW                style;                ///<Visual style of the symbol
     ExtVertXPos             hpos1;                ///<First horizontal position
     ExtVertXPos             hpos2;                ///<Second (optional) horizontal position
     NamePair                vpos;                 ///<The two markers for vertical position
@@ -285,7 +284,7 @@ protected:
     std::pair<bool, double> ysize;                ///<(optional) Y size specified by the user. (used for 'arc' and 'rectangle')
     EArrowSize              size;                 ///<Size of the dots in the ellipsis (used only for '...')
     mutable Block           outer_edge;           ///<The cpmputed bounding box of the symbol
-    void CalculateAreaFromOuterEdge();
+    void CalculateAreaFromOuterEdge(Canvas &canvas);
 public:
     CommandSymbol(Msc*, const char *symbol, const NamePair *enp,
                   const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2);

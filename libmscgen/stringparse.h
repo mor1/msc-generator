@@ -299,6 +299,12 @@ public:
     operator std::string() const;
     /** Applies a text style. Ignores line spacing parts of the style. */
     void ApplyStyle(const StringFormat &sf);
+    /** Ensures we have at least this much left and right margin in all lines.*/
+    void EnsureMargins(double left, double right);
+    /** Return the size of a line of text. 
+     * @param [in] line The number of the line starting from 0. 
+     *                  If -1 we return the total size of all lines.*/
+    XY getTextWidthHeight(int line=-1) const;
     /** Reflows the text top fit a box of x width.
      * Honours hard line breaks, but not soft ones.
      * @param c The canvas to calculate on.
@@ -311,10 +317,6 @@ public:
     double getSpaceRequired(double def = 0, int line = -1) const;
     /** Returns true if word wrapping is enabled for this label */
     bool IsWordWrap() const {if (size()==0) return false; return at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second;} 
-
-    /** Return the size of a line of text. 
-     * @param [in] line The number of the line starting from 0. If -1 we return the total size of all lines.*/
-    XY getTextWidthHeight(int line=-1) const;
     /** Return the cover for the label.
      * We lay out the label between `sx` and `dx` according to the ident of each line.
      * Each fragment is modelled as a rectangle.

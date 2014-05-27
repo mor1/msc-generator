@@ -1257,8 +1257,7 @@ const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
 CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
                 const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
-    ArcCommand(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc),
-    style(chart->Contexts.back().styles["symbol"]),
+    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc, msc->Contexts.back().styles["symbol"]),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
     vpos(enp ? *enp : NamePair(NULL, FileLineColRange(), NULL, FileLineColRange())),
@@ -1331,13 +1330,16 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
         a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
         return true;
     }
-    if (style.write().AddAttribute(a, chart)) return true;
-    return ArcCommand::AddAttribute(a);
+    if (a.Is("label") && symbol_type == ELLIPSIS) {
+        chart->Error.Error(a, false, "Labels cannot be specified for '...' symbols. Ignoring it.");
+        return true;
+    }
+    return ArcLabelled::AddAttribute(a);
 }
 
 void CommandSymbol::AttributeNames(Csh &csh)
 {
-    ArcCommand::AttributeNames(csh);
+    ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
@@ -1358,13 +1360,12 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
         ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }
-    if (ArcCommand::AttributeValues(attr, csh)) return true;
-    if (defaultDesign.styles.GetStyle("symbol").read().AttributeValues(attr, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
 
-ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, Element ** target, ArcBase * /*vertical_target*/)
+ArcBase* CommandSymbol::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                         Numbering &number, Element ** target, ArcBase *vertical_target)
 {
     *target = this;
     if (!valid) return NULL;
@@ -1431,7 +1432,7 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterato
         xsize.second = ellipsis_sizes[size];
         ysize.second = xsize.second*(3+2*ellipsis_space_ratio);
     }
-    return this;
+    return ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 }
 
 void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
@@ -1440,7 +1441,7 @@ void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
     vdist.InsertElementTop(this);
     //Add activation status right away
     AddEntityLineWidths(vdist);
-    ArcCommand::Width(canvas, distances, vdist);
+    ArcLabelled::Width(canvas, distances, vdist);
     //Add a new element to vdist
     vdist.InsertElementBottom(this);
     //Add activation status right away
@@ -1501,7 +1502,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
     outer_edge.y.from = 0;
     outer_edge.y.till = lw + ysize.second;
 
-    CalculateAreaFromOuterEdge();
+    CalculateAreaFromOuterEdge(canvas);
     area_important = area;
     chart->NoteBlockers.Append(this);
     if (cover) {
@@ -1516,12 +1517,12 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
 
 void CommandSymbol::ShiftBy(double y)
 {
-    ArcCommand::ShiftBy(y);
+    ArcLabelled::ShiftBy(y);
     if (outer_edge.y.IsInvalid()) return;
     outer_edge.y.Shift(y);
 }
 
-void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/)
+void CommandSymbol::PlaceWithMarkers(Canvas &canvas)
 {
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
@@ -1542,15 +1543,16 @@ void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/)
 
     outer_edge.y.Expand(style.read().line.LineWidth()/2);
 
-    CalculateAreaFromOuterEdge();
+    CalculateAreaFromOuterEdge(canvas);
     //set yPos and height so that GetYExtent returns the right range
     //to determine if this element needs to be drawn on a particular page
     yPos = outer_edge.y.from;
     height = outer_edge.y.Spans();
 }
 
-/** Calculates the `area` field from the `outer_edge` field.*/
-void CommandSymbol::CalculateAreaFromOuterEdge()
+/** Calculates the `area` field from the `outer_edge` field.
+ * It also reflows label if needed.*/
+void CommandSymbol::CalculateAreaFromOuterEdge(Canvas &canvas)
 {
     switch (symbol_type) {
         case ARC:
@@ -1567,6 +1569,18 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
             area += Contour(c + XY(0, (2+2*ellipsis_space_ratio)*r), r, r);
             area += Contour(c + XY(0, (4+4*ellipsis_space_ratio)*r), r, r);
             break;
+    }
+    const double space = std::max(0., outer_edge.x.Spans() - 2*style.read().line.LineWidth());
+    if (parsed_label.IsWordWrap() && parsed_label.size()>0) {
+        const double overflow = parsed_label.Reflow(canvas, space);
+        //OverflowWarning(overflow, "", i, src);
+    } else {
+        CountOverflow(space);
+    }
+    const XY twh = parsed_label.getTextWidthHeight();
+    if (twh.x>0) {
+        const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
+        area = parsed_label.Cover(b.x.from, b.x.till, b.y.from);
     }
     area.arc = this;
     area.mainline = Block(chart->GetDrawing().x, area.GetBoundingBox().y);
@@ -1590,6 +1604,11 @@ void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
             canvas.Fill(mid, style.read().line, style.read().fill);
             canvas.Line(mid, style.read().line);
             break;
+    }
+    if (parsed_label.size()>0) {
+        const XY twh = parsed_label.getTextWidthHeight();
+        const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
+        parsed_label.Draw(canvas, b.x.from, b.x.till, b.y.from);
     }
 }
 
