@@ -473,7 +473,7 @@ bool CshHintGraphicCallbackForEShapes(Canvas *canvas, CshHintGraphicParam p, Csh
                   hint.y.from + (hint.y.Spans() - HINT_GRAPHIC_SIZE_Y/r)/2);
     Block max = (*csh.pShapes)[u].GetMax();
     csh.pShapes->Draw(*canvas, u, max.Shift(-orig).Scale(r),
-        ColorType(0, 0, 0), FillAttr(ColorType(), GRADIENT_NONE));
+        LineAttr(), FillAttr(ColorType(), GRADIENT_NONE));
     return true;
 }
 
@@ -1243,7 +1243,7 @@ void EntityApp::Draw(Canvas &canvas)
 {
     if ((*itr)->shape >= 0) {
         chart->Shapes.Draw(canvas, (*itr)->shape, outer_edge,
-            style.read().line.color.second, style.read().fill);
+            style.read().line, style.read().fill);
         const XY twh = parsed_label.getTextWidthHeight();
         const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
         if (b.IsInvalid()) {

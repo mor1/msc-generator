@@ -90,7 +90,8 @@ FIXED: Add text to symbols (will require new styles, too)
 DOCED: Changes to shape syntax (semicolon)
 DOCED: Changes to the left/right margin definition
 DOCED: Explain text.* + style (design, incr design, local file)+ refinement style+ arc spec
-
+FIXED: Shape section 2 was not applying line attributes
+ADDED: def.square shape
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB
