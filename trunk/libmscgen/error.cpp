@@ -49,12 +49,15 @@ ErrorElement MscError::FormulateElement(FileLineCol linenum, FileLineCol linenum
 {
     ErrorElement e;
     e.message = msg;
-    if (Files[linenum.file].length()>0) e.text = Files[linenum.file];
-    if (linenum.line) {
-        if (e.text.length()>0) e.text.append(":");
-        e.text << linenum.line;
-        if (linenum.col)
-            e.text << ":" << linenum.col;
+    if (linenum.file>=0) { //only do this for valid linenums
+        if (linenum.file<int(Files.size()) && Files[linenum.file].length()>0)
+            e.text = Files[linenum.file];
+        if (linenum.line) {
+            if (e.text.length()>0) e.text.append(":");
+            e.text << linenum.line;
+            if (linenum.col)
+                e.text << ":" << linenum.col;
+        }
     }
     if (e.text.length()>0) e.text.append(": ");
     if (is_once)

@@ -267,6 +267,11 @@ public:
         const FileLineColRange &v, const char *s) :
         type(MSC_ATTR_NUMBER), name(a), value(s), number(n),
         linenum_attr(l), linenum_value(v), error(false)  {}
+    /** Creates an attribute with bool as value */
+    Attribute(const char*a, bool b, const FileLineColRange &l, 
+        const FileLineColRange &v, const char *s=NULL) :
+        type(MSC_ATTR_BOOL), name(a), value(s?s:b?"yes":"no"), yes(b),
+        linenum_attr(l), linenum_value(v), error(false)  {}
     /** Creates a style specification */
     Attribute(const char*a, const FileLineColRange &l) :
         type(MSC_ATTR_STYLE), name(a),

@@ -85,10 +85,14 @@ void MscProgress::UnRegisterArc(ECategory category)
 void MscProgress::DoneItem(EArcSection section, ECategory category) 
 {
     const clock_t now = clock();
-//    _ASSERT(section == current_arc_section);
     //We may call draw multiple times
     //We may delete arcs (content of ArcBox) already processed, due to gouped entity hiding
-    if (current_arc_section != DRAW && current_arc_section != POST_PARSE && current_arc_section != NOTES) {
+    //Notes is also exempted. Cant remember, why.
+    //Plus we only check if we report something in the current section
+    //(At autopaginate we may add autoheaders and do width, etc., when we
+    //are already beyond WIDTH section.)
+    if (section == current_arc_section && current_arc_section != DRAW && 
+        current_arc_section != POST_PARSE && current_arc_section != NOTES) {
         _ASSERT(arc_items_done_in_current_section[category] < arc_items_regsitered[category]);
     }
     if (arc_items_done_in_current_section[category] == arc_items_regsitered[category]) {

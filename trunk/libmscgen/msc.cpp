@@ -2067,7 +2067,7 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
                               double pageBreak, bool addHeading)
 {
     CommandNewpage *cnp = new CommandNewpage(this, false);
-    const Attribute a("auto_heading", addHeading, FileLineColRange(), FileLineColRange(), "love");
+    const Attribute a("auto_heading", addHeading, FileLineColRange(), FileLineColRange());
     cnp->AddAttribute(a);
     cnp->AddAttributeList(NULL);
     //We skip FinalizeLabels as they do nothing for CommandNewpage nor CommandEntity
