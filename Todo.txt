@@ -92,6 +92,8 @@ DOCED: Changes to the left/right margin definition
 DOCED: Explain text.* + style (design, incr design, local file)+ refinement style+ arc spec
 FIXED: Shape section 2 was not applying line attributes
 ADDED: def.square shape
+ADDED: Fit width, Overview buttons to full screen preview
+FIXED: Autoheadings crash.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

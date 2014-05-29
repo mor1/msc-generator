@@ -497,6 +497,14 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our butto
         p->InsertButton(nextButton);
         FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
     }
+    p->InsertSeparator();
+    buttonBitMap = CMFCToolBar::GetDefaultImage(ID_VIEW_ZOOMNORMALIZE);
+    CMFCToolBarButton button2(ID_VIEW_ZOOMNORMALIZE, buttonBitMap, "Overview", TRUE, TRUE);
+    p->InsertButton(button2);
+    buttonBitMap = CMFCToolBar::GetDefaultImage(ID_VIEW_FITTOWIDTH);
+    CMFCToolBarButton button3(ID_VIEW_FITTOWIDTH, buttonBitMap, "Fit to Width", TRUE, TRUE);
+    p->InsertButton(button3);
+                               
     //Arrange size
     p->StretchPane(32000, false);
     f->SizeToContent();
