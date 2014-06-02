@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file ChartData.cpp The definition of the CChartData and CDrawingChartData classes.
+* @ingroup Msc_generator_files */
+
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "ChartData.h"
@@ -56,13 +59,6 @@ void EnsureCRLF(CString &str)
 }
 
 //CChartData
-
-void CChartData::SetDesign (const char *design)
-{
-	if (!design) return;
-	if (m_ForcedDesign == design) return;
-	m_ForcedDesign = design;
-}
 
 void CChartData::swap(CChartData &o)
 {
@@ -152,7 +148,10 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 	free(buff);
 	RemoveSpacesAtLineEnds();
 	EnsureCRLF(m_text);
-	ReplaceTAB(m_text);
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    const int tabsize = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
+    ReplaceTAB(m_text, tabsize);
     ver_a = ver_b = ver_c = 0;
 	return TRUE;
 }
@@ -225,6 +224,18 @@ CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) :
 {
 }
 
+CDrawingChartData::CDrawingChartData(CDrawingChartData &&o) : 
+    CChartData(std::move(o)),
+    m_msc(NULL), compiled(false), m_cacheType(o.m_cacheType), m_cache_EMF(NULL), 
+    m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
+    m_fallback_resolution(o.m_fallback_resolution), m_page(o.m_page), 
+    m_pageBreaks(o.m_pageBreaks), m_pedantic(o.m_pedantic),
+    m_designs(o.m_designs), m_shapes(o.m_shapes), 
+    m_design_errors(o.m_design_errors), m_copyright(std::move(o.m_copyright)),
+    m_callback(o.m_callback), m_callback_data(o.m_callback_data), 
+    m_load_data(std::move(o.m_load_data))
+{
+}
 void CDrawingChartData::Delete(void) 
 {
     Invalidate(); 

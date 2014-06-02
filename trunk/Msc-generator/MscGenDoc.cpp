@@ -491,7 +491,8 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
             }
 		}
 		EnsureCRLF(text);
-		ReplaceTAB(text);
+        const int tabsize = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
+		ReplaceTAB(text, tabsize);
         chart.Set(text);
         chart.SetDesign(design);
         unsigned force_entity_size, force_arc_size;

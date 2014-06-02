@@ -17,6 +17,9 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file commandline.cpp All that is needed to perform a command-line action.
+ * @ingroup libmscgen */
+
 #include <iostream>
 #include <assert.h>
 #include <limits>

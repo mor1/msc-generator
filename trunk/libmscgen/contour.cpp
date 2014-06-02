@@ -16,7 +16,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file commands.cpp Implementation of composite contours.
+/** @file contour.cpp Implementation of composite contours.
  * @ingroup contour_files
  */
 #include <cassert>
