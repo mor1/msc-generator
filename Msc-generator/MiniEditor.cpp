@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file MiniEditor.cpp The internal editor: CEditorBar and CCshRichEditCtrl classes.
+* @ingroup Msc_generator_files */
+
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "MscGenDoc.h"
@@ -471,32 +474,11 @@ LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM /*lParam*/)
 }
 
 
-//This is to handle TAB, SHIFT+TAB, RETURN, BACKSPACE, and "}" chars
-//We assume no TAB characters in the file, we replace everything to spaces
-/* TAB rules
-**   SINGLE line: 
-**      In leading whitespace: Align to next/prev tab position
-**           (which is: if in a label: the first char of the label
-**            
-**            else: <int>*m_tabsize + ident of the first char on previous line)
-**      After leading whitespace: align to next <int>*m_tabsize
-**                                Shift+Tab: align to previous, if enough whitespace
-**      Or if TAB mode is on, we simply ident the line
-**   Multiple lines: align each line to next/prev tab position
-**           (which is: if line is in label, the first char of the label)
-**            else <int>*m_tabsize + ident of the first char on the line before the selected block)
-** ENTER rule
-**   if in label, align to label first char
-**   else if if the char just after the insertion point is a }, search matching {
-**   else align to previous first indent (potentially same line)
-**      except: add + m_tabsize if char just before enter is a {
-** BACKSPACE rule
-**   if in leading whitespace, do as shift+tab
-**   else: do as normally
-** "}" rule
-**   if in leading whitespace, find matching { and force ident to that
-**   else do as normal
-*/
+/** Implements smart behaviour by capturing relevant messages.
+ * Catches if the user presses Ctrl+Space, moves the selection in hint 
+ * mode, types a character in hint mode, types {, [ or } (for identing),
+ * presses ENTER, TAB, BACKSPACE (for identing) or presses ESC
+ * (to cancel tracking or hint modes).*/
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
     m_bWasReturnKey = false;
@@ -827,8 +809,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     return CRichEditCtrl::PreTranslateMessage(pMsg);
 }
 
-//We never notify the document object about a change in this function,
-//as it is called by the document object only.
+/** Changes the text in the control to `text` and sets cursor pos.
+* After that it does a full coloring
+* We never notify the document object about a change in this function,
+* as it is called by the document object only.*/
 void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol)
 {
     CHARRANGE cr;
@@ -837,8 +821,10 @@ void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCo
     UpdateText(text, cr);
 }
 
-//We never notify the document object about a change in this function,
-//as it is called by the document object only.
+/** Changes the text in the control to `text` and sets cursor pos.
+ * After that it does a full coloring
+ * We never notify the document object about a change in this function,
+ * as it is called by the document object only.*/
 void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr)
 {
     CString t = text;
@@ -1161,6 +1147,12 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     return ret;
 }
 
+/** Cancels coloring of a partially matching keyword.
+ * E.g., we start typing 'headi' at the beginning of the line,
+ * it will be recognized as a partial match for 'heading' keyword
+ * and will be colored so. But if we move the cursor away in 
+ * OnSelChange(), we apply coloring to this word as a newly 
+ * defined entity instead.*/
 void CCshRichEditCtrl::CancelPartialMatch()
 {
 	CHARRANGE cr;
@@ -1215,9 +1207,6 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return TRUE;
 }
 
-//Assumes we have called UpdateCSH just before and m_csh is up-to-date
-//if setUptoCursor is true, we set m_bTillCursorOnly to true
-//if false, we leave the value unchanged (=start with a false value)
 void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
 {
     long start, end;
@@ -1367,6 +1356,7 @@ CEditorBar::~CEditorBar()
     }
 }
 
+/**Creates us, the font and the edit control.*/
 int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CDockablePane::OnCreate(lpCreateStruct) == -1)
@@ -1415,6 +1405,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 }
 
 #define READONLY_STRING " (Read-only)"
+/** Sets the editor to read only mode. */
 void CEditorBar::SetReadOnly(bool readonly)
 {
 	if (!m_ctrlEditor.SetReadOnly(readonly)) return;
@@ -1428,6 +1419,7 @@ void CEditorBar::SetReadOnly(bool readonly)
 }
 
 
+/**Updates the editor control on size change.*/
 void CEditorBar::OnSize(UINT nType, int cx, int cy)
 {
 	CDockablePane::OnSize(nType, cx, cy);
@@ -1438,9 +1430,7 @@ void CEditorBar::OnSize(UINT nType, int cx, int cy)
 	m_ctrlEditor.SetWindowPos(NULL, rc.left + 1, rc.top + 1, rc.Width() - 2, rc.Height() - 2, SWP_NOACTIVATE | SWP_NOZORDER );
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// CEditorBar message handlers
-
+/**Draw border around editor.*/
 void CEditorBar::OnPaint()
 {
 	CPaintDC dc(this); // device context for painting
@@ -1453,6 +1443,7 @@ void CEditorBar::OnPaint()
 	dc.Draw3dRect(rectTree, ::GetSysColor(COLOR_3DSHADOW), ::GetSysColor(COLOR_3DSHADOW));
 }
 
+/**Set focus to editor*/
 void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 {
 	CDockablePane::OnSetFocus(pOldWnd);
@@ -1460,6 +1451,9 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 }
 
 
+/** Reacts to EN_CHANGE events from the editor.
+ * If notifications are not suspended via m_bSuspendNotifications,
+ * we update coloring and enter hint mode if settings require.*/
 BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 {
 	HWND hWndCtrl = (HWND)lParam;
@@ -1497,6 +1491,8 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	return TRUE;
 }
 
+/** Called if the selection changes.
+ * If this is not a text change, we cancel partial csh matches.*/
 void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result) 
 {
     if (m_bSuspendNotifications) {
@@ -1519,6 +1515,7 @@ void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result)
 
 //Find replace related
 
+/**Copy the selected text to the search field.*/
 bool CEditorBar::UpdateLastFindStringFromSelection()
 {
 	//See if there is a selection and if it is within a single line. If so, copy that to the search box
@@ -1530,6 +1527,7 @@ bool CEditorBar::UpdateLastFindStringFromSelection()
 	return true;
 }
 
+/**Called when the user initates a search or replace session.*/
 void CEditorBar::OnEditFindReplace(bool findOnly)
 {
 	//If window is up, store location and destroy
@@ -1550,6 +1548,7 @@ void CEditorBar::OnEditFindReplace(bool findOnly)
 		m_pFindReplaceDialog->SetWindowPos(NULL, m_ptLastFindPos.x, m_ptLastFindPos.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 }
 
+/**Called when the user repeats a search.*/
 void CEditorBar::OnEditRepeat()
 {
 	//If the find window is not there use the selection as search string
@@ -1561,6 +1560,7 @@ void CEditorBar::OnEditRepeat()
 		TextNotFound(m_sLastFindString);
 }
 
+/**This is called when a new text search is completed.*/
 LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 {
 
@@ -1623,6 +1623,7 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 }
 
 
+/**See if 'lpszCompare' is the same as the selected text.*/
 BOOL CEditorBar::SameAsSelected(LPCTSTR lpszCompare, BOOL bCase)
 {
 	// check length first
@@ -1638,6 +1639,7 @@ BOOL CEditorBar::SameAsSelected(LPCTSTR lpszCompare, BOOL bCase)
 		(!bCase && lstrcmpi(lpszCompare, strSelect) == 0);
 }
 
+/**Moves the search dialog to avoid the highlighted text.*/
 void CEditorBar::AdjustDialogPosition(CDialog* pDlg)
 {
 	ASSERT(pDlg != NULL);
@@ -1662,7 +1664,7 @@ void CEditorBar::AdjustDialogPosition(CDialog* pDlg)
 	}
 }
 
-
+/**Actually find a piece of text in the editor.*/
 BOOL CEditorBar::FindText(LPCTSTR lpszFind, BOOL bCase, BOOL bWord, BOOL bNext /* = TRUE */)
 {
 	ASSERT_VALID(this);
@@ -1730,6 +1732,7 @@ BOOL CEditorBar::FindText(LPCTSTR lpszFind, BOOL bCase, BOOL bWord, BOOL bNext /
 		return FALSE;
 }
 
+/**Find a piece of text in the editor and select it./
 long CEditorBar::FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft)
 {
 	long index = m_ctrlEditor.FindText(dwFlags, &ft);
@@ -1738,6 +1741,7 @@ long CEditorBar::FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft)
 	return index;
 }
 
+/**What to do on a failed text search - emit a beep*/
 void CEditorBar::TextNotFound(LPCTSTR /*lpszFind*/)
 {
 	ASSERT_VALID(this);
@@ -1746,6 +1750,7 @@ void CEditorBar::TextNotFound(LPCTSTR /*lpszFind*/)
 }
 
 
+/**Selet all of the text in the editor*/
 void CEditorBar::SelectAll()
 {
     CHARRANGE cr;
@@ -1754,24 +1759,7 @@ void CEditorBar::SelectAll()
 	m_ctrlEditor.SetSel(cr);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/** Get the current redraw and doc update status. */
 CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::GetWindowUpdate()
 {
     WindowUpdateStatus ret;
@@ -1780,6 +1768,7 @@ CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::GetWindowUpdate()
     return ret;
 }
 
+/** Disables both redraw and doc updates. */
 CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
 {
     WindowUpdateStatus ret;
@@ -1792,6 +1781,8 @@ CCshRichEditCtrl::WindowUpdateStatus CCshRichEditCtrl::DisableWindowUpdate()
     return ret;
 }
 
+/** Restores a stored redraw and doc update status. 
+ * If redraw gets re-enabled, we Invalidate() and UpdateWindow().*/
 void CCshRichEditCtrl::RestoreWindowUpdate(const WindowUpdateStatus &s)
 {
     m_parent->m_bSuspendNotifications = s.second;

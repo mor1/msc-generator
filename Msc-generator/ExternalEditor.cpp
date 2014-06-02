@@ -15,6 +15,8 @@
 
     You should have received a copy of the GNU Affero General Public License    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file ExternalEditor.cpp Things needed for the external editors to run.
+* @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 #include "process.h"
@@ -180,11 +182,13 @@ void CExternalEditor::OnTimer(UINT nIDEvent)
 }
 
 
+/** Helper to find the external editor window*/
 struct window_search {
 	DWORD processId;
 	std::list<HWND> hWnd_result;
 };
 
+/** Helper to find the External editor window.*/
 BOOL CALLBACK EnumWindowsProcFindTopWindowByProcess(HWND hwnd, LPARAM lParam)
 {
 	if (!(GetWindowLong(hwnd,GWL_STYLE) & WS_VISIBLE)) return true; //only consider visible windows

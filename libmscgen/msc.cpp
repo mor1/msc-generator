@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file msc.cpp The definition of the classes Msc, EntityDistanceMap and DistanceMapVertical .
+ * @ingroup libmscgen */
 
 #include <iostream>
 #include <sstream>
