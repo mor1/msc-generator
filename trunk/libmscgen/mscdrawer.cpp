@@ -402,7 +402,7 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
     const TFunc func = fatal ? &MscError::FatalError : (TFunc)&MscError::Error;
     switch (status) {
     default: _ASSERT(0); return true;
-    case Canvas::ERR_FILE: error->FatalError(FileLineCol(0, 0), "Could not open file '" + fileName + "'."); return true;
+    case Canvas::ERR_FILE: error->FatalError(FileLineCol(0, 0), "Could not open output file '" + fileName + "'."); return true;
     case Canvas::ERR_PARAM: (error->*func)(FileLineCol(0, 0), "Internal param problem when opening canvas.", ""); return true;
     case Canvas::ERR_CANVAS: (error->*func)(FileLineCol(0, 0), "Could not open canvas.", ""); return true;
     case Canvas::ERR_CANVAS_MEM: 

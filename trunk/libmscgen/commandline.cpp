@@ -26,6 +26,7 @@
 #include "commandline.h"
 #include "msc.h"
 
+/** Returns "vX.Y.Z" based on a, b and c.*/
 const char *VersionText(char a, char b, char c)
 {
     static char buff[20];
@@ -40,6 +41,7 @@ const char *VersionText(char a, char b, char c)
 }
 
 
+/** Reads a text file from `in`.*/
 char *ReadFile(FILE *in)
 {
     if (!in) return NULL;
@@ -186,6 +188,7 @@ static void licence()
 "along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.\n");
 }
 
+/** Displays sizes of key objects, for debugging.*/
 void sizes() 
 {
     std::cout << "Element:" << sizeof(Element) <<std::endl;
@@ -211,6 +214,19 @@ void sizes()
     std::cout << "Block:" << sizeof(Block) <<std::endl;
 }
 
+/** The main routine to perform a command-line action.
+ * Reads and writes input and output files. Errors are emitted to std::cerr.
+ * @param [in] args The list of command-line arguments.
+ * @param [in] design_files A list of <name,content> pairs of design library files,
+ *                          which shall be parsed before the input file. Any error
+ *                          occuring in them will be also reported.
+ * @param [in] csh_textformat The text format to use for csh-ized processing.
+ * @param [in] cb The callback to call regularly during processing to show progress.
+ * @param [in] param The parameter to pass to the progress callback.
+ * @param load_data Information on how much each processing step relatively takes.
+ *                  Used to make progress display as much linear as possible.
+ *                  It is also updated (refined) during processing, so the caller 
+ *                  can write it out.*/
 int do_main(const std::list<std::string> &args, 
             const std::list<std::pair<std::string, std::string>> &design_files, 
             string csh_textformat,
