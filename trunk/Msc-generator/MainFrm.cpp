@@ -17,8 +17,8 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// MainFrm.cpp : implementation of the CMainFrame class
-//
+/** @file MainFrm.cpp The main window classes.
+* @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 #include "Msc-generator.h"
@@ -31,11 +31,7 @@
 #define new DEBUG_NEW
 #endif
 
-BOOL CMscGenSplitterWnd::SplitRow(int cyBefore)
-{
-    return CSplitterWnd::SplitRow(cyBefore);
-}
-
+/** If the user deletes a row, kill AutoSplit, as well.*/
 void CMscGenSplitterWnd::DeleteRow(int rowDelete)
 {
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetParent());
@@ -115,10 +111,7 @@ CMainFrame::CMainFrame()
     m_has_fallback_image = false;
 }
 
-CMainFrame::~CMainFrame()
-{
-}
-
+/** Create the associated window object, ribbons, status bars, panels, etc.*/
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -217,44 +210,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     return 0;
 }
 
+/**Called by the framework at window creation.*/
 BOOL CMainFrame::OnCreateClient(LPCREATESTRUCT /*lpcs*/,
 	CCreateContext* pContext)
 {
 	return m_wndSplitter.Create(this,
-		2, 1,               // TODO: adjust the number of rows, columns
-		CSize(10, 10),      // TODO: adjust the minimum pane size
+		2, 1,               
+		CSize(10, 10),      
 		pContext,
 		WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | SPLS_DYNAMIC_SPLIT);
 }
 
-BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs)
-{
-	if( !CFrameWndEx::PreCreateWindow(cs) )
-		return FALSE;
-	// TODO: Modify the Window class or styles here by modifying
-	//  the CREATESTRUCT cs
-
-	return TRUE;
-}
-
-// CMainFrame diagnostics
-
-#ifdef _DEBUG
-void CMainFrame::AssertValid() const
-{
-	CFrameWndEx::AssertValid();
-}
-
-void CMainFrame::Dump(CDumpContext& dc) const
-{
-	CFrameWndEx::Dump(dc);
-}
-#endif //_DEBUG
-
-
-// CMainFrame message handlers
-
-
+/** Called by the framework when the user changes application look.*/
 void CMainFrame::OnApplicationLook(UINT id)
 {
 	CWaitCursor wait;
@@ -327,11 +294,14 @@ void CMainFrame::OnApplicationLook(UINT id)
 	theApp.WriteInt(_T("ApplicationLook"), theApp.m_nAppLook);
 }
 
+/** Called by the framework to update the status of the application look selector.*/
 void CMainFrame::OnUpdateApplicationLook(CCmdUI* pCmdUI)
 {
 	pCmdUI->SetRadio(theApp.m_nAppLook == pCmdUI->m_nID);
 }
 
+/**Called by the framework to load the resources.
+ * We use this to initially fill content of the design selector, zoom and page combo boxes.*/
 BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParentWnd, CCreateContext* pContext) 
 {
 	// base class does the real work
@@ -366,6 +336,8 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
+/**Called by the framework when the main window receives focus.
+ * We use it to pass focus to the internal editor immediately.*/
 void CMainFrame::OnSetFocus(CWnd* /*pOldWnd*/) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -374,9 +346,11 @@ void CMainFrame::OnSetFocus(CWnd* /*pOldWnd*/)
 		pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
-//We need to override it to capture ESCAPE key.
-//CFrameWndEx handles it in this message by shutting down full screen
-//We do the same, but if we show an embedded object in fullscreen mode, we have to exit 
+/**Called by the framework before processing any message.
+ * We need to override it to capture ESCAPE key.
+ * CFrameWndEx handles it in this message by shutting down full screen.
+ * We do the same, but if we show an embedded object in fullscreen mode, 
+ * we have to exit the application and not just full screen mode.*/
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -392,6 +366,12 @@ BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 	return CFrameWndEx::PreTranslateMessage(pMsg);
 }
 
+/** Called by the framework when user switches to or from full screen mode.
+ * If we show an OLE object via the "Show Full Screen" OLE verb and we are
+ * already in full screen mode, we exit the application.
+ * Else we turn full screen view on or off. In the former case we also
+ * add buttons to the full screen toolbar, in the latter case we update the
+ * Zoom combo box with the zoom value the user set during full screen view.*/
 void CMainFrame::OnViewFullScreen() 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -425,6 +405,8 @@ void CMainFrame::OnViewFullScreen()
 	}
 }
 
+/** Message Handler to handle WM_APP+293 message, which signals that the compilation thread
+ * has successfully completed. We just call CMscGenDoc::CompleteCompilingEditingChart() from here.*/
 LRESULT CMainFrame::OnCompilationDone(WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -433,31 +415,25 @@ LRESULT CMainFrame::OnCompilationDone(WPARAM /*wParam*/, LPARAM /*lParam*/)
     return 0; //OK, we processed it
 }
 
-CPaneFrameWnd *CMainFrame::FindFullScreenToolBarFrameWnd()
+/**Adds extra buttons to the full screen toolbar.
+ * Specifically, page switching, autosplit, fit to width and overview.*/
+bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our buttons to it
 {
+    CPaneFrameWnd *f = NULL; 
     CString strCaption;
     strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
-    for (CWnd *i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
+    for (CWnd *i = GetWindow(GW_HWNDFIRST); i; i = i->GetWindow(GW_HWNDNEXT)) {
         CString s;
         i->GetWindowText(s);
         if (s != strCaption) continue;
         if (!i->IsKindOf(RUNTIME_CLASS(CPaneFrameWnd))) continue;
         //OK, we found the right paneframewnd
-        return dynamic_cast<CPaneFrameWnd *>(i);
+        f = dynamic_cast<CPaneFrameWnd *>(i);
     }
-    return NULL;
-}
-
-
-CMFCToolBar *CMainFrame::FindFullScreenToolBar(CPaneFrameWnd *i)
-{
-    if (!i)
-        i = FindFullScreenToolBarFrameWnd();
-    if (!i)
-        return NULL;
-    CString strCaption;
+    if (f==NULL) return false;
+    CMFCToolBar *p = NULL;
     strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
-    for (CWnd *j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
+    for (CWnd *j = f->GetWindow(GW_CHILD); j; j = j->GetWindow(GW_HWNDNEXT)) {
         CString s;
         j->GetWindowText(s);
         if (s != strCaption) continue;
@@ -465,14 +441,6 @@ CMFCToolBar *CMainFrame::FindFullScreenToolBar(CPaneFrameWnd *i)
         //OK, we found the toolbar in it
         return dynamic_cast<CMFCToolBar *>(j);
     }
-    return NULL;
-}
-
-bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our buttons to it
-{
-    CPaneFrameWnd *f = FindFullScreenToolBarFrameWnd();
-    if (!f) return false;
-    CMFCToolBar *p = FindFullScreenToolBar(f);
     if (!p) return false;
     p->InsertSeparator();
     CSize size = p->GetButtonSize();
@@ -511,7 +479,7 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the toolbar and adds our butto
     return true;
 }
 
-
+/** Helper to find a certain category in a ribbon.*/
 CMFCRibbonCategory* GetRibbonCategory(CMFCRibbonBar *pR, const char *name)
 {
     const int count = pR->GetCategoryCount();
@@ -524,6 +492,7 @@ CMFCRibbonCategory* GetRibbonCategory(CMFCRibbonBar *pR, const char *name)
     return NULL;
 }
 
+/** Helper to find a certain panel in a ribbon category.*/
 CMFCRibbonPanel *GetRibbonPanel(CMFCRibbonCategory*pRC, const char *name)
 {
     if (pRC==NULL) 
@@ -538,6 +507,7 @@ CMFCRibbonPanel *GetRibbonPanel(CMFCRibbonCategory*pRC, const char *name)
     return NULL;
 }
 
+/** Adds extra panes, edits and buttons to the print preview ribbon category.*/
 void CMainFrame::AddToPrintPreviewCategory()
 {
     bool changed = false;
@@ -632,11 +602,13 @@ void CMainFrame::AddToPrintPreviewCategory()
         //pRCB->SelectItem(PageSizeInfo::EPageSize(pApp->m_pageSize));
         //pRP->Add(pRCB);
 
-        CMFCRibbonEdit* pRE = new CMFCRibbonEdit(ID_EDIT_PAGES, 90, "Page size:");
-        pRE->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
-        pRP->Add(pRE);
+        //CMFCRibbonEdit* pRE = new CMFCRibbonEdit(ID_EDIT_PAGES, 90, "Page size:");
+        //pRE->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
+        //pRP->Add(pRE);
+        CMFCRibbonLabel *pRL = new CMFCRibbonLabel("Page size:");
+        pRP->Add(pRL);
 
-        CMFCRibbonLabel *pRL = new CMFCRibbonLabel("(Use Page Setup to change.)");
+        pRL = new CMFCRibbonLabel("(Use Page Setup to change.)");
         pRP->Add(pRL);
         //CMFCRibbonButton *pRB = new CMFCRibbonButton(ID_BUTTON_PAGES, "Page setup");
         //pRP->Add(pRB);
@@ -658,7 +630,7 @@ void CMainFrame::AddToPrintPreviewCategory()
         pRP->AddSeparator();
         pRP->Add(new CMFCRibbonLabel("Margins (cm)"));
 
-        pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_L, 35, "Left");
+        CMFCRibbonEdit* pRE = new CMFCRibbonEdit(ID_EDIT_MARGIN_L, 35, "Left");
         CString val;
         val.Format("%lg", pApp->m_printer_usr_margins[0]/PT_PER_CM);
         pRE->SetEditText(val);
@@ -686,6 +658,9 @@ void CMainFrame::AddToPrintPreviewCategory()
         m_wndRibbonBar.RecalcLayout();
 }
 
+/**Deletes our extra panes, edits and buttons from the preview category.
+ * This is needed, or else the content of the edits show over the other categories due to
+ * some mistery even if it is not the preview category that is selected.*/
 void CMainFrame::DeleteFromPrintPreviewCategory()
 {
     bool changed = false;
@@ -712,6 +687,8 @@ void CMainFrame::DeleteFromPrintPreviewCategory()
         m_wndRibbonBar.RecalcLayout();
 }
 
+/** Called by the frameowrk at activation. 
+ * We take the opportunity to shift the focus to the internal editor.*/
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
 {
     CFrameWndEx::OnActivate(nState, pWndOther, bMinimized);
@@ -724,7 +701,7 @@ void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
             pApp->m_pWndEditor->SetFocus();
 }
 
-
+/**Called by the framework when user presses the AutoSplit button.*/
 void CMainFrame::OnButtonAutoSplit()
 {
     if (!m_bAutoSplit) {
@@ -754,12 +731,15 @@ void CMainFrame::OnButtonAutoSplit()
     }
 }
 
+/**Called by the framework to get the status of the AutoSplit button.*/
 void CMainFrame::OnUpdateButtonAutoSplit(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bAutoSplit);
 }
 
 
+/** Switches to split view mode and sets the height of the top row to 'coord'.
+ * Also adjust scroll positions accordingly. We do nothing if not in autosplit mode.*/
 void CMainFrame::SetSplitSize(unsigned coord)
 {
     if (!m_bAutoSplit) return;
@@ -806,7 +786,12 @@ void CMainFrame::SetSplitSize(unsigned coord)
     }
 }
 
-
+/** Fills the design selector combo box with the list of designs and highlights 
+ * the currently selected.
+ * @param [in] current The name of the currently forced design.
+ * @param [in] updateComboContent If true, we refresh the entries of the combo box, 
+ *                                the user can select from. (We do this at any time
+ *                                the combo box is empty. Setting this flag forces an update.)*/
 bool CMainFrame::FillDesignComboBox(const char *current, bool updateComboContent) 
 {
 	//ok now designs contains a set of of designs, preable contains a concatenation of designlib text
@@ -836,6 +821,8 @@ bool CMainFrame::FillDesignComboBox(const char *current, bool updateComboContent
     return ret;
 }
 
+/** Called by the framework if the user changes the selection in the design selector box.
+ * We call CMscGenDoc::ChangeDesign() with the name of the selected design.*/
 void CMainFrame::OnDesignDesign() 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -850,6 +837,8 @@ void CMainFrame::OnDesignDesign()
         pDoc->ChangeDesign(index<=0 ? "" : c->GetItem(index));
 }
 
+/** Called the framework when it needs to refresh the state of the design selector combo box.
+ * We enable this control only if there are more than one designs. */
 void CMainFrame::OnUpdateDesignDesign(CCmdUI *pCmdUI)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -858,6 +847,10 @@ void CMainFrame::OnUpdateDesignDesign(CCmdUI *pCmdUI)
 }
 
 
+/** Fills the page selector combo box of the ribbon and selects a specific page in the combo box.
+ * We also add sub buttons to the copy chart ribbon button, one for each page to copy.
+ * @param [in] no_pages The total number of pages in the chart.
+ * @param [in] page The currently active page of the chart to select in the combo box.*/
 void CMainFrame::FillPageComboBox(int no_pages, int page)
 {
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
@@ -901,7 +894,8 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
     }
 }
 
-
+/** Called by the framework if the user selects a different page.
+ * We call CMscGenDoc::ChangePage() in response.*/
 void CMainFrame::OnDesignPage()
 {
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
@@ -916,6 +910,8 @@ void CMainFrame::OnDesignPage()
         pDoc->ChangePage(page);
 }
 
+/** Called by the framework if the user selects a different page on the full screen toolbar.
+* We call CMscGenDoc::ChangePage() in response.*/
 void CMainFrame::OnFullScreenPage()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -926,6 +922,8 @@ void CMainFrame::OnFullScreenPage()
         pDoc->ChangePage(page);
 }
 
+/** Called by the framework to get the status of the page selector combo box.
+ * We enable it if there are more than one pages in the compiled chart.*/
 void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -933,6 +931,8 @@ void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)
         pCmdUI->Enable(pDoc->m_ChartShown.GetPages()>1);
 }
 
+/** Called by the framework if the user stepped to the next page. 
+ * We call CMscGenDoc::StepPage() in return.*/
 void CMainFrame::OnDesignNextPage()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -940,6 +940,8 @@ void CMainFrame::OnDesignNextPage()
         pDoc->StepPage(+1);
 }
 
+/** Called by the framework if the user stepped to the previous page.
+* We call CMscGenDoc::StepPage() in return.*/
 void CMainFrame::OnDesignPrevPage()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -947,6 +949,8 @@ void CMainFrame::OnDesignPrevPage()
         pDoc->StepPage(-1);
 }
 
+/** Fill in the content of the zoom combo box (if not filled) and its current selection.
+ * @param [in] zoom The current zoom value.*/
 void CMainFrame::FillZoomComboBox(int zoom)
 {
 	CString text;
@@ -970,7 +974,7 @@ void CMainFrame::FillZoomComboBox(int zoom)
 }
 
 
-
+/** Zoom in 10%. Calls CMscGenDoc::SetZoom().*/
 void CMainFrame::OnViewZoomin()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -978,6 +982,7 @@ void CMainFrame::OnViewZoomin()
         pDoc->SetZoom(int(pDoc->m_zoom*1.1));
 }
 
+/** Zoom out 10%. Calls CMscGenDoc::SetZoom().*/
 void CMainFrame::OnViewZoomout()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -985,6 +990,11 @@ void CMainFrame::OnViewZoomout()
         pDoc->SetZoom(int(pDoc->m_zoom/1.1));
 }
 
+/** Called by the framework if the user has changed the zoom combo box.
+ * We digest what has the user selected and call CMscGenDoc::SetZoom(), if
+ * it is a number and CMscGenDoc::ArrangeViews() if "overview", "auto" or
+ * contains "width". (Even if those are not added to the zoom combo box 
+ * right now.*/
 void CMainFrame::OnDesignZoom()
 {
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
@@ -996,11 +1006,14 @@ void CMainFrame::OnDesignZoom()
 	CString text = c->GetEditText();
 	if (!text.CompareNoCase("overview") || !text.CompareNoCase("auto")) {
 		pDoc->ArrangeViews(CMscGenDoc::OVERVIEW);
-	} else {
-		pDoc->SetZoom(atoi(text));
+    } else if (-1!=text.Find("width", 0) || -1!=text.Find("Width", 0)) {
+        pDoc->ArrangeViews(CMscGenDoc::ZOOM_FITTOWIDTH);
+    } else {
+        pDoc->SetZoom(atoi(text));
 	}
 }
 
+/** Fill in the fields of the Embedded Object panel (object size and fallback image coverage)*/
 void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
 {
     m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);
@@ -1027,6 +1040,7 @@ void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
         m_wndRibbonBar.ForceRecalcLayout();
 }
 
+/** Fill in the scale combo box at the Print Preview panel.*/
 void CMainFrame::FillScale4Pagination() 
 {
     if (!IsPrintPreview()) return;
@@ -1049,22 +1063,41 @@ void CMainFrame::FillScale4Pagination()
         c->SetEditText(val);
     }
 }
-
+/** Fill the page size label on the Print Preview category with the current page size taken from
+ * CMscGenApp::m_pageSize.*/
 void CMainFrame::FillPageSize() 
 {
     if (!IsPrintPreview()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    m_wndRibbonBar.GetElementsByID(ID_EDIT_PAGES, arButtons);
-    if (arButtons.GetSize()==0) return;
-    _ASSERT(arButtons.GetSize()==1);
-    CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
-    if (c)
-        c->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
+    m_wndRibbonBar.GetElementsByID(0, arButtons);
+    for (int i = 0; i<arButtons.GetSize(); i++) {
+        const char *c = arButtons[i]->GetText();
+        if (!strncmp("Page size:", c, 10)) {
+            CMFCRibbonLabel *pRL = dynamic_cast<CMFCRibbonLabel*>(arButtons[i]);
+            if (pRL) {
+                std::string s("Page size: ");
+                s.append(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
+                if (strcmp(pRL->GetText(), s.c_str())) {
+                    pRL->SetText(s.c_str());
+                    m_wndRibbonBar.ForceRecalcLayout();
+                }
+            }
+        }
+    }
+    //CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    //m_wndRibbonBar.GetElementsByID(ID_EDIT_PAGES, arButtons);
+    //if (arButtons.GetSize()==0) return;
+    //_ASSERT(arButtons.GetSize()==1);
+    //CMFCRibbonEdit *c = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    //if (c)
+    //    c->SetEditText(PageSizeInfo::ConvertPageSizeVerbose(pApp->m_pageSize));
 }
 
-void CMainFrame::FillMargins() 
+/** Fill the margin edits on the Print Preview category with the current page size taken from
+* CMscGenApp::m_printer_usr_margins.*/
+void CMainFrame::FillMargins()
 {
     if (!IsPrintPreview()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1099,17 +1132,24 @@ void CMainFrame::FillMargins()
     c->SetEditText(val);
 }
 
+/** Called by the framework when the user clicks on the Internal Editor.*/
 void CMainFrame::OnViewInternalEditor()
 {
 	m_ctrlEditor.ShowPane(!m_ctrlEditor.IsVisible(), FALSE, TRUE);
 }
 
+/** Called by the framework to get the status of the Internal Editor button.
+ * We report checked status, if the internal editor is currently visible.*/
 void CMainFrame::OnUpdateViewInternalEditor(CCmdUI* pCmdUI)
 {
 	pCmdUI->SetCheck(m_ctrlEditor.IsVisible());
 }
 
 
+/** Checks if the use has switched to the embedded object category or away from it.
+ * It is called from many update functions, which get called at category changes.
+ * We compare what category is currently displayed to m_at_embedded_object_category
+ * and if there is a change, we call CmscGenDoc::OnChangeRibbonCategory().*/
 void CMainFrame::TriggerIfRibbonCategoryChange()
 {
     const bool category_is_embedded = !strcmp("Embedded Object", m_wndRibbonBar.GetActiveCategory()->GetName());
@@ -1121,6 +1161,8 @@ void CMainFrame::TriggerIfRibbonCategoryChange()
 }
 
 
+/** Called by the framework to see the status of the Default Chart Text button.
+ * We do nothing, just call TriggerIfRibbonCategoryChange(). */
 void CMainFrame::OnUpdateButtonDefaultText(CCmdUI * /*pCmdUI*/)
 {
     //This is just used to test if we have switched to "Embedded Object" category
@@ -1128,6 +1170,8 @@ void CMainFrame::OnUpdateButtonDefaultText(CCmdUI * /*pCmdUI*/)
     TriggerIfRibbonCategoryChange();
 }
 
+/** Called by the framework to see the status of the Default Chart Text button.
+* We enable if the object has fallback images and call TriggerIfRibbonCategoryChange(). */
 void CMainFrame::OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_has_fallback_image);

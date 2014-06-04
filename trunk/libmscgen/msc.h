@@ -415,7 +415,7 @@ public:
     EntityCollapseCatalog force_entity_collapse;      ///<These entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;         ///<These boxes must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse_instead; ///<After parsing, this holds an updated version of the box collapse/expanded instructions (removing nonexistent boxes, etc)
-    std::set<unsigned> used_shapes;                   ///<The id number of the shapes we used (for saving them in OLE objects)
+    std::set<unsigned>    used_shapes;                ///<The id number of the shapes we used (for saving them in OLE objects)
     /** @} */
 
     Msc();

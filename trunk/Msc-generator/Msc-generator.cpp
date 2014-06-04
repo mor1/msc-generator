@@ -1340,7 +1340,8 @@ void CMscGenApp::OnButtonTrackColor()
 }
 
 /** Updates the fallback image resolution after a change on the slider.
- * Updates the registry*/
+ * Updates the registry. We also update the container document and
+ * do the fallback image animation in ReDrawEMF().*/
 void CMscGenApp::OnEmbeddedoptionsFallbackRes()
 {
     CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());

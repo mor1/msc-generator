@@ -121,123 +121,141 @@
   # The lifecycle of an Arc.
 
     @<parsing starts>
-    1. Construction: Only basic initialization is done here. For arcs with style (descendants of ArcLabelled)
-       we fetch the appropriate style from Msc::Contexts.back()
+    -  Construction: Only basic initialization is done here. For arcs with style (descendants of ArcLabelled)
+       we fetch the appropriate style from Msc::Contexts.back(), but this is merely the main style
+       (like 'arrow', 'emptybox' and so on) and no refinement style (such as '->' or '--').
        We also look up entities the arc refers to (and create them if needed), so after this point
        we have EIterators pointing to the Msc::AllEntities list.
-       When a CommandNote is constructed, it is attached to the last element that can be 
-       attached to (by calling Msc::last_notable_arc->AttachNote()). By this the ownership of the
-       CommandNote object falls to its targeted arc.
-    2. AddAttributeList: Add attributes to arc. This function must always be called (with NULL if no attributes)
+    -  AddAttributeList: Add attributes to arc. This function must always be called (with NULL if no attributes)
        We have to do this before we can create a list of Active Entities, since attributes can 
        result in the implicit definition of new entities.
-    3. Additional small functions (SetLineEnd, ArcBox::SetPipe, CommandEntity::ApplyPrefix, etc.)
+    -  Additional small functions (SetLineEnd, ArcBox::SetPipe, CommandEntity::ApplyPrefix, etc.)
 
     @<parsing ends>
-    @<here we construct a list of active entities from AllEntities to ActiveEntities>
 
-    4. PostParseProcess: This is called (also recursively for children arcs in the tree) to do the following.
-       a) Determine the non-specified entities for boxes, pipes and arrows. Note that the EIterators 
+    @<here we construct a list of active entities from AllEntities to ActiveEntities in  
+      Msc::PostParseProcess(), where we also set the 'pos' fields of entities based on entity
+      visibility (some entities may not be visible due to entity group collapsing). Here we also
+      add a CommandEntity to the beginning of the arcs for implicitly generated entities.>
+
+    -  PostParseProcess: This is called (also recursively for children arcs in the tree) to do the following.
+       (This function can only be called once, as it changes arcs (e.g., you do not want to
+       increment numbering twice). Often the arc needs to be replaced to a different one (such as when you
+       collapse a box to a block arrow, for example), in this case the returned pointer shall be used. 
+       If the return pointer == this, the arc shall not be replaced.)
+       *  Determine the non-specified entities for boxes, pipes and arrows. Note that the EIterators
           received as parameters ("left", "right") are iterators of AllEntities and not ActiveEntities.
-       b) Calculate numering for labels. Also, if the entity has a name, store the arc in 
+       *  Calculate numering for labels. Also, if the entity has a name, store the arc and its name in 
           Msc::ReferenceNames;
-       c) Determine which actual entities the arc refers to. In step #1 all entities of the arc point to 
-          an entity in the Msc::AllEntities list. In this step we consider collapsed entities and search
-          the corresponding entity in the ActiveEntities list. After this point all entities shall point 
+       *  Determine which actual entities the arc refers to. In the first step above all entitiy iterators
+          of the arc were set to point to an entity in the Msc::AllEntities list. 
+          In this step we consider collapsed entities and search
+          the corresponding entity in the ActiveEntities list. After this point all EIterators shall point 
           to the ActiveEntities list. We have to ensure that just because of collapsing entities, 
           automatic numbering does not change. (Some numbers are skipped - those that are assigned to
           invisible arcs, such as arc between entities not shown.)
-       d) For arrows that are specified as lost, we determine where the loss is happening.
-       e) For boxes we check if the box is collapsed. If so, we replace content to ArcIndicator. 
-          Here we have to ensure that automatic numbering of arrows do not change as for step 4c above.
+       *  For arrows that are specified as lost, we determine where the loss is happening.
+       *  For boxes we check if the box is collapsed. If so, we replace their content to ArcIndicator. 
+          Here we have to ensure that automatic numbering of arrows do not change as for the third above.
           We also have to ensure that for auto-sizing entities (e.g., " .. : label { <content> }") we
           keep the size as would be the case for a non-collapsed box. Also, content that does not show, but
           influence appearance (e.g., entity commands, page breaks, background changes, etc.) are 
-          still kept as content and steps below (\#6-9) shall be performed on them. See \#h below.
-       f) Combine CommandEntities and ArcIndicators one after the other
-       g) Set up some extra variables
-       h) Print error messages. 
-       i) Decide on replacement. PostParseProcess have a "hide" parameter telling if this arc will be hidden 
+          still kept as content and steps below (like Width, Layout, PostPosProcess(), etc.) shall be 
+          performed on them. See replacement below.
+       *  Combine series of CommandEntities and series of ArcIndicators to a single CommandEntity or
+          ArcIterator, resp. if two or more of them occures just one after the other. This happens in 
+          Msc::PostParseProcessArcList().
+       *  Set up some extra variables
+       *  Print error messages. 
+       *  Decide on replacement. PostParseProcess have a "hide" parameter telling if this arc will be hidden 
           due to a collapsed box (and no other reason). In this case we return NULL, if the arc does not 
-          want to receive #6-9 below. Else we return "this".
-          An arc can also become hidden due to collapsed entities - this was determined in #4c above. If 
-          the arc becomes hidden, it can get replaced to an ArcIndicator if the entity in question has its
-          "indicator" in "running_style" set. Else we just retuen NULL.
-       j) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
-          called from "Msc::PostParseProcessArcList".
-       k) For notes and comments, we decide who is the real target and attach the note/command here.
-       l) For labels, we replace the remaining escapes to actual values, except for "\r()"
+          want its Width, Layout, PostPosProcess, etc. to be called later, see below. Else we return "this".
+          An arc can also become hidden due to collapsed entities - this was determined in the third sub-step
+          above. If the arc becomes hidden, it can get replaced to an ArcIndicator by (Msc::PostParseProcess)
+          if the entity in question has its "indicator" in "running_style" set. Else we just retuen NULL.
+       *  For notes and comments, we decide who is the target and then a) for notes we append the note to 
+          Msc::Notes (while at the same time keeping it in its original place among other arcs); b) for
+          side comments, we call the AttachComment() of the target element (also keeping the comment in its
+          original location, as well); and c) for end-notes, we let Msc::PostParseProcessArcList() take
+          them out from the list of arcs processed and move them to Msc::EndNotes (to be appended to 
+          Msc::Arcs later on).
+       *  For verticals with no markers specified (which then size themselves along the previous arc),
+          we store what was the previous arc to size to. Note that this is somewhat different from the 
+          previous arc used to detemine the target of notes. Each arc can determine if it wants to be
+          a target of a note (via ArcBase::CanBeNoted()) independently of whether a vertical can align
+          to it (via ArcBase::CanBeAlignedTo()).
+       *  For labels, we replace the remaining escapes to actual values, except for "\r()"
           element references. Those will be done in FinalizeLabels().
-       This function can only be called once, as it changes arcs (e.g., you do not want to
-       increment numbering twice). Often the arc needs to be changed to a different one, in this case the
-       return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
-    5. FinalizeLabels: This is called recursive to fill in all escapes in labels with their
+    -  FinalizeLabels: This is called recursive to fill in all escapes in labels with their
        actual values. Here we substitute number, color, style references and so on. This fills
        the "parsed_label".
-    6. Width: This is also called recursively. Here each arc can place the distance requirements between
-       entities. Using the data Msc::CalculateWithAndHeight() can place entities dynamically if hscale==auto.
+    -  Width: This is also called recursively. Here each arc can place the distance requirements between
+       entities. Using the data  Msc::CalculateWithAndHeight() can place entities dynamically if hscale==auto.
        If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
        to calculate cached values).
+       Width also allows entities to express how wide they are on sides of entity lines. E.g., a box (X--Y)
+       extends somewhat left of the entity line of X and right of the entity line of Y. These are recorded in a
+       DistanceMapVertical structure at a quite fine y resolution. This information allows 
 
-    @<here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
+    @<here we calculate/finalize the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
 
-    7. Layout: This is a key function, returning the vertical space an element(/arc) occupies. It also places
+    -  Layout: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
        the latter (contour) if compress is on. In the latter case the entity will be placed just below entities
        abover such that their contours just touch but do not overlap. Also fills in
        Element::area and area_draw with contours that will be used to detect if a mouse pointer is
-       inside the arc or not and to draw a tracking contour over the arc. Observe
-       - contour returned in cover is used for placement and should contain shadows
-       - area is used to detect if the mouse is within, should not contain shadows
-       - area_draw is used to draw, it should be a frame for boxes and pipes with content, not the contour of the box.
-
+       inside the arc or not and to draw a tracking contour over the arc. Observe 1) contour returned in 
+       cover is used for placement and should include shadows; 2) area is used to detect if the mouse is 
+       within during tracking and should _not_ contain shadows; 3) area_draw is used to draw a tracking rectange,
+       and it should be a frame for boxes and pipes with content, not the full area covered by the box.
        Note that if `chart->prepare_for_tracking` is not set, we do not calculate `area` and `area_draw`.
-       Layout can also store some pre-computed values and contours to make drawing faster.
+       Layout can also store some pre-computed values and contours to make drawing faster (marked mutable).
        Layout always places the element at the vertical position=0. Any contour should assume that.
        Finally, Layout() also fills in "area_important", containing the 'important' part of the
        element's cover (text, arrowheads, symbols). The Note layout engine will use this, to avoid
        covering these areas. Also, "def_note_target" is filled in, this is where a note points to
        by default.
-    7. ShiftBy: During the placement process this is called to shift an entity in the vertical direction
+    -  ShiftBy: During the placement process this is called to shift an entity in the vertical direction
        (usually downwards). This should update area, area_draw and any other cached variable.
        ArcBase::yPos contains the sum of these shifts. This function can be called multiple times.
-    8. CollectPageBreaks: This walks the tree of elements and each CommandPageBreak places its
+    -  CollectPageBreaks: This walks the tree of elements and each CommandPageBreak places its
        y coordinate into Msc::pageBreakData. This function can be called multiple times during
        automatic pagination, but only once if no automatic pagination is done.
-    9. PageBreak: This is called by an automatic pagination process (if any), when the element is
+    -  PageBreak: This is called by an automatic pagination process (if any), when the element is
        cut in half by a page break. The element can rearrange itself to accomodate the page break, by 
        shifting half of it down or can indicate that it cannot rearrange itself and shall be fully 
        shifted to the next page. Elements with `keep_together` set to false are not called, those are
        simply cut in half abruptly.
        This function can be called multiple times, if the element spans multiple page breaks. In the
        second and subsequent calls only the last chunk shall be split.
-    10. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
+    -  PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
        (Comments are also placed with their target.) We go through the tree and calculate position & cover for
        verticals. This is needed as a separate run, just to do it before placing notes.
     
-    <here we place floating notes in Msc::PlaceFloatingNotes>
+    @<here we place floating notes in Msc::PlaceFloatingNotes()>
 
-   11. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
-       Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
-       to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
-       Note that if `chart->prepare_for_tracking` is not set, we do not expand these.
-       No error messages shall be printed after this function by arc objects. (Msc will print some, if
-       page sizes do not fit, but that is under control there.)
-   12: RegisterCover: This function is called recursively and it registers the cover of the element in to 
-       chart->AllCovers in exactly the same order as drawing happens. Only called if chart->prepare_for_tracking 
-       is true. (Else we do not need this cover info.)
-   13. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
-       values in the elements. It can be called several times and should not change state of the element 
-       including the cached values.
-   14. Destructor.
+   -  PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
+      Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
+      to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
+      Note that if `chart->prepare_for_tracking` is not set, we do not expand these.
+      No error messages shall be printed after this function by arc objects. (Msc will print some, if
+      page sizes do not fit, but that is under control there.)
+   -  RegisterCover: This function is called recursively and it registers the cover of the element in to 
+      chart->AllCovers in exactly the same order as drawing happens. Only called if chart->prepare_for_tracking 
+      is true. (Else we do not need this cover info.)
+   -  Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
+      values in the elements. It can be called several times and should not change state of the elements 
+      including the cached values.
+   -  Destructor.
 
-    All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
+    All the above functions are called from the Msc object. The first three are called from Msc::ParseText, whereas
     the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
     called from Msc::Layout and Msc::PlaceListUnder.
 
     Color Syntax Highlighting support also has functions in Arcs.
     1. AttributeNames: A static function that inserts the attributes valid for this type of arc into a Csh object.
     2. AttributeValues: A static function that inserts the possible values for a given attribute into a Csh object.
+    
     Both of the above calls include a callback function to draw the small pictograms for hints. These functions
     are in fact only used for the hinting process and not for actual syntax highlighting (which requires no
     support from Arc objects, since those are not created during a Csh parse.

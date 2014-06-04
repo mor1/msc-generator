@@ -40,7 +40,10 @@ class Msc;
 /** Stores a chart.
  * Includes chart text, selected design, box & entity collapse state, 
  * page size, fitting, autoheading settings. Everything needed
- * to properly layout the chart.*/
+ * to properly layout the chart.
+ * We have two uses for this class. One is that it is one stage in the undo buffer associated
+ * with a document in CMscGenDoc. The other is an ancestor for an object that contains a 
+ * compiled/drawn chart used for viewing and GUI manipulations, such as tracking or control boxes.*/
 class CChartData {
 protected:
 	CString m_text;                               ///<The chart text

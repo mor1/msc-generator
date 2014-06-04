@@ -17,8 +17,8 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// MscGenDoc.cpp : implementation of the CMscGenDoc class
-//
+/** @file MscGenDoc.cpp The main document class with two dialogs needed for export parameters.
+* @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 #include "Msc-generator.h"
@@ -288,7 +288,6 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
 	ON_COMMAND(ID_INDICATOR_TRK, OnButtonTrack)
-	ON_COMMAND(ID_HELP_HELP, OnHelpHelp)
 END_MESSAGE_MAP()
 
 CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
@@ -329,20 +328,17 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
     m_Progress = 0;
 }
 
-CMscGenDoc::~CMscGenDoc()
-{
-}
-
+/** Called by the framework to get the COleServerItem associated with the document.  
+ * It is only called when necessary.*/
 COleServerItem* CMscGenDoc::OnGetEmbeddedItem()
 {
-	// OnGetEmbeddedItem is called by the framework to get the COleServerItem
-	//  that is associated with the document.  It is only called when necessary.
-
 	CMscGenSrvrItem* pItem = new CMscGenSrvrItem(this, 0);  //Do not force any page
 	ASSERT_VALID(pItem);
 	return pItem;
 }
 
+/** Called by the framework to get the COleServerItem associated with a link to the document.
+* It is only called when necessary.*/
 COleServerItem* CMscGenDoc::OnGetLinkedItem(LPCTSTR lpszItemName)
 {
     // look in current list first
@@ -359,26 +355,13 @@ COleServerItem* CMscGenDoc::OnGetLinkedItem(LPCTSTR lpszItemName)
 	return pItem;
 }
 
-
+/** Called by the framework to get the CDocObjectServer associated with the document.*/
 CDocObjectServer *CMscGenDoc::GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite)
 {
 	return new CDocObjectServer(this, pDocSite);
 }
 
-// CMscGenDoc diagnostics
-#ifdef _DEBUG
-void CMscGenDoc::AssertValid() const
-{
-	COleServerDocEx::AssertValid();
-}
-
-void CMscGenDoc::Dump(CDumpContext& dc) const
-{
-	COleServerDocEx::Dump(dc);
-}
-#endif //_DEBUG
-
-// CMscGenDoc serialization
+/** CMscGenDoc serialization */
 void CMscGenDoc::Serialize(CArchive& ar)
 {
     unsigned page = m_ChartShown.GetPage(); 
@@ -388,7 +371,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
     m_uSavedPage = page;
 }
 
-
+/** A helper storing url and file info pairs.*/
 struct stringpair
 {
     string url, info;
@@ -396,8 +379,14 @@ struct stringpair
     bool operator < (const stringpair &o) const { return url==o.url ? info < o.info : url < o.url; }
 };
 
+/** Magic string - if file format starts with this string, we have file version later than 2.3.4*/
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
 
+/** Serializes out a specific page (whole text marked with that page) or serializes in
+ * an object (whole text of it) and learns if a page was selected when saved.
+ * @param ar The archive to work on.
+ * @param page On reading we return the page number here (0 if all pages or no page indication);
+ *             on writing this tells, which page to write into the object.*/
 void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -590,6 +579,7 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
 	} /* not IsStoring */
 }
 
+/** Remove all contents from us.*/
 void CMscGenDoc::DeleteContents()
 {
     KillCompilation();
@@ -605,6 +595,7 @@ void CMscGenDoc::DeleteContents()
 	COleServerDocEx::DeleteContents();
 }
 
+/** Tests if we can be closed. */
 BOOL CMscGenDoc::CanCloseFrame(CFrameWnd* pFrame) 
 {
     KillCompilation();
@@ -614,6 +605,11 @@ BOOL CMscGenDoc::CanCloseFrame(CFrameWnd* pFrame)
 	return ret;
 }
 
+/** Called by the framework when establishing a new document.
+ * We delete the undo buffer and fill in with the default chart text and initiate 
+ * parallel compilation. If external editor is running, we kill and restart it.
+ * If internal editor is running, we update its text (triggering color syntax
+ * highlighting if enabled).*/
 BOOL CMscGenDoc::OnNewDocument()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -641,6 +637,13 @@ BOOL CMscGenDoc::OnNewDocument()
 	return TRUE;
 }
 
+/** Called by the framework when we open a chart. 
+ * We delete undo buffer, compile and kill/restart external editor (if needed). 
+ * If internal editor is running, we update its text (triggering color syntax
+ * highlighting if enabled).
+ * @param [in] lpszPathName If the chart is opened from a file, this is the file name.
+ *                          If the chart is opened from a container document, it is NULL.
+ * @returns true on success.*/
 BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 {
 	ASSERT_VALID(this);
@@ -712,6 +715,12 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	return TRUE;
 }
 
+/** Called by the framework when we need to save the document.
+ * If the chart is embedded, we force a compile (in a blocking, synchronous way part of this 
+ * thread). Restart the external editor if the file name has changed.
+ * @param [in] lpszPathName If the chart is to be saved to a file, this is the file name.
+ *                          If the chart is to be embedded to a container document, it is NULL.
+ * @returns true on success.*/
 BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -720,20 +729,6 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
     bool restartEditor = false;
 	if (lpszPathName==NULL) {
         CompileEditingChart(false, true, false);
-        //if (!pApp->m_bFullScreenViewMode || m_itrEditing != m_itrShown) {
-        //    CString message = "I want to update the container document, but you have made changes in the text editor.\n";
-        //    if (m_bAttemptingToClose)
-        //        message.Append("Do you want to include the changes (or permanently loose them)?");
-        //    else
-        //        message.Append("Do you want to include the changes and redraw the chart before I update the container document?\n");
-        //    if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO))
-        //        CompileEditingChart(false, true, false);
-        //    else
-        //        m_itrEditing = m_itrShown;
-        //}
-        ////Above we either made m_itrShown equal to 
-        ////m_itrEditing by compiling, or by assigning m_itrShown to m_itrEditing. 
-        ////In the latter case we effectively perform an Undo to m_itrShown.
         if (!COleServerDocEx::OnSaveDocument(lpszPathName))
             return FALSE;
 	} else {
@@ -749,8 +744,8 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	    }
     }
 	m_itrSaved = m_itrEditing;
-	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+	//if (pApp->IsInternalEditorRunning()) 
+	//	pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
     if (restartEditor) 
         m_ExternalEditor.Start(lpszPathName);
     m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
@@ -759,6 +754,8 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	return TRUE;
 }
 
+/** Called by the framework if the document needs closing.
+ * We kill the external editor and abort any pending compilations.*/
 void CMscGenDoc::OnCloseDocument()
 {
 	m_ExternalEditor.Stop(STOPEDITOR_FORCE);
@@ -767,21 +764,31 @@ void CMscGenDoc::OnCloseDocument()
 }
 
 
+/** Called by the framework to get the status of the File Export button.
+ * We enable it if we have a non-empty chart.*/
 void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 {
 	pCmdUI->Enable(!m_ChartShown.IsEmpty() || !m_itrEditing->IsEmpty());
 }
 
+/** Called by the framework when the export button is pressed in the main window
+ * (and not in Print Preview). We pass control to DoExport()*/
 void CMscGenDoc::OnFileExport()
 {
     DoExport(false);
 }
 
+/** Called by the framework when the export button is pressed in Print Preview.
+ * We pass control to DoExport()*/
 void CMscGenDoc::OnPreviewExport()
 {
     DoExport(true);
 }
 
+/** Perform an exporting of the current chart.
+ * We ask for filename, offer scaling and/or multi-page options and perform the action.
+ * @param [in] pdfOnly If true, we offer only PDF format, and assume multi-page PDF output
+ *                     (as seen in Print Preview).*/
 void CMscGenDoc::DoExport(bool pdfOnly)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -908,11 +915,16 @@ void CMscGenDoc::DoExport(bool pdfOnly)
                             pApp->m_iPageAlignment/3);
 }
 
+/**  Called by the framework to get the state of the Undo button.
+ * We enable if the undo buffer has elements prior the current editing chart.*/
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
 {
 	pCmdUI->Enable(m_itrEditing != m_charts.begin());
 }
 
+/** Called by the framework when the user invokes undo.
+ * We perfrom the undo, if we can, update text in the internal editor and
+ * restart the external editor, if running.*/
 void CMscGenDoc::OnEditUndo()
 {
 	if (m_itrEditing == m_charts.begin()) return;
@@ -931,11 +943,16 @@ void CMscGenDoc::OnEditUndo()
 		m_ExternalEditor.Start();
 }
 
+/**  Called by the framework to get the state of the Redo button.
+* We enable if the undo buffer has elements after the current editing chart.*/
 void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
 {
 	pCmdUI->Enable(m_itrEditing != --m_charts.end());
 }
 
+/** Called by the framework when the user invokes redo.
+* We perfrom the redo, if we can, update text in the internal editor and
+* restart the external editor, if running.*/
 void CMscGenDoc::OnEditRedo()
 {
 	if (m_itrEditing == --m_charts.end()) return;
@@ -953,6 +970,8 @@ void CMscGenDoc::OnEditRedo()
 		m_ExternalEditor.Start();
 }
 
+/** Called by the framework to get the status of the cut and copy buttons.
+ * We enable if the internal editor is running.*/
 void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -960,6 +979,8 @@ void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
 	pCmdUI->Enable(pApp->IsInternalEditorRunning());
 }
 
+/** Called by the framework if the user invoked cut.
+ * We pass it on to the internal editor.*/
 void CMscGenDoc::OnEditCut()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -968,6 +989,8 @@ void CMscGenDoc::OnEditCut()
 	pApp->m_pWndEditor->m_ctrlEditor.Cut();
 }
 
+/** Called by the framework if the user invoked copy.
+ * We pass it on to the internal editor.*/
 void CMscGenDoc::OnEditCopy()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -976,6 +999,8 @@ void CMscGenDoc::OnEditCopy()
 	pApp->m_pWndEditor->m_ctrlEditor.Copy();
 }
 
+/** Called by the framework to get the status of the paste buttons.
+ * We enable if clipboard has text on it.*/
 void CMscGenDoc::OnUpdateEditPaste(CCmdUI *pCmdUI)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -985,6 +1010,8 @@ void CMscGenDoc::OnUpdateEditPaste(CCmdUI *pCmdUI)
 	pCmdUI->Enable(dataObject.IsDataAvailable(CF_TEXT) && pApp->IsInternalEditorRunning());
 }
 
+/** Called by the framework if the user invoked paste.
+* We pass it on to the internal editor.*/
 void CMscGenDoc::OnEditPaste()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -996,28 +1023,39 @@ void CMscGenDoc::OnEditPaste()
 	pApp->m_pWndEditor->m_ctrlEditor.PasteSpecial(CF_TEXT);
 }
 
+/** Called by the framework when the user invokes find.
+ * We pass it on to CEditorBar::OnEditFindReplace().*/
 void CMscGenDoc::OnEditFind()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->OnEditFindReplace(true);
+	if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->OnEditFindReplace(true);
 }
 
+/** Called by the framework when the user invokes repeat find.
+* We pass it on to CEditorBar::OnEditRepeat().*/
 void CMscGenDoc::OnEditRepeat()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->OnEditRepeat();
+	if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->OnEditRepeat();
 }
 
+/** Called by the framework when the user invokes replace.
+ * We pass it on to CEditorBar::OnEditFindReplace().*/
 void CMscGenDoc::OnEditReplace()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->OnEditFindReplace(false);
+	if (pApp->IsInternalEditorRunning())
+        pApp->m_pWndEditor->OnEditFindReplace(false);
 }
 
 
+/** Called by the framework if the user invoked Copy Entire chart.
+ * We pass it on to CMscGenSrvrItem::CopyToClipboard()*/
 void CMscGenDoc::OnEditCopyEntireChart()
 {
 	//Copy is handled by SrvItem
@@ -1038,6 +1076,8 @@ void CMscGenDoc::OnEditCopyEntireChart()
     END_CATCH_ALL
 }
 
+/** Called by the framework if the user invoked Copy a page.
+* We pass it on to COleServerItem::CopyToClipboard()*/
 void CMscGenDoc::OnCopyPage(UINT id)
 {
     const unsigned page = id - ID_COPY_PAGE1 + 1;
@@ -1068,7 +1108,8 @@ void CMscGenDoc::OnCopyPage(UINT id)
     }
 }
 
-
+/** Called by the framework to get the status of the Paste Entire Chart button.
+ * We enable if the clipboard has text or chart data.*/
 void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
 {
 	COleDataObject dataObject;
@@ -1079,7 +1120,11 @@ void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
 						        					dataObject.IsDataAvailable(CF_TEXT)));
 }
 
-void CMscGenDoc::DoPasteData(COleDataObject &dataObject) 
+/** Paste data from `dataObject`.
+ * If data object is a chart object we take it. If it is text, we replace our text with it.
+ * We initiate parallel compilation, update the internal editor and restart the external editor
+ * if that runs.*/
+void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1124,6 +1169,8 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		m_ExternalEditor.Start();
 };
 
+/** Called by the framework if the user invoked Paste Entire chart.
+* We pass it on to CMscGenSrvrItem::CopyToClipboard()*/
 void CMscGenDoc::OnEditPasteEntireChart()
 {
 	COleDataObject dataObject;
@@ -1131,14 +1178,19 @@ void CMscGenDoc::OnEditPasteEntireChart()
 	DoPasteData(dataObject);
 }
 
+/** Called by the framework to select all the text.
+ * We pass it on to the internal editor.*/
 void CMscGenDoc::OnEditSelectAll()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SelectAll();
+	if (pApp->IsInternalEditorRunning())
+        pApp->m_pWndEditor->SelectAll();
 }
 
 
+/** Called by the framework when the user selects the external editor item. 
+ * (Re-)start the external editor.*/
 void CMscGenDoc::OnButtonEdittext()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1149,6 +1201,8 @@ void CMscGenDoc::OnButtonEdittext()
 		m_ExternalEditor.Start();
 }
 
+/** Called by the framework to get the status of the external editor control.
+ * We enable if the internal editor can run. We check if it is actually running.*/
 void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1160,12 +1214,18 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 	pCmdUI->Enable(m_ExternalEditor.CanStart() && !pApp->m_bFullScreenViewMode);
 }
 
+/** Called by the framework when the user invokes Update Chart.
+ * We start a parallel recompilation (cancelling any ongoing)*/
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
 	CompileEditingChart(true, false, false);
 }
 
+/**  Called by the framework to get the state of the Update Chart button.
+ * We enable if the shown chart is not the same as the compiled one.
+ * We also call CMainFrm::TriggerIfRibbonCategoryChange() to see if we have
+ * switched away from the Embedded Object category. */
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
 {
 	pCmdUI->Enable(m_itrShown != m_itrEditing);
@@ -1178,6 +1238,11 @@ void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
 }
 
 
+/** Called by the framework if the user (un)pressed the Track Mode button or
+ * invoked track mode via a keyboard shortcut.
+ * We enter/leave tracking mode, plus if we entered track mode we call
+ * OnInternalEditorSelChange(), to add a track rectange around the element the cursor is inside
+ * in the internal editor.*/
 void CMscGenDoc::OnButtonTrack()
 {
     if (m_pCompilingThread && !m_bTrackMode) return;  //Do not turn TrackMode, when compiling
@@ -1190,6 +1255,9 @@ void CMscGenDoc::OnButtonTrack()
 		OnInternalEditorSelChange();
 }
 
+/** Called by the framework to get the status of the Track Mode Button.
+ * We enable we are not compiling. We set its color depending on whether we are in 
+ * track mode. We also check if we are in track mode.*/
 void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bTrackMode);
@@ -1199,16 +1267,22 @@ void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
+/** Called by the framework when the user invokes next error (F8).
+ * We pass it on to DoViewNexterror()*/
 void CMscGenDoc::OnViewNexterror()
 {
 	DoViewNexterror(true);
 }
 
+/** Called by the framework when the user invokes prev error (Shift+F8).
+* We pass it on to DoViewNexterror()*/
 void CMscGenDoc::OnViewPreverror()
 {
 	DoViewNexterror(false);
 }
 
+/** Select the next/prev error in the error window.
+ * Jump there in the internal/external editor(s), plus flash its area.*/
 void CMscGenDoc::DoViewNexterror(bool next)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1236,7 +1310,9 @@ void CMscGenDoc::DoViewNexterror(bool next)
                         m_ChartShown.GetArcByLine(line, col));
 }
 
-//Selection in the error window changes
+/** Called by the framework if the selection in the error window changes.
+ * E.g., due to a click.
+ * Jump there in the internal/external editor(s), plus flash its area.*/
 void CMscGenDoc::OnErrorSelected(unsigned line, unsigned col)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1245,8 +1321,13 @@ void CMscGenDoc::OnErrorSelected(unsigned line, unsigned col)
 		pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
 	if (m_ExternalEditor.IsRunning())
 		m_ExternalEditor.JumpToLine(line, col);
+    //Show tracking boxes for the error
+    AddAnimationElement(AnimationElement::TRACKRECT,
+        m_ChartShown.GetArcByLine(line, col));
 }
 
+/** Change the forced design of the chart.
+ * If we invoke a real change, we create a new undo point & recompile.*/
 void CMscGenDoc::ChangeDesign(const char *design) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1260,6 +1341,12 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	CompileEditingChart(true, false, false);
 }
 
+/** Select a new page of the chart.
+ * If we are compiling, we ignore it.
+ * If we invoke a real change, we change page, update views and 
+ * refresh the text in the page selector combo box (so we create the
+ * standard "X/Y" look where X is the current page and Y is the total
+ * number of pages.*/
 void CMscGenDoc::ChangePage(unsigned page)
 {
     //skip if compiling
@@ -1280,6 +1367,8 @@ void CMscGenDoc::ChangePage(unsigned page)
         pWnd->FillPageComboBox(m_ChartShown.GetPages(), page);
 }
 
+/** Increase or decrease page count.
+ * We calculate the new page number and invoke ChangePage().*/
 void CMscGenDoc::StepPage(signed int step)
 {
 	if (step == 0 || m_ChartShown.GetPages()<=1)
@@ -1292,7 +1381,12 @@ void CMscGenDoc::StepPage(signed int step)
 }
 
 
-//true if actual change happened
+/** Set zoom factor.
+ * If we are compiling, we ignore it.
+ * If we invoke a real change, update views and
+ * refresh the text in the zoom selector combo box (so we create the
+ * standard "xy%" look.
+ * Returns true if actual change happened*/
 bool CMscGenDoc::SetZoom(int zoom)
 {
     if (m_pCompilingThread) return false; //skip if compiling
@@ -1312,6 +1406,12 @@ bool CMscGenDoc::SetZoom(int zoom)
 
 #define SCREEN_MARGIN 50 
 
+/** Automatically adjusts zoom factor according to 'mode'.
+ * We ignore if we compile.
+* If we invoke a real change, update views and
+* refresh the text in the zoom selector combo box(so we create the
+* standard "xy%" look.
+* Returns true if actual change happened*/
 bool CMscGenDoc::ArrangeViews(EZoomMode mode)
 {
     if (m_pCompilingThread) return false; //skip if compiling
@@ -1375,26 +1475,36 @@ bool CMscGenDoc::ArrangeViews(EZoomMode mode)
     return SetZoom(zoom); //if true, we also call UpdateAllViews from SetZoom();
 }
 
+/** Called by the framework when the user presses Overview button.
+ * We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnViewZoomnormalize()
 {
 	ArrangeViews(OVERVIEW);
 }
 
+/** Called by the framework when the user presses Original Size button.
+* We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnView100Percent()
 {
     ArrangeViews(ORIGSIZE);
 }
 
+/** Called by the framework when the user presses Fit Width button.
+* We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnViewFittowidth()
 {
     ArrangeViews(ZOOM_FITTOWIDTH);
 }
 
+/** Called by the framework to get the status of the Zoom buttons.
+* We enable if we do not compile.*/
 void CMscGenDoc::OnUpdateViewZoom(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
+/** Sets the zoom mode to 'mode'.
+ * Writes registry and adjusts zoom, as well.*/
 void CMscGenDoc::SwitchZoomMode(EZoomMode mode)
 {
 	if (m_ZoomMode == mode)
@@ -1405,41 +1515,57 @@ void CMscGenDoc::SwitchZoomMode(EZoomMode mode)
 	AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_DEFAULTZOOMMODE, m_ZoomMode);
 }
 
+/** Called by the framework when the user sets the Overview checkbox.
+* We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnZoommodeKeepinoverview()
 {
 	SwitchZoomMode(OVERVIEW);
 }
 
+/** Called by the framework when the user sets the Original Size checkbox.
+* We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnZoommodeKeep100Percent()
 {
 	SwitchZoomMode(ORIGSIZE);
 }
 
+/** Called by the framework when the user sets the Fit Width checkbox.
+* We pass it on to ArrangeViews()*/
 void CMscGenDoc::OnZoommodeKeepfittingtowidth()
 {
 	SwitchZoomMode(ZOOM_FITTOWIDTH);
 }
 
+/** Called by the framework to get the status of the Overview checkbox.
+* We enable if we do not compile, check if this mode is selected.*/
 void CMscGenDoc::OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_ZoomMode == OVERVIEW);
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
+/** Called by the framework to get the status of the original size checkbox.
+* We enable if we do not compile, check if this mode is selected.*/
 void CMscGenDoc::OnZoommodeKeep100Percent(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_ZoomMode == ORIGSIZE);
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
+/** Called by the framework to get the status of the Fit Width checkbox.
+* We enable if we do not compile, check if this mode is selected.*/
 void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_ZoomMode == ZOOM_FITTOWIDTH);
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
-//Check where is the mouse (which view or the internal editor) and call that function's DoMouseWheel
-//return true if the event is handled
+/** Called by everyone when a mouse wheel event happens.
+ * Unfortunately Windows routes mouse wheel events to the window that has the focus
+ * as opposed to where the pointer is. In order to do the right thing, we forward all
+ * mouse events to this function, which figures out based on the mouse pointer, 
+ * who should receive it and calls the appropriate DoMouseWheel() function.
+ * Return true if the event is handled.*/
 bool CMscGenDoc::DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	POSITION pos = GetFirstViewPosition();
@@ -1458,7 +1584,7 @@ bool CMscGenDoc::DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 }
 
 
-//Inserts new chart after the current one and deletes redo list
+/**Inserts new chart after the current one and deletes redo list.*/
 void CMscGenDoc::InsertNewChart(const CChartData &data)
 {
 	//The mfc stl implementation changes the value of .end() at insert.
@@ -1480,20 +1606,24 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 		m_itrShown = m_charts.end();
 }
 
+/** Check if the chart has changed compared to the last saved version.
+ * For text files, it is the text that is compared.
+ * In case of an embedded chart page, design, entity or box collapse, fallback resolution or
+ * page break indicator changes also result in changed state, since we save these. */
 bool CMscGenDoc::CheckIfChanged()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (pApp->m_bFullScreenViewMode) goto not_modified;
-	if (m_itrSaved == m_charts.end()) goto modified;
+	if (m_itrSaved == m_charts.end()) goto modified; //not yet saved
 	if (IsEmbedded()) {
         if (m_uSavedFallbackResolution != pApp->m_uFallbackResolution) goto modified;
         if (m_bSavedPageBreaks != pApp->m_bPageBreaks) goto modified;
+        if (m_uSavedPage != m_ChartShown.GetPage()) goto modified;
     }
 	if (m_itrSaved != m_itrEditing) {
 		if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
 		if (IsEmbedded()) {
-			if (m_uSavedPage != m_ChartShown.GetPage()) goto modified;
 			if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
             if (!(m_itrSaved->GetForcedEntityCollapse() == m_itrEditing->GetForcedEntityCollapse())) goto modified;
             if (!(m_itrSaved->GetForcedArcCollapse() == m_itrEditing->GetForcedArcCollapse())) goto modified;
@@ -1507,6 +1637,8 @@ modified:
     return true;
 }
 
+/** Called by the external editor window if the text in the external editor is saved.
+ * We insert a new undo block, update internal editor and start a parallel compile.*/
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1525,6 +1657,14 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 }
 
+/** Called by the Internal editor, when its text changes.
+ * We kill track mode and all fade all elements. Then we figure out if this
+ * change can be appended to the last undo block (continued insertion or deletion).
+ * Then we append it or open a new undo block.
+ * @param [in] start The first character to change (zero indexed)
+ * @param [in] del The number of characters deleted.
+ * @param [in] ins The number of characters inserted (after the delete)
+ * @param [in] sel_before The cursor position before the change.*/
 void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before)
 {
 	//SetTrackMode invalidates if tracking is turned off
@@ -1600,22 +1740,12 @@ void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANG
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
         CheckIfChanged();
     }
-
-    
-    
-    ////Store new stuff only if either text or selection changes
-	////Usually no notification of this sort arrives when only sel changes
-	////But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
-	//if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
-    //    CChartData chart(text, cr, m_itrEditing->GetDesign());
-    //    chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
-	//	InsertNewChart(chart);
-	//	CheckIfChanged();     
-	//}
 }
 
-//User changes selection in internal editor
-//This is not called if a mouse move changes the selection during tack mode
+/** Called by the internal editor if the user changes selection (e.g., moves the cursor).
+ * It is meticously not called during coloring (after which we restore the original cursor
+ * position). It is also not if a mouse move changes the selection during tack mode.
+ * We only react in tracking mode by animating the coverage of the new arc we move to.*/
 void CMscGenDoc::OnInternalEditorSelChange()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1632,11 +1762,22 @@ void CMscGenDoc::OnInternalEditorSelChange()
                         m_ChartShown.GetArcByLine(line+1, col+1)); 
 }
 
+/** An exception thrown during compilation by the progress function,
+ * to indicate that compilation needs to be aborted.*/
 class AbortCompilingException : public std::exception
 {
 };
 
 
+/** Thread function for the compilation thread.
+ * This function is called when starting the compilation thread.
+ * We lock the compilation section and attempt to compile.
+ * If compilation throws an AbortCompilingException exception,
+ * we kill everything and unlock.
+ * If we succeed, we send a message to the Main Frame window
+ * and exit.
+ * @param pParam A pointer to the CMscGenDoc we are compiling.
+ * @returns 1 on aborted compilation and 0 on success.*/
 UINT CompileThread( LPVOID pParam )
 {
     CMscGenDoc *pDoc = (CMscGenDoc*)pParam;
@@ -1648,7 +1789,6 @@ UINT CompileThread( LPVOID pParam )
         pDoc->m_killCompilation = false;
         pDoc->m_SectionCompiling.Unlock();
         return 1;
-
     }
     pDoc->m_SectionCompiling.Unlock();
     if (pDoc->m_hMainWndToSignalCompilationEnd)
@@ -1656,6 +1796,14 @@ UINT CompileThread( LPVOID pParam )
     return 0;
 }
 
+/** A progress callback for blocking compilation.
+ * This is used when compilation is not done in a separate thread, but as 
+ * part of the main thread. (We call that blocking compilation as the user
+ * is blocked to do anything during it.)
+ * We check if someone has set CMscGenDoc::m_killCompilation and throw if so.
+ * Then we update the progress animation and force a repaint of the view.
+ * @param [in] percent What progress we have made.
+ * @param [in] data A pointer to the CMscGenDoc we are compiling.*/
 bool ProgressCallbackBlocking(double percent, void *data) throw(...)
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
@@ -1671,10 +1819,18 @@ bool ProgressCallbackBlocking(double percent, void *data) throw(...)
             pView->ForceRepaint();
         }
 	}
-
     return true;
 }
 
+/** A progress callback for non-blocking compilation.
+ * This is used when compilation is done in a separate thread.
+ * (We call that non-blocking compilation as the user is not blocked 
+ * and can do anything during it.)
+ * We check if someone has set CMscGenDoc::m_killCompilation and throw if so.
+ * Then we update the progress variable and let the view repaint itself when 
+ * the animation timer kicks in next.
+ * @param [in] percent What progress we have made.
+ * @param [in] data A pointer to the CMscGenDoc we are compiling.*/
 bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilingException)
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
@@ -1684,6 +1840,29 @@ bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilin
     return true;
 }
 
+/** Compiles the currently edited chart text.
+ * This is the main compilation function.
+ * We do nothing if we are an OLE object in full screen view mode.
+ * We do nothing if this text has already been compiled, unless we are forced.
+ * We try to do compilation on a separate thread, if we can, that is, if
+ * 'force_block' is false, our main window exists and is visible; and 
+ * we are not attempting to close.
+ * If we compile, we kill the ongoing compilation process, set up m_ChartCompiling,
+ * with the right text and parameters.
+ * Then we kill all ongoing animations and add a single COMPILING_GREY one, which
+ * will display the progress bar. This will be refreshed automatically via a timer in 
+ * CMscGenView as any othe animation. We disable the scroll bars.
+ * Then if we do a non-blocking compilation, we start the compilation thread and return.
+ * (The compilation thread will send a message to the Main Window when succeeded, which will
+ * call CMscGenDoc::CompleteCompilingEditingChart() in return.)
+ * Else we perform all of the compile and pass control to CMscGenDoc::CompleteCompilingEditingChart().
+ * @param [in] resetZoom We set m_hadArrangeViews to this value. If true, this will cause the zoom
+ *                       to get automatically adjusted to the zoom mode after compilation.
+ * @param [in] force_block If true, force compilation to be blocking, even if we could do a
+ *                         non-blocking one. Useful, when caller wants to have the result of the
+ *                         compilation sychronously.
+ * @param [in] force_compile If true, we recompile even if apparently nothing has changed. This
+ *                           is useful, if some external parameter has changed, such as page size.*/
 void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool force_compile)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1792,7 +1971,15 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool forc
 }
 
 
-
+/** This function receives control after compilation for both blocking and 
+ * non-blocking compilation. 
+ * We emit load measurement data, swap in the compiled char to m_ChartShown,
+ * tidy up, update an embedded chart's container document and kill animations (the progress bar).
+ * Then we update ribbon fields with the new zoom, design and page number (may have changed).
+ * Then if we are at the Embedded Object category, we fill in object size and start a small
+ * animation for fallback images.
+ * Then we adjust zoom (if requested in CompileEditingChart) and update the view (repaint).
+ * Finally we copy the resuling errors to the error window and leave the focus at the internal editor.*/
 void CMscGenDoc::CompleteCompilingEditingChart()
 {
     m_SectionCompiling.Lock();
@@ -1849,7 +2036,8 @@ void CMscGenDoc::CompleteCompilingEditingChart()
 }
 
 
-//Kill any ongoing compilation - a blocking call.
+/** Kill any ongoing compilation - a blocking call.
+ * We wait till the compilation thread aborts. */
 void CMscGenDoc::KillCompilation()
 {
     m_killCompilation = true; //this causes the thread to stop
@@ -1867,12 +2055,17 @@ void CMscGenDoc::KillCompilation()
         pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
+/** A blocking call to wait till the compilation ends.
+ * Returns immediately if there is no compilation ongoing.*/
 void CMscGenDoc::WaitForCompilationToEnd()
 {
     m_SectionCompiling.Lock(); //wait for thread to exit
     m_SectionCompiling.Unlock();
 }
 
+/** Start the animation callback timer. 
+ * If a view already owns a timer do nothing. Else 
+ * start a timer at the first view.*/
 void CMscGenDoc::StartFadingTimer() 
 {
 	POSITION pos = GetFirstViewPosition();
@@ -1885,6 +2078,11 @@ void CMscGenDoc::StartFadingTimer()
 		pView->StartFadingTimer();
 }
 
+/** Perform one step in all animation elements.
+ * Make appearing ones more visible, fading ones less visible 
+ * and decrement time left before auto-fading for ones that are completely showing.
+ * Remove the ones that have disappeared entirely. Invalidate all views (repaint)
+ * @returns true if we have animation elements left. False if all have disappeared.*/
 //return false if no fading rect remained and we need to maintain timer
 bool CMscGenDoc::DoFading()
 {
@@ -1933,7 +2131,19 @@ bool CMscGenDoc::DoFading()
 }
 
 
-//Add a tracking element to the list. Updates Views if needed & rets ture if so
+/** Add a tracking element to the list. 
+ * We check if this element is already part of the list and ignore if yes
+ * (perhaps we lengthten its life or bring back to appearing if it already were 
+ * fading).
+ * Starts the animation timer if not yet running.
+ * Updates Views if needed & rets ture if so was needed.
+ * @param [in] type Type of the animation element
+ * @param [in] arc The arc corresponding to the animation (if any).
+ * @param [in] delay How many milliseconds the element shall be completely 
+ *                   shown after appearing, before it starts to auto-fade.
+ *                   if <0 the element remains indefinitely after appearing.
+ *                   (Will probably get killed by StartFadingAll().
+ * @returns true if we made a change.*/
 bool CMscGenDoc::AddAnimationElement(AnimationElement::ElementType type, 
                                      Element *arc, int delay)
 {
@@ -1999,6 +2209,8 @@ bool CMscGenDoc::AddAnimationElement(AnimationElement::ElementType type,
 	return true;
 }
 
+/** Start a special animation to highlight fallback image locations.
+ * @param [in] c The contours of the fallback images.*/
 void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 {
     m_fallback_image_location = c;
@@ -2007,7 +2219,11 @@ void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 }
 
 
-//Start the fading process for all rectangles (even for delay<0)
+/**Start the fading process for all animation elements.
+ * We do this even for elements that would not auto-fade by themselves.
+ * @param [in] type We start fading only animations of this type 
+ * @param [in] except If non-NULL, we start fading animations corresponding to all 
+ *                    arcs except this one.*/
 void CMscGenDoc::StartFadingAll(AnimationElement::ElementType type, const Element *except) 
 {
     if (m_pCompilingThread) return;
@@ -2026,6 +2242,7 @@ void CMscGenDoc::StartFadingAll(AnimationElement::ElementType type, const Elemen
 }
 
 
+/** Enter or leave track mode.*/
 void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
@@ -2049,10 +2266,12 @@ void CMscGenDoc::SetTrackMode(bool on)
     }
 }
 
-//Expects the coordinates in Msc space (MscBase::totalWidth & Height, 
-//except local to the current page)
-//If m_bTrackMode is on, we do tracking rectangles
-//if not, we only check for controls
+/**Checks if we have moved to a new arc and if so, adds
+ * appropriate animation for it.
+ * Called from CMscGenView::HooverMouse(), OnLButtonDblClk(), OnLButtonUp().
+ * In tracking mode, we add tracking rectangles/shapes, else we check for
+ * element controls.
+ * @param [in] mouse The coordinates of the mouse in Msc space (local to the current page)*/
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
     if (m_pCompilingThread) return; //skip if compiling
@@ -2095,11 +2314,13 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	editor.SetEventMask(eventmask);
 }
 
+
+/** Highlights (selects) one arc in the internal editor.*/
 void CMscGenDoc::HighLightArc(const Element *arc)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	if (!pApp->IsInternalEditorRunning()) return;
+	ASSERT(pApp != NULL && arc!=NULL);
+	if (!pApp->IsInternalEditorRunning() || !arc) return;
 	CCshRichEditCtrl &editor = pApp->m_pWndEditor->m_ctrlEditor;
 	long start = editor.ConvertLineColToPos(arc->file_pos.start.line-1, arc->file_pos.start.col-1);
 	long end = editor.ConvertLineColToPos(arc->file_pos.end.line-1, arc->file_pos.end.col);
@@ -2113,6 +2334,10 @@ void CMscGenDoc::HighLightArc(const Element *arc)
 	editor.Invalidate();
 }
 
+/** Called by the view when an element control (collapse/expand) is clicked.
+ * We do the collapse/expand action, add a new element to the undo buffer and recompile.
+ * @param [in] arc The arc for which a control is clicked.
+ * @param [in] t Which control has been clicked.*/
 bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
 {
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
@@ -2146,6 +2371,14 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
     return true;
 }
 
+/** Called if we have changed to or from the Embedded Object ribbon category.
+ * This should happen only for embedded objects.
+ * If we switch to it, we set the cache type to EMF (so that the user sees
+ * the chart rendered to WMF, as it would in the container document), 
+ * update the container document and do the fallback image animation in 
+ * ReDrawEMF().
+ * If we switch away from the Embedded Object category, we set the cache back 
+ * to recording suface (faster, nicer), redraw and update.*/
 void CMscGenDoc::OnChangeRibbonCategory(bool embedded)
 {
     if (m_pCompilingThread) return;
@@ -2159,6 +2392,10 @@ void CMscGenDoc::OnChangeRibbonCategory(bool embedded)
     }
 }
 
+/** Redraw the (assumedly EMF-cached chart.
+ * If a redraw is needed, we update the Object size and fallback image coverage
+ * edits on the Embedded Object panel, do the fallback image animation and
+ * update the container document.*/
 void CMscGenDoc::ReDrawEMF()
 {
     if (!m_ChartShown.CompileIfNeeded()) //just redraws EMF
@@ -2178,19 +2415,7 @@ void CMscGenDoc::ReDrawEMF()
 }
 
 
-void CMscGenDoc::OnHelpHelp()
-{
-	char buff[1024]; 
-	GetModuleFileName(NULL, buff, 1024);
-	std::string dir(buff);
-	unsigned pos = dir.find_last_of('\\');
-	ASSERT(pos!=std::string::npos);
-	string cmdLine = "\"" + dir.substr(0,pos) + "\\msc-gen.chm\"";
-
-	ShellExecute(NULL, NULL, cmdLine.c_str(), NULL, NULL, SW_SHOW); 
-}
-
-
+/** Global function to get the document object.*/
 CMscGenDoc *GetMscGenDocument()
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

@@ -188,6 +188,19 @@
 #define ID_CHECK_CSH_TAB                33070
 #define ID_ZOOMMODE_KEEP100             33073
 #define ID_VIEW_ZOOM100                 33074
+#define ID_EDIT_UPDATE33075             33075
+#define ID_EDIT_FIND33076               33076
+#define ID_EDIT_REPLACE33077            33077
+#define ID_EDIT_EXPORT                  33078
+#define ID_EDIT_SAVE                    33079
+#define ID_EDIT_EXPORT33080             33080
+#define ID_EDIT_EXPORT33081             33081
+#define ID_EDIT_ZOOMTOFITWIDTH          33082
+#define ID_EDIT_ZOOMTOFITPAGE           33083
+#define ID_EDIT_ZOOMTOORIGINALSIZE      33084
+#define ID_EDIT_PRINTPREVIEW            33085
+#define ID_EDIT_NEXTERROR               33086
+#define ID_EDIT_PREVIOUSERROR           33087
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -196,7 +209,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        321
-#define _APS_NEXT_COMMAND_VALUE         33075
+#define _APS_NEXT_COMMAND_VALUE         33088
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

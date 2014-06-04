@@ -16,7 +16,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file MiniEditor.cpp The internal editor: CEditorBar and CCshRichEditCtrl classes.
+/** @file MiniEditor.cpp The internal editor control and its hosting dockable pane.
 * @ingroup Msc_generator_files */
 
 #include "stdafx.h"
@@ -963,10 +963,8 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         del = 0;
     }
     _ASSERT(ins>=0 && del>=0);
-    //string a;
-    //a << first_diff << " " <<last_diff << ", ";
-    //a << "c " << start << " " << ins << " " << del;
-    //MessageBox(a.c_str());
+    const bool text_changed = ins || del;
+
     //Now expand the changed range to include the selection before the action.
     //This is needed for te (unformatted or badly formatted) 
     //text which is equal to the text already there, the above algorithm will not 
@@ -974,14 +972,23 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     //Note that start is now in RichEditCtrl space: if we insert at the beginning
     //of the file, start is zero.
     if (m_crSel_before.cpMin < m_crSel_before.cpMax) {
-        if (m_crSel_before.cpMin < start) {
-            ins += start - m_crSel_before.cpMin;
-            del += start - m_crSel_before.cpMin;
+        if (ins==0 && del==0) {
+            //if the text has not changed, all the change we register here
+            //is the selection
+            del = ins = m_crSel_before.cpMax - m_crSel_before.cpMin;
             start = m_crSel_before.cpMin;
-        }
-        if (m_crSel_before.cpMax > start + del) {
-            ins += m_crSel_before.cpMax - start - del;
-            del = m_crSel_before.cpMax - start;
+        } else {
+            if (m_crSel_before.cpMin < start) {
+                //if the selection started before our detected start of the change
+                ins += start - m_crSel_before.cpMin;
+                del += start - m_crSel_before.cpMin;
+                start = m_crSel_before.cpMin;
+            }
+            if (m_crSel_before.cpMax > start + del) {
+                //if the change ended after our detected end of change
+                ins += m_crSel_before.cpMax - start - del;
+                del = m_crSel_before.cpMax - start;
+            }
         }
     }
     m_prev_text = text;
@@ -1140,9 +1147,15 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
         }
     }
-    //Ok, notify the document about the change
-    if (GetMscGenDocument()) 
-        GetMscGenDocument()->OnInternalEditorChange(start, ins, del, m_crSel_before);
+    //Ok, notify the document if the text has actually changed
+    //We do this even if notifications to doc are disabled - those only refer to 
+    //changes in the selection.
+    if (text_changed) {
+        CMscGenDoc *pDoc = GetMscGenDocument();
+        //pDoc can be legally NULL here before the first view is established.
+        if (pDoc)
+            pDoc->OnInternalEditorChange(start, ins, del, m_crSel_before);
+    }
     RestoreWindowUpdate(state);
     return ret;
 }
@@ -1732,7 +1745,7 @@ BOOL CEditorBar::FindText(LPCTSTR lpszFind, BOOL bCase, BOOL bWord, BOOL bNext /
 		return FALSE;
 }
 
-/**Find a piece of text in the editor and select it./
+/**Find a piece of text in the editor and select it.*/
 long CEditorBar::FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft)
 {
 	long index = m_ctrlEditor.FindText(dwFlags, &ft);

@@ -40,6 +40,9 @@ FIX: Add bitmaps to Full screen images toolbar
 FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
 FIX: Optimize Tangent functions
 FIX: Re-layouting nested parallel blocks - introduce keep together, take care of overlapped ArcParallels
+ADD: arrows to point to boxes.
+ADD: A right-click context menu to the minieditor & outputview
+ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
 In 4.0
 FIXED: Contour test mistakes (esp 740_006)
@@ -94,6 +97,8 @@ FIXED: Shape section 2 was not applying line attributes
 ADDED: def.square shape
 ADDED: Fit width, Overview buttons to full screen preview
 FIXED: Autoheadings crash.
+FIXED: Help now starts only in one instance when pressing F1
+ADDED: A right-click context menu to the view area.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB
