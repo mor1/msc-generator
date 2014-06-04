@@ -154,7 +154,7 @@ public:
 	CPoint m_ptLastFindPos;                   ///<Last screen position of the text found.
 	long m_lInitialSearchPos;                 ///<Text pos where we started searching from
 	BOOL m_bFirstSearch;                      ///<True if this is the first search in a search/replace session
-	bool m_bSuspendNotifications;             ///<True if we shall not notify the document about a change (e.g., during coloring)
+	bool m_bSuspendNotifications;             ///<True if we shall not notify the document about a change in selection (e.g., during coloring)
     long m_totalLenAtPreviousSelChange;       ///<The length of the text at the last selection change (We use this to test if we have just changed the selection or the text, as well.)
 public:
 	virtual ~CEditorBar();

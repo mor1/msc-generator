@@ -16,54 +16,74 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-// MscGenView.h : interface of the CMscGenView class
-//
+
+/** @file MscGenView.h The interface of the view of a chart.
+* @ingroup Msc_generator_files */
 
 #pragma once
 
 #include "MscGenDoc.h"
 
+/** Animation callback resolution in ms. */
 #define FADE_TIMER 30
 
+/** Multiply both coordinates of a CSize object. */
 inline CSize ScaleSize(const CSize &s, double z) {return CSize(int(s.cx*z), int(s.cy*z));}
+/** Test if both coordinates of a CSize object are zero.*/
 inline bool SizeEmpty(const CSize &s) {return s.cx==0 || s.cy==0;}
 
+/** The view class.
+ * It holds very little functions, only to re-draw from the rendering 
+ * cache in CMscGenDoc (well, in CDrawingChartData), dispatching of mouse
+ * and drag&drop events, handling timers for animation, panning.
+ * We contain a bitmap, which is as large as the view area and holds
+ * the chart without any animation. At animations we use this bitmap
+ * to draw the animations on top of. This reduces re-draw time when nothing
+ * changes, just the animations play. If the user pans or zooms, we need
+ * to re-create this bitmap from the rendering cache of CDrawingChartData.
+ * If the user changes something that needs a recompile, we have to update
+ * even that rendering cache (and our bitmap from that).*/
 class CMscGenView : public CScrollView
 {
-protected: // create from serialization only
+protected: 
 	CMscGenView();
 	DECLARE_DYNCREATE(CMscGenView)
 
-// Attributes
 public:
-	bool m_DeleteBkg;  //Set to true if we need to erase bkg on next draw
-	// Drawn chart
-    XY           m_chartOrigin;  //The upper left corner of the chart in chart coordinate space
-    Block        m_chartPage;    //The page we show in chart coordinates
-    CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
-    CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)
-	UINT_PTR     m_FadingTimer;  //Handle of Fading Timer
-	//Drag and Drop 
-	COleDropTarget m_DropTarget;
-	DROPEFFECT     m_nDropEffect;
-	//Draging
-	CPoint         m_DragPoint;
-	CPoint         m_DragStartPoint;
+	bool m_DeleteBkg;            ///<Set to true if we need to erase bkg on next draw
+    UINT_PTR     m_FadingTimer;  ///<Handle of Fading Timer
+    /** @name Information on the drawn chart
+    * @{ */
+    XY           m_chartOrigin;  ///<The upper left corner of the chart in chart coordinate space (e.g., page origin)
+    Block        m_chartPage;    ///<The page we show in chart coordinates
+    CBitmap      m_view;         ///<Last rendered bitmap of (scaled) chart (page)
+    CRect        m_view_pos;     ///<Origin and size of bitamp above. (empty if invalid)
+    //@}
+    /** @name Drag and drop related
+    * @{ */
+	COleDropTarget m_DropTarget;  ///<Our drop target
+	DROPEFFECT     m_nDropEffect; ///<Here we store in OnDragEnter() how we would react if the user dropped that object to us. Kind of a cached value to be used in OnDragOver().
+    //@}
+    /** @name Dragging (mouse-based panning) related
+    * @{ */
+    CPoint         m_DragPoint;      ///<During drag-panning this was the last point where we have refreshed the screen.
+	CPoint         m_DragStartPoint; ///<Where did we start dragging.
+    //@}
 
 // Operations
 public:
-	CMscGenDoc* GetDocument() const;
+    /**Get the corresponding document object.*/
+    CMscGenDoc* GetDocument() const { return dynamic_cast<CMscGenDoc*>(m_pDocument); }
 
 // Overrides
 public:
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
             void ClearViewCache(); //Clear the bitmap cache
 			void DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
-            void ForceRepaint() {CScrollView::OnPaint();}
+            void ForceRepaint() { CScrollView::OnPaint(); } ///<Force an immediate (blocking, synchronous) repaint 
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 protected:
@@ -79,15 +99,9 @@ protected:
 	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
 
-	afx_msg void OnCancelEditSrvr();
-
 // Implementation
 public:
-	virtual ~CMscGenView();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
+    virtual ~CMscGenView() {}
 
 // Generated message map functions
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
@@ -116,8 +130,4 @@ public:
     afx_msg void OnUpdateViewShowElementControls(CCmdUI *pCmdUI);
 };
 
-#ifndef _DEBUG  // debug version in MscGenView.cpp
-inline CMscGenDoc* CMscGenView::GetDocument() const
-   { return reinterpret_cast<CMscGenDoc*>(m_pDocument); }
-#endif
 

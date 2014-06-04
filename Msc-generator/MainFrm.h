@@ -17,77 +17,74 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// MainFrm.h : interface of the CMainFrame class
-//
+/** @file MainFrm.h The interface for the main window classes.
+* @ingroup Msc_generator_files */
 
 #pragma once
 #include "OutputView.h"
 #include "MiniEditor.h"
 
+/** Small extension of CSplitterWnd to capture when user kills splitting.*/
 class CMscGenSplitterWnd : public CSplitterWnd
 {
 public:
-    virtual BOOL SplitRow(int cyBefore);
     virtual void DeleteRow(int rowDelete);
 };
 
 
+/** The main window class.*/
 class CMainFrame : public CFrameWndEx
 {
 	
-protected: // create from serialization only
+protected: 
+    /** Just init fields. Not called from external sources.
+     * We get created from serialization only.*/
 	CMainFrame();
 	DECLARE_DYNCREATE(CMainFrame)
 
 // Attributes
 public:
-	CMscGenSplitterWnd m_wndSplitter;
-	CMFCRibbonBar      m_wndRibbonBar;
-	CMFCStatusBar      m_wndStatusBar;
-    CMFCRibbonLabel   *m_labelObjectSize, *m_labelFallbackImage;
+	CMscGenSplitterWnd m_wndSplitter;        ///<The splitter window used to show two panes of the chart
+	CMFCRibbonBar      m_wndRibbonBar;       ///<Our ribbon
+	CMFCStatusBar      m_wndStatusBar;       ///<Our status bar
+    CMFCRibbonLabel   *m_labelObjectSize;    ///<Pointer to the 'Object Size' label on the Embedded Chart panel category.
+    CMFCRibbonLabel   *m_labelFallbackImage; ///<Pointer to the 'Fallback Image' label on the Embedded Chart panel category.
 
 protected:  
     friend class CMscGenSplitterWnd;
-	CMFCRibbonApplicationButton m_MainButton;
-	CMFCToolBarImages m_PanelImages;
-	//CMFCRibbonStatusBar  m_wndStatusBar;
-	COutputViewBar    m_wndOutputView;
-	CEditorBar        m_ctrlEditor;
+	CMFCRibbonApplicationButton m_MainButton;///<The main button of the Ribbon
+	CMFCToolBarImages m_PanelImages;         ///<The panel images for the ribbon
+	COutputViewBar    m_wndOutputView;       ///<The panel hosting the error lists.
+	CEditorBar        m_ctrlEditor;          ///<The panel hosting the internal editor.
 public:
-    bool m_bAutoSplit;         //True if autosplit mode is on
-    bool m_at_embedded_object_category;
-    bool m_has_fallback_image;
+    bool m_bAutoSplit;                       ///<True if autosplit mode is on
+    bool m_at_embedded_object_category;      ///<True if the Embedded Object ribbon category is currently showing
+    bool m_has_fallback_image;               ///<True if the object has a fallback image
 
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnApplicationLook(UINT id);
 	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
-	afx_msg void OnUpdateButtonAutoSplit(CCmdUI *pCmdUI);
 	afx_msg void OnButtonAutoSplit();             //AutpSplit mode button
-	DECLARE_MESSAGE_MAP()
+    afx_msg void OnUpdateButtonAutoSplit(CCmdUI *pCmdUI);
+    DECLARE_MESSAGE_MAP()
 public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	virtual BOOL LoadFrame(UINT nIDResource, DWORD dwDefaultStyle = WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, CWnd* pParentWnd = NULL, CCreateContext* pContext = NULL);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	        BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnViewFullScreen();
     afx_msg LRESULT OnCompilationDone(WPARAM wParam, LPARAM lParam);
+    /** True if we are in autosplit mode.*/
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
-    CPaneFrameWnd *FindFullScreenToolBarFrameWnd();
-    CMFCToolBar *FindFullScreenToolBar(CPaneFrameWnd *p=NULL); //finds the fulls screen toolbar 
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
     void AddToPrintPreviewCategory();
     void DeleteFromPrintPreviewCategory();
 // Implementation
 public:
-	virtual ~CMainFrame();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
+    virtual ~CMainFrame() {}
     afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 
     bool FillDesignComboBox(const char *current, bool updateComboContent);

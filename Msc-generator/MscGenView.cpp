@@ -16,8 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-// MscGenView.cpp : implementation of the CMscGenView class
-//
+
+/** @file MscGenView.cpp The implementation of the view of a chart.
+* @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 #include "Msc-generator.h"
@@ -55,21 +56,23 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CMscGenView::OnFilePrintPreview)
 	ON_COMMAND(ID_VIEW_REDRAW, OnViewRedraw)
 	ON_WM_LBUTTONDBLCLK()
-	ON_WM_LBUTTONUP()
-	ON_WM_MOUSEHOVER()
+    ON_WM_LBUTTONUP()
+    ON_WM_RBUTTONUP()
+    ON_WM_MOUSEHOVER()
 	ON_WM_MOUSEMOVE()
 	ON_WM_TIMER()
 	ON_WM_CREATE()
 	ON_WM_DROPFILES()
 	ON_WM_LBUTTONDOWN()
-//    ON_WM_ACTIVATE()
     ON_COMMAND(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnViewShowElementControls)
     ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnUpdateViewShowElementControls)
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
 
-CMscGenView::CMscGenView() 
+/** Standard constructior, just inits fields. 
+ * Private as we create from serialization only.*/
+CMscGenView::CMscGenView()
 {
 	// construction code here
 	m_DeleteBkg = false;
@@ -79,20 +82,11 @@ CMscGenView::CMscGenView()
     m_view_pos.SetRectEmpty();
 }
 
-CMscGenView::~CMscGenView()
-{
-}
-
-BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
-{
-	// Modify the Window class or styles here by modifying
-	//  the CREATESTRUCT cs
-
-	return CScrollView::PreCreateWindow(cs);
-}
 
 // CMscGenView drawing
 
+/** Prepare the DC to draw. After this we can draw to it
+ * in chart coordinates.*/
 void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 {
 	CScrollView::OnPrepareDC(pDC, pInfo);
@@ -105,7 +99,11 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 }
 
 
-
+/** Called by the framework when a key is released on the keyboard.
+ * For ESC we leave tracking mode. For arrow keys, home/end, pgup/pgdn
+ * we scroll. Note that this is only called if the user explicitly
+ * clicks the view befor to place focus to the view. Normally the 
+ * focus is shifted back to the internal editor at any place we can.*/
 void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if (nChar == VK_ESCAPE) {
@@ -128,6 +126,10 @@ void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 }
 // CMscGenView printing
 
+/** Called by the framework when we enter print preview mode.
+ * We take the opportunity to add more controls to the Print Preview
+ * category of the ribbon (once it has been created) and to populate 
+ * the edits with values.*/
 void CMscGenView::OnFilePrintPreview()
 {
     CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
@@ -141,7 +143,11 @@ void CMscGenView::OnFilePrintPreview()
     }
 }
 
-void CMscGenView::OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo, 
+/** Called by the framework when we leave print preview mode.
+ * We take the opportunity to delete the controls we added to the Print Preview
+ * category of the ribbon (or they will erroneously overlap the regular
+ * categories).*/
+void CMscGenView::OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo,
                                     POINT point, CPreviewView* pView)
 {
     CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
@@ -151,7 +157,12 @@ void CMscGenView::OnEndPrintPreview(CDC* pDC, CPrintInfo* pInfo,
 }
 
 
-
+/** Called by the framework before printing.
+ * We stop/start the external editor to get the changes from it.
+ * Then we compile (blocking manner). 
+ * Then we let the framework display the Print dialog.
+ * If the page size has changed, we recompile again.
+ * We collect page and margin info and fill in 'pInfo' as needed.*/
 BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -180,6 +191,8 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
     return TRUE;
 }
 
+/** Called by the framework before actual printing. 
+ * We report the number of pages.*/
 void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -188,6 +201,11 @@ void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
         pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
 }
 
+/** Called by the framework to print one page.
+ * Well we do.
+ * Note that this function is also called to display a page in 
+ * print preview. So if we actually compile, we grey out the page, 
+ * but print no progress bar, as this is not called repeatedly.*/
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -239,44 +257,33 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 
 }
 
+/** Called by the framework to indicate the completion of printing.
+ * We do nothing.*/
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 {
 }
 
+/** Called by the framework when the user releases the right mouse button.
+ * Effectively a right-click. We conjure the context menu.*/
 void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
 {
 	ClientToScreen(&point);
 	OnContextMenu(this, point);
 }
 
+
+/** This is where we conjutre the context menu.*/
 void CMscGenView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 {
 	theApp.GetContextMenuManager()->ShowPopupMenu(IDR_POPUP_EDIT, point.x, point.y, this, TRUE);
 }
 
 
-// CMscGenView diagnostics
-
-#ifdef _DEBUG
-void CMscGenView::AssertValid() const
-{
-	CScrollView::AssertValid();
-}
-
-void CMscGenView::Dump(CDumpContext& dc) const
-{
-	CScrollView::Dump(dc);
-}
-
-CMscGenDoc* CMscGenView::GetDocument() const // non-debug version is inline
-{
-	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(CMscGenDoc)));
-	return (CMscGenDoc*)m_pDocument;
-}
-#endif //_DEBUG
 
 // CMscGenView message handlers
 
+/** Called by the framework to erase the background. 
+ * To avoid flicker, we just mark a flag that we need to do it at next paint.*/
 BOOL CMscGenView::OnEraseBkgnd(CDC * /*pDC*/)
 {
 	if (!m_DeleteBkg) return false;
@@ -284,8 +291,10 @@ BOOL CMscGenView::OnEraseBkgnd(CDC * /*pDC*/)
 	return true;
 }
 
+/** Invalidate a rectangle given in chart space.*/
 void CMscGenView::InvalidateBlock(const Block &) 
 {
+    //This never worked - we invalidate everything.
 	//CMscGenDoc *pDoc = GetDocument();
 	//ASSERT(pDoc);
 	//double scale = pDoc->m_zoom / 100.; 
@@ -295,16 +304,23 @@ void CMscGenView::InvalidateBlock(const Block &)
     Invalidate();
 }
 
+/** Clear the bitmap cache (m_view) we have.*/
 void CMscGenView::ClearViewCache() 
 {
     m_view.DeleteObject();
     m_view_pos.SetRectEmpty();
 }
 
-//Draw tracking rectangles and controls
-//clip is understood as window surface coordinates 
-//scale tells me how much to scale m_size to get surface coords.
-//the DC window origin is at 0,0 here
+/** Draw tracking rectangles and controls.
+ * Since cairo does not seem to be thread safe, we do not draw any animations
+ * if we compile, except COMPILING_GREY, which we draw with native windows
+ * GDI commands. If we are the upper view in a split Main Window, we do not
+ * draw the COMPILING_GREY animation, as this shall show only in the lower view.
+ * @param pDC A Device Context having a bitmap of resolution equal to the screen.
+ *            We need to draw the animations onto it. We assume the chart picture
+ *            is already on it. The DC window origin is at 0,0 here
+ * @param [in] scale Tells how much to scale m_size to get surface coords.
+ * @param [in] clip is understood as window surface coordinates */
 void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -440,6 +456,11 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
     pDC->SelectObject(hOldBrush);
 }
 
+/** Called by the framework when the view needs to be re-painted.
+ * First, if panning happened, we refresh our m_view Bitmap cache.
+ * Then we copy it to a separate bitmap of same size, on which we 
+ * draw animations. Finally we copy that to the screen.
+ * All this copying is just to avoid flicker.*/
 void CMscGenView::OnDraw(CDC* pDC)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -480,6 +501,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 	memDC.SelectObject(oldBitmap);
 }
 
+/** Called by the framework in response to the ID_VIEW_REDRAW command (Ctrl+R)*/
 void CMscGenView::OnViewRedraw()
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -487,15 +509,21 @@ void CMscGenView::OnViewRedraw()
 	pDoc->UpdateAllViews(NULL);
 }
 
+/** Called by the framework at the first update of the view.
+ * We also register us as a drop target.*/
 void CMscGenView::OnInitialUpdate()
 {
 	ResyncScrollSize();
 	CScrollView::OnInitialUpdate();
 	//m_pDropTarget is a CWnd memeber and holds the droptarget object
 	//If we are already registered, do not register again.
-	if (!m_pDropTarget) m_DropTarget.Register(this);
+	if (!m_pDropTarget) 
+        m_DropTarget.Register(this);
 }
 
+/** The framework calls this when the view needs to update (its content changed).
+ * We read a few piece info from the document, invalidate our bitmap cache,
+ * sync the scrollbars, but otherwise leavethe work to OnDraw().*/
 void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -520,7 +548,8 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
     Invalidate();
 }
 
-//Zoom functions
+/**Called by the framework if we have the focus and a mouse wheel event
+ * happens. Send it to CMscGenDoc::DispatchMouseWheel().*/
 BOOL CMscGenView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -530,7 +559,14 @@ BOOL CMscGenView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 }
 
 
-//returns true if point is within our rectangle. Does nothing otherwise
+/** Called by CMscGenDoc if a mouse wheel event happens when the mouse may hoover
+ * over us.
+ * If indeed, we do zooming/scrolling and return true. 
+ * Else do nothing and return false.
+ * @param nFlags We use this to see if the user has pressed Ctrl while wheeling.
+ * @param zDelta How much the wheel turned.
+ * @param pt The screen coordinates where the pointer is.
+ * @returns true if we handled this event.*/
 BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	CRect view;
@@ -584,6 +620,8 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 }
 
 
+/** Adjust the scroll ranges (size of the virtual canvas of CScrollView)
+ * at e.g., zooming events. Disable scrollbars when compiling.*/
 void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -594,6 +632,9 @@ void CMscGenView::ResyncScrollSize(void)
         SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
+/** Called by the framework when the view is resized.
+ * We just resync the scroll sizes if no zoom mode, else 
+ * dispatch to CMscGenDoc::ArrangeViews().*/
 void CMscGenView::OnSize(UINT /*nType*/, int /*cx*/, int /*cy*/)
 { 
 	CMscGenDoc *pDoc = GetDocument();
@@ -607,31 +648,38 @@ void CMscGenView::OnSize(UINT /*nType*/, int /*cx*/, int /*cy*/)
         pDoc->ArrangeViews(); 
 }
 
+/** Called by the framework on a left mouse button is pressed.
+ * If not compiling, we start a panning session by starting to capture mouse 
+ * move events. This means that we will get all mouse move events even if the
+ * mouse moves outside our client area.*/
 void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	CScrollView::OnLButtonDown(nFlags, point);
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
     if (pDoc->m_pCompilingThread) return; //skip if compiling
-	if (1) {
-		//Mouse drag scrolling
-		m_DragPoint = point;
-		m_DragStartPoint = point;
-		SetCapture();
-	} else {
-		//This is what we had to do for drag and drop
-		//Copy is handled by SrvItem
-		CMscGenSrvrItem *pItem = reinterpret_cast<CMscGenSrvrItem*>(pDoc->GetEmbeddedItem());
-		TRY {
-			COleDataSource *pDataSource = pItem->OnGetClipboardData(FALSE, NULL, NULL);
-			if (pDataSource) pDataSource->DoDragDrop(DROPEFFECT_COPY);
-		} CATCH_ALL(e) {
-			//Do nothing if error happened in GetDataSource
-		}
-		END_CATCH_ALL
-	}
+	//Mouse drag scrolling
+	m_DragPoint = point;
+	m_DragStartPoint = point;
+	SetCapture();
+	//	//This is what we had to do for drag and drop
+	//	//Copy is handled by SrvItem
+	//	CMscGenSrvrItem *pItem = reinterpret_cast<CMscGenSrvrItem*>(pDoc->GetEmbeddedItem());
+	//	TRY {
+	//		COleDataSource *pDataSource = pItem->OnGetClipboardData(FALSE, NULL, NULL);
+	//		if (pDataSource) pDataSource->DoDragDrop(DROPEFFECT_COPY);
+	//	} CATCH_ALL(e) {
+	//		//Do nothing if error happened in GetDataSource
+	//	}
+	//	END_CATCH_ALL
 }
 
+/** Called by the framework if the mouse moves.
+ * If we capture the mouse events, it is a panning session and we 
+ * scroll the chart and invalidate. If we do not capture the mouse, we
+ * may still get these messages, but just if the mouse is over our area.
+ * In this case just call TrackMouseEvent() saying that we want to capture
+ * hover events if the mouse hovers for more 10 ms.*/
 void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -664,7 +712,8 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 		POSITION p = pDoc->GetFirstViewPosition();
 		while (p != NULL) {
 			CMscGenView* pView = dynamic_cast<CMscGenView*>(pDoc->GetNextView(p));
-			if (pView && pView != this) pView->Invalidate();
+			if (pView && pView != this) 
+                pView->Invalidate();
 		}
 	} else {
 		TRACKMOUSEEVENT tme;
@@ -677,6 +726,8 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 	CScrollView::OnMouseMove(nFlags, point);
 } 
 
+/** Called by the framework if the mouse hoovered over our client area.
+ * We dispatch this to CMscGenDoc::UpdateTrackRects()*/
 void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -692,6 +743,11 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	pDoc->UpdateTrackRects(point);
 }
 
+/** Called by the framework when the left mouse button is released.
+ * This is either the end of a panning session and we need to release
+ * mouse capture, or just a left click. In the latter case
+ * we check if the click is in a control and call CMscGenDoc::OnControlClicked() 
+ * if so. If not, we flash the element we have clicked.*/
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	const double delay_before_fade = 500; //in ms
@@ -703,6 +759,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 		//If we did actually drag, stop here do not highlight arc below cursor
 		if (point != m_DragStartPoint)
 			return;
+        //if no drag this is effectively just a left click.
 	}
     if (pDoc->m_pCompilingThread) return; //skip if compiling
 
@@ -739,6 +796,9 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	}
 }
 
+/** Called by the framework on a left double-click.
+ * If the click is on a control we call CMscGenDoc::OnControlClicked().
+ * Else we enter tracking mode.*/
 void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -766,6 +826,7 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	CScrollView::OnLButtonDblClk(nFlags, point);
 }
 
+/** Start a timer for animations.*/
 void CMscGenView::StartFadingTimer() 
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -775,6 +836,10 @@ void CMscGenView::StartFadingTimer()
 	m_FadingTimer = SetTimer(1, FADE_TIMER, NULL);
 }
 
+/** Called by the framework when the animation timer fires.
+ * We call CMscGenDoc::DoFading() to do the animations (which
+ * will Invalidate() us, if needed causing a repain after we have procesed
+ * this message). If we have no remaining animations, we kill the timer.*/
 void CMscGenView::OnTimer(UINT_PTR)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -786,6 +851,8 @@ void CMscGenView::OnTimer(UINT_PTR)
 	m_FadingTimer = NULL;
 }
 
+/** Create the window object. If we are not in an embedded object view
+ * full screen mode we register for accepting files dropped on us.*/
 int CMscGenView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CScrollView::OnCreate(lpCreateStruct) == -1)
@@ -801,6 +868,8 @@ int CMscGenView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	return 0;
 }
 
+/** Called by the framework when the user drops a file on us.
+ * If so, we call CMscGenApp::OpenDocumentFile().*/
 void CMscGenView::OnDropFiles(HDROP hDropInfo)
 {
 	int nFiles = ::DragQueryFile(hDropInfo, (UINT)-1, NULL, 0);
@@ -822,6 +891,11 @@ void CMscGenView::OnDropFiles(HDROP hDropInfo)
 	CScrollView::OnDropFiles(hDropInfo);
 }
 
+/** Called by the framework, when the user is about to drop something on us.
+ * It can be either a piece of text (replacing our text) or a chart object.
+ * In these two cases we indicate our willingness to take it by returning
+ * DROPEFFECT_COPY. In all other cases we do not take it and return 
+ * DROPEFFECT_NONE.*/
 DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD /*dwKeyState*/, CPoint /*point*/)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -835,16 +909,27 @@ DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD /*dwKeySt
 	return m_nDropEffect;
 }
 
+/** Called by the framework during a drag operation when the mouse is moved 
+ * over the drop target window.
+ * This can come only after OnDragEnter().
+ *  We simply continue to return the drop effect decided in OnDragEnter(). */
 DROPEFFECT CMscGenView::OnDragOver(COleDataObject* /*pDataObject*/, DWORD /*dwKeyState*/, CPoint /*point*/)
 {
 	return m_nDropEffect;
 }
 
+/** Called by the framework when the user leaves our area in a drag-and-drop session.
+ * This can come only after OnDragEnter().
+ * We kill our stored reaction. */
 void CMscGenView::OnDragLeave()
 {
 	m_nDropEffect = DROPEFFECT_NONE;
 }
 
+/** Called by the framework if the user indeed drops something on us.
+ * This can come only after OnDragEnter().
+ * If we really take this object, we call CMscGenDoc::DoPasteData()
+ * to insert its content.*/
 BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT /*dropEffect*/, CPoint /*point*/)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -856,6 +941,8 @@ BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT /*dropEffect*/,
 	return TRUE;
 }
 
+/** Called by the framework, when the user flipped the Show Controls button.
+ * We redraw and save the setting to the registry.*/
 void CMscGenView::OnViewShowElementControls()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -866,6 +953,8 @@ void CMscGenView::OnViewShowElementControls()
 }
 
 
+/** Called by the framework to get the status of the Show Controls button.
+* We set check if the button is flipped.*/
 void CMscGenView::OnUpdateViewShowElementControls(CCmdUI *pCmdUI)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

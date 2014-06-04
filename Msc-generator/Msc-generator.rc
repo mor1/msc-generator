@@ -405,9 +405,21 @@ IDR_POPUP_EDIT MENU
 BEGIN
     POPUP "Edit"
     BEGIN
-        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM "&Update\t(F2)",               ID_EDIT_UPDATE
+        MENUITEM SEPARATOR
+        MENUITEM "&Save\t(Ctrl+S)",             ID_FILE_SAVE
+        MENUITEM "Save &as...",                 ID_FILE_SAVE_AS
+        MENUITEM "E&xport\t(Shift+Ctrl+X)",     ID_FILE_EXPORT
+        MENUITEM "Print &Preview...",           ID_FILE_PRINT_PREVIEW
+        MENUITEM SEPARATOR
+        MENUITEM "Zoom to &Fit Page\t(Ctrl+8)", ID_VIEW_ZOOMNORMALIZE
+        MENUITEM "Zoom to Fit &Width\t(Ctrl+9)", ID_VIEW_FITTOWIDTH
+        MENUITEM "Zoom to &Original Size\t(Ctrl+0)", ID_VIEW_ZOOM100
+        MENUITEM SEPARATOR
+        MENUITEM "Tracking &Mode\t(Ctrl+T)",    ID_BUTTON_TRACK
+        MENUITEM SEPARATOR
+        MENUITEM "Previous Error\t(Shift+F8)",  ID_EDIT_PREVIOUSERROR
+        MENUITEM "Next &Error\t(F8)",           ID_EDIT_NEXTERROR
     END
 END
 
@@ -452,15 +464,15 @@ BEGIN
     VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
-    "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
-    "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    "8",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
+    "9",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
     VK_F11,         ID_VIEW_FULL_SCREEN,    VIRTKEY, NOINVERT
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
-    "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
+    "0",            ID_VIEW_ZOOM100,        VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
 IDR_SRVR_EMBEDDED ACCELERATORS
