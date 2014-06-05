@@ -16,8 +16,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-// SrvrItem.cpp : implementation of the CMscGenSrvrItem class
-//
+/** @file PopupList.cpp The interface for CMscGenSrvrItem class, which is providing
+ * rendering and serialization of chart objects to OLE. Essentially this provides
+ * the OLE server functions.
+ * @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 //#include <afxpriv.h>    // for CSharedFile
@@ -36,6 +38,11 @@
 
 IMPLEMENT_DYNAMIC(CMscGenSrvrItem, CDocObjectServerItem)
 
+/** This server item object is created at two places, in 
+ * CMscGenDoc::OnGetEmbeddedItem() and CMscGenDoc::OnGetLinkedItem.
+ * In the first case we set forcePage to zero, since all of the chart is
+ * contained in an embedded objects. In the second case we also use a page
+ * since a linked item may point to one page only.*/
 CMscGenSrvrItem::CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage)
 	: CDocObjectServerItem(pContainerDoc, TRUE), m_forcePage(forcePage)
 {
@@ -53,13 +60,9 @@ CMscGenSrvrItem::CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage)
     SetItemName(buff);
 }
 
-CMscGenSrvrItem::~CMscGenSrvrItem()
-{
-	// add cleanup code here
-}
-
-
-//depending on linking/embedding, returns the page to draw/extent
+/** Depending on linking/embedding, returns the page to draw/extent 
+ * That is, for a linked item we always return the forced page.
+ * For embedded objects we take the current page of the shown chart.*/
 unsigned CMscGenSrvrItem::GetPage() const
 {
     if (IsLinkedItem()) return m_forcePage;
@@ -69,28 +72,29 @@ unsigned CMscGenSrvrItem::GetPage() const
 }
 
 
+/** CMscGenSrvrItem::Serialize will be called by the framework if
+ * the item is copied to the clipboard.  This can happen automatically
+ * through the OLE callback OnGetClipboardData.  A good default for
+ * the embedded item is simply to delegate to the document's Serialize
+ * function.  If you support links, then you will want to serialize
+ * just a portion of the document.*/
 void CMscGenSrvrItem::Serialize(CArchive& ar)
 {
-	// CMscGenSrvrItem::Serialize will be called by the framework if
-	//  the item is copied to the clipboard.  This can happen automatically
-	//  through the OLE callback OnGetClipboardData.  A good default for
-	//  the embedded item is simply to delegate to the document's Serialize
-	//  function.  If you support links, then you will want to serialize
-	//  just a portion of the document.
-
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
     unsigned fp = GetPage();
     pDoc->SerializePage(ar, fp);  //overwrite page stored in pDoc with fp, but keep m_forcedpage on read
 }
 
+/** Return the size of our chart.
+ * Most applications, like this one, only handle drawing the content
+ * aspect of the item.  If you wish to support other aspects, such
+ * as DVASPECT_THUMBNAIL (by overriding OnDrawEx), then this
+ * implementation of OnGetExtent should be modified to handle the
+ * additional aspect(s).
+ * I did not provide thumbnails - that would be too much, really.*/
 BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 {
-	// Most applications, like this one, only handle drawing the content
-	//  aspect of the item.  If you wish to support other aspects, such
-	//  as DVASPECT_THUMBNAIL (by overriding OnDrawEx), then this
-	//  implementation of OnGetExtent should be modified to handle the
-	//  additional aspect(s).
 
 	if (dwDrawAspect != DVASPECT_CONTENT)
 		return CDocObjectServerItem::OnGetExtent(dwDrawAspect, rSize);
@@ -114,6 +118,13 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 	return TRUE;
 }
 
+/** Paint the relevant page (or all the document). 
+ * This is the place where we draw, how a chart looks like in a container
+ * document. (sigh) Unfortunately we get a WMF DC here and this is
+ * 'by design' according to OLE documentation. So we cannot use
+ * coordinates larger than 32K, shaded colors, rotated text, 
+ * dashed lines and so on. Hence the huge workaround-pile in 
+ * class Canvas.*/
 BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 {
 	if (!pDC)
@@ -129,29 +140,12 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
     size_t size = pDoc->m_ChartShown.DrawToDC(Canvas::WMF,
         pDC->m_hDC, XY(1,1), pDoc->m_ChartShown.GetPage(), pApp->m_bPageBreaks, pApp->m_uFallbackResolution);
     size += pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
-    //CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
-    //if (pMainFrame)
-    //    pMainFrame->FillEmbeddedSizeNow(size);
 	return TRUE;
 }
 
 
-// CMscGenSrvrItem diagnostics
-
-#ifdef _DEBUG
-void CMscGenSrvrItem::AssertValid() const
-{
-	CDocObjectServerItem::AssertValid();
-}
-
-void CMscGenSrvrItem::Dump(CDumpContext& dc) const
-{
-	CDocObjectServerItem::Dump(dc);
-}
-#endif
-
-//Called by EditCopy and Drag
-//Here we copy the native format then call GetClipboardData to do the rest.
+/** Called by EditCopy and Drag, when we drop our chart to some other app.
+ * Here we copy the native format then call GetClipboardData to do the rest.*/
 COleDataSource* CMscGenSrvrItem::OnGetClipboardData(BOOL bIncludeLink, LPPOINT lpOffset, LPSIZE lpSize)
 {
 	ASSERT_VALID(this);
@@ -193,8 +187,9 @@ COleDataSource* CMscGenSrvrItem::OnGetClipboardData(BOOL bIncludeLink, LPPOINT l
 	return pDataSource;
 }
 
-//Called on EditCopy by AddOtherClipboardFormat for the formats registered in the Constructor
-//The native 
+/** Called on EditCopy by AddOtherClipboardFormat for the formats registered in the 
+ * Constructor. Basically We copy our data (the chart text) to the clipboard,
+ * if text is expected of us. Else NIL.*/
 BOOL CMscGenSrvrItem::OnRenderData(LPFORMATETC lpFormatEtc, LPSTGMEDIUM lpStgMedium)
 {
 	ASSERT_VALID(this);
@@ -210,6 +205,7 @@ BOOL CMscGenSrvrItem::OnRenderData(LPFORMATETC lpFormatEtc, LPSTGMEDIUM lpStgMed
 	return COleServerItem::OnRenderData(lpFormatEtc, lpStgMedium);
 }
 
+/** Copy the chart text to 'lpStgMedium.*/
 BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMedium)
 {
 	ASSERT_VALID(this);
@@ -235,7 +231,12 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 	return TRUE;
 }
 
-
+/** Do an OLE verb. This is where we support full-screen view only as verb #2.
+ * Since in-place editing sucks and does not work very well with ribbons anyway,
+ * If an in-place editing verb arrives, we just do OPEN.
+ * We fill in the CMscGenDoc::serialize_doc_overhead here, since here
+ * we know the both length of the full archive and the length of the text.
+ * The actual object size is the archive size, plus the rendered WMF.*/
 void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

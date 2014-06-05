@@ -99,6 +99,8 @@ ADDED: Fit width, Overview buttons to full screen preview
 FIXED: Autoheadings crash.
 FIXED: Help now starts only in one instance when pressing F1
 ADDED: A right-click context menu to the view area.
+CANCELLED: Two indicators at entity collapse
+FIXED: At undo, strange scrolling behaviour.
 
 In 3.7.13
 FIXED: Where the cursor ends up after a single-line TAB

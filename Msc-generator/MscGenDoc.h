@@ -210,7 +210,7 @@ public:
 	void InsertNewChart(const CChartData &);             //insert a new chart into the list (destroys redo, updates iterators)
 	bool CheckIfChanged();                               //Check if we have changed and updates SetModifiedFlag
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
-    void OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before);//this is called by CMiniEditor if the text in the internal editor changes
+    void OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before, POINT scroll_pos_before);//this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
 	void CompileEditingChart(bool resetZoom, bool force_block, bool force_compile);//Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
     void CompleteCompilingEditingChart();                //This will be called once the compilation is complete

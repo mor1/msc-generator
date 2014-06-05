@@ -49,6 +49,7 @@ private:
     CPopupList m_hintsPopup;     ///<A List box that pops up for hint sessions.
     CEditorBar * const m_parent; ///<Our parent, an editor bar.
     CHARRANGE m_crSel_before;    ///<The selection before a change
+    POINT m_scroll_pos_before;   ///<The scrollbar position before a change
     CString m_prev_text;         ///<The previous text, for which m_csh is relevant. Used in UpdateCSH().
     bool m_bRedrawState;         ///<Stores what did we last set SetRedraw(), since we have no GetRedraw()
     /** A type to store redraw and doc notification status.
@@ -96,8 +97,8 @@ public:
     //@}
     /** @name Color Syntax Highlighting functions
     * @{ */
-	void UpdateText(const char *text, CHARRANGE &cr);
-    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol);
+    void UpdateText(const char *text, const CHARRANGE &cr, const POINT &scr);
+    void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, const POINT &scr);
     bool UpdateCSH(UpdateCSHType updateCSH);
 	void CancelPartialMatch();
     //@}

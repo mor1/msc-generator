@@ -629,8 +629,14 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_charts.push_back(data);
 	m_itrEditing = m_charts.begin();
 	m_itrSaved = m_itrEditing; //start as unmodified
+
+    m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
+    m_bSavedPageBreaks = pApp->m_bPageBreaks;
+    m_uSavedPage = 0;
+
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+        pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 	CompileEditingChart(true, false, false);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
@@ -692,7 +698,8 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	}
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+        pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 	//Delete all entries before the currently loaded one (no undo)
 	//part after (redo) was deleted by Serialize or InsertNewChart
 	//Here we set all our m_itr* iterators to valid values afterwards
@@ -744,8 +751,6 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	    }
     }
 	m_itrSaved = m_itrEditing;
-	//if (pApp->IsInternalEditorRunning()) 
-	//	pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
     if (restartEditor) 
         m_ExternalEditor.Start(lpszPathName);
     m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
@@ -936,7 +941,8 @@ void CMscGenDoc::OnEditUndo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 
 	CheckIfChanged();     
 	if (restartEditor)
@@ -963,7 +969,8 @@ void CMscGenDoc::OnEditRedo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 	
 	CheckIfChanged();     
 	if (restartEditor)
@@ -1164,7 +1171,8 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
     m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 	if (restartEditor) 
 		m_ExternalEditor.Start();
 };
@@ -1616,6 +1624,7 @@ bool CMscGenDoc::CheckIfChanged()
 	ASSERT(pApp != NULL);
     if (pApp->m_bFullScreenViewMode) goto not_modified;
 	if (m_itrSaved == m_charts.end()) goto modified; //not yet saved
+    if (m_charts.size()==1) goto not_modified; //single element, saved - we cannot be modified
 	if (IsEmbedded()) {
         if (m_uSavedFallbackResolution != pApp->m_uFallbackResolution) goto modified;
         if (m_bSavedPageBreaks != pApp->m_bPageBreaks) goto modified;
@@ -1639,22 +1648,27 @@ modified:
 
 /** Called by the external editor window if the text in the external editor is saved.
  * We insert a new undo block, update internal editor and start a parallel compile.*/
-void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
+void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
     SetTrackMode(false);
     m_itrEditing->block_undo = true;
-    if (pApp->IsInternalEditorRunning())
+    if (pApp->IsInternalEditorRunning()) {
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+        ::SendMessage(pApp->m_pWndEditor->m_ctrlEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&m_itrEditing->m_scroll);
+    }
     InsertNewChart(data);
     m_itrEditing->block_undo = true;
-    if (pApp->IsInternalEditorRunning())
+    if (pApp->IsInternalEditorRunning()) {
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+        ::SendMessage(pApp->m_pWndEditor->m_ctrlEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&m_itrEditing->m_scroll);
+    }
     CompileEditingChart(true, false, false);
 
 	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+        pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), 
+                                                    m_itrEditing->m_sel, m_itrEditing->m_scroll);
 }
 
 /** Called by the Internal editor, when its text changes.
@@ -1664,8 +1678,9 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
  * @param [in] start The first character to change (zero indexed)
  * @param [in] del The number of characters deleted.
  * @param [in] ins The number of characters inserted (after the delete)
- * @param [in] sel_before The cursor position before the change.*/
-void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before)
+ * @param [in] sel_before The cursor position before the change.
+ * @param [in] scroll_pos_before The scollbar positions before the change.*/
+void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANGE sel_before, POINT scroll_pos_before)
 {
 	//SetTrackMode invalidates if tracking is turned off
 	//It may be that tracking was already off, but we ahd track rects shown (e.g., due to displaying a warning or error)
@@ -1727,6 +1742,7 @@ void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANG
             if (m_charts.size()) {
                 m_itrEditing->block_undo = true;
                 m_itrEditing->m_sel = sel_before;
+                m_itrEditing->m_scroll = scroll_pos_before;
             }
             CChartData chart(text, m_itrEditing->GetDesign());
             chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
@@ -1736,8 +1752,9 @@ void CMscGenDoc::OnInternalEditorChange(long start, long ins, long del, CHARRANG
             m_itrEditing->ins = ins;
             m_itrEditing->del = del;
         }
-        //finally set the cursor pos in the freshly inserted entry to where it is now.
+        //finally set the cursor & scrollbar pos in the freshly inserted entry to where it is now.
         pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+        ::SendMessage(pApp->m_pWndEditor->m_ctrlEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&m_itrEditing->m_scroll);
         CheckIfChanged();
     }
 }
@@ -1876,9 +1893,11 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool forc
         return;
 
     m_itrEditing->RemoveSpacesAtLineEnds();
-	if (pApp->IsInternalEditorRunning()) 
-		//Save new selection in character index terms
-		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+    if (pApp->IsInternalEditorRunning()) {
+        //Save new selection in character index terms
+        pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+        ::SendMessage(pApp->m_pWndEditor->m_ctrlEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&m_itrEditing->m_scroll);
+    }
 
     //if the main window is invisible, do a blocking compilation
     //Needed for single thread operation when the system DLLs start our

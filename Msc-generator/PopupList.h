@@ -16,18 +16,22 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file PopupList.h The interface for the list box & its container 
+ * window popping up to offer hints. 
+ * @ingroup Msc_generator_files */
 #pragma once
 #include "afxwin.h"
 #include "stringparse.h"
 #include "csh.h"
 
+/** An owner-drawn list box containing a list of hints.*/
 class CHintListBox : public CListBox 
 {
 public:
-    CSize             m_current_size;
-    StringFormat      m_format;
-    int               m_cur_sel;
-    Csh               m_csh;
+    CSize             m_current_size; ///<The current geometry of us.
+    StringFormat      m_format;       ///<Default format for hints
+    int               m_cur_sel;      ///<The index of the currently selected item
+    Csh               m_csh;          ///<Stores the current set of hints and shapes
     CHintListBox();
     bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey);
     CSize SetHintsToCurrent();
@@ -35,7 +39,9 @@ public:
     void UpDownKey(int offset);
     void ChangeSelectionTo(int index, EHintItemSelectionState state);
     void ChangeSelectionTo(int index);
+    /** Return a pointer to the hint currently selected. NULL if nothing selected.*/
     const CshHint* GetSelectedHint() const {return GetHint(m_cur_sel);}
+    /** Return a pointer to the i_th hint. NULL if i is out of bounds.*/
     const CshHint* GetHint(int i) const { return (0<=i && i<GetCount()) ? GetHint((const char*)GetItemData(i)) : NULL; }
     const CshHint* GetHint(const char *plain) const;
     virtual void DrawItem(LPDRAWITEMSTRUCT /*lpDrawItemStruct*/);
@@ -48,19 +54,20 @@ class CCshRichEditCtrl;
 
 // CPopupList dialog
 
+/** A dialog window having a single list.*/
 class CPopupList : public CDialog
 {
 	DECLARE_DYNAMIC(CPopupList)
 
 public:
 	CPopupList(CWnd* pParent, CCshRichEditCtrl* pEditCtrl);   // standard constructor
-	virtual ~CPopupList();
+    virtual ~CPopupList() {}
 
     CCshRichEditCtrl *m_pEditCtrl;
 // Dialog Data
 	enum { IDD = IDD_POPUPLIST };
 
-    void Show(bool changed, const LPCSTR uc, int x, int y);
+    void Show(const LPCSTR uc, int x, int y);
     void Hide();
 
 protected:
