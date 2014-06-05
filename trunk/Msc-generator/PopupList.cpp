@@ -16,8 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-// PopupList.cpp : implementation file
-//
+/** @file PopupList.cpp The implementation of the list box & its container 
+ * window popping up to offer hints. 
+ * @ingroup Msc_generator_files */
 
 #include "stdafx.h"
 #include "Msc-generator.h"
@@ -25,6 +26,7 @@
 #include "afxdialogex.h"
 #include "MiniEditor.h"
 
+/** Just initialize. Also set default hint format.*/
 CHintListBox::CHintListBox() : 
     m_csh(ArcBase::defaultDesign, NULL)
 {
@@ -33,6 +35,19 @@ CHintListBox::CHintListBox() :
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
 }
 
+/** Take a list of hints, filter & group them and copy them to us.
+ * We empty 'csh' if no hinting is requested by the user preferences or
+ * hints are not in HINT_READY state. Then we remove those types of
+ * hints not automatically requested by the user (unless this hint session
+ * is triggered by Ctrl+Space).
+ * Then we call Csh::ProcessHints() to potentially filter hints not
+ * matching the 'uc' and potentially to group them, like 'line.*'
+ * @param csh Contains the list of hints we start from. We also return the
+ *            filtered & grouped list of hints in it.
+ * @param [in] uc The string under the cursor, that we are hinting on.
+ * @param [in] userRequest True, if the hint session started via Ctrl+Space.
+ * @param [in] afterReturnKey True, if the session started after pressing return (we may show the first line hints).
+ * @returns True, if the list of hints has changed.*/
 bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -70,8 +85,10 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
     return changed;
 }
 
-
+/** This number of hints are visible in the hint box.*/
 #define MAX_HINT_LISTBOX_LEN 10
+/** Copies the hints from 'm_csh' to the list box itself.
+ * @returns the resulting pixel size of the list box.*/
 CSize CHintListBox::SetHintsToCurrent()
 {
     m_current_size.SetSize(0,0);
@@ -107,11 +124,14 @@ CSize CHintListBox::SetHintsToCurrent()
     return m_current_size;
 }
 
+/** Return the box of 'p' as a CRect.*/
 inline CRect ConvertABCDToCRect(const CshHint *p) 
 {
     return CRect(p->ul_x-1, p->ul_y-1, p->br_x+1, p->br_y+1);
 }
 
+/** Select the right item based on what is under the cursor,
+ * that is, the longest matching item.*/
 void CHintListBox::SetStringUnderCursor(const char *uc)
 {
     if (GetCount()==0) return;
@@ -143,7 +163,8 @@ void CHintListBox::SetStringUnderCursor(const char *uc)
         ChangeSelectionTo(-1, HINT_ITEM_NOT_SELECTED); //second param is dummy
 }
 
-//offset +-1 for up/down arrow, +-2 for pgup/dn
+/** Step uwards or downwards in the list.
+  * @param [in] offset +-1 for up/down arrow, +-2 for pgup/dn. */
 void CHintListBox::UpDownKey(int offset)
 {
     _ASSERT(abs(offset)<=2);
@@ -161,6 +182,10 @@ void CHintListBox::UpDownKey(int offset)
     ChangeSelectionTo(sel);
 }
 
+/** Change the selection to 'index'. 
+ * Range safe, if index is out of bounds, we deselect.
+ * Also, we take into account if that index is selectable or not and 
+ * apply 'half' selection if not.*/
 void CHintListBox::ChangeSelectionTo(int index)
 {
     if (index>=0 && index<GetCount()) 
@@ -169,6 +194,8 @@ void CHintListBox::ChangeSelectionTo(int index)
         ChangeSelectionTo(index, HINT_ITEM_NOT_SELECTED); //second param is dummy
 }
 
+/** Change the selection to 'index', with state 'state'.
+* Range safe, if index is out of bounds, we deselect.*/
 void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
 {
     if (index == m_cur_sel) return;
@@ -189,6 +216,8 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
 }
 
 
+/** Search the current list of hints in 'm_csh' and return the one
+ * equal to 'plain'.*/
 const CshHint* CHintListBox::GetHint(const char *plain) const
 {
     auto i = m_csh.Hints.begin();
@@ -202,7 +231,7 @@ const CshHint* CHintListBox::GetHint(const char *plain) const
     return &*i;
 }
 
-
+/** Onwer-draw a list item.*/
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
     //Do not draw focus rectangle (or anything else) for empty lists
@@ -270,6 +299,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 }
 
 
+/** Return the geometry of one item.*/
 void CHintListBox::MeasureItem(LPMEASUREITEMSTRUCT lpItem)
 {
     const CshHint * const item = GetHint((char*)lpItem->itemData);
@@ -279,6 +309,10 @@ void CHintListBox::MeasureItem(LPMEASUREITEMSTRUCT lpItem)
     }
 }
 
+/** Called by the framework to sort the items.
+ * Selectable items always come first, then we sort according to 'plain'.
+ * @return -1, if item 1 sorts before item 2; 0, if item 1 and item 2 sort 
+ * the same; and 1, if item 1 sorts after item 2.*/
 int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
 {
     // return -1 = item 1 sorts before item 2
@@ -310,6 +344,10 @@ int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
 
 IMPLEMENT_DYNAMIC(CPopupList, CDialogEx)
 
+/** Just initialize.
+ * We take a pointer to the internal editor, to be able to move
+ * focus back to it and to be able to order the insertion of the
+ * selected hint text into the editor.*/
 CPopupList::CPopupList(CWnd* pParent, CCshRichEditCtrl* pEditCtrl)
 	: CDialog(CPopupList::IDD, pParent)
 {
@@ -317,10 +355,7 @@ CPopupList::CPopupList(CWnd* pParent, CCshRichEditCtrl* pEditCtrl)
     m_shown=false;
 }
 
-CPopupList::~CPopupList()
-{
-}
-
+/** Standard dialog stuff. */
 void CPopupList::DoDataExchange(CDataExchange* pDX)
 {
     CDialog::DoDataExchange(pDX);
@@ -335,29 +370,25 @@ BEGIN_MESSAGE_MAP(CPopupList, CDialog)
 END_MESSAGE_MAP()
 
 
-// CPopupList message handlers
-void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
+/** Show the hints. 
+ * Copy the hints from the list box's m_csh to the listbox,
+ * select the appropriate one for 'uc' and position the window.
+ * @param [in] uc The text in the editor, under the cursor, we are hintin based on.
+ * @param [in] x The coordinate where we should appear.
+ * @param [in] y The coordinate where we should appear.*/
+void CPopupList::Show(const LPCSTR uc, int x, int y)
 {
-    if (changed || 1) {
-        if (m_listBox.m_csh.Hints.size()==0) {
-            Hide();
-            return;
-        }
-        CSize size = m_listBox.SetHintsToCurrent();
-        SetWindowPos(&CWnd::wndTop, x, y, size.cx+3, size.cy+3, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-    } else {
-        //not changed
-        if (m_listBox.m_csh.Hints.size()==0) {
-            _ASSERT(!m_shown);
-            return;
-        }
-        //just update window pos (should not be needed!)
-        SetWindowPos(&CWnd::wndTop, x, y, 0, 0, SWP_NOOWNERZORDER | SWP_SHOWWINDOW | SWP_NOSIZE);
-    } 
+    if (m_listBox.m_csh.Hints.size()==0) {
+        Hide();
+        return;
+    }
+    CSize size = m_listBox.SetHintsToCurrent();
+    SetWindowPos(&CWnd::wndTop, x, y, size.cx+3, size.cy+3, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
     m_listBox.SetStringUnderCursor(uc);
     m_shown=true;
 }
 
+/** Hide the hints, move focus to the internal editor.*/
 void CPopupList::Hide() 
 {
     if (m_shown) {
@@ -369,8 +400,8 @@ void CPopupList::Hide()
     m_pEditCtrl->SetFocus();
 }
 
-
-
+/** Called by the framework if the user double-clicks an item.
+ * We insert that to the chart text via CCshRichEditCtrl::ReplaceHintedString()*/
 void CPopupList::OnLbnDblclkList2()
 {
     const CshHint *item = m_listBox.GetSelectedHint();
@@ -379,12 +410,14 @@ void CPopupList::OnLbnDblclkList2()
 }
 
 
+/** Called by the framework if the user cancels a selection.*/
 void CPopupList::OnLbnSelcancelList2()
 {
     m_listBox.ChangeSelectionTo(-1);
 }
 
 
+/** Called by the framework if the user changes the selection.*/
 void CPopupList::OnLbnSelchangeList2()
 {
     m_listBox.ChangeSelectionTo(m_listBox.GetCurSel());

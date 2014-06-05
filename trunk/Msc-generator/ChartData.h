@@ -60,6 +60,7 @@ public:
     /** @name Members relevant only when we are inside an undo buffer.
     * @{ */
     CHARRANGE m_sel; ///<Location of the cursor to undo to
+    POINT m_scroll;  ///<Position of the scrollbar to undo to
     bool block_undo; ///<If true, no further changes can be appended to this state in the undo buffer
     long start;      ///<The start of the change compared to the previous state
     long ins;        ///<The length of the insertion compared to the previous state
@@ -68,16 +69,16 @@ public:
     /** Default constructor.*/
 	CChartData() : m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), 
         ver_a(0), ver_b(0), ver_c(0), 
-        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0; }
+        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0; m_scroll.x=m_scroll.y=0; }
     /** Initialize to a chart text (and optionally a forced design to use)*/
 	explicit CChartData(const char *text, const char *design=NULL) 
 		:m_text(text?text:""), m_ForcedDesign(design?design:""), 
         m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), 
         ver_a(0), ver_b(0), ver_c(0), 
-        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0;}
+        block_undo(true), start(0), ins(0), del(0) {m_sel.cpMax = m_sel.cpMin = 0;  m_scroll.x=m_scroll.y=0; }
     /** Initialize to a chart text & cursor pos (and optionally a forced design to use)*/
-	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL)
-		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""),
+	CChartData(const char *text, const CHARRANGE &sel, const POINT &scroll, const char *design=NULL)
+		:m_text(text?text:""), m_sel(sel), m_scroll(scroll), m_ForcedDesign(design?design:""),
         m_page_size(0, 0), m_addHeading(true), m_fitWidth(false), ver_a(0), ver_b(0), ver_c(0), 
         block_undo(true), start(0), ins(0), del(0)  {}
     /** Copy constructor.*/
@@ -88,7 +89,7 @@ public:
     /** Swap contets with another CChartData. */
     void swap(CChartData &o);
     /** Empty all content */
-	virtual void Delete(void) {m_text.Empty(); m_ForcedDesign.Empty(); m_sel.cpMax = m_sel.cpMin = 0;}
+    virtual void Delete(void) { m_text.Empty(); m_ForcedDesign.Empty(); m_sel.cpMax = m_sel.cpMin = 0; m_scroll.x = m_scroll.y = 0; }
     /** Set our defined version.*/
     void SetVersion(unsigned a, unsigned b, unsigned c) {ver_a=a; ver_b=b; ver_c=c;}
     /** True, if we contain an Msc-generator version used to define us.*/

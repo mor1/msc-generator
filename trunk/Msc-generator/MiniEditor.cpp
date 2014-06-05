@@ -487,6 +487,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     static std::list<std::pair<UINT, WPARAM>> msg;
     msg.emplace_back(pMsg->message, pMsg->wParam);
     GetSel(m_crSel_before);
+    ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&m_scroll_pos_before);
     long lStart = m_crSel_before.cpMin;
     long lEnd = m_crSel_before.cpMax;
     if (InHintMode()) {
@@ -813,26 +814,28 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 * After that it does a full coloring
 * We never notify the document object about a change in this function,
 * as it is called by the document object only.*/
-void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol)
+void CCshRichEditCtrl::UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, const POINT &scr)
 {
     CHARRANGE cr;
     cr.cpMin = ConvertLineColToPos(lStartLine, lStartCol);
     cr.cpMax = ConvertLineColToPos(lEndLine, lEndCol);
-    UpdateText(text, cr);
+    UpdateText(text, cr, scr);
 }
 
-/** Changes the text in the control to `text` and sets cursor pos.
+/** Changes the text in the control to `text` and sets cursor & scroll pos.
  * After that it does a full coloring
  * We never notify the document object about a change in this function,
  * as it is called by the document object only.*/
-void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr)
+void CCshRichEditCtrl::UpdateText(const char *text, const CHARRANGE &cr, const POINT &scr)
 {
     CString t = text;
     EnsureCRLF(t);
 
     const auto state = DisableWindowUpdate();
     SetWindowText(t);
-    SetSel(cr);
+    CHARRANGE loc_cr = cr;
+    SetSel(loc_cr);
+    ::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scr);
     UpdateCSH(FORCE_CSH);
     RestoreWindowUpdate(state);
     SetFocus();
@@ -1154,7 +1157,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         CMscGenDoc *pDoc = GetMscGenDocument();
         //pDoc can be legally NULL here before the first view is established.
         if (pDoc)
-            pDoc->OnInternalEditorChange(start, ins, del, m_crSel_before);
+            pDoc->OnInternalEditorChange(start, ins, del, m_crSel_before, m_scroll_pos_before);
     }
     RestoreWindowUpdate(state);
     return ret;
@@ -1289,7 +1292,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         return;
     } 
     //Show the window (or keep it shown & update the list)
-    m_hintsPopup.Show(changed, text, pt.x, pt.y);
+    m_hintsPopup.Show(text, pt.x, pt.y);
     SetFocus();
 }
 

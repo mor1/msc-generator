@@ -73,6 +73,7 @@ void CChartData::swap(CChartData &o)
     std::swap(ver_b, o.ver_b);
     std::swap(ver_c, o.ver_c);
     std::swap(m_sel, o.m_sel);
+    std::swap(m_scroll, o.m_scroll);
 }
 
 

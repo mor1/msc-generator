@@ -16,11 +16,13 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-// SrvrItem.h : interface of the CMscGenSrvrItem class
-//
+/** @file PopupList.h The interface for CMscGenSrvrItem class, which is providing
+ * rendering and serialization of chart objects to OLE. 
+ * @ingroup Msc_generator_files */
 
 #pragma once
 
+/** Our OLE server object.*/
 class CMscGenSrvrItem : public CDocObjectServerItem
 {
 	DECLARE_DYNAMIC(CMscGenSrvrItem)
@@ -29,11 +31,10 @@ public:
 	CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage);
 
 // Attributes
-	CMscGenDoc* GetDocument() const
+    /** Return the corresponding document.*/
+    CMscGenDoc* GetDocument() const
 		{ return dynamic_cast<CMscGenDoc*>(CDocObjectServerItem::GetDocument()); }
-    unsigned m_forcePage;     //0 if no page forced, 1..n if one is forced
-
-    //depending on linking/embedding, returns the page to draw/extent
+    unsigned m_forcePage;     ///<0 if no page forced, 1..n if one is forced
     unsigned GetPage() const;
 
 // Overrides
@@ -43,19 +44,13 @@ public:
 	virtual BOOL OnRenderData(LPFORMATETC lpFormatEtc, LPSTGMEDIUM lpStgMedium);
 	virtual COleDataSource* OnGetClipboardData(BOOL bIncludeLink, LPPOINT lpOffset, LPSIZE lpSize);
 	BOOL GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMedium);
-	BOOL GetBitmapData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMedium);
 
 	virtual void OnDoVerb(LONG iVerb);
 
 
 // Implementation
 public:
-	~CMscGenSrvrItem();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
-
+    ~CMscGenSrvrItem() {}
 protected:
 	virtual void Serialize(CArchive& ar);   // overridden for document i/o
 };
