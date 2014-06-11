@@ -1932,7 +1932,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     if (ss.size()>0) {
         string sss;
         if (ss.size() == 1)  //One missing entity
-            sss << "Entity" << ss[0] << " is";
+            sss << "Entity " << ss[0] << " is";
         else {
             sss << "Entities ";
             for(unsigned i=0; i<ss.size()-2; i++)
