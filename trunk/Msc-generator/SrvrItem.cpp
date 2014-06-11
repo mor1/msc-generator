@@ -16,7 +16,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file PopupList.cpp The interface for CMscGenSrvrItem class, which is providing
+/** @file SrvrItem.cpp The interface for CMscGenSrvrItem class, which is providing
  * rendering and serialization of chart objects to OLE. Essentially this provides
  * the OLE server functions.
  * @ingroup Msc_generator_files */

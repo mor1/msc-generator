@@ -580,10 +580,10 @@ EIterator Msc::FindWhoIsShowingInsteadOf(EIterator ei, bool left)
 string Msc::ListGroupedEntityChildren(EIterator ei) 
 {
     if ((*ei)->children_names.size() == 0) return "'" + (*ei)->name + "'";
-    string s = "'";
+    string s;
     for (const auto &i : (*ei)->children_names)
-        s.append(ListGroupedEntityChildren(AllEntities.Find_by_Name(i))).append("', '");
-    s.erase(s.length()-3);
+        s.append(ListGroupedEntityChildren(AllEntities.Find_by_Name(i))).append(", ");
+    s.erase(s.length()-2);
     return s;
 }
 
