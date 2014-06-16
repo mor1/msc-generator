@@ -236,7 +236,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - a lone '\' at the end of the string (SOLO_ESCAPE)
  */
 StringFormat::EEscapeType StringFormat::ProcessEscape(
-	const char * const input, unsigned &length,
+	const char * const input, size_t &length,
 	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
 	Msc *msc, bool references, FileLineCol *linenum, bool sayIgnore)
 {
@@ -465,7 +465,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 3 + was_m;
         goto nok;
     }
-    length = unsigned(end-input)+1; //since we have both ( and ) found, we have at least () after the escape
+    length = end-input+1; //since we have both ( and ) found, we have at least () after the escape
     parameter.assign(input+was_m+3, length-was_m-4); //stuff inside parenthesis
 
     //start with escapes taking a string value as parameter
@@ -641,7 +641,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             return FORMATTING_OK;
         }
         //OK, now we know we have a valid escape with a non-empty parameter, digest number
-        unsigned local_pos = 0;
+        size_t local_pos = 0;
         double val = 0;
         while (parameter.length()>local_pos && parameter[local_pos]>='0' && parameter[local_pos]<='9') {
             val = val*10 + parameter[local_pos]-'0';
@@ -755,10 +755,10 @@ void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
     _ASSERT(len<32000000U); //safety against negative numbers
     _ASSERT(len<=strlen(text)); //safety against idiotic callers
     if (text==NULL) return;
-    unsigned pos=0;
+    size_t pos = 0;
     StringFormat sf;
     while (pos<len) {
-        unsigned length;
+        size_t length;
         const EEscapeType escape = sf.ProcessEscape(text+pos, length);
         CshPos loc;
         loc.first_pos = startpos + pos;
@@ -826,7 +826,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
     StringFormat sf;
     string ignoreText = ignore?" Ignoring it.":"";
     while(text.length()>pos && text[pos]) {
-        unsigned length;
+        size_t length;
         FileLineCol beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
                                  basic, msc, references, &linenum, ignore)) {
@@ -881,7 +881,7 @@ int StringFormat::FindNumberingFormatEscape(const char *text)
     string::size_type pos = 0;
 	const string::size_type text_length = strlen(text);
     while (pos < text_length) {
-        unsigned length;
+        size_t length;
 		if (NUMBERING_FORMAT == sf.ProcessEscape(text+pos, length))
             return (int)pos;
         pos += length;
@@ -893,9 +893,9 @@ int StringFormat::FindNumberingFormatEscape(const char *text)
 void StringFormat::RemovePosEscapes(string &text)
 {
     StringFormat sf;
-    unsigned pos = 0;
+    size_t pos = 0;
     while (pos < text.length() && text[pos]) {
-        unsigned length;
+        size_t length;
         if (FORMATTING_OK == sf.ProcessEscape(text.c_str()+pos, length))
             if (text[pos]=='\\' && text[pos+1]=='\x01') {
                 text.erase(pos, length);
@@ -909,9 +909,9 @@ void StringFormat::RemovePosEscapes(string &text)
 void StringFormat::ConvertToPlainText(string &text)
 {
     StringFormat sf;
-    unsigned pos = 0;
+    size_t pos = 0;
     while (pos < text.length() && text[pos]) {
-        unsigned length;
+        size_t length;
         switch (sf.ProcessEscape(text.c_str()+pos, length)) {
         case NON_FORMATTING:
         case NON_ESCAPE:
@@ -930,7 +930,7 @@ void StringFormat::ConvertToPlainText(string &text)
 }
 
 
-unsigned StringFormat::Apply(const char *text)
+size_t StringFormat::Apply(const char *text)
 {
     size_t pos = 0;
     size_t length;
@@ -943,9 +943,9 @@ unsigned StringFormat::Apply(const char *text)
     return pos;
 }
 
-unsigned StringFormat::Apply(string &text)
+size_t StringFormat::Apply(string &text)
 {
-    unsigned len = Apply(text.c_str());
+    size_t len = Apply(text.c_str());
     text.erase(0, len);
     return len;
 }
@@ -1259,7 +1259,7 @@ bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, C
     const LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
-    for (unsigned i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
+    for (size_t i = 0; i<sizeof(sizePercentage)/sizeof(double); i++) {
         double x1 = floor(HINT_GRAPHIC_SIZE_X*sizePercentage[i]/100.+0.5);
         double x2 = floor(HINT_GRAPHIC_SIZE_X*0.2);
         switch (t) {
@@ -1342,11 +1342,11 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
         pos += length;
     }
     bool number_added = false;
-    unsigned beginning_pos = pos;
+    size_t beginning_pos = pos;
     while (pos < label.length() && label[pos]) {
         if (NUMBERING == sf.ProcessEscape(label.c_str()+pos, length)) {
             label.replace(pos, length, num);
-            length = (unsigned)num.length();
+            length = num.length();
             number_added = true;
         }
         pos += length;
@@ -1420,7 +1420,7 @@ double StringFormat::getFragmentWidth(const string &s, Canvas &canvas) const
     if (canvas.individual_chars) {
         double advance = 0;
         char tmp_stirng[2] = "a";
-        for (unsigned i=0; i<s.length(); i++) {
+        for (size_t i = 0; i<s.length(); i++) {
             tmp_stirng[0] = s[i];
             cairo_text_extents(canvas.GetContext(), tmp_stirng, &te);
             advance += te.x_advance;
@@ -1519,7 +1519,7 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
     format.Apply(line); //eats away initial formatting, ensures we do not start with escape
     startFormat = format;
     size_t pos = 0;
-    unsigned length;
+    size_t length;
     string replaceto;
     string fragment;
     while (line.length()>pos) {
@@ -1551,7 +1551,7 @@ ParsedLine::operator std::string() const
 {
     StringFormat format(startFormat);
     size_t pos = 0;
-    unsigned length;
+    size_t length;
     string replaceto;
     string ret;
 
@@ -1573,7 +1573,7 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
 {
     StringFormat format(startFormat);
     size_t pos = 0;
-    unsigned length;
+    size_t length;
     string replaceto;
     string fragment;
 
@@ -1599,11 +1599,11 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
 //////////////////////////////////////////////////
 
 
-unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
+size_t Label::Set(const string &input, Canvas &canvas, StringFormat format)
 {
     clear();
     size_t pos = 0, line_start = 0;
-    unsigned length=0;
+    size_t length = 0;
     while (pos < input.length() && input[pos]) {
         bool hard_line_break = false; //=false is just there to supress a warning
         //find next new line
@@ -1620,14 +1620,14 @@ unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
         pos += length; //add the length of the line break itself
         line_start = pos;
     }
-    return (unsigned)this->size();
+    return this->size();
 }
 
 Label::operator std::string() const
 {
     string ret;
     if (size()>0)
-        for (unsigned i = 0; i<size(); i++)
+        for (size_t i = 0; i<size(); i++)
             ret += at(i);
     return ret;
 }
@@ -1676,7 +1676,7 @@ XY Label::getTextWidthHeight(int line) const
             xy.y += at(line-1).startFormat.textVGapLineSpacing.second +
             at(line-1).startFormat.spacingBelow.second;
     } else {
-        for (unsigned i = 0; i<size(); i++) {
+        for (size_t i = 0; i<size(); i++) {
             double x = at(i).getWidthHeight().x +
                 at(i).startFormat.textHGapPre.second +
                 at(i).startFormat.textHGapPost.second;
@@ -1702,7 +1702,7 @@ double Label::Reflow(Canvas &c, double x)
     if (size()==0) return false;
     double overflow = 0;
     std::vector<ParsedLine> reflown; //the resulted set of lines
-    unsigned lnum=0; //the number of the line we process
+    size_t lnum = 0; //the number of the line we process
     size_t pos = 0;  //the position within at(lnum)
     string line;     //the line we gather in the new flow
     double width = 0;//width of the text in "line"
@@ -1713,7 +1713,7 @@ double Label::Reflow(Canvas &c, double x)
     do {
         while (pos < at(lnum).line.length() && at(lnum).line[pos]) {
             string replaceto;
-            unsigned length;
+            size_t length;
             switch (running_format.ProcessEscape(at(lnum).line.c_str()+pos, length, 
                                                  true, false, &replaceto, 
                                                  &at(0).startFormat)) {
@@ -1810,7 +1810,7 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
     if (size()==0) return;
     XY xy;
     xy.y = y + at(0).startFormat.textVGapAbove.second;
-    for (unsigned i = 0; i<size(); i++) {
+    for (size_t i = 0; i<size(); i++) {
         const XY wh = at(i).getWidthHeight();
         switch (at(i).startFormat.ident.second) {
         case MSC_IDENT_LEFT:

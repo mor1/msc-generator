@@ -44,6 +44,9 @@ ADD: arrows to point to boxes.
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
+In 4.0.1
+FIXED: compilation errors on 64-bit Linux. (size-t != unsigned problems)
+
 In 4.0
 FIXED: Contour test mistakes (esp 740_006)
 CHANGED: Remove area calcualtion from arcs (if not needed)

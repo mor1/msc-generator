@@ -141,7 +141,7 @@ class StringFormat {
         NUMBERING_FORMAT, ///<A replacement for a numbering format token (such as "abc" or "roman")
         SOLO_ESCAPE    ///<A single backslash "\"
     };
-    EEscapeType ProcessEscape(const char *input, unsigned &length,
+    EEscapeType ProcessEscape(const char *input, size_t &length,
                               bool resolve=false, bool apply=false, string *replaceto=NULL, 
                               const StringFormat *basic=NULL,
                               Msc *msc=NULL, bool references=false, 
@@ -180,13 +180,13 @@ class StringFormat {
      * _remove the processed escapes_ and return.
      * @param [in] text The text to parse.
      * @return The number of characters processed.*/
-    unsigned Apply(string &text); 
+    size_t Apply(string &text);
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
      * one that includes style/color name, stop and return.
      * @param [in] s The text to parse.
      * @return The number of characters processed.*/
-    unsigned Apply(const char *s);
+    size_t Apply(const char *s);
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
      * one that includes style/color name, stop and return.*/
@@ -291,7 +291,7 @@ public:
      * @param c The canvas to use to determine geometry.
      * @param [in] f The starting text format.
      * @returns the number of lines in the label.*/
-    unsigned Set(const string &s, Canvas &c, StringFormat f);
+    size_t Set(const string &s, Canvas &c, StringFormat f);
     /** Add extra spacing below the first line 
      * This space remains even after a reflow. */
     void AddSpacingAfterFirstLine(double spacing) {first_line_extra_spacing += spacing;}
