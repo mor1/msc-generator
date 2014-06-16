@@ -1572,7 +1572,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge(Canvas &canvas)
     }
     const double space = std::max(0., outer_edge.x.Spans() - 2*style.read().line.LineWidth());
     if (parsed_label.IsWordWrap() && parsed_label.size()>0) {
-        const double overflow = parsed_label.Reflow(canvas, space);
+        /*const double overflow = */parsed_label.Reflow(canvas, space);
         //OverflowWarning(overflow, "", i, src);
     } else {
         CountOverflow(space);

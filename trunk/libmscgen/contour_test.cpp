@@ -162,7 +162,7 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
             cairo_stroke(cr);
             cairo_move_to(cr, e.second.x+1, e.second.y+1);
             char buff[100];
-            sprintf(buff, "(%u): %lg; %lg", e.first, e.second.x, e.second.y);
+            sprintf(buff, "(%u): %lg; %lg", (unsigned)e.first, e.second.x, e.second.y);
             cairo_show_text(cr, buff);
         }
     }
@@ -1378,7 +1378,7 @@ void DebugSnapshot(const Path &path, const std::map<size_t, XY> &cps)
     cairo_set_source_rgb(c.cr, 0, 0, 0);
     cairo_set_font_size(c.cr, 3);
     PaintPath(c.cr, path);
-    
+
     cairo_set_source_rgba(c.cr, 1, 0, 0, 0.5);
     for (auto &e: cps) {
         cairo_new_sub_path(c.cr);
@@ -1387,7 +1387,7 @@ void DebugSnapshot(const Path &path, const std::map<size_t, XY> &cps)
         cairo_stroke(c.cr);
         cairo_move_to(c.cr, e.second.x+1, e.second.y+1);
         char buff[100];
-        sprintf(buff, "(%u): %lg; %lg", e.first, e.second.x, e.second.y);
+        sprintf(buff, "(%u): %lg; %lg", unsigned(e.first), e.second.x, e.second.y);
         cairo_show_text(c.cr, buff);
     }
 }
