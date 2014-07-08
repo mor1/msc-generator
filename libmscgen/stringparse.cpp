@@ -634,8 +634,10 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 }
 	            if (replaceto) replaceto->clear();
             } else {
-                if (replaceto) *replaceto="\\mX()";
-                (*replaceto)[2] = input[2];
+                if (replaceto) {
+                    *replaceto = "\\mX()";
+                    (*replaceto)[2] = input[2];
+                }
             }
             if (linenum) linenum->col += length;
             return FORMATTING_OK;

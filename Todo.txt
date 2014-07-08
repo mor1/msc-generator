@@ -44,8 +44,9 @@ ADD: arrows to point to boxes.
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
-In 4.0.1
+In 4.0.2
 FIXED: compilation errors on 64-bit Linux. (size-t != unsigned problems)
+FIXED: \mX() escapes crashed CSH processing without a value in parenthesis
 
 In 4.0
 FIXED: Contour test mistakes (esp 740_006)
