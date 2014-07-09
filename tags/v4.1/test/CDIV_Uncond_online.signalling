@@ -1,0 +1,68 @@
+#This is the default signalling chart
+#Edit and press Ctrl+W to see the result
+#You can change the default chart
+#in the Edit|Preferences... menu.
+
+UA_A,MTAS[pos=0.8],UA_C [pos=0.4],OCS[pos=0.4];
+UA_A->MTAS:INVITE(SDP1);
+activate MTAS;
+MTAS->OCS:CCR(Initial Request, A->B);
+MTAS--MTAS:10;
+MTAS->UA_A:100 Trying;
+deactivate MTAS;
+OCS ->MTAS:CCA(Initial Request, A->B);
+activate MTAS;
+MTAS->UA_A:181 Call is being forwarded;
+MTAS--MTAS:20;
+MTAS->OCS:CCR(Initial Request, B->C);
+deactivate MTAS;
+OCS ->MTAS:CCA(Initial Request, B->C);
+activate MTAS;
+MTAS->UA_C:Invite(SDP1);
+MTAS--MTAS:30;
+deactivate MTAS;
+UA_C->MTAS:180 Ringing;
+activate MTAS;
+MTAS->UA_A:180 Ringing;
+MTAS--MTAS:40;
+deactivate MTAS;
+UA_C->MTAS:200 OK(INVITE)(SDP2);
+activate MTAS;
+MTAS->OCS:CCR(Update Request, B->C);
+MTAS--MTAS:50;
+deactivate MTAS;
+OCS ->MTAS:CCA(Update Request, B->C);
+activate MTAS;
+MTAS->OCS:CCR(Update Request, A->B);
+MTAS--MTAS:60;
+deactivate MTAS;
+OCS->MTAS:CCA(Update Request, A->B);
+activate MTAS;
+MTAS->OCS:200 OK(INVITE)(SDP2);
+MTAS--MTAS:70;
+deactivate MTAS;
+UA_A->MTAS:ACK;
+activate MTAS;
+MTAS--MTAS:80;
+MTAS->OCS:ACK;
+deactivate MTAS;
+UA_A->MTAS:BYE;
+activate MTAS;
+MTAS->OCS:BYE;
+MTAS->OCS:CCR(Termination Request, A->B);
+MTAS--MTAS:90;
+MTAS->OCS:CCR(Termination Request, B->C);
+deactivate MTAS;
+OCS->MTAS:CCA(Termination Request, A->B);
+activate MTAS;
+MTAS--MTAS:100;
+deactivate MTAS;
+OCS ->MTAS:CCA(Termination Request, B->C);
+activate MTAS;
+MTAS--MTAS:110;
+deactivate MTAS;
+UA_C->MTAS:200 OK(BYE);
+activate MTAS;
+MTAS->UA_A:200 OK(BYE);
+MTAS--MTAS:120;
+deactivate MTAS;
