@@ -209,8 +209,7 @@ public:
     const bool        collapsed;      ///<True if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
-           const StyleCoW &entity_style, const FileLineCol &fp, bool coll, 
-           int sh, EArrowSize sh_size);
+           const StyleCoW &entity_style, const FileLineCol &fp, bool coll);
     void AddChildrenList(const EntityAppList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
@@ -337,9 +336,6 @@ public:
     FileLineCol                      linenum_label_value; ///<Locatin of label text (attribute value) in the input file (if any). Only a minor difference to `label.third`.
     triplet<bool,double,FileLineCol> pos;                 ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     triplet<bool,string,FileLineCol> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
-    int                              attr_shape;          ///<The number of the shape we shall use to draw (from "shape" attr). -1 if none.
-    FileLineCol                      attr_shape_pos;      ///<Location of the 'shape' attr.
-    EArrowSize                       attr_shape_size;     ///<The size of the shape.
     triplet<bool,bool,FileLineCol>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     std::pair<bool,bool>             show;                ///<The `show=` attribute if specified by the user.
     triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
