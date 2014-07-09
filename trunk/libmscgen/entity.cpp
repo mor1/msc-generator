@@ -494,8 +494,10 @@ template class PtrList<Entity>;
  * @param [in] sh_size The size of the Shape, ignored if no Shape.*/
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
-    bool coll, int sh, EArrowSize sh_size) :
-    name(n), label(l), orig_label(ol), file_pos(fp), shape(sh), shape_size(sh_size),
+    bool coll) :
+    name(n), label(l), orig_label(ol), file_pos(fp), 
+    shape(entity_style.read().shape.first ? entity_style.read().shape.second : -1),
+    shape_size(entity_style.read().shape_size.first ? entity_style.read().shape_size.second : MSC_ARROW_SMALL),
     pos(p), pos_exp(pe), index(0), status(entity_style),
     running_style(entity_style), running_shown(EEntityStatus::SHOW_OFF),
     maxwidth(0), collapsed(coll)
@@ -598,8 +600,6 @@ EntityApp::EntityApp(const char *s, Msc* msc) : Element(msc),
     label(false, "", FileLineCol()),
     pos(false, 0, FileLineCol()),                    //field 'pos.second' is used even if no such attribute
     rel(false, "", FileLineCol()),
-    attr_shape(-1),
-    attr_shape_size(MSC_ARROW_SMALL),
     collapsed(false, false, FileLineCol()),
     show(true, true),                              //if no attributes, we are ON if defined
     active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
@@ -632,52 +632,9 @@ bool EntityApp::AddAttribute(const Attribute& a)
         style += chart->Contexts.back().styles[a.name];
         return true;
     }
-    if (a.Is("shape")) {
-        if (!chart->Shapes) {
-            chart->Error.Error(a, false, "No shapes have been loaded. Ignoring attribute.");
-            return true;
-        }
-
-        if (!defining) {
-            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
-            return true;
-        }
-        if (a.type == MSC_ATTR_CLEAR) {
-            attr_shape = -1;
-            return true;
-        }
-        if (!a.CheckType(MSC_ATTR_STRING, chart->Error))
-            return true;
-        int sh = chart->Shapes.GetShapeNo(a.value);
-        if (sh==-1) {
-            string msg("Use one of '");
-            const auto v = chart->Shapes.ShapeNames(a.value);
-            for (size_t u = 0; u<v.size()-1; u++)
-                if (u+2==v.size())
-                    msg.append(v[u]).append("' or '");
-                else
-                    msg.append(v[u]).append("', '");
-            msg.append(v.back());
-            chart->Error.Error(a, true, "Unrecognized Shape. Ignoring attribute.", msg + "'.");
-        } else
-            attr_shape = sh;
-        attr_shape_pos = a.linenum_attr.start;
-        return true;
-    }
-    if (a.Is("Shape.size") && chart->Shapes) {
-        if (!defining) {
-            chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
-            return true;
-        }
-        if (a.type == MSC_ATTR_CLEAR) {
-            attr_shape_size = MSC_ARROW_SMALL;
-            return true;
-        }
-        if (a.type == MSC_ATTR_STRING &&
-            Convert(a.value, attr_shape_size)) {
-            return true;
-        }
-        a.InvalidValueError(CandidatesFor(attr_shape_size), chart->Error);
+    if ((a.Is("shape") || a.Is("shape.size")) && !defining) {
+        //this will be handled as part of style, but we do some checking 
+        chart->Error.Error(a, false, "This attribute can only be set when you define an entity. Ignoring it.");
         return true;
     }
     string s;
@@ -793,10 +750,6 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
     //If we have children, add them to "ret->entities"
     string note_target_name = name;
     if (ch) {
-        if (attr_shape>=0) {
-            chart->Error.Error(attr_shape_pos, "Only non-grouped entities may have the 'Shape' attribute. Ignoring Shape.");
-            attr_shape = -1;
-        }
         for (auto j = ch->begin(); j!=ch->end(); /*nope*/) {
             CommandEntity * const ce = dynamic_cast<CommandEntity *>(*j);
             CommandNote * const cn = dynamic_cast<CommandNote *>(*j);
@@ -938,8 +891,7 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
-                               style_to_use, file_pos.start, make_collapsed,
-                               attr_shape, attr_shape_size);
+                               style_to_use, file_pos.start, make_collapsed);
         e->AddChildrenList(&ret->entities, chart);  //also fixes positions & updates running_style
         e->running_draw_pass = draw_pass;
         //Add to entity list
@@ -947,8 +899,8 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         if (!chart->IsVirtualEntity(e))
             ret->target = name;  //if we were a group entity, use us as target for a subsequent note
         //If we used a Shape register it (so that we can save it in OLE objects)
-        if (attr_shape>=0)
-            chart->used_shapes.insert(attr_shape);
+        if (style.read().shape.first && style.read().shape.second>=0)
+            chart->used_shapes.insert(style.read().shape.second);
 
     } else {
         FileLineCol p;
@@ -999,10 +951,6 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    if (csh.pShapes && *csh.pShapes) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", HINT_ATTR_NAME));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape.size", HINT_ATTR_NAME));
-    }
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -1029,17 +977,6 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr, "relative")) {
         csh.AddEntitiesToHints();
-        return true;
-    }
-    if (csh.pShapes && *csh.pShapes && CaseInsensitiveEqual(attr, "shape")) {
-        csh.pShapes->AttributeValues(csh);
-        for (const auto &s : csh.shape_names)
-            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+s, 
-                                   HINT_ATTR_VALUE, true));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr, "shape.size")) {
-        ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }
     if (Element::AttributeValues(attr, csh)) return true;
