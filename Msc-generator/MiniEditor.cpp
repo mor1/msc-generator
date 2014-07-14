@@ -45,7 +45,6 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     m_bWasReturnKey = false;
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
-    m_bWasAutoComplete = false;
     m_bRedrawState = true;
 }
 
@@ -547,7 +546,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             }
             //if so, set the hint mode such that we only consider the word under the curson
             //up to the cursor (and cut away the remainder)
-            m_bWasAutoComplete = false; //do not prevent hint mode on this basis
             StartHintMode(till_cursor_only);
             return TRUE;
         }
@@ -1234,7 +1232,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //4. the cursor stands at the beginning of a real nonzero len hinted word 
     //   and the user did not press Ctrl+Space
     const CshPos &p = m_csh.hintedStringPos;
-    if (start!=end || m_csh.Hints.size()==0 || m_bWasAutoComplete ||
+    if (start!=end || m_csh.Hints.size()==0 || 
         (p.first_pos != p.last_pos && !m_bUserRequested && p.first_pos == start)) {
         CancelHintMode();
         return;
@@ -1301,26 +1299,20 @@ void CCshRichEditCtrl::CancelHintMode()
     m_hintsPopup.Hide();
     m_bUserRequested = false;
     m_bTillCursorOnly = false; 
-    m_bWasAutoComplete = false;
 }
 
 /**Replace the part of the text pointed by m_csh.hintedStringPos to substitute.*/
 void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintMode)
 {
-    CshPos pos = m_csh.hintedStringPos;
-    CString subst(substitute); //CancelHintMode will likely destroy "substitute"
-    //Need to call before CancelHintMode before ReplaceSel, since after replace that results a call 
-    //to OnCommand and we get confused, if we are still in Hint mode then
-    if (endHintMode) {
-        CancelHintMode(); 
-        //Set flag So that we do not re-enter hint mode as a result of change we do below
-        m_bWasAutoComplete = true; 
-    }
     const auto state = DisableWindowUpdate();
-    SetSel(pos.first_pos, pos.last_pos);
-    ReplaceSel(subst); 
-    UpdateCSH(CSH);
+    SetSel(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos);
+    ReplaceSel(substitute);  //selection ends up at m_csh.hintedStringPos.first_pos
+    UpdateCSH(CSH);  //also generates the new hints
     RestoreWindowUpdate(state);
+    if (endHintMode)
+        CancelHintMode();
+    else
+        StartHintMode(false); //refresh the hint popup content 
 }
 
 /////////////////////////////////////////////////////////////////////////////

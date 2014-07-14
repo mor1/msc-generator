@@ -502,6 +502,7 @@ void Csh::AddCSH_ErrorAfter(const CshPos&pos, std::string &&text)
 void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
+        CaseInsensitiveEqual(name, "tag") ||
         CaseInsensitiveEqual(name, "text.format") ||
         CaseInsensitiveEqual(name, "numbering.format") ||
         CaseInsensitiveEqual(name, "numbering.append") ||
@@ -677,7 +678,15 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "lost.text.bold", "lost.text.italic", "lost.text.underline",
 "lost.text.gap.up", "lost.text.gap.down", "lost.text.gap.left", "lost.text.gap.right",
 "lost.text.gap.spacing", "lost.text.size.normal", "lost.text.size.small", "lost.text.wrap",
-"shape", "shape.size", ""}; //we add shape even if it may not be available
+"shape", "shape.size",  //we add shape even if it may not be available
+"tag", "tag.line.color", "tag.line.type", "tag.line.width", "tag.line.corner", "tag.line.radius",
+"tag.fill.color", "tag.fill.color2", "tag.fill.gradient",
+"tag.text.color", "tag.text.ident", "ident", "tag.text.format",
+"tag.text.font.face", "tag.text.font.type",
+"tag.text.bold", "tag.text.italic", "tag.text.underline",
+"tag.text.gap.up", "tag.text.gap.down", "tag.text.gap.left", "tag.text.gap.right",
+"tag.text.gap.spacing", "tag.text.size.normal", "tag.text.size.small", "tag.text.wrap", 
+"tag.text.width", ""};
 
 /** Names of symbols for coloring
  *

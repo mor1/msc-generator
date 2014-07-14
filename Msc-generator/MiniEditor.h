@@ -45,7 +45,6 @@ private:
     bool m_bWasReturnKey;        ///<True if the return key was pressed. Needed to see if we shall show the line begin hints or not.
     bool m_bUserRequested;       ///<True if the the current hints session was invoked via Ctrl+Space
     bool m_bTillCursorOnly;      ///<True if the the current hints session started at the beginning of a word.
-    bool m_bWasAutoComplete;     ///<True if last change was an auto-completion. Set to prevent entering hint mode again after.
     CPopupList m_hintsPopup;     ///<A List box that pops up for hint sessions.
     CEditorBar * const m_parent; ///<Our parent, an editor bar.
     CHARRANGE m_crSel_before;    ///<The selection before a change

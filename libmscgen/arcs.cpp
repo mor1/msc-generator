@@ -645,6 +645,12 @@ void ArcLabelled::SetStyleWithText(const StyleCoW *style_to_use)
     StringFormat to_use(chart->Contexts.back().text);
     to_use += style.read().text;
     style.write().text = to_use;
+    //Do the same for the tag.text attributes, if they are applicable
+    if (style.read().f_tag) {
+        to_use = chart->Contexts.back().text;
+        to_use += style.read().tag_text;
+        style.write().tag_text = to_use;
+    }
     style.write().type = STYLE_ARC;
     //If style does not contain a numbering setting, apply the value of the
     //current chart option.
@@ -3462,8 +3468,21 @@ void ArcBox::AddAttributeList(AttributeList *l)
     else if (collapsed==BOX_COLLAPSE_BLOCKARROW) 
         SetStyleWithText("box_collapsed_arrow");
     
+    //Find position of tag label attribute (if any), prepend it via an escape
+    FileLineCol tag_label_pos;
+    if (l)
+        for (auto pAttr : *l)
+            if (pAttr->Is("tag"))
+                tag_label_pos = pAttr->linenum_value.start;
     //Now set the attributes
     ArcLabelled::AddAttributeList(l);
+    //Convert color and style names in labels
+    if (tag_label.length()>0) {
+        StringFormat::ExpandReferences(tag_label, chart, tag_label_pos, 
+            &style.read().tag_text, false, true, StringFormat::LABEL);
+        //re-insert position, so that FinalizeLabels has one
+        tag_label.insert(0, tag_label_pos.Print());
+    }
 }
 
 bool ArcBox::AddAttribute(const Attribute &a)
@@ -3486,6 +3505,12 @@ bool ArcBox::AddAttribute(const Attribute &a)
         a.InvalidValueError(CandidatesFor(collapsed), chart->Error);
         return true;
     }
+    if (a.Is("tag")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        tag_label = a.value;
+        return true;
+    }
     return ArcLabelled::AddAttribute(a);
 }
 
@@ -3494,6 +3519,7 @@ void ArcBox::AttributeNames(Csh &csh)
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("box").read().AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag", HINT_ATTR_NAME));
 }
 
 bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
@@ -3521,6 +3547,8 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (defaultDesign.styles.GetStyle("box").read().AttributeValues(attr, csh)) return true;
+    if (CaseInsensitiveEqual(attr, "tag")) 
+        return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3634,6 +3662,19 @@ void ArcBox::FinalizeLabels(Canvas &canvas)
 {
     chart->FinalizeLabelsArcList(content, canvas);
     ArcLabelled::FinalizeLabels(canvas);
+    //Now finalize tag label
+    if (tag_label.length()==0) return;
+    //We add reference numbers to labels, and also kill off any \s or the like
+    //escapes that came with numbers in pre_num_post
+    //We can start with a dummy pos, since the label's pos is prepended
+    //during AddAttributeList. Note that with this calling
+    //(references parameter true), ExpandReferences will only emit errors
+    //to missing references - all other errors were already emitted in
+    //the call in AddAttributeList()
+    StringFormat copy(style.read().tag_text);
+    StringFormat::ExpandReferences(tag_label, chart, FileLineCol(),
+        &copy, true, true, StringFormat::LABEL);
+    parsed_tag_label.Set(tag_label, canvas, style.read().tag_text);
 }
 
 ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -3802,11 +3843,31 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
         //Add activation status right away
         AddEntityLineWidths(vdist);
 
+        //calculate tag size and its label
+        double tag_width = 0;
+        if (pBox->tag_label.length()) {
+            //We ignore word wrapping for tags
+            const XY twh = pBox->parsed_tag_label.getTextWidthHeight();
+            Contour tcov = pBox->parsed_tag_label.Cover(0, twh.x, overall_style.read().line.LineWidth()+chart->boxVGapInside);
+            pBox->sx_tag = overall_style.read().line.CalculateTextMargin(tcov, 0).first;
+            //now pBox->sx_tag contains the left margin from the outside of the overall frame line
+            tcov.Shift(XY(0, -overall_style.read().line.LineWidth()-chart->boxVGapInside)); 
+            //now the top of tcov is at zero
+            tcov.RotateAround(twh/2, 180);
+            tcov.Shift(XY(0, pBox->style.read().tag_line.LineWidth() + chart->boxVGapInside));
+            pBox->dx_tag = pBox->style.read().tag_line.CalculateTextMargin(tcov, 0).first;
+            //now pBox->dx_tag contains right tag margins, including the linewidth of the tag box on its left side
+            tag_width = pBox->sx_tag + twh.x + pBox->dx_tag;
+        } else 
+            tag_width = pBox->sx_tag = pBox->dx_tag = 0;
         double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
         if (pBox==*series.begin()) {
             const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
             DoublePair margins = overall_style.read().line.CalculateTextMargin(tcov, 0);
+            //if we have a tag, use its size as left margin (includes linewidths)
+            if (tag_width)
+                margins.first = tag_width;
             width += margins.first + margins.second;
             pBox->sx_text = margins.first;
             pBox->dx_text = margins.second;
@@ -3886,36 +3947,56 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     yPos = y;
     double comment_end=y;
     AreaList combined_content_cover;
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
+    ArcBox *pPreviousBox = NULL;
+    for (auto pBox : series) {
+        pBox->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
         
         //Place side comments. This will update "cover" and thus force the content
         //downward if the content also has side notes
         double l=y, r=y;
-        (*i)->LayoutCommentsHelper(canvas, cover, l, r);
-        comment_end = (*i)->comment_height;
+        pBox->LayoutCommentsHelper(canvas, cover, l, r);
+        comment_end = pBox->comment_height;
+
+        const XY tag_wh = pBox->parsed_tag_label.getTextWidthHeight();
+        const double tag_lw = pBox->style.read().tag_line.LineWidth();
 
         //Advance upper line and spacing
-        y += (*i)->style.read().line.LineWidth() + chart->boxVGapInside;
-        (*i)->y_text = y;
-        (*i)->sx_text = sx + (*i)->sx_text - lw + chart->boxVGapInside;  //both sx and sx_text includes a lw
-        (*i)->dx_text = dx - (*i)->dx_text + lw - chart->boxVGapInside;
+        y += pBox->style.read().line.LineWidth() + chart->boxVGapInside;
+        //Calculate tag parameters and coverage
+        if (pBox->tag_label.length()) {
+            pBox->y_tag = y;
+            pBox->sx_tag = sx + pBox->sx_tag - lw + chart->boxVGapInside;  //both sx and sx_text includes a lw
+            //left upper corner of outer edge is way left and above of upper-left
+            //corner of the box itself.
+            pBox->tag_outer_edge.x.from = sx - lw - pBox->sx_tag - chart->boxVGapInside;
+            pBox->tag_outer_edge.y.from = y - pBox->style.read().line.LineWidth() - chart->boxVGapInside -
+                pBox->style.read().tag_line.radius.second;
+            pBox->tag_outer_edge.x.till = pBox->sx_tag + tag_wh.x + pBox->dx_tag;
+            pBox->tag_outer_edge.y.till = y + tag_wh.y + chart->boxVGapInside + tag_lw;
+            pBox->dx_tag = pBox->sx_tag + tag_wh.x;
+            //tag_cover will be calculated below
+        }
+        pBox->y_text = y;
+        pBox->sx_text = sx + pBox->sx_text - lw + chart->boxVGapInside;  //both sx and sx_text includes a lw
+        pBox->dx_text = dx - pBox->dx_text + lw - chart->boxVGapInside;
         //reflow label if necessary
-        if ((*i)->parsed_label.IsWordWrap()) {
-            const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
-            (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
+        if (pBox->parsed_label.IsWordWrap()) {
+            const double overflow = pBox->parsed_label.Reflow(canvas, pBox->dx_text - pBox->sx_text);
+            pBox->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
         } else {
-            (*i)->CountOverflow((*i)->dx_text - (*i)->sx_text);
+            pBox->CountOverflow(pBox->dx_text - pBox->sx_text);
         }
         //Calculate text cover
-        (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        pBox->text_cover = pBox->parsed_label.Cover(pBox->sx_text, pBox->dx_text, pBox->y_text);
         //Advance label height
-        const double th = (*i)->parsed_label.getTextWidthHeight().y;
+        const double th = pBox->parsed_label.getTextWidthHeight().y;
         //Position arrows if any under the label
-        AreaList content_cover = Area((*i)->text_cover, *i);
-        if ((*i)->content.size()) {
-            Area limit((*i)->text_cover, *i);
-            if (i==series.begin() && main_style.read().line.corner.second != CORNER_NONE && main_style.read().line.radius.second>0) {
+        AreaList content_cover = Area(pBox->text_cover, pBox);
+        if (pBox->content.size()) {
+            Area limit(pBox->text_cover, pBox);
+            if (pBox->tag_label.length())
+                limit += pBox->tag_outer_edge;  //we have not yet calculated tag_cover here. This will do.
+            if (pBox==series.front() && main_style.read().line.corner.second != CORNER_NONE && main_style.read().line.radius.second>0) {
                 //Funnily shaped box, prevent content from hitting it
                 LineAttr limiter_line(main_style.read().line);
                 limiter_line.radius.second += chart->compressGap;
@@ -3923,14 +4004,19 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
                 limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+limiter_line.radius.second) - 
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
-            const double content_y = chart->PlaceListUnder(canvas, (*i)->content, y+th, 
+            const double content_y = chart->PlaceListUnder(canvas, pBox->content, y+th, 
                                                            y, limit, IsCompressed(), 
                                                            &content_cover);  //no extra margin below text
             y = std::max(y+th, content_y);
         } else {
-            y += th; //no content, just add textheight
+            //no content, just add textheight
+            y += th; 
         }
-        if (i==--series.end() && main_style.read().line.corner.second != CORNER_NONE && main_style.read().line.radius.second>0) {
+        //Make sure the tag fits
+        if (pBox->tag_label.length() && y < pBox->tag_outer_edge.y.till)
+            y = pBox->tag_outer_edge.y.till + chart->compressGap;
+
+        if (pBox==series.back() && main_style.read().line.corner.second != CORNER_NONE && main_style.read().line.radius.second>0) {
             //Funnily shaped box, prevent it content from hitting the bottom of the content
             LineAttr limiter_line(main_style.read().line);
             limiter_line.radius.second += chart->compressGap;
@@ -3944,24 +4030,27 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         }
         y += chart->boxVGapInside;
         //increase the size of the box by the side notes, except for the last box
-        if (i!=--series.end()) y = std::max(y, comment_end);
+        if (pBox!=series.back()) y = std::max(y, comment_end);
         //Make segment as tall as needed to accomodate curvature
         //if (style.read().line.radius.second>0) {
-        //    double we_need_this_much_for_radius = (*i)->style.read().line.LineWidth();
+        //    double we_need_this_much_for_radius = pBox->style.read().line.LineWidth();
         //    if (i==follow.begin())
         //        we_need_this_much_for_radius += style.read().line.radius.second;
         //    if (i==--follow.end())
         //        we_need_this_much_for_radius += style.read().line.radius.second;
-        //    y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
+        //    y = std::max(y, pBox->yPos + we_need_this_much_for_radius);
         //}
         y = ceil(y);
-        (*i)->height = y - (*i)->yPos;  //for boxes "height is meant without the lower line
+        pBox->height = y - pBox->yPos;  //for boxes "height is meant without the lower line
 
+        pBox->height_w_lower_line = pBox->height;
         //Add the linewidth of the next box or the final one
-        if (i==--series.end())
-            (*i)->height_w_lower_line = (*i)->height + lw;
-        else
-            (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.read().line.LineWidth();
+        if (pBox==series.back())
+            pBox->height_w_lower_line += lw;
+        //add our linewidth to the height of the previous box (if any)
+        if (pPreviousBox)
+            pPreviousBox->height_w_lower_line += pBox->style.read().line.LineWidth();
+        pPreviousBox = pBox;
         if (cover)
             combined_content_cover += std::move(content_cover);
         chart->Progress.DoneItem(MscProgress::LAYOUT, MscProgress::BOX);
@@ -3976,23 +4065,33 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         main_style.write().line.radius.second = sr;
     
     Area overall_box(main_style.read().line.CreateRectangle_OuterEdge(b), this);
+    const Contour overall_box_inside(main_style.read().line.CreateRectangle_InnerEdge(b));
     // now we have all geometries correct, now calculate areas and covers
-    for (auto box : series) {
-        box->area = Contour(sx-lw, dx+lw, box->yPos, box->yPos + box->height_w_lower_line) * overall_box;
-        box->area.arc = box;
-        if (box->content.size() && box->collapsed==BOX_COLLAPSE_EXPAND) {
-            //Make a frame, add it to the already added label
-            box->area_draw = box->area.CreateExpand(chart->trackFrameWidth) - box->area;
-            box->area_draw += box->text_cover.CreateExpand(chart->trackExpandBy);
-            box->draw_is_different = true;
-            box->area_draw_is_frame = true;
-        } else {
-            box->area_draw.clear();
-            box->draw_is_different = false;
-            box->area_draw_is_frame = false;
+    for (auto pBox : series) {
+        pBox->area = Contour(sx-lw, dx+lw, pBox->yPos, pBox->yPos + pBox->height_w_lower_line) * overall_box;
+        pBox->area.arc = pBox;
+        if (pBox->tag_label.length()) {
+            const Block tag_midline(pBox->tag_outer_edge.CreateExpand(pBox->style.read().tag_line.LineWidth()/2));
+            const Contour box_inside = Contour(sx, dx, pBox->yPos+pBox->style.read().line.LineWidth(), pBox->yPos + pBox->height_w_lower_line) * overall_box_inside;
+            pBox->tag_cover = pBox->style.read().tag_line.CreateRectangle_OuterEdge(tag_midline) * box_inside;
         }
-        box->area_important = box->text_cover;
-        chart->NoteBlockers.Append(box);
+        if (pBox->content.size() && pBox->collapsed==BOX_COLLAPSE_EXPAND) {
+            //Make a frame, add the tag area and the label area
+            pBox->area_draw = pBox->area.CreateExpand(chart->trackFrameWidth) - pBox->area;
+            if (pBox->tag_label.length())
+                pBox->area_draw += pBox->tag_cover;
+            pBox->area_draw += pBox->text_cover.CreateExpand(chart->trackExpandBy);
+            pBox->draw_is_different = true;
+            pBox->area_draw_is_frame = true;
+        } else {
+            pBox->area_draw.clear();
+            pBox->draw_is_different = false;
+            pBox->area_draw_is_frame = false;
+        }
+        pBox->area_important = pBox->text_cover;
+        if (pBox->tag_label.length())
+            pBox->area_important += pBox->tag_cover;
+        chart->NoteBlockers.Append(pBox);
     }
     const double &offset = main_style.read().shadow.offset.second;
     if (offset)
@@ -4018,7 +4117,10 @@ void ArcBox::ShiftBy(double y)
     if (!valid) return;
     if (y==0) return;
     y_text += y;
+    y_tag += y;
     text_cover.Shift(XY(0,y));
+    tag_outer_edge.Shift(XY(0, y));
+    tag_cover.Shift(XY(0, y));
     ArcLabelled::ShiftBy(y);
     if (content.size())
         chart->ShiftByArcList(content, y);
@@ -4038,16 +4140,16 @@ void ArcBoxSeries::ShiftBy(double y)
 {
     if (!valid) return;
     if (y==0) return;
-    for (auto i=series.begin(); i!=series.end(); i++) 
-        (*i)->ShiftBy(y);    
+    for (auto pBox : series) 
+        pBox->ShiftBy(y);    
     ArcBase::ShiftBy(y);
 }
 
 void ArcBoxSeries::CollectPageBreak()
 {
     if (!valid) return;
-    for (auto i=series.begin(); i!=series.end(); i++) 
-        chart->CollectPageBreakArcList((*i)->content);
+    for (auto pBox : series) 
+        chart->CollectPageBreakArcList(pBox->content);
 }
 
 double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
@@ -4070,11 +4172,13 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         }
         //We need to break in 'i'
         //if we have content and the pageBreak goes through the content
-        //(top: if we have a label, use the bottom of that, if not then y_text)
-        //(bottom: height contains height without the lower line)
+        //(top: if we have a label or tag, use the bottom of the lowermost, 
+        //      if not then the top of the visual extent)
+        //(bottom: use the bottom of the visual extent)
+        const double top = std::max((*i)->text_cover.IsEmpty() ? visualYExtent.till : (*i)->text_cover.GetBoundingBox().y.till,
+                                    (*i)->tag_label.length() ? (*i)->tag_cover.GetBoundingBox().y.till : visualYExtent.till);
         if ((*i)->content.size() && !(*i)->keep_together &&
-            ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
-            (visualYExtent.till >= pageBreak)) {
+            top <= pageBreak && visualYExtent.till >= pageBreak) {
             //break the list, but do not shift all of it to the next page
             const double ret = chart->PageBreakArcList(canvas, (*i)->content, netPrevPageSize,
                                                        pageBreak, addCommandNewpage, addHeading,
@@ -4144,10 +4248,10 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 
 void ArcBoxSeries::PlaceWithMarkers(Canvas &canvas)
 {
-    for (auto i = series.begin(); i!=series.end(); i++) {
+    for (auto pBox : series) {
         chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::BOX);
-        if ((*i)->valid && (*i)->content.size()) 
-            chart->PlaceWithMarkersArcList(canvas, (*i)->content);
+        if (pBox->valid && pBox->content.size()) 
+            chart->PlaceWithMarkersArcList(canvas, pBox->content);
     }
 }
 
@@ -4190,15 +4294,15 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     const double dst_x = chart->XCoord((*series.begin())->dst);
     const double sx = src_x - left_space + lw;
     const double dx = dst_x + right_space - lw;
-    for (auto i = ++series.begin(); i!=series.end(); i++) 
-        if ((*i)->style.read().line.IsDoubleOrTriple()) {
-            const Block r(sx, dx, (*i)->yPos, (*i)->yPos+(*i)->style.read().line.LineWidth());
+    for (auto pBox : series) 
+        if (pBox!=series.front() && pBox->style.read().line.IsDoubleOrTriple()) {
+            const Block r(sx, dx, pBox->yPos, pBox->yPos + pBox->style.read().line.LineWidth());
             chart->HideEntityLines(r);
         }
     
-    //hide the entity lines under the labels
-    for (auto i = series.begin(); i!=series.end(); i++) 
-        chart->HideEntityLines((*i)->text_cover);
+    //hide the entity lines under the labels 
+    for (auto pBox : series) 
+        chart->HideEntityLines(pBox->text_cover);
     //hide top and bottom line if double
     if (main_style.read().line.IsDoubleOrTriple()) {
         Block b(src_x - left_space + lw/2, dst_x + right_space - lw/2,
@@ -4286,9 +4390,19 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
     if (pass==series.front()->draw_pass)
         canvas.Line(r, main_style.read().line);
     //XXX double line joints: fix it
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        if (pass==(*i)->draw_pass) 
-            (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
+    for (auto pBox : series) 
+        if (pass==pBox->draw_pass) {
+            if (pBox->tag_label.length()) {
+                canvas.Clip(pBox->tag_cover);
+                const Block tag_midline(pBox->tag_outer_edge.CreateExpand(-pBox->style.read().tag_line.LineWidth()/2));
+                canvas.Fill(pBox->style.read().tag_line.CreateRectangle_ForFill(tag_midline), 
+                            pBox->style.read().fill);
+                canvas.Line(pBox->style.read().tag_line.CreateRectangle_Midline(tag_midline),
+                            pBox->style.read().line);
+                pBox->parsed_tag_label.Draw(canvas, pBox->sx_tag, pBox->dx_tag, pBox->y_tag);
+                canvas.UnClip();
+            }
+            pBox->parsed_label.Draw(canvas, pBox->sx_text, pBox->dx_text, pBox->y_text, r.x.MidPoint());
     }
 }
 
