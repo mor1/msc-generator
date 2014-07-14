@@ -44,6 +44,14 @@ ADD: arrows to point to boxes.
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
+In 4.2
+ADD: tags to boxes
+ADD: tag attributes to defdesigns
+FIXED: selecting a xxx.* hint does not expand the hint list
+
+In 4.1
+ADDED: shape, shape.size moved to style
+
 In 4.0.2
 FIXED: compilation errors on 64-bit Linux. (size-t != unsigned problems)
 FIXED: \mX() escapes crashed CSH processing without a value in parenthesis

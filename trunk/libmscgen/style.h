@@ -82,7 +82,7 @@ protected:
     MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a, 
              bool t, bool l, bool f, bool s, bool vl,
              bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n,
-             bool lo, bool lsym, bool shp);
+             bool lo, bool lsym, bool shp, bool tag);
 public:
     LineAttr line;     ///<The line attributes
     LineAttr vline;    ///<The vline attributes
@@ -106,6 +106,9 @@ public:
     std::pair<bool, EArrowSize>    lsym_size;        ///<The size of the loss symbol
     std::pair<bool, int>           shape;            ///<The shape we shall use when drawing the entity. -1 if no shape to use.
     std::pair<bool, EArrowSize>    shape_size;       ///<Its size
+    LineAttr tag_line;     ///<The tag.line attributes for boxes
+    FillAttr tag_fill;     ///<The tag.fill attributes for boxes
+    StringFormat tag_text; ///<The tag.text attributes for boxes
 
     EStyleType type;       ///<The context in which this instance is used.
     EColorMeaning color_meaning; ///<How to interpret an unqualified "color" attribute
@@ -127,6 +130,7 @@ public:
     bool f_lost;       ///<Governs if the style has lost parts.
     bool f_lsym;       ///<Governs if the style has loss symbol
     bool f_shape;      ///<Governs if the style has entity shape attributes
+    bool f_tag;        ///<Governs if the style has tag.* attributes
 
     MscStyle(EStyleType tt = STYLE_STYLE, EColorMeaning cm = EColorMeaning::NOHOW); //Has all the components, but is empty
     void Empty();

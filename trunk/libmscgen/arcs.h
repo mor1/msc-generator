@@ -685,6 +685,8 @@ class ArcBox : public ArcLabelled
 protected:
     EIterator        src;             ///<The left entity specified by the user (or calculated from content)
     EIterator        dst;             ///<The right entity specified by the user (or calculated from content)
+    string           tag_label;       ///<The tag label as the user specified it. Empty if none.
+    Label            parsed_tag_label;///<The tag label processed and parsed into lines. Set in PostParseProcess()
     EBoxCollapseType collapsed;       ///<The collapseStatus of the box.
     bool             drawEntityLines; ///<True if we draw the entity lines. Only for boxes with content: empty boxes never draw lines
     ArcList          content;         ///<The arcs contained within the box.
@@ -694,6 +696,11 @@ protected:
     mutable double dx_text;             ///<Right boundary of label
     mutable double y_text;              ///<Top boundary of label
     mutable Contour text_cover;         ///<Area covered by the label
+    mutable double sx_tag;              ///<Left boundary of tag label (if any)
+    mutable double dx_tag;              ///<Right boundary of tag label (if any)
+    mutable double y_tag;               ///<Top boundary of tag label (if any) 
+    mutable Block tag_outer_edge;       ///<The outer edge of the tag rectange (must be clipped by the inner edge of the box)
+    mutable Contour tag_cover;          ///<Area covered by the tag (not just the label of it) - you can use it to clip
 public:
     ArcBox(EArcType t, const char *s, const FileLineColRange &sl,
         const char *d, const FileLineColRange &dl, Msc *msc);
