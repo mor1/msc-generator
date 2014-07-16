@@ -1347,6 +1347,8 @@ void CMscGenDoc::ChangeDesign(const char *design)
     m_itrEditing->block_undo = true;
     pApp->m_designlib_csh.ForcedDesign = design;
 	CompileEditingChart(true, false, false);
+    if (pApp->IsInternalEditorRunning())
+        pApp->m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
 }
 
 /** Select a new page of the chart.

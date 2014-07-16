@@ -1026,6 +1026,8 @@ void Context::Plain()
     styles["emptybox"].write().vspacing.first = false;
     styles["emptybox"].write().numbering.first = false;
     styles["emptybox"].write().tag_line.corner.second = CORNER_BEVEL;
+    styles["emptybox"].write().tag_line.radius.second = 10;
+    styles["emptybox"].write().tag_text.Apply("\\b\\-");
     styles["box_collapsed"] = styles["emptybox"];
     styles["box"] = styles["emptybox"];
     styles["box"].write().text.Apply("\\pl");
