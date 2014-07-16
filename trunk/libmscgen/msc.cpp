@@ -1573,7 +1573,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
         //Shift the arc in question to its place
         (*i)->ShiftBy(y);
         arc_cover.Shift(XY(0,y));
-        y_bottom_all = std::max(y_bottom_all, y+h);;
+        y_bottom_all = std::max(y_bottom_all, y+h);
         //If we are parallel, remove our mainline from the cover
         if ((*i)->IsParallel()) {
             //kill the mainline of the last arc (in "i")
@@ -1594,7 +1594,8 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
             if (cover)
                 *cover += std::move(arc_cover);
             //update bottom and move there for the next arc
-            y = y_bottom = std::max(y_bottom, y+h);
+            y_bottom = std::max(y_bottom, y+h);
+            y += h;
         }
         previous_was_parallel = (*i)->IsParallel();
     }
@@ -1747,7 +1748,8 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
                     *cover += arc_cover;
                 //Update covers
                 covers[col] += arc_cover; //arc_cover contains the mainline here (unless parallel)
-                local_y = y_bottom[col] = std::max(y_bottom[col], local_y+h);
+                y_bottom[col] = std::max(y_bottom[col], local_y+h);
+                local_y += h;
             }
             //Add i's cover (without the mainline) to all other column 
             //even if it is marked as "overlay". Other columns shall not

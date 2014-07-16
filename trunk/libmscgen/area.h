@@ -159,10 +159,10 @@ public:
     template <typename T> void sort(T t) {cover.sort(t);}
 
     /** Determines which area `p` falls in. Searches from the beginning of the list and returns the first hit.*/
-    const Area *InWhich(const contour::XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
+    const Area *InWhich(const contour::XY &p) const {for (auto &a : cover) if (inside(a.IsWithin(p))) return &a; return NULL;}
     /** Determines which area `p` falls in. Searches from the end of the list and returns the first hit.*/
     const Area *InWhichFromBack(const contour::XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
-    void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
+    void InvalidateMainLine() {mainline.clear(); for (auto &a : cover) a.mainline.clear();}
     std::list<Area> EmptyToList() { std::list<Area> c; c.swap(cover); boundingBox.MakeInvalid(); return c; } ///<Empties the list and moves its content to the return value
 };
 

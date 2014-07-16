@@ -3427,11 +3427,10 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
 ArcBox* ArcBox::AddArcList(ArcList*l)
 {
     if (!valid) return this;
-    if (l!=NULL && l->size()>0) {
-        content.insert(content.end(), l->begin(), l->end());
-        l->clear(); //so that l's constructor does not delete Arcs in arclist
-        delete l;
-    }
+    if (l==NULL || l->size()==0) return this;
+    content.insert(content.end(), l->begin(), l->end());
+    l->clear(); //so that l's constructor does not delete Arcs in arclist
+    delete l;
     SetStyleWithText("box"); //change our default style from "emptybox" to box
     keep_together = false;
     return this;
@@ -3585,8 +3584,8 @@ string ArcBox::Print(int ident) const
 
 EDirType ArcBoxSeries::GetToucedEntities(class EntityList &el) const
 {
-    el.push_back(*(*series.begin())->src);
-    el.push_back(*(*series.begin())->dst);
+    el.push_back(*series.front()->src);
+    el.push_back(*series.front()->dst);
     return MSC_DIR_INDETERMINATE;
 }
 
@@ -3664,8 +3663,7 @@ void ArcBox::FinalizeLabels(Canvas &canvas)
     ArcLabelled::FinalizeLabels(canvas);
     //Now finalize tag label
     if (tag_label.length()==0) return;
-    //We add reference numbers to labels, and also kill off any \s or the like
-    //escapes that came with numbers in pre_num_post
+    //We add reference numbers to tag labels, and also kill off any \s or similar
     //We can start with a dummy pos, since the label's pos is prepended
     //during AddAttributeList. Note that with this calling
     //(references parameter true), ExpandReferences will only emit errors
@@ -3682,9 +3680,9 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 {
     if (!valid || series.size()==0) return NULL;
     //If first segment is compressed or parallel, copy that to full series
-    vspacing = (*series.begin())->vspacing;
+    vspacing = series.front()->vspacing;
     //parallel = (*series.begin())->parallel;
-    keep_with_next = (*series.rbegin())->keep_with_next;
+    keep_with_next = series.back()->keep_with_next;
     draw_pass = series.front()->draw_pass;
 
     ArcBase *ret = this;
@@ -3730,9 +3728,9 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 		_ASSERT(*i==ret);
     }
     //parallel flag can be either on the series or on the first element
-    parallel |= (*series.begin())->parallel;
+    parallel |= series.front()->parallel;
     //Set the target to the last ArcBox (for comments coming afterwards)
-    *target = *series.rbegin();
+    *target = series.back();
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
     if (*src==chart->NoEntity) 
@@ -3814,9 +3812,9 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
                          DistanceMapVertical &vdist)
 {
     if (!valid) return;
-    const StyleCoW &overall_style = (*series.begin())->style;
-    const EIterator src = (*series.begin())->src;
-    const EIterator dst = (*series.begin())->dst;
+    const StyleCoW &overall_style = series.front()->style;
+    const EIterator src = series.front()->src;
+    const EIterator dst = series.front()->dst;
 
     //Add a new element to vdist
     vdist.InsertElementTop(this);
@@ -3862,7 +3860,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
             tag_width = pBox->sx_tag = pBox->dx_tag = 0;
         double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
         //calculated margins (only for first segment) and save them
-        if (pBox==*series.begin()) {
+        if (pBox==series.front()) {
             const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
             DoublePair margins = overall_style.read().line.CalculateTextMargin(tcov, 0);
             //if we have a tag, use its size as left margin (includes linewidths)
@@ -3872,7 +3870,8 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
             pBox->sx_text = margins.first;
             pBox->dx_text = margins.second;
         } else {
-            pBox->sx_text = pBox->dx_text = overall_style.read().line.LineWidth();
+            pBox->dx_text = overall_style.read().line.LineWidth();
+            pBox->sx_text = tag_width ? tag_width : pBox->dx_text;  //use tag size as margin, if any. Else use linewidth only
         }
         max_width = max(max_width, width);
         chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::BOX);
@@ -3940,8 +3939,8 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
     //sx and dx are the inner edges of the lines of the whole box
     StyleCoW &main_style = series.front()->style;
     const double lw = main_style.read().line.LineWidth();
-    const double sx = chart->XCoord((*series.begin())->src) - left_space + lw;
-    const double dx = chart->XCoord((*series.begin())->dst) + right_space - lw;
+    const double sx = chart->XCoord(series.front()->src) - left_space + lw;
+    const double dx = chart->XCoord(series.front()->dst) + right_space - lw;
 
     double y = chart->boxVGapOutside;
     yPos = y;
@@ -3968,9 +3967,10 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
             pBox->sx_tag = sx + pBox->sx_tag - lw + chart->boxVGapInside;  //both sx and sx_text includes a lw
             //left upper corner of outer edge is way left and above of upper-left
             //corner of the box itself.
-            pBox->tag_outer_edge.x.from = sx - lw - pBox->sx_tag - chart->boxVGapInside;
+            pBox->tag_outer_edge.x.from = sx - lw - pBox->sx_tag - chart->boxVGapInside -
+                pBox->style.read().tag_line.radius.second*2 - pBox->style.read().tag_line.LineWidth()*2;
             pBox->tag_outer_edge.y.from = y - pBox->style.read().line.LineWidth() - chart->boxVGapInside -
-                pBox->style.read().tag_line.radius.second;
+                pBox->style.read().tag_line.radius.second*2 - pBox->style.read().tag_line.LineWidth()*2;
             pBox->tag_outer_edge.x.till = pBox->sx_tag + tag_wh.x + pBox->dx_tag;
             pBox->tag_outer_edge.y.till = y + tag_wh.y + chart->boxVGapInside + tag_lw;
             pBox->dx_tag = pBox->sx_tag + tag_wh.x;
@@ -3982,7 +3982,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         //reflow label if necessary
         if (pBox->parsed_label.IsWordWrap()) {
             const double overflow = pBox->parsed_label.Reflow(canvas, pBox->dx_text - pBox->sx_text);
-            pBox->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
+            pBox->OverflowWarning(overflow, "", series.front()->src, series.front()->dst);
         } else {
             pBox->CountOverflow(pBox->dx_text - pBox->sx_text);
         }
@@ -4071,7 +4071,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         pBox->area = Contour(sx-lw, dx+lw, pBox->yPos, pBox->yPos + pBox->height_w_lower_line) * overall_box;
         pBox->area.arc = pBox;
         if (pBox->tag_label.length()) {
-            const Block tag_midline(pBox->tag_outer_edge.CreateExpand(pBox->style.read().tag_line.LineWidth()/2));
+            const Block tag_midline(pBox->tag_outer_edge.CreateExpand(-pBox->style.read().tag_line.LineWidth()/2));
             const Contour box_inside = Contour(sx, dx, pBox->yPos+pBox->style.read().line.LineWidth(), pBox->yPos + pBox->height_w_lower_line) * overall_box_inside;
             pBox->tag_cover = pBox->style.read().tag_line.CreateRectangle_OuterEdge(tag_midline) * box_inside;
         }
@@ -4207,11 +4207,11 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         abs->series.splice(abs->series.end(), series, kwn_from, series.end());
         //compute shift. ArcBox::yPos points to the "top" of the upper line
         //"height" is meant without the lower line
-        const double shift_top = (*series.begin())->style.read().line.LineWidth();
+        const double shift_top = series.front()->style.read().line.LineWidth();
         const double increase_top = shift_top - (*abs->series.begin())->style.read().line.LineWidth();
         const double shift_rest = shift_top + increase_top;
         //copy line style to the first one
-        (*abs->series.begin())->style.write().line = (*series.begin())->style.read().line;
+        (*abs->series.begin())->style.write().line = series.front()->style.read().line;
         (*--series.end())->height_w_lower_line += increase_top;
         (*abs->series.begin())->height += increase_top;
         (*abs->series.begin())->height_w_lower_line += increase_top;
@@ -4288,10 +4288,10 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
         }
 
     //Hide entity lines during the lines inside the box
-    const StyleCoW &main_style = (*series.begin())->style;
+    const StyleCoW &main_style = series.front()->style;
     const double lw = main_style.read().line.LineWidth();
-    const double src_x = chart->XCoord((*series.begin())->src);
-    const double dst_x = chart->XCoord((*series.begin())->dst);
+    const double src_x = chart->XCoord(series.front()->src);
+    const double dst_x = chart->XCoord(series.front()->dst);
     const double sx = src_x - left_space + lw;
     const double dx = dst_x + right_space - lw;
     for (auto pBox : series) 
@@ -4300,9 +4300,11 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
             chart->HideEntityLines(r);
         }
     
-    //hide the entity lines under the labels 
-    for (auto pBox : series) 
+    //hide the entity lines under the labels & tags
+    for (auto pBox : series) {
         chart->HideEntityLines(pBox->text_cover);
+        chart->HideEntityLines(pBox->tag_cover);
+    }
     //hide top and bottom line if double
     if (main_style.read().line.IsDoubleOrTriple()) {
         Block b(src_x - left_space + lw/2, dst_x + right_space - lw/2,
@@ -4332,10 +4334,10 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid || series.size()==0) return;
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
-    const StyleCoW &main_style = (*series.begin())->style;
+    const StyleCoW &main_style = series.front()->style;
     const double lw = main_style.read().line.LineWidth();
-    const double src_x = chart->XCoord((*series.begin())->src);
-    const double dst_x = chart->XCoord((*series.begin())->dst);
+    const double src_x = chart->XCoord(series.front()->src);
+    const double dst_x = chart->XCoord(series.front()->dst);
     //The midpoint of the lines
     const Block r(src_x - left_space + lw/2, dst_x + right_space - lw/2, 
                   yPos + lw/2, yPos+total_height - lw/2); 
@@ -4383,8 +4385,7 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         if (pass!=(*i)->draw_pass) continue;
         const double y = (*i)->yPos + (*i)->style.read().line.LineWidth()/2;
-        const XY magic(1,0);  //XXX needed in windows
-        canvas.Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.read().line);
+        canvas.Line(XY(r.x.from, y), XY(r.x.till, y), (*i)->style.read().line);
     }
     //Finally draw the overall line around the box
     if (pass==series.front()->draw_pass)
@@ -4396,9 +4397,9 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
                 canvas.Clip(pBox->tag_cover);
                 const Block tag_midline(pBox->tag_outer_edge.CreateExpand(-pBox->style.read().tag_line.LineWidth()/2));
                 canvas.Fill(pBox->style.read().tag_line.CreateRectangle_ForFill(tag_midline), 
-                            pBox->style.read().fill);
+                            pBox->style.read().tag_fill);
                 canvas.Line(pBox->style.read().tag_line.CreateRectangle_Midline(tag_midline),
-                            pBox->style.read().line);
+                            pBox->style.read().tag_line);
                 pBox->parsed_tag_label.Draw(canvas, pBox->sx_tag, pBox->dx_tag, pBox->y_tag);
                 canvas.UnClip();
             }
@@ -4491,7 +4492,7 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
         //Use the style of the first box in the series as a base
-        StyleCoW s = (*series.begin())->style;
+        StyleCoW s = series.front()->style;
         //Override with the line type specified (if any)
         _ASSERT(f->type != MSC_BOX_UNDETERMINED_FOLLOW);
         s += *f->GetRefinementStyle(f->type);
@@ -4518,8 +4519,8 @@ EDirType ArcPipeSeries::GetToucedEntities(EntityList &el) const
     if (content.size()) 
         return chart->GetTouchedEntitiesArcList(content, el);
     //If no content, add leftmost and rightmost
-    el.push_back(*chart->EntityMinByPos((*series.begin())->src, (*series.rbegin())->src));
-    el.push_back(*chart->EntityMaxByPos((*series.begin())->dst, (*series.rbegin())->dst));
+    el.push_back(*chart->EntityMinByPos(series.front()->src, series.back()->src));
+    el.push_back(*chart->EntityMaxByPos(series.front()->dst, series.back()->dst));
     return MSC_DIR_INDETERMINATE;
 }
 
@@ -4561,16 +4562,16 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     //set the first element as the note target (first in the {})
-    *target = *series.begin();
+    *target = series.front();
     chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, target);
 
     //parallel flag can be either on the series or on the first element
-    parallel |= (*series.begin())->parallel;
+    parallel |= series.front()->parallel;
     //copy keep_with_next to Series
     for (auto i = series.begin(); i!=series.end(); i++)
         keep_with_next |= (*i)->keep_with_next;
     //set the last element as a note target (coming after us)
-    *target = *series.rbegin();
+    *target = series.back();
 
     //Check that all pipe segments are fully specified, non-overlapping and sort them
 
@@ -4580,19 +4581,19 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //Make both src and dst specified and ordered in all segments
     //The leftmost and the rightmost segment can auto-adjust to the content 
     //others can snap left and right if not specified
-    if (*(*series.begin())->src == chart->NoEntity) 
-        (*series.begin())->src = content_left;
+    if (*series.front()->src == chart->NoEntity) 
+        series.front()->src = content_left;
     //If the left side is still unspecified, we had no content, return an error
-    if (*(*series.begin())->src == chart->NoEntity) {
-        chart->Error.Error((*series.begin())->file_pos.start, "The left side of the leftmost pipe segment in an empty pipe must be specified.",
+    if (*series.front()->src == chart->NoEntity) {
+        chart->Error.Error(series.front()->file_pos.start, "The left side of the leftmost pipe segment in an empty pipe must be specified.",
                            "Ignoring this pipe.");
         return NULL;
     }
-    if (*(*series.begin())->src == chart->NoEntity) 
-        (*series.begin())->src = content_left;
+    if (*series.front()->src == chart->NoEntity) 
+        series.front()->src = content_left;
     //If the left side is still unspecified, we had no content, return an error
-    if (*(*series.begin())->src == chart->NoEntity) {
-        chart->Error.Error((*series.begin())->file_pos.start, "The right side of the rightmost pipe segment in an empty pipe must be specified.",
+    if (*series.front()->src == chart->NoEntity) {
+        chart->Error.Error(series.front()->file_pos.start, "The right side of the rightmost pipe segment in an empty pipe must be specified.",
                            "Ignoring this pipe.");
         return NULL;
     }
@@ -4716,15 +4717,15 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     }
 
     //increase the radius everywhere by the thickest lw (if it is not zero)
-    if ((*series.begin())->style.read().line.radius.second>0) {
-        const double radius = (*series.begin())->style.read().line.radius.second + lw_max;
+    if (series.front()->style.read().line.radius.second>0) {
+        const double radius = series.front()->style.read().line.radius.second + lw_max;
         for (auto i = series.begin(); i!=series.end(); i++)
             (*i)->style.write().line.radius.second = radius;
     }
 
     //Sort according to fromright: begin() should point to the leftmost pipe if side==right,
     //and to the rightmost if side=left
-    if ((*series.begin())->style.read().side.second == ESide::LEFT) {
+    if (series.front()->style.read().side.second == ESide::LEFT) {
         comp.fromright = false;
         series.sort(comp);
     }
@@ -4733,15 +4734,15 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //Terminology: backwards means left if "fromright" and right otherwise
 
     //Fill in pipe_connect vlaues
-    (*series.begin())->pipe_connect_back = false;
-    (*series.rbegin())->pipe_connect_forw = false;
+    series.front()->pipe_connect_back = false;
+    series.back()->pipe_connect_forw = false;
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         (*i)->pipe_connect_back = (*i)->pipe_connect_forw = false;
         //Set flags if we are adjacent to previous one
         auto i_prev = i;
         i_prev--;
-        if (((*series.begin())->style.read().side.second == ESide::RIGHT && (*i_prev)->dst == (*i)->src) ||
-            ((*series.begin())->style.read().side.second == ESide::LEFT  && (*i_prev)->src == (*i)->dst)) {
+        if ((series.front()->style.read().side.second == ESide::RIGHT && (*i_prev)->dst == (*i)->src) ||
+            (series.front()->style.read().side.second == ESide::LEFT  && (*i_prev)->src == (*i)->dst)) {
             (*i)->pipe_connect_back = true;
             (*i_prev)->pipe_connect_forw = true;
         } else {
@@ -4751,9 +4752,9 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     }
 
     //set return value
-    left = chart->EntityMinByPos(left,  (*series.begin())->src);
+    left = chart->EntityMinByPos(left,  series.front()->src);
     left = chart->EntityMinByPos(left,  content_left);
-    right= chart->EntityMaxByPos(right, (*series.rbegin())->dst);
+    right= chart->EntityMaxByPos(right, series.back()->dst);
     right= chart->EntityMaxByPos(right, content_right);
 
     if (hide) return NULL;
@@ -4802,8 +4803,8 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
     if (content.size())
         chart->WidthArcList(canvas, content, d, vdist);
 
-    const ESide side = (*series.begin())->style.read().side.second;
-    const double radius = (*series.begin())->style.read().line.radius.second;
+    const ESide side = series.front()->style.read().side.second;
+    const double radius = series.front()->style.read().line.radius.second;
 
     //(*i)->src and dst contain the left and right end of a pipe
     //The order of the pipe segments in follow depends on style.read().side
@@ -4844,8 +4845,8 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
         }
         //add shadow to the right size only if we are the rightmost entity
         double shadow_to_add = 0;
-        if ((side == ESide::RIGHT && pPipe==*series.rbegin()) ||
-            (side == ESide::LEFT  && pPipe==*series.begin()))
+        if ((side == ESide::RIGHT && pPipe==series.back()) ||
+            (side == ESide::LEFT  && pPipe==series.front()))
             shadow_to_add = pPipe->style.read().shadow.offset.second;
         if (connect_right)
             pPipe->right_space = 0;
@@ -4882,8 +4883,8 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
 void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
 {
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
-    const ESide side = (*series.begin())->style.read().side.second;
-    const double radius = (*series.begin())->style.read().line.radius.second;
+    const ESide side = series.front()->style.read().side.second;
+    const double radius = series.front()->style.read().line.radius.second;
     //the largest of the shadow offsets
     for (auto i = series.begin(); i!=series.end(); i++) {
         //No need to clean up. If any of the pipe_* or area, area_draw, area_important
@@ -5027,8 +5028,8 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
     double lowest_label_on_opaque_segments_bottom = lowest_line_bottom;
     Area label_covers(this);
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
-    const ESide side = (*series.begin())->style.read().side.second;
-    const double radius = (*series.begin())->style.read().line.radius.second;
+    const ESide side = series.front()->style.read().side.second;
+    const double radius = series.front()->style.read().line.radius.second;
     double note_l=0, note_r=0;
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Variables already set (all of them rounded):
@@ -5060,7 +5061,7 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList *cover)
         //reflow label if necessary
         if ((*i)->parsed_label.IsWordWrap()) {
             const double overflow = (*i)->parsed_label.Reflow(canvas, (*i)->dx_text - (*i)->sx_text);
-            (*i)->OverflowWarning(overflow, "", (*series.begin())->src, (*series.begin())->dst);
+            (*i)->OverflowWarning(overflow, "", series.front()->src, series.front()->dst);
         } else {
             (*i)->CountOverflow((*i)->dx_text - (*i)->sx_text);
         }
