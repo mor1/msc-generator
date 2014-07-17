@@ -2487,6 +2487,12 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
                          distances.Query(LSide->index, LSide->index+1), true);
         distances.Insert(RSide->index-1, RSide->index, 
                          distances.Query(RSide->index-1, RSide->index), true);
+        //Do the same for the space between LNote<->LSide and RSide<->RNote for 
+        //verticals operating there.
+        distances.Insert(LNote->index, LSide->index, 
+                         distances.Query(LNote->index, LSide->index), true);
+        distances.Insert(RSide->index, RNote->index, 
+                         distances.Query(RSide->index, RNote->index), true);
     } else {
         //Merge hspace distances to normal distances
         for (auto i : distances.GetHSpacePairs()) 

@@ -5463,8 +5463,11 @@ void ArcDivider::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertic
     vdist.InsertElementTop(this);
     //Add activation status right away
     AddEntityLineWidths(vdist);
-    vdist.InsertEntity(chart->LSide->index);
-    vdist.InsertEntity(chart->RSide->index);
+    //Now, if we have text or a line, we add LSide and RSide as touched entities
+    if (parsed_label.getTextWidthHeight().y>0 || !style.read().line.IsFullyTransparent()) {
+        vdist.InsertEntity(chart->LSide->index);
+        vdist.InsertEntity(chart->RSide->index);
+    }
     //Add a new element to vdist
     vdist.InsertElementBottom(this);
     //Add activation status right away

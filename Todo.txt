@@ -51,7 +51,7 @@ DOC: tags
 DOC: tags in examples, demo 
 FIXED: selecting a xxx.* hint does not expand the hint list
 FIX: text style in subsequent box tags
-FIX: brace text with hscale=1 on the side. Also with 3 entities
+FIXED: brace text with hscale=1 on the side. Also with 3 entities
 FIXED: re-color on default design change
 FIXED: parallel problem (with box series)
 CANCELLED: hide entity lines also behind series labels
