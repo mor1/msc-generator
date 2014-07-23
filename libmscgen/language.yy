@@ -2332,7 +2332,10 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
   #else
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
-    msc.Designs[$1] += msc.Contexts.back();
+    if (msc.Contexts.back().is_full)
+        msc.Designs[$1] = msc.Contexts.back();
+    else
+        msc.Designs[$1] += msc.Contexts.back();
     msc.PopContext();
   #endif
     free($1);

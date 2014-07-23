@@ -47,10 +47,10 @@ ADD: Explanatory tooltips for hints (preferably with chart examples.)
 In 4.2
 ADDED: tags to boxes
 ADDED: tag attributes to defdesigns
-DOC: tags 
-DOC: tags in examples, demo 
+DOCED: tags 
+DOCED: tags in examples, demo 
 FIXED: selecting a xxx.* hint does not expand the hint list
-FIX: text style in subsequent box tags
+FIXED: text style in subsequent box tags (mild_yellow, modern_blue, omegapple, rose)
 FIXED: brace text with hscale=1 on the side. Also with 3 entities
 FIXED: re-color on default design change
 FIXED: parallel problem (with box series)
