@@ -1,0 +1,29 @@
+compress=no;
+hscale=auto;
+x;
+x1 {
+    x3;
+    a2 {
+        b;
+        c;
+        d;
+    };
+};
+
+x3--c:aa {
+    ->b: 0;
+    b->c: 1;
+    x3<-c: 2;
+    x3->b: 3;
+    b->: 4;
+};
+heading;
+...;
+hide a2;
+...;
+heading;
+x->;
+show b;
+show c;
+b->c:trallala;
+a->b:new message;

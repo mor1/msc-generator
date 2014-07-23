@@ -1,0 +1,11 @@
+a, b, c, d;
+a*->b;
+a->*b;
+note: Lost between
+      neighbouring entities;
+a->b*->d: \plLost after b;
+a->b->*d: \plLost before d;
+a->b->d lost at b++:
+    \plLost just after b;
+a->b->d lost at d -30:
+    \plLost 30 pixels left of d;

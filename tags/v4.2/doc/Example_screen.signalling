@@ -1,0 +1,20 @@
+title: Example chart;
+defstyle entity, emptybox, blockarrow, pipe
+    [shadow.offset=5, shadow.blur=3];
+a,b,c;
+block b->c:block arrow;
+vertical brace: first part;
+..: This will be nice! {
+    mark start_timer;
+    a<-b: a message;
+    a--a: Hopla!;
+    vertical pointer start_timer->*:timer ;
+    a<-b: again;
+};
+note: This is a note
+      to the box here;
+vertical brace at c+: second part;
+pipe b--c: A tunnel {
+    a->: another message;
+};
+---: Bad attribute [error=yes];
