@@ -36,14 +36,14 @@ mark top;
       vspace 10;
       mark above_boxes;
       mark above_boxes_5 [offset=5];
-      box ==: Empty boxes {
+      box ==: Empty boxes [tag="1st set"] {
             comment: These are the
                      various box types [side=left];
             parallel box a--a: Solid;
             parallel box b==b: Double;
             parallel box c..c: Dotted;
             mark between_boxes;
-      }{
+      } [tag="2nd set"] {
             parallel box a--a: Round [line.corner=round];
             parallel box b==b: Note  [line.corner=note];
             parallel box c..c: Bevel [line.corner=bevel];

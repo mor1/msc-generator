@@ -898,7 +898,12 @@ bool Msc::AddDesignAttribute(const Attribute &a)
     if (a.StartsWith("numbering") || a.Is("compress") || a.Is("auto_heading") || 
         a.Is("hscale") || a.Is("msc") || a.Is("msc+") || a.StartsWith("text") || 
         a.StartsWith("comment") || a.StartsWith("background")) {
+        //Since we set chart options inside a design definition, 
+        //we allow "msc = design" commands to take effect.
+        bool saved_ignore_designs = ignore_designs;
+        ignore_designs = false;
         ArcBase *ret = AddAttribute(a);
+        ignore_designs = saved_ignore_designs;
         if (ret)
             delete ret;
         return true;
