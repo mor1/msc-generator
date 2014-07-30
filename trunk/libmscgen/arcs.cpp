@@ -1149,6 +1149,7 @@ void ArcSelfArrow::PostPosProcess(Canvas &canvas)
         sss << " activated/deactivated in a parallel block causing conflict here.";
         chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
+    chart->RegisterLabel(parsed_label, LabelInfo::ARROW, sx, dx-src_act, yPos+chart->arcVGapAbove);
 }
 
 void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
@@ -1979,6 +1980,9 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
             chart->HideEntityLines(tmp);
         }
     }
+    chart->RegisterLabel(parsed_label, LabelInfo::ARROW, 
+                         sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, 
+                         XY(sx,yPos+centerline), slant_angle);
 }
 
 /** Draws an actual arrow using the parameters passed, not considering message loss. 
@@ -2356,6 +2360,9 @@ void ArcBigArrow::PostPosProcess(Canvas &canvas)
         tmp.RotateAround(c, slant_angle);
         chart->HideEntityLines(tmp);
     }
+    chart->RegisterLabel(parsed_label, LabelInfo::ARROW,
+        sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->boxVGapInside, cx_text,
+        XY(sx, yPos+centerline), slant_angle);
 }
 
 void ArcBigArrow::Draw(Canvas &canvas, EDrawPassType pass)
@@ -3241,6 +3248,8 @@ void ArcVerticalArrow::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(canvas);
+    chart->RegisterLabel(parsed_label, LabelInfo::VERTICAL, 
+                         s_text, d_text, t_text, style.read().side.second);
 }
 
 /** Draws the line and arrowhead of a brace, pointer or lost_pointer */
@@ -4263,28 +4272,28 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     //And we do this for each segment sequentially
     for (auto pBox : series)
         if (pBox->valid) {
-            if (pBox->content.size()) 
-                switch (pBox->collapsed) {
-                case BOX_COLLAPSE_EXPAND:
-                    pBox->controls.push_back(MSC_CONTROL_COLLAPSE);        
-                    if (series.size()==1) 
-                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
-                    break;
-                case BOX_COLLAPSE_COLLAPSE:
-                    pBox->controls.push_back(MSC_CONTROL_EXPAND);        
-                    if (series.size()==1) 
-                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
-                    break;
-                case BOX_COLLAPSE_BLOCKARROW:
-                default:
-                    _ASSERT(0); //should not happen here
-                    break;
-                }
-            pBox->entityLineRange = pBox->area.GetBoundingBox().y;
-            pBox->ArcLabelled::PostPosProcess(canvas);
-            chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
-            if (pBox->content.size()) 
-                chart->PostPosProcessArcList(canvas, pBox->content);
+        if (pBox->content.size())
+            switch (pBox->collapsed) {
+            case BOX_COLLAPSE_EXPAND:
+                pBox->controls.push_back(MSC_CONTROL_COLLAPSE);
+                if (series.size()==1)
+                    pBox->controls.push_back(MSC_CONTROL_ARROW);
+                break;
+            case BOX_COLLAPSE_COLLAPSE:
+                pBox->controls.push_back(MSC_CONTROL_EXPAND);
+                if (series.size()==1)
+                    pBox->controls.push_back(MSC_CONTROL_ARROW);
+                break;
+            case BOX_COLLAPSE_BLOCKARROW:
+            default:
+                _ASSERT(0); //should not happen here
+                break;
+        }
+        pBox->entityLineRange = pBox->area.GetBoundingBox().y;
+        pBox->ArcLabelled::PostPosProcess(canvas);
+        chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
+        if (pBox->content.size())
+            chart->PostPosProcessArcList(canvas, pBox->content);
         }
 
     //Hide entity lines during the lines inside the box
@@ -4294,12 +4303,12 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     const double dst_x = chart->XCoord(series.front()->dst);
     const double sx = src_x - left_space + lw;
     const double dx = dst_x + right_space - lw;
-    for (auto pBox : series) 
+    for (auto pBox : series)
         if (pBox!=series.front() && pBox->style.read().line.IsDoubleOrTriple()) {
-            const Block r(sx, dx, pBox->yPos, pBox->yPos + pBox->style.read().line.LineWidth());
-            chart->HideEntityLines(r);
+        const Block r(sx, dx, pBox->yPos, pBox->yPos + pBox->style.read().line.LineWidth());
+        chart->HideEntityLines(r);
         }
-    
+
     //hide the entity lines under the labels & tags
     for (auto pBox : series) {
         chart->HideEntityLines(pBox->text_cover);
@@ -4308,11 +4317,15 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     //hide top and bottom line if double
     if (main_style.read().line.IsDoubleOrTriple()) {
         Block b(src_x - left_space + lw/2, dst_x + right_space - lw/2,
-                yPos + lw/2, yPos+total_height - lw/2); //The midpoint of the lines
+            yPos + lw/2, yPos+total_height - lw/2); //The midpoint of the lines
         //The radius specified in style.read().line will be that of the midpoint of the line
-        chart->HideEntityLines(main_style.read().line.CreateRectangle_OuterEdge(b) - 
-                               main_style.read().line.CreateRectangle_InnerEdge(b));
+        chart->HideEntityLines(main_style.read().line.CreateRectangle_OuterEdge(b) -
+            main_style.read().line.CreateRectangle_InnerEdge(b));
     }
+    const double mid = (chart->XCoord(series.front()->src) + chart->XCoord(series.front()->dst))/2;
+    for (auto pBox : series)
+        chart->RegisterLabel(pBox->parsed_label, pBox->content.size() ? LabelInfo::BOX : LabelInfo::EMPTYBOX,
+                             pBox->sx_text, pBox->dx_text, pBox->y_text, mid);
 }
 
 void ArcBoxSeries::RegisterCover(EDrawPassType pass)
@@ -5203,23 +5216,27 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     //then the content (only in the first segment)
     //then those segments, which are fully opaque
     //(this is because search is backwards and this arrangement fits the visual best
-    for (auto i = series.begin(); i!=series.end(); i++) 
-        if ((*i)->valid && (*i)->style.read().solid.second < 255) {
-            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+    for (auto pPipe : series)
+        if (pPipe->valid && pPipe->style.read().solid.second < 255) {
+            pPipe->entityLineRange = pPipe->area.GetBoundingBox().y;
+            pPipe->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
     if (content.size())
         chart->PostPosProcessArcList(canvas, content);
-    for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->valid && (*i)->style.read().solid.second == 255) {
-            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+    for (auto pPipe : series)
+        if (pPipe->valid && pPipe->style.read().solid.second == 255) {
+            pPipe->entityLineRange = pPipe->area.GetBoundingBox().y;
+            pPipe->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
-    for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->draw_pass != DRAW_BEFORE_ENTITY_LINES)
-            chart->HideEntityLines((*i)->pipe_shadow);
+    for (auto pPipe : series)
+        if (pPipe->draw_pass != DRAW_BEFORE_ENTITY_LINES)
+            chart->HideEntityLines(pPipe->pipe_shadow);
+    //Register labels
+    for (auto pPipe : series)
+        chart->RegisterLabel(pPipe->parsed_label, LabelInfo::PIPE,
+                             pPipe->sx_text, pPipe->dx_text, pPipe->y_text);
 }
 
 //Draw a pipe, this is called for each segment, bool params dictate which part
@@ -5580,6 +5597,11 @@ void ArcDivider::PostPosProcess(Canvas &canvas)
     else
         entityLineRange = area.GetBoundingBox().y;
     ArcLabelled::PostPosProcess(canvas);
+    if (!wide)
+        chart->RegisterLabel(parsed_label, LabelInfo::DIVIDER,
+                             chart->GetDrawing().x.from + text_margin, 
+                             chart->GetDrawing().x.till - text_margin,
+                             yPos + chart->arcVGapAbove + extra_space);
 }
 
 void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)

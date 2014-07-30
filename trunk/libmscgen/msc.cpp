@@ -335,6 +335,8 @@ DistanceMapVerticalElement DistanceMapVertical::Get(const_iterator m1, const_ite
 
 ///////////////////////////////////////////////////////////////////////
 
+const char LabelInfo::labelTypeChar[] = "-EADBbPVCN";
+
 /** We do some processing only for tracking (which is the ability on the GUI.
     to highlight elements and map them to their line number and vice versa).
     If `prepare_for_tracking` is not set, we omit these steps.
@@ -2864,8 +2866,8 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
  * @param [in] ot The format of output. Determines what type of an output file to create.
- * @param [in] scale A list of scaling values to try (avoiding overfill). A value of <zero,zero>
- *                   means "fit to page" and can only be used if pageSize is nonzero.
+ * @param [in] scale The scaling value requested by the user. Must be all-positive, if the
+ *                   margins are valid.
  * @param [in] fn The name of the file to create. In case of multiple files, we append a number.
  * @param [in] bPageBreak If true, we draw dashed lines for page break, when the 
  *                        whole chart is drawn in one.
@@ -2880,18 +2882,16 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
  *                            Errors are also generated on file creation and similar hard errors.
  * @returns False on error (but not on warning) irrespective of `generateErrors`. */
-bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
+bool Msc::DrawToFile(Canvas::EOutputType ot, const XY &scale, 
                      const string &fn, bool bPageBreak, bool ignore_pagebreaks, 
                      const XY &pageSize, const double margins[4], 
                      int ha, int va, bool generateErrors)
 {
-    _ASSERT(scale.size()>0);
-    _ASSERT(scale.size()==1 || (pageSize.x>0 && pageSize.y>0)); //Multiple scales must be fixed-size output
     const unsigned from = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : 1;
     const unsigned till = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : pageBreakData.size();
     if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
-            Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
+            Canvas canvas(ot, total, copyrightTextHeight, fn, scale, &pageBreakData, page);
             if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
             DrawComplete(canvas, bPageBreak, page);
         }

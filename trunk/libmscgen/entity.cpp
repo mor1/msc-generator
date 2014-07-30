@@ -1171,6 +1171,28 @@ void EntityApp::PostPosProcess(Canvas &canvas)
         }
     }
     Element::PostPosProcess(canvas);
+
+    //Register the label
+    if ((*itr)->shape >= 0) {
+        const XY twh = parsed_label.getTextWidthHeight();
+        const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
+        if (b.IsInvalid()) {
+            const double x = outer_edge.x.MidPoint();
+            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY, 
+                                 x-twh.x/2, x+twh.x/2, outer_edge.y.till);
+        } else {
+            const double r = std::min(1., std::min(b.x.Spans()/twh.x, b.y.Spans()/twh.y));
+            const double yoff = (b.y.Spans() - twh.y*r)/2;
+            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
+                                 b.x.from, b.x.till, b.y.from + yoff);
+        }
+    } else {
+        const double lw = style.read().line.LineWidth();
+        Block b2(outer_edge);
+        b2.Expand(-lw/2);
+        chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
+                             b2.x.from, b2.x.till, b2.y.from + lw/2);
+    }
 }
 
 /** Draw an entity heading

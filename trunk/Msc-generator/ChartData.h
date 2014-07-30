@@ -293,17 +293,15 @@ public:
      *                         decides if we indicate page breaks or not.
      * @param [in] ignore_pagebreaks If set we draw all of a multi-paged chart in the same
      *                               single file.
-     * @param [in] x_scale Scaling in x direction.
-     * @param [in] y_scale Scaling in y direction.
+     * @param [in] scale Scaling requested by user.
      * @param [in] pageSize If non-zero, a fixed page size is used and a single multi-page
      *                      file will be created (only with PDF).
      * @param [in] margins For fixed size pages, these are the margins
      * @param [in] ha The horizontal alignment for fix size pages (-1: left, 0: center, +1:right)
      * @param [in] va The vertical alignment for fix size pages (-1:up, 0: center, +1:bottom) */
      void DrawToFile(const char* fileName, bool bPageBreaks, bool ignore_pagebreaks,
-                    double x_scale=1.0, double y_scale=1.0, 
-                    const XY &pageSize = XY(0, 0), const double margins[4] = NULL,
-                    int ha = 0, int va = 0) const;
+                    XY scale=XY(1,1), const XY &pageSize = XY(0, 0), 
+                    const double margins[4] = NULL, int ha = 0, int va = 0) const;
     /** Draw the chart to a Windows Device Context (DC), metafile or a printer DC.
      * @param [in] ot The format of output. Determines what type of metafile we use.
      *                can only be WMF, EMF, EMFWMF or PRINTER.

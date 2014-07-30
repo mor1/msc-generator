@@ -44,6 +44,10 @@ ADD: arrows to point to boxes.
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
+In 4.3
+ADD: -q and -qq command-line switches
+ADD: 'lmap' output type
+
 In 4.2
 ADDED: tags to boxes
 ADDED: tag attributes to defdesigns
