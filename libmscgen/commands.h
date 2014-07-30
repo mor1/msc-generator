@@ -398,7 +398,7 @@ public:
     void PlaceSideTo(Canvas &canvas, AreaList *cover, double &y);
     //@}
 
-    //virtual void PostPosProcess(Canvas &cover, double autoMarker);
+    virtual void PostPosProcess(Canvas &cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

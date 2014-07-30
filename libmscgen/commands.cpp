@@ -2723,6 +2723,37 @@ void CommandNote::ShiftCommentBy(double y)
 }
 
 
+void CommandNote::PostPosProcess(Canvas &cover)
+{
+    if (is_float) {
+        const double w2 = halfsize.x - style.read().line.LineWidth();
+        chart->RegisterLabel(parsed_label, LabelInfo::NOTE,
+            pos_center.x-w2, pos_center.x+w2,
+            pos_center.y-halfsize.y+style.read().line.LineWidth());
+
+    } else switch (style.read().side.second) {
+    case ESide::LEFT:
+        chart->RegisterLabel(parsed_label, LabelInfo::COMMENT,
+            chart->sideNoteGap,
+            chart->XCoord(chart->LNote->pos)-chart->sideNoteGap,
+            yPos);
+        break;
+    case ESide::RIGHT:
+        chart->RegisterLabel(parsed_label, LabelInfo::COMMENT,
+            chart->XCoord(chart->RNote->pos) + chart->sideNoteGap,
+            chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
+            yPos);
+        break;
+    case ESide::END:
+        chart->RegisterLabel(parsed_label, LabelInfo::COMMENT,
+            chart->sideNoteGap,
+            chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
+            yPos);
+        break;
+    }
+}
+
+
 void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid || pass!=draw_pass) return;

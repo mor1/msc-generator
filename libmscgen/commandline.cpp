@@ -82,7 +82,9 @@ static void usage()
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
 "             'pdf', 'svg' or 'emf' (if supported on your system).\n"
 "             Default is 'png'. The token 'ismap' is accepted, but results in\n"
-"             an empty map file.\n"
+"             an empty map file. The token 'lmap' is accepted and results\n"
+"             a text file listing (the first line of) all labels and their\n"
+"             page number and coordinates.\n"
 " -o <file>   Write output to the named file.  If omitted, the input filename\n"
 "             will be appended by an extension suitable for the output format.\n"
 "             If neither input nor output file is given, msc-gen_out.* will be\n"
@@ -239,6 +241,8 @@ int do_main(const std::list<std::string> &args,
     bool                    oWarning = true;
     bool                    oProgress = true;
     bool                    oCshize = false;
+    bool                    oLmap = false;
+    unsigned                oQ = 0;
     int                     oX = -1;
     int                     oY = -1;
     std::vector<double>     oScale; //-2=auto, -1=width, other values = given scale
@@ -365,7 +369,7 @@ int do_main(const std::list<std::string> &args,
                 }
             }
         } else if (*i == "-a") {
-            oA = true; oAH=false;
+            oA = true; oAH = false;
         } else if (*i == "-ah") {
             oA = true; oAH=true;
         } else if (*i == "-o") {
@@ -415,41 +419,51 @@ int do_main(const std::list<std::string> &args,
                 show_usage = true;
             } else {
                 i++;
-                if (*i == "csh")
+                if (*i == "csh") {
                     oCshize = true;
-                else
+                    oLmap = false;
+                } else
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
-                if (*i == "png")
+                if (*i == "png") {
                     oOutType = Canvas::PNG;
-                else
+                    oCshize = oLmap = false;
+                } else
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
-                 if (*i == "eps")
+                 if (*i == "eps") {
                      oOutType = Canvas::EPS;
-                 else
+                     oCshize = oLmap = false;
+                 } else
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
-                 if (*i == "pdf")
+                 if (*i == "pdf") {
                      oOutType = Canvas::PDF;
-                 else
+                     oCshize = oLmap = false;
+                 } else
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
-                 if (*i == "svg")
+                 if (*i == "svg") {
                      oOutType = Canvas::SVG;
-                 else
+                     oCshize = oLmap = false;
+                 } else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-                 if (*i == "emf")
+                 if (*i == "emf") {
                      oOutType = Canvas::EMF;
-                 else
-                 if (*i == "wmf")  //undocumented
+                     oCshize = oLmap = false;
+                 } else if (*i == "wmf")  {//undocumented
                      oOutType = Canvas::WMF;
-                 else
+                     oCshize = oLmap = false;
+                 } else
 #endif
-                 if (*i == "ismap")  //undocumented
+                 if (*i == "ismap") { //undocumented
                      oOutType = Canvas::ISMAP;
-                 else
-                 {
+                     oCshize = oLmap = false;
+                 } else if (*i == "lmap") {
+                     oLmap = true;
+                     oCshize = false;
+                     oOutType = Canvas::PDF; //use this format for laying out (-p also works with it)
+                 } else {
                      msc.Error.Error(opt_pos,
                                      "Unknown output format '" + *i + "'."
                                      "Use one of"
@@ -468,7 +482,7 @@ int do_main(const std::list<std::string> &args,
 #ifdef CAIRO_HAS_WIN32_SURFACE
                      " 'emf'"
 #endif
-                     " or 'csh'. Using 'png'.");
+                     " 'lmap' or 'csh'. Using 'png'.");
                      oOutType = Canvas::PNG;
                  }
             }
@@ -582,6 +596,8 @@ int do_main(const std::list<std::string> &args,
         //oOutputFile.erase(oOutputFile.find_last_of("."));
         if (oCshize)
             oOutputFile.append(".csh");
+        else if (oLmap)
+            oOutputFile.append(".map");
         else switch (oOutType) {
         case Canvas::PNG:
             oOutputFile.append(".png"); break;
@@ -700,6 +716,7 @@ int do_main(const std::list<std::string> &args,
                 msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
         }
     } else {
+        //Here either we have a valid graphics output format (not ISMAP) or we have oLmap==true
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
         XY pageSize(0,0);
@@ -747,18 +764,51 @@ int do_main(const std::list<std::string> &args,
         const bool to_stdout = oOutputFile.length()==0;
         if (to_stdout) {
             //We cannot write to standard output a multi-page file.
-            if (msc.pageBreakData.size()>1) {
+            if (msc.pageBreakData.size()>1 && !oLmap) {
                 msc.Error.Error(opt_pos, "Cannot write multi-page graphics to the standard output.");
                 goto fatal;
             }
             oOutputFile = tmpnam(NULL);
         }
-        //Now cycle through pages and write them to individual files or a full-page one
-        msc.DrawToFile(oOutType, scale, oOutputFile, false, false, PageSizeInfo::GetPhysicalPageSize(oPageSize),
-                        margins, oHA, oVA, true);
-        msc.Progress.Done();
-        if (load_data)
-            *load_data = msc.Progress.WriteLoadData();
+        const XY scale_to_use = Canvas::DetermineScaling(msc.GetTotal(), scale,
+            PageSizeInfo::GetPhysicalPageSize(oPageSize), margins,
+            msc.GetCopyrightTextHeight(), &msc.pageBreakData);
+        if (oLmap) {
+            FILE *fout = fopen(oOutputFile.c_str(), "wt");
+            for (const auto &l : msc.labelData) {
+                //check page number
+                unsigned p = 0;
+                if (msc.pageBreakData.size()>1)
+                    while (msc.pageBreakData[p].y>=l.coord.y.from)
+                        p++;
+                else
+                    p = 1;
+                //p is now the page number indexed from 1. 
+                Block b(l.coord);
+                //Shift the coordinates to compensate with where the page starts 
+                b.Shift(XY(msc.GetTotal().x.from, -msc.pageBreakData[p].y+msc.pageBreakData[p].autoHeadingSize));
+                //scale with the requested user scaling
+                b.Scale(scale_to_use);
+                //Get the first line
+                const string first_line = l.text.substr(0, l.text.find_first_of('\n'));
+                //emit line 
+                //T P X1 Y1 X2 Y2 S
+                //type page bb first line
+                fprintf(fout, "%c %d %g %g %g %g %s\n", 
+                              LabelInfo::labelTypeChar[l.type], p, 
+                              b.x.from, b.y.from, b.x.till, b.y.till,
+                              first_line.c_str());
+            }
+            fclose(fout);
+        } else {
+            //Now cycle through pages and write them to individual files or a full-page one
+            msc.DrawToFile(oOutType, scale_to_use, oOutputFile, false, false, 
+                           PageSizeInfo::GetPhysicalPageSize(oPageSize),
+                           margins, oHA, oVA, true);
+            msc.Progress.Done();
+            if (load_data)
+                *load_data = msc.Progress.WriteLoadData();
+        }
         //copy temporary file to stdout, if so requested
         if (to_stdout) {
             FILE *in = fopen(oOutputFile.c_str(), "r");
@@ -778,9 +828,16 @@ int do_main(const std::list<std::string> &args,
 
     std::cerr << msc.Error.Print(oWarning);
     if (show_usage) usage();
-    if (msc.Error.hasErrors())
-        std::cerr << "There were errors, but a chart has been produced." << std::endl;
-    else
+    if (msc.Error.hasErrors()) {
+        std::cerr << "There were errors, but ";
+        if (oLmap || oOutType == Canvas::ISMAP)
+            std::cerr << "a map";
+        else if (oCshize)
+            std::cerr << "the colorized chart";
+        else 
+            std::cerr << "a chart";
+        std::cerr << " has been produced." << std::endl;
+    } else
         std::cerr << "Success." << std::endl;
     return EXIT_SUCCESS;
 

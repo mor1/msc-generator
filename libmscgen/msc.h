@@ -282,6 +282,30 @@ struct PageBreakData {
         y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetFormalHeight() : 0) {}
 };
 
+/** Holds coordinate info about one arc or entity label. 
+ * Used to generate 'lmap' output.*/
+struct LabelInfo {
+    /** Describes what type of labels we can have */
+    enum LabelType {
+        INVALID=0, ///<Not valid
+        ENTITY,    ///<The label belongs to an entity header
+        ARROW,     ///<The label belongs to an arrow 
+        DIVIDER,   ///<The label belongs to a divider (title, etc.)
+        BOX,       ///<The label belongs to a box with content
+        EMPTYBOX,  ///<The label belongs to an empty box
+        PIPE,      ///<The label belongs to a pipe (segment)
+        VERTICAL,  ///<The label belongs to a vertical (brace, etc.)
+        COMMENT,   ///<The label belongs to a comment (side or end)
+        NOTE,      ///<The label belongs to a floating note
+    };
+    static const char labelTypeChar[NOTE+2];
+    LabelType type; ///<The type of the element of the label
+    string    text; ///<The text of the label
+    Block     coord;///<The bounding box of the label (all lines), in chart coordinates, ignoring pagination
+    LabelInfo(LabelType t, const string &s, const Block &b) : 
+        type(t), text(s), coord(b) {}
+};
+
 /** The main class holding a chart 
   (This is a non movable, non copyable object, once it has arcs in it, due to the 
   cross-references between them.)
@@ -352,6 +376,7 @@ public:
     AreaList                      AllCovers;       ///<A set of arc contours with a pointer to the arcs. Used to identify the arc covering an XY coordinate.
     Contour                       HideELinesHere;  ///<A complex contour used as a mask when drawing entity lines.
     PBDataVector                  pageBreakData;   ///<Starting y pos and auto-heading info for each page break. pageBreakData[0].y is always 0. 
+    std::list<LabelInfo>          labelData;       ///<Holds a catalogue of all labels with their coordinates. Filled by PostPosProcess().
     ArcList                       EndNotes;        ///<We move all endnotes here during PostParseProcessArcList(). We reappend them in PostParseProcess().
     CommandNoteList               Notes;           ///<All notes are moved here after PostParseProcess 
     PtrList<const Element>        NoteBlockers;    ///<Ptr to all elements that may block a floating note and which therefore should not overlap with them
@@ -506,6 +531,41 @@ public:
     /** Hides the entity lines in `area` */
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void CountLabel(bool overflown) {noLabels++; if (overflown) noOverflownLabels++;}
+    void RegisterLabel(const Label &l, LabelInfo::LabelType type, const Block &b);
+    /** Register a horizontally drawn label.
+    * This is used to generate lmaps
+    * @param [in] l The label to register.
+    * @param [in] type The type of element the label belongs to.
+    * @param [in] sx The left margin.
+    * @param [in] dx The right margin.
+    * @param [in] y The top of the label.
+    * @param [in] cx If also specified, we center around it for centered lines,
+    *                but taking care not to go ouside the margings.
+    *                If the line is wider than `dx-sx` we will go outside
+    *                as little as possible (thus we center around `(sx+dx)/2`.
+    * @param [in] c The center of rotation in case of a slanted arrow label.
+    * @param [in] angle The degrees of rotation in case of a slanted arrow label.*/
+    void RegisterLabel(const Label &l, LabelInfo::LabelType type,
+                       double sx, double dx, double y, double cx = -CONTOUR_INFINITY, const XY &c=XY(), double angle=0)
+    { if (l.size()) labelData.emplace_back(type, l, l.Cover(sx, dx, y, cx).RotateAround(c, angle).GetBoundingBox());}
+    /** Register a vertically drawn label.
+    * This is used to generate lmaps
+    * @param [in] l The label to register.
+    * @param [in] type The type of element the label belongs to.
+    * @param [in] s The left edge of the text (as the text reads)
+    *               In the result this is the Left/Top/Bottom edge of text for side==END/LEFT/RIGHT.
+    * @param [in] d The right edge of the text (as the text reads)
+    *               In the result this is the Right/Bottom/Top edge of text for side==END/LEFT/RIGHT
+    * @param [in] t The top edge of the text (as the text reads)
+    *               In the result this is the Top/Right/Left edge of text for side==END/LEFT/RIGHT.
+    * @param [in] side from which direction is the text read. For END it will be laid out horizontally.
+    * @param [in] c If also specified, we center around it for centered lines,
+    *                but taking care not to go ouside the margings.
+    *                If the line is wider than `d-s` we will go outside
+    *                as little as possible (thus we center around `(s+d)/2`.*/
+    void RegisterLabel(const Label &l, LabelInfo::LabelType type,
+                       double s, double d, double t, ESide side, double c = -CONTOUR_INFINITY)
+    { if (l.size()) labelData.emplace_back(type, l, l.Cover(s, d, t, side, c).GetBoundingBox());}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
     void RegisterCoverArcList(ArcList &arcs, EDrawPassType pass);
 
@@ -524,7 +584,7 @@ public:
     void DrawHeaderFooter(Canvas &canvas, unsigned page);
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
-    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, 
+    bool DrawToFile(Canvas::EOutputType, const XY &scale, 
                     const string &fn, bool bPageBreak, bool ignore_pagebreaks, 
                     const XY &pageSize=XY(0,0), const double margins[4]=NULL,
                     int ha=-1, int va=-1, bool generateErrors=false);
