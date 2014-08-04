@@ -44,11 +44,10 @@ ADD: arrows to point to boxes.
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Explanatory tooltips for hints (preferably with chart examples.)
 
-In 4.3
-ADD: -q and -qq command-line switches
-ADD: 'lmap' output type
+In 4.3 (experimental)
+ADDED: 'lmap' output type for Label Maps
 
-In 4.2
+In 4.2 (stabile)
 ADDED: tags to boxes
 ADDED: tag attributes to defdesigns
 DOCED: tags 
@@ -61,14 +60,14 @@ FIXED: parallel problem (with box series)
 CANCELLED: hide entity lines also behind series labels
 FIXED: Series line bad cut leftward
 
-In 4.1
+In 4.1 (stabile)
 ADDED: shape, shape.size moved to style
 
-In 4.0.2
+In 4.0.2 (stabile)
 FIXED: compilation errors on 64-bit Linux. (size-t != unsigned problems)
 FIXED: \mX() escapes crashed CSH processing without a value in parenthesis
 
-In 4.0
+In 4.0 (stabile)
 FIXED: Contour test mistakes (esp 740_006)
 CHANGED: Remove area calcualtion from arcs (if not needed)
 FIXED: test.signalling from Michael on end of January, draws thicker text sometimes

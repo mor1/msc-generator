@@ -242,7 +242,6 @@ int do_main(const std::list<std::string> &args,
     bool                    oProgress = true;
     bool                    oCshize = false;
     bool                    oLmap = false;
-    unsigned                oQ = 0;
     int                     oX = -1;
     int                     oY = -1;
     std::vector<double>     oScale; //-2=auto, -1=width, other values = given scale
@@ -775,20 +774,19 @@ int do_main(const std::list<std::string> &args,
             msc.GetCopyrightTextHeight(), &msc.pageBreakData);
         if (oLmap) {
             FILE *fout = fopen(oOutputFile.c_str(), "wt");
+            msc.labelData.sort([](const LabelInfo &a, const LabelInfo &b) {return a.coord.y.from<b.coord.y.from; });
             for (const auto &l : msc.labelData) {
                 //check page number
                 unsigned p = 0;
-                if (msc.pageBreakData.size()>1)
-                    while (msc.pageBreakData[p].y>=l.coord.y.from)
-                        p++;
-                else
-                    p = 1;
+                while (msc.pageBreakData.size() > p && 
+                       msc.pageBreakData[p].y<=l.coord.y.from)
+                    p++;
                 //p is now the page number indexed from 1. 
                 Block b(l.coord);
                 //Shift the coordinates to compensate with where the page starts 
-                b.Shift(XY(msc.GetTotal().x.from, -msc.pageBreakData[p].y+msc.pageBreakData[p].autoHeadingSize));
-                //scale with the requested user scaling
-                b.Scale(scale_to_use);
+                b.Shift(XY(-msc.GetTotal().x.from, -msc.pageBreakData[p-1].y+msc.pageBreakData[p-1].autoHeadingSize));
+                //scale with the requested user scaling & round to integers
+                b.Scale(scale_to_use).RoundWider();
                 //Get the first line
                 const string first_line = l.text.substr(0, l.text.find_first_of('\n'));
                 //emit line 

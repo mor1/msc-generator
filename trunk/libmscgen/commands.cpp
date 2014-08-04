@@ -2723,7 +2723,7 @@ void CommandNote::ShiftCommentBy(double y)
 }
 
 
-void CommandNote::PostPosProcess(Canvas &cover)
+void CommandNote::PostPosProcess(Canvas &)
 {
     if (is_float) {
         const double w2 = halfsize.x - style.read().line.LineWidth();
@@ -2749,6 +2749,9 @@ void CommandNote::PostPosProcess(Canvas &cover)
             chart->sideNoteGap,
             chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
             yPos);
+        break;
+    case ESide::INVALID:
+        _ASSERT(0);
         break;
     }
 }
