@@ -141,7 +141,7 @@ public:
         ERR_MARGIN,     ///<Bad margins
         ERR_DONE        ///<We have already closed this canvas.
     };
-    static XY Canvas::DetermineScaling(const Block &total, const std::vector<XY> &scale,
+    static XY DetermineScaling(const Block &total, const std::vector<XY> &scale,
         const XY &pageSize, const double margins[4], 
         double ctexth, const PBDataVector *pageBreakData);
 
