@@ -1,0 +1,8 @@
+defstyle arrow [text.ident = left];
+->Client: Hit;
+Client->Server: Request;
+Server->*Backend: Query;
+...: Timeout...;
+Server->Backend: Retransmission;
+Server<-Backend: Response;
+Client<-Server: Reply;
