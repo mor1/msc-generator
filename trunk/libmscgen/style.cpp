@@ -38,6 +38,7 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm
     f_makeroom=f_note=f_lost=f_lsym=true;
     f_arrow = ArrowHead::ANY;
     f_side = ESideType::ANY;
+    f_shape = f_tag = true;
     Empty();
 }
 
