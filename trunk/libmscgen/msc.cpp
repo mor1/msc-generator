@@ -1147,11 +1147,12 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     }
     //If a CommandNote is immediately after an CommandEntity, take it out 
     //and temporarily store it in the CommandEntity (for re-insertation further below)
+    //But only if the commandentity was not internally defined!!
     for (ArcList::iterator i = ++arcs.begin(); i != arcs.end(); /*none*/) {
         ArcList::iterator prev = i; prev--;
         CommandEntity *ce = dynamic_cast<CommandEntity *>(*prev);
         CommandNote *cn = dynamic_cast<CommandNote *>(*i);
-        if (ce == NULL || cn == NULL) {
+        if (ce == NULL || cn == NULL || ce->internally_defined) {
             i++;
             continue;
         }

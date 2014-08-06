@@ -133,7 +133,7 @@ void MscProgress::CloseSection()
         DoneItem(current_arc_section, REMAINDER);
         for (unsigned u=1; u<MAX_CATEGORY; u++) {
             if (current_arc_section!=DRAW  && current_arc_section!=POST_PARSE && current_arc_section != NOTES)
-                if (u != NOTE) {
+                if (u != NOTE && u!= COMMENT) {
                     _ASSERT(arc_items_done_in_current_section[u] == arc_items_regsitered[u]);
                 }
         }

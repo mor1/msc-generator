@@ -3427,8 +3427,7 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
     ArcBase(MSC_BOX_SOLID, MscProgress::BOX_SERIES, first->chart), 
     series(true), drawing_variant(1)
 {
-    series.Append(first);
-    draw_pass = first->draw_pass;
+    AddBox(first);
     keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
 }
 
@@ -3561,19 +3560,26 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-//This should be called after adding content to "f', but before adding any attributes
-ArcBoxSeries* ArcBoxSeries::AddFollow(ArcBox *f)
+//It can be called even if the series is empty.
+//If we add subsequent boxes, this should be called after adding content 
+//to "f', but before adding any attributes to it. (so that it can inherit
+//unset attributes from the first element in the series.)
+ArcBoxSeries* ArcBoxSeries::AddBox(ArcBox *f)
 {
     _ASSERT(f);
     if (f==NULL) return this;
     if (f->valid) {
-        //Use the style of the first box in the series as a base
-        StyleCoW s = (*series.begin())->style;
-        //Override with the line type specified (if any)
-        if (f->type != MSC_BOX_UNDETERMINED_FOLLOW)
-            s += *f->GetRefinementStyle(f->type);
-        f->style = s;
-        //AddAttributeList will be called for "f" after this function
+        if (series.size()) {
+            //Use the style of the first box in the series as a base
+            StyleCoW s = series.front()->style;
+            //Override with the line type specified (if any)
+            if (f->type != MSC_BOX_UNDETERMINED_FOLLOW)
+                s += *f->GetRefinementStyle(f->type);
+            f->style = s;
+            //AddAttributeList will be called for "f" after this function
+        } else {
+            draw_pass = f->draw_pass;
+        }
     } else
         valid = false;
     series.Append(f);

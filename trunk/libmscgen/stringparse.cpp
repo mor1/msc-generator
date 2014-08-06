@@ -599,7 +599,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return FORMATTING_OK;
 
     case 'm':
-        std::pair<bool, double> *p;
+        typedef std::pair<bool, double> BoolDouble;
+        BoolDouble *p;
         int modifer = 0;
         switch (input[2]) {
         case 'u': p = &textVGapAbove; modifer = +2; break;
@@ -622,13 +623,15 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         if (parameter.length()==0) { //this is \mX()
             if (basic) {
-                const std::pair<bool, double> *p2 = reinterpret_cast<const std::pair<bool, double> *>((const char*)p - (const char*)this + (const char*)&basic);
+                const size_t offset = (const char*)p - (const char*)this;
+                const BoolDouble *p2 = reinterpret_cast<const BoolDouble *>((const char*)basic + offset);
                 if (p2->first) {
                     if (apply)
                         *p = *p2;
-                    string num;
-                    num << p2->second;
-                    if (replaceto) replaceto->assign(num);
+                    if (replaceto) {
+                        replaceto->assign("\\m");
+                        (*replaceto) << input[2] << "(" << p2->second << ")";
+                    }
                     if (linenum) linenum->col += length;
                     return FORMATTING_OK;
                 }
@@ -1544,6 +1547,14 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
         if (line.length()>pos)
             pos += format.Apply(line.c_str()+pos);
     }
+    //If an empty line, add standard height
+    if (line.length()==0) {
+        fragment = "M"; //the functions below ignore the text, just return pre-stored values for non-empty stings
+        heightAboveBaseLine =
+            std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
+        heightBelowBaseLine =
+            std::max(heightBelowBaseLine, format.getFragmentHeightBelowBaseLine(fragment, canvas));
+    }
     //Add spacing below. If there is spacingbelow, span a full height line
     if (heightAboveBaseLine == 0 && format.getSpacingBelow())
         heightAboveBaseLine = format.getFragmentHeightAboveBaseLine("M", canvas);
@@ -1607,7 +1618,7 @@ size_t Label::Set(const string &input, Canvas &canvas, StringFormat format)
     size_t pos = 0, line_start = 0;
     size_t length = 0;
     while (pos < input.length() && input[pos]) {
-        bool hard_line_break = false; //=false is just there to supress a warning
+        bool hard_line_break = false; //=false is just there to supress a compilation warning
         //find next new line
         while (pos < input.length() && input[pos]) {
             const auto ret = format.ProcessEscape(input.c_str()+pos, length);
