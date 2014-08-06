@@ -735,8 +735,8 @@ public:
     /** Create a series using a box as a first element */
     ArcBoxSeries(ArcBox *first);
     virtual bool CanBeAlignedTo() const { return true; }
-    /** Append subsequent boxes to the series */
-    ArcBoxSeries* AddFollow(ArcBox *f);
+    /** Add the first and append subsequent boxes to the series */
+    ArcBoxSeries* AddBox(ArcBox *f);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,

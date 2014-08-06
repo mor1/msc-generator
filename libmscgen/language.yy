@@ -2545,6 +2545,11 @@ parallel:    braced_arclist
   #endif
 };
 
+
+//This term can return NULL (for a TOK_COMMAND_BOX without a following boxrel)
+//It is also recursive, so we need to check if the 'box_list' we
+//use is NULL or not. (But if the TOK_BOX_COMMAND is followed by a boxrel
+//the parser will turn that to a 'first' box and we are OK.)
 box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
@@ -2559,7 +2564,10 @@ box_list: first_box
     csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
   #else
     $$ = NULL;
-    msc.Error.Error(MSC_POS(@1).end.NextChar(), "The keyword '" + string($1) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
+    msc.Error.Error(MSC_POS(@1).end.NextChar(), 
+        "The keyword '" + string($1) +
+        "' should be followed by an entity, or '--', '..', '++' or '=='. "
+        "Ignoring this box (series).");
   #endif
     free($1);
 }
@@ -2578,8 +2586,8 @@ box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
     ($2)->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow($2);
-    ($2)->AddAttributeList(NULL); //should come after AddFollow
+    $$ = ($1)->AddBox($2);
+    ($2)->AddAttributeList(NULL); //should come after AddBox
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label
@@ -2591,25 +2599,34 @@ box_list: first_box
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
-    $$ = ($1)->AddFollow($2);
-    ($2)->AddAttributeList($3); //should come after AddFollow
+
+    $$ = ($1)->AddBox($2);
+    ($2)->AddAttributeList($3); //should come after AddBox
   #endif
 }
            | box_list boxrel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     ($2)->AddArcList($3)->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow($2);
-    ($2)->AddAttributeList(NULL); //should come after AddFollow
+    $$ = ($1)->AddBox($2);
+    ($2)->AddAttributeList(NULL); //should come after AddBox
   #endif
 }
            | box_list braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
-    ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
-    temp->AddArcList($2);
-    $$ = ($1)->AddFollow(temp);
-    temp->AddAttributeList(NULL); //should come after AddFollow
+    if ($1) {
+        ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        temp->AddArcList($2);
+        $$ = ($1)->AddBox(temp);
+        temp->AddAttributeList(NULL); //should come after AddBox
+    } else {
+        //We have emitted an error message when returning a NULL 
+        //ArcBoxSeries for 'box_list', so we delete 'temp' and ignore
+        //this box series entirely.
+        $$ = NULL;
+        delete ($2);
+    }
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label braced_arclist
@@ -2621,8 +2638,8 @@ box_list: first_box
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
-    $$ = ($1)->AddFollow($2);
-    ($2)->AddAttributeList($3); //should come after AddFollow
+    $$ = ($1)->AddBox($2);
+    ($2)->AddAttributeList($3); //should come after AddBox
   #endif
 }
            | box_list full_arcattrlist_with_label braced_arclist
@@ -2633,10 +2650,20 @@ box_list: first_box
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
-    temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(temp);
-    temp->AddAttributeList($2); //should come after AddFollow
+    if ($1) {
+        ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
+        $$ = ($1)->AddBox(temp);
+        temp->AddAttributeList($2); //should come after AddBox
+    } else {
+        //We have emitted an error message when returning a NULL 
+        //ArcBoxSeries for 'box_list', so we delete 'temp' and ignore
+        //this box series entirely.
+        $$ = NULL;
+        delete ($2);
+        delete ($3);
+    }
+
   #endif
 };
 
