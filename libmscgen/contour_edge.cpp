@@ -1028,6 +1028,7 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
                                  3*(c1.x-start.x),
                                  3*(start.x-2*c1.x+c2.x),
                                  -start.x+3*(c1.x-c2.x)+end.x};
+        unsigned count = 1000;
         while (1) {
             const double xx = ((coeff[3]*pos[i] + coeff[2])*pos[i] + coeff[1])*pos[i] + coeff[0];
             if (fabs(xx-x)<CP_PRECISION) break; //done. This means a precision of CP_PRECISION pixels
@@ -1039,6 +1040,7 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
             if (fabs(dx_per_dpos)<1e-10)
                 break;
             pos[i] += (x-xx)/dx_per_dpos;
+            if (--count) break;  //XXX safety to avoid infinite loops, not a perfect solution, as the result will be in error
         }
         const double fw_x = NextTangentPoint(pos[i]).x;
         if (test_equal(x, fw_x))
@@ -2498,13 +2500,15 @@ unsigned Edge::atX(double x, double roots[3]) const
         3*(start.x+c2.x)-6*c1.x,
         -start.x+3*(c1.x-c2.x)+end.x};
     unsigned ret = solve_degree3(coeff, roots);
-    for (unsigned i = 0; i<ret; /*nope*/)
-        if (!between01_adjust(roots[i])) {
+    for (unsigned i = 0; i<ret; /*nope*/) {
+        //_ASSERT(fabs(x-Split(roots[i]).x)<=5);
+        if (!between01_adjust(roots[i]) || fabs(x-Split(roots[i]).x)>5) { //ignore solutions coming from false numerics
             for (unsigned k = i+1; k<ret; k++)
                 roots[k-1] = roots[k];
             ret--;
         } else
             i++;
+    }
     return std::unique(roots, roots+ret) - roots;  //remove duplicate solutions
 }
 
@@ -2521,7 +2525,7 @@ unsigned Edge::atY(double y, double roots[3]) const
         -start.y+3*(c1.y-c2.y)+end.y};
     unsigned ret = solve_degree3(coeff, roots);
     for (unsigned i = 0; i<ret; /*nope*/)
-        if (!between01_adjust(roots[i])) {
+        if (!between01_adjust(roots[i]) || fabs(y-Split(roots[i]).y)>5) { //ignore solutions coming from false numerics
             for (unsigned k = i+1; k<ret; k++)
                 roots[k-1] = roots[k];
             ret--;
