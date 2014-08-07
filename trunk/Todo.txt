@@ -46,6 +46,7 @@ ADD: Explanatory tooltips for hints (preferably with chart examples.)
 ADD: Hints to escapes
 ADD: inline comments, comment at
 ADD: Vertical comment alignment
+FIX: ident to indent
 
 In 4.3.1
 FIXED: 'box {};' bug from Martin.
