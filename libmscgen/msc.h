@@ -496,7 +496,7 @@ public:
 
     EDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, EDirType dir=MSC_DIR_INDETERMINATE) const;
 
-    virtual string Print(int ident=0) const;
+    virtual string Print(int indent=0) const;
     /** Returns the current value of the hscale chart option*/
     double GetHScale() const {_ASSERT(Contexts.size() && Contexts.back().hscale.first); return Contexts.back().hscale.second;}
     /** Converts an x coordinate from pos coordinat space to pixel space. Always returns an integer */

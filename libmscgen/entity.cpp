@@ -559,10 +559,10 @@ double Entity::GetRunningWidth(double activeEntitySize) const
 }
 
 /** Prints the entity name and position*/
-string Entity::Print(int ident) const
+string Entity::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ') << name << " pos:" << pos;
+    ss << string(indent*2, ' ') << name << " pos:" << pos;
     return ss;
 }
 
@@ -985,10 +985,10 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
 }
 
 /** Prints the attributes of EntityApp*/
-string EntityApp::Print(int ident) const
+string EntityApp::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ') << name;
+    ss << string(indent*2, ' ') << name;
 
     if (label.first) ss << "(\"" << label.second << "\")";
     if (pos.first) ss << " pos:" << pos.second;

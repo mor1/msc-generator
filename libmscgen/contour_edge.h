@@ -32,6 +32,9 @@
 
 namespace contour {
 
+
+#define CP_PRECISION (1e-8)
+
 /** @addtogroup contour_internal
  * @{
  */
@@ -395,6 +398,10 @@ protected:
     Block GetBezierHullBlock() const;
     Range GetHullXRange() const;
     Range GetHullYRange() const;
+    template <bool use_y_coord>
+    unsigned atXorY(double v, double roots[3], double precision = 0) const;
+    template <bool use_y_coord>
+    bool RefineXorY(double v, double &root, double precision = CP_PRECISION) const;
 
     unsigned CrossingSegments(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
     unsigned CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], double pos_other[]) const;
@@ -475,8 +482,22 @@ public:
     bool CreateExpand(double gap, std::list<Edge> &expanded, XY &prev_tangent, XY &next_tangent, std::vector<Edge> *original = NULL) const;
     bool CreateExpandOneSegment(double gap, std::list<Edge> &expanded, std::vector<Edge> *original) const;
 
-    unsigned atX(double x, double roots[3]) const;
-    unsigned atY(double y, double roots[3]) const;
+    /** Return a series of parameter values where the x coordinate of the curve is 'x'
+    * @param[in] x The x coordinate in question.
+    * @param[out] roots The parameter values returned.All will be in[0..1]
+    * @param[in] The precision(in pixels) to apply when refining the position values.
+    *            When it is zero or negative, no refinement happens(default).
+    * @returns the number of crosses found. **/
+    unsigned atX(double x, double roots[3], double precision = 0) const
+    { return atXorY<false>(x, roots, precision); }
+    /** Return a series of parameter values where the y coordinate of the curve is 'y'
+    * @param[in] y The y coordinate in question.
+    * @param[out] roots The parameter values returned.All will be in[0..1]
+    * @param[in] The precision(in pixels) to apply when refining the position values.
+    *            When it is zero or negative, no refinement happens(default).
+    * @returns the number of crosses found. **/
+    unsigned atY(double y, double roots[3], double precision = 0) const
+    { return atXorY<true>(y, roots, precision); }
 };
 
 /** Changes a bezier curve to straight if it is too flat.

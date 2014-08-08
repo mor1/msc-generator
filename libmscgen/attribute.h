@@ -153,11 +153,11 @@ public:
         {if (responsible) for (auto p : *this) delete(p); clear();} ///<Empty the list, deleting objets if `responsible` is true.
 	~PtrList() 
         {Empty();}
-    string Print(int ident=0) const 
+    string Print(int indent=0) const 
         {string s;
             for (auto i = begin(); i!=end(); i++) {
                 if (i!=begin()) s.append("\n");
-                s.append((*i)->Print(ident));
+                s.append((*i)->Print(indent));
             }
             return s;} ///<Prints the list, each element in a new line. Works, if objects have Print() method.
 };
@@ -277,7 +277,7 @@ public:
         type(MSC_ATTR_STYLE), name(a),
         linenum_attr(l), linenum_value(l), error(false) {}
 
-    string Print(int ident=0) const;
+    string Print(int indent=0) const;
     bool Is(const char *a) const
         {return CaseInsensitiveEqual(a, name);}  ///<Returns true if the name of the attribute equals `a` (case insensitive)
     bool EndsWith(const char *a) const;
@@ -388,7 +388,7 @@ public:
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
-    string Print(int ident = 0) const;
+    string Print(int indent = 0) const;
 
     /** @name Rectangle shape creators.
      * The below 12 functions creates various rectangle contours using the line style
@@ -529,7 +529,7 @@ public:
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
-    string Print(int ident = 0) const;
+    string Print(int indent = 0) const;
 };
 
 /** Stores the properties of shadows (color, offset and blur depth).*/
@@ -548,7 +548,7 @@ public:
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
-    string Print(int ident = 0) const;
+    string Print(int indent = 0) const;
 };
 
 bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p, Csh &);
@@ -591,7 +591,7 @@ public:
     virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
-    string Print(int ident = 0) const;
+    string Print(int indent = 0) const;
     static bool CshHintGraphicCallbackForLayout(Canvas *canvas, CshHintGraphicParam p, Csh &);
     static bool CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p, Csh &);
     static bool CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p, Csh &);

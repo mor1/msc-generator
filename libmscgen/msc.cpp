@@ -1102,10 +1102,10 @@ EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el,
     return dir;
 }
 
-string Msc::Print(int ident) const
+string Msc::Print(int indent) const
 {
-    string s = AllEntities.Print(ident).append("\n");
-    s.append(Arcs.Print(ident)).append("\n");
+    string s = AllEntities.Print(indent).append("\n");
+    s.append(Arcs.Print(indent)).append("\n");
     return s;
 }
 
