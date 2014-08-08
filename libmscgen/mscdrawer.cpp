@@ -224,8 +224,6 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
   @param [in] pageSize The size of the fixed page in points/pixels.
   @param [in] margins The margin size in points/pixels. The order is
                       left,right, up,down.
-  @param [in] ha The horizontal alignment -1=left, 0=center, 1=right
-  @param [in] va The vertical alignment -1=up, 0=center, 1=down
   @param [in] ctexth The height of the copyright text.
   @param [in] pageBreakData The collection of page break associated data 
                             generated during parsing. This function only

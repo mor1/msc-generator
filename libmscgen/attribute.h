@@ -176,6 +176,7 @@ class EnumEncapsulator {
 public:
     Enum value;
     const static char names[][ENUM_STRING_LEN];
+    const static char * const descriptions[];
     EnumEncapsulator(Enum a) : value(a) {}
 };
 

@@ -26,6 +26,13 @@
 #include "afxdialogex.h"
 #include "MiniEditor.h"
 
+
+BEGIN_MESSAGE_MAP(CHintListBox, CListBox)
+    ON_NOTIFY_EX_RANGE(TTN_NEEDTEXTW, 0, 0xFFFF, OnToolTipText)
+    ON_NOTIFY_EX_RANGE(TTN_NEEDTEXTA, 0, 0xFFFF, OnToolTipText)
+END_MESSAGE_MAP()
+
+
 /** Just initialize. Also set default hint format.*/
 CHintListBox::CHintListBox() : 
     m_csh(ArcBase::defaultDesign, NULL)
@@ -33,6 +40,59 @@ CHintListBox::CHintListBox() :
     m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
+}
+
+/** Needed to enable tooltips */
+void CHintListBox::PreSubclassWindow()
+{
+    CListBox::PreSubclassWindow();
+    EnableToolTips(true);
+}
+
+/** Tests if the mouse is in one of our items and gives the associated text.*/
+int CHintListBox::OnToolHitTest(CPoint point, TOOLINFO * pTI) const
+{
+    BOOL tmp = FALSE;
+    const int row = ItemFromPoint(point, tmp);
+    if (row == -1)
+        return -1;
+
+    //fill TOOLINFO  
+    RECT rect;
+    GetItemRect(row, &rect);
+    pTI->rect = rect;
+    pTI->hwnd = m_hWnd;
+    pTI->uFlags &= ~TTF_IDISHWND;
+    pTI->uId = UINT(row);
+    pTI->lpszText = LPSTR_TEXTCALLBACK;
+    return pTI->uId;
+}
+
+
+/**Handeles TTN_NEEDTEXTW and TTN_NEEDTEXTA events and returns the tooltip text.*/
+BOOL CHintListBox::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
+{
+    const CshHint *hint = GetHint(pNMHDR->idFrom);
+    if (!hint) return FALSE;
+    CString strTipText = hint->plain.c_str();
+
+    //Convert to return format
+    TOOLTIPTEXTA* pTTTA = (TOOLTIPTEXTA*)pNMHDR;
+    TOOLTIPTEXTW* pTTTW = (TOOLTIPTEXTW*)pNMHDR;
+#ifndef _UNICODE
+    if (pNMHDR->code == TTN_NEEDTEXTA)
+        lstrcpyn(pTTTA->szText, strTipText, 80);
+    else
+        _mbstowcsz(pTTTW->szText, strTipText, 80);
+#else
+    if (pNMHDR->code == TTN_NEEDTEXTA)
+        _wcstombsz(pTTTA->szText, strTipText, 80);
+    else
+        lstrcpyn(pTTTW->szText, strTipText, 80);
+#endif
+    *pResult = 0;
+
+    return TRUE;
 }
 
 /** Take a list of hints, filter & group them and copy them to us.

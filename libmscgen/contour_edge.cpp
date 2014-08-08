@@ -2444,7 +2444,7 @@ unsigned Edge::SolveForDistance(const XY &p, double pos[5]) const
 /** Return a series of parameter values where the x or y coordinate of the curve is 'y'.
  * @param [in] v The x or y coordinate in question.
  * @param [out] roots The parameter values returned. All will be in [0..1]
- * @param [in] The precision (in pixels) to apply when refining the position values.
+ * @param [in] precision The precision (in pixels) to apply when refining the position values.
  *             When it is zero or negative, no refinement happens (default).
  * @returns the number of crosses found. **/
 template <bool isY>
