@@ -25,13 +25,37 @@
 #include "msc.h"
 
 template<> const char EnumEncapsulator<EArrowType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "solid", "empty", "line", "half", "diamond", "empty_diamond", 
-     "dot", "empty_dot", "sharp", "empty_sharp",
+    {"invalid", "none", "solid", 
+     "empty", 
+     "line", 
+     "half", 
+     "diamond", 
+     "empty_diamond", 
+     "dot", 
+     "empty_dot", 
+     "sharp", "empty_sharp",
      "double", "double_empty", "double_line", "double_half",
      "triple", "triple_empty", "triple_line", "triple_half",
      "empty_inv", "stripes", "triangle_stripes", ""};
+template<> const char * const EnumEncapsulator<EArrowType>::descriptions[] =
+    {NULL, "No arrowhead, just a line (or rectangle for block arrows).", "Arrows: a filled equilateral triangle.\nBlock arrows: a triangle wider than the body.", 
+     "Arrows: A line-only equilateral triangle.\nBlock arrows: A triangle of same with as the body.", 
+     "Arrows: Two-lines.\nBlock arrows: a triangle wider than the body.", 
+     "Arrows: Just one line.\nBlock arrows: a lop-sided triangle.", 
+     "Arrows: A filled diamond shape.\nBlock arrows:A diamond shape wider than the body.", 
+     "Arrows: A line-only diamond.\nBlock arrows:A triangle of same with as the body, extending beyond the entity line.", 
+     "Arrows: A filled circle.\nBlock arrows:A circle wider than the body.", 
+     "Arrows: A line-only circle.\nBlock arrows:A round ending.", 
+     "Arrows: A filled acute triangle.\nBlock arrows:An acute triangle.", 
+     "Arrows: A line-only acute triangle.\nBlock arrows: A triangle of same with as the body.",
+     "Two filled triangles.", "Two line-only triangles.", "Two times two lines.", "Two times just one line.",
+     "Three filled triangles.", "Three line-only triangles.", "Three times two lines.", "Three times just one line.",
+     "An inverse (cut-out) equilateral triangle.", "Two straight stripes.", "Two bent stripes.", ""};
+
 template<> const char EnumEncapsulator<EArrowSize>::names[][ENUM_STRING_LEN] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
+template<> const char * const EnumEncapsulator<EArrowSize>::descriptions[] = {
+    NULL, "40% of normal.", "66% of normal.", "What feels just right.", "133% of normal.", "173% of normal.", ""};
 
 const double ArrowHead::arrowSizePercentage[6] = {
     20,  /* INVALID, value is set for big arrow hint pictograms */
@@ -181,10 +205,21 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 
 void ArrowHead::AttributeNames(Csh &csh, const string &prefix)
 {
-    static const char names[][ENUM_STRING_LEN] =
-    {"invalid", "type", "size", "color", "starttype", "midtype",
-     "endtype", "line.width", "line.color", "line.type", "xmul", "ymul", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
+    static const char * const names_descriptions[] ={
+        "invalid", NULL,
+        "type", "Select the type of the arrowhead, such as sharp, solid, double, etc. A shorthand for setting both 'endtype' and 'midtype'.",
+        "size", "The size of the arrowhead.",
+        "color", "The color of the arrowheads",
+        "starttype", "The arrowhead type used where the arrow starts.",
+        "midtype", "The arrowhead type to use where the arrow touches an intermediate entity.",
+        "endtype", "The arrowhead type to use at the destination of the arrow.",
+        "line.width", "The line with of line-like arrowheads.",
+        "line.color", "The color of the line of the arrwhead.",
+        "line.type", "The line style of the line-like arrowheads, like dotted, dashed, etc.",
+        "xmul", "A size multiplier applied to the width arrowheads. To increase width, for example, specify a number greater than 1.",
+        "ymul", "A size multiplier applied to the height arrowheads. To decrease height, for example, specify a number smaller than 1.",
+        ""};
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before arrowhead type names for line arrows in the hints popup list box.
@@ -275,18 +310,28 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, EArcArrowType
             if (t==ANY || (t==BIGARROW && MSC_ARROW_OK_FOR_BIG_ARROWS(EArrowType(i))) || 
                           (t==ARROW && MSC_ARROW_OK_FOR_ARROWS(EArrowType(i))))
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + EnumEncapsulator<EArrowType>::names[i],
+                               EnumEncapsulator<EArrowType>::descriptions[i],
                                HINT_ATTR_VALUE, true, 
                                t==BIGARROW ? CshHintGraphicCallbackForBigArrows : CshHintGraphicCallbackForArrowTypes,
                                CshHintGraphicParam(i)));
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "xmul") || CaseInsensitiveEndsWith(attr, "ymul")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between 0.1 and 10>", HINT_ATTR_VALUE, false));
+    if (CaseInsensitiveEndsWith(attr, "xmul")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between [0.1 and 10]>",
+            "Specify a number how much wider you want the arrowhead.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "ymul")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between [0.1 and 10]>",
+            "Specify a number how much higher you want the arrowhead.",
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "arrowsize") ||
         CaseInsensitiveEndsWith(attr, "size")) {
-        csh.AddToHints(EnumEncapsulator<EArrowSize>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+        csh.AddToHints(EnumEncapsulator<EArrowSize>::names, EnumEncapsulator<EArrowSize>::descriptions,
+                       csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForArrowSizes);
         return true;
     }

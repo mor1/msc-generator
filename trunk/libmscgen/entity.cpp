@@ -489,9 +489,7 @@ template class PtrList<Entity>;
  * @param [in] pe The position of the entity, if all group entities were expanded.
  * @param [in] entity_style The style of the entity at definition.
  * @param [in] fp The location of the entity definition in the input file.
- * @param [in] coll True if we are group, but show collapsed. 
- * @param [in] sh The number of the Shape to apply, -1 if none.
- * @param [in] sh_size The size of the Shape, ignored if no Shape.*/
+ * @param [in] coll True if we are group, but show collapsed.*/
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
     bool coll) :

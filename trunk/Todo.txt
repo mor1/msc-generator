@@ -46,7 +46,8 @@ ADD: Explanatory tooltips for hints (preferably with chart examples.)
 ADD: Hints to escapes
 ADD: inline comments, comment at
 ADD: Vertical comment alignment
-FIX: indent to indent
+FIXED: indent to indent
+FIX: CSHIZE with new label behaviour
 
 In 4.3.1
 FIXED: 'box {};' bug from Martin.

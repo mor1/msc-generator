@@ -485,7 +485,7 @@ public:
     /** Return a series of parameter values where the x coordinate of the curve is 'x'
     * @param[in] x The x coordinate in question.
     * @param[out] roots The parameter values returned.All will be in[0..1]
-    * @param[in] The precision(in pixels) to apply when refining the position values.
+    * @param[in] precision The precision (in pixels) to apply when refining the position values.
     *            When it is zero or negative, no refinement happens(default).
     * @returns the number of crosses found. **/
     unsigned atX(double x, double roots[3], double precision = 0) const
@@ -493,7 +493,7 @@ public:
     /** Return a series of parameter values where the y coordinate of the curve is 'y'
     * @param[in] y The y coordinate in question.
     * @param[out] roots The parameter values returned.All will be in[0..1]
-    * @param[in] The precision(in pixels) to apply when refining the position values.
+    * @param[in] precision The precision (in pixels) to apply when refining the position values.
     *            When it is zero or negative, no refinement happens(default).
     * @returns the number of crosses found. **/
     unsigned atY(double y, double roots[3], double precision = 0) const

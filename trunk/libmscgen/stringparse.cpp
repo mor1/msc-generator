@@ -1287,40 +1287,74 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ident")) {
-        csh.AddToHints(EnumEncapsulator<EIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
+        csh.AddToHints(EnumEncapsulator<EIdentType>::names, NULL, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
             CshHintGraphicCallbackForTextIdent);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "format")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<\format string\">", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<\format string\">",
+            "Specify a format string using text escapes, like '\\b'. Do not use plain text (non-formatting characters or escapes).",
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "font.type")) {
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "font.face")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\\f(Arial)Arial", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Times New Roman)Times New Roman\\f()\"", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Courier New)Courier New\\f()\"", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<any Windows font>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\\f(Arial)Arial", NULL, HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Times New Roman)Times New Roman\\f()\"", NULL, HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Courier New)Courier New\\f()\"", NULL, HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<any Windows font>", NULL, HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "bold") || 
         CaseInsensitiveEndsWith(attr, "italic") ||
         CaseInsensitiveEndsWith(attr, "wrap") ||
         CaseInsensitiveEndsWith(attr, "underline")) {
-            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
             return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "gap.up") ||
-        CaseInsensitiveEndsWith(attr, "gap.down") ||
-        CaseInsensitiveEndsWith(attr, "gap.left") ||
-        CaseInsensitiveEndsWith(attr, "gap.right") ||
-        CaseInsensitiveEndsWith(attr, "gap.spacing") ||
-        CaseInsensitiveEndsWith(attr, "size.normal") ||
-        CaseInsensitiveEndsWith(attr, "size.small")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
+    if (CaseInsensitiveEndsWith(attr, "gap.up")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the top margin of the label in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "gap.down")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the bottom margin of the label in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "gap.left")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the left margin of the label in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "gap.right")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the right margin of the label in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "gap.spacing")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the line spacing (the gap between lines) of the label in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "size.normal")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the height of the normal text in pixels.",
+            HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "size.small")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>",
+            "Set the height of small text (inclusing subscript and superscript) in pixels.",
+            HINT_ATTR_VALUE, false));
         return true;
     }
     return false;

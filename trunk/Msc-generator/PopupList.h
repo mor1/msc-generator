@@ -27,6 +27,11 @@
 /** An owner-drawn list box containing a list of hints.*/
 class CHintListBox : public CListBox 
 {
+protected:
+    DECLARE_MESSAGE_MAP()
+    void PreSubclassWindow();
+    int OnToolHitTest(CPoint point, TOOLINFO * pTI) const;
+    BOOL OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult);
 public:
     CSize             m_current_size; ///<The current geometry of us.
     StringFormat      m_format;       ///<Default format for hints
