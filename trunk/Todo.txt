@@ -46,7 +46,7 @@ ADD: Explanatory tooltips for hints (preferably with chart examples.)
 ADD: Hints to escapes
 ADD: inline comments, comment at
 ADD: Vertical comment alignment
-FIX: ident to indent
+FIX: indent to indent
 
 In 4.3.1
 FIXED: 'box {};' bug from Martin.
@@ -114,12 +114,12 @@ FIXED: Elements added to cover in the order they will be drawn
 FIXED: Clicking on options influencing appearance will now surely recompile, if needed
 FIXED: auto-pagination fails with ArcParallels on the second page 
 FIXED: random layout problems with auto-pagination for FF4 test chart in release mode (headings disappear, big gaps in the procedure, etc.)
-FIXED: at the end of label, no auto-ident for labels.
-FIXED: Nested } ends up at ident 0.
+FIXED: at the end of label, no auto-indent for labels.
+FIXED: Nested } ends up at indent 0.
 FIXED: Always asks when updates chart, when I press F2 (or not)
 FIXED: Add keyword 'box' to the string list
 FIXED: No hints after a last comma in an attr list.
-FIXED: Ident shall go back after an idented [
+FIXED: Indent shall go back after an indented [
 FIXED: Uncolored parts remain in errored state after error disappears
 FIXED: (empty) boxes do not honour a text.color chart option inside a parallel block (problem in design 'Dinand'')
 FIXED: Alignment of <> arrow labels
@@ -145,12 +145,12 @@ DOCED: Add "rewriting CSH" to release notes
 FIXED: Issue with Ctrl+Drag text selection
 CHANGED: Rewritten CSH workflow for less flicker
 FIXED: Paste eats last CRLF problem.
-DONE: disable TAB key ident checkbox if smart ident is not ON.
+DONE: disable TAB key indent checkbox if smart indent is not ON.
 
 In 3.7.11
 FIXED: When typing a command name csh works bad.
 FIXED: Cannot turn off numbering for comments
-FIXED: Smart ident, when typing a {,[ or \n at the beginning of a line
+FIXED: Smart indent, when typing a {,[ or \n at the beginning of a line
 FIXED: cover of a box does not include elements outside it - fails to compress well
 
 in 3.7.9 (feature freeze for 3.8)
@@ -179,7 +179,7 @@ ADDED file.info file.url options
 FIXED: Hint popup window problem
 FIXED: Better handling of parse errors
 CHANGED: Group undo actions
-FIXED: Smart ident - added TAB mode
+FIXED: Smart indent - added TAB mode
 FIXED: CSH for large files. Do it offline. 
 CHANGED: To bezier lib.
 FIXED: Looping edges

@@ -89,8 +89,8 @@ public:
     bool m_bShowCshErrors;               ///<True if we show CSH discovered parse errors
     bool m_bShowCshErrorsInWindow;       ///<True if we list the CSH discovered parse errors in the output window.
 	unsigned m_nCshScheme;               ///<Which color shceme do we use for CSH
-    bool m_bSmartIdent;                  ///<Whether we do smart ident or not. If true m_csh.ColonLabels are kep up-to-date at every change
-    bool m_bTABIdents;                   ///<Whether TAB idents the line (true) or inserts a tab
+    bool m_bSmartIndent;                 ///<Whether we do smart indent or not. If true m_csh.ColonLabels are kep up-to-date at every change
+    bool m_bTABIndents;                  ///<Whether TAB indents the line (true) or inserts a tab
     CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX]; ///<The colors used for each color scheme
 	COLORREF m_trackFillColor;           ///<The color used to fill element tracking outlines
 	COLORREF m_trackLineColor;           ///<The color used to draw element tracking outlines
@@ -155,11 +155,11 @@ public:
     afx_msg void OnComboCsh();
     afx_msg void OnUpdateCheckCsh(CCmdUI *pCmdUI);
     afx_msg void OnUpdateComboCsh(CCmdUI *pCmdUI);
-    afx_msg void OnCheckSmartIdent();
-    afx_msg void OnCheckTABIdents();
-    afx_msg void OnUpdateCheckSmartIdent(CCmdUI *pCmdUI);
+    afx_msg void OnCheckSmartIndent();
+    afx_msg void OnCheckTABIndents();
+    afx_msg void OnUpdateCheckSmartIndent(CCmdUI *pCmdUI);
     afx_msg void OnCheckCshError();
-    afx_msg void OnUpdateCheckTABIdents(CCmdUI *pCmdUI);
+    afx_msg void OnUpdateCheckTABIndents(CCmdUI *pCmdUI);
     afx_msg void OnUpdateCheckCshError(CCmdUI *pCmdUI);
     afx_msg void OnCheckCshErrorInWindow();
     afx_msg void OnUpdateCheckCshErrorInWindow(CCmdUI *pCmdUI);
@@ -214,8 +214,8 @@ extern CMscGenApp theApp;
 #define REG_KEY_DEFAULTZOOMMODE "DefaultZoomMode"
 #define REG_KEY_CSHENABLED "CshEnabled"
 #define REG_KEY_CSHSCHEME "CshScheme"
-#define REG_KEY_SMARTIDENT "SmartIdent"
-#define REG_KEY_TABIDENTS "TABIdents"
+#define REG_KEY_SMARTINDENT "SmartIdent"
+#define REG_KEY_TABINDENTS "TABIdents"
 #define REG_KEY_CSHERRORS "CshErrorsEnabled"
 #define REG_KEY_CSHERRORSINWINDOW "CshErrorsInWindow"
 #define REG_KEY_FINDWINPOS_X "FindReplaceWindowXPos"

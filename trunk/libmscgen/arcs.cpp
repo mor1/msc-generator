@@ -853,10 +853,10 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-string ArcLabelled::Print(int ident) const
+string ArcLabelled::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << PrintType().append(":").append(label);
     return ss;
 }
@@ -1016,10 +1016,10 @@ EDirType ArcSelfArrow::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcSelfArrow::Print(int ident) const
+string ArcSelfArrow::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << (*src)->name << (isBidir()?"<->":"->") << (*src)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     return ss;
@@ -1359,10 +1359,10 @@ EDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_LEFT;
 }
 
-string ArcDirArrow::Print(int ident) const
+string ArcDirArrow::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     const char *arrow_string = isBidir()?"<->":"->";
     ss << (*src)->name << arrow_string;
     for (unsigned i=0; i<middle.size(); i++)
@@ -2115,9 +2115,9 @@ bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-string ArcBigArrow::Print(int ident) const
+string ArcBigArrow::Print(int indent) const
 {
-    return ArcDirArrow::Print(ident);
+    return ArcDirArrow::Print(indent);
 }
 
 ArcBase* ArcBigArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -3586,14 +3586,14 @@ ArcBoxSeries* ArcBoxSeries::AddBox(ArcBox *f)
     return this;
 }
 
-string ArcBox::Print(int ident) const
+string ArcBox::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << (*src)->name << "--" << (*dst)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     for (auto i = content.begin(); i != content.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
+        ss << "\n" << (*i)->Print(indent+1);
     return ss;
 }
 
@@ -3604,12 +3604,12 @@ EDirType ArcBoxSeries::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcBoxSeries::Print(int ident) const
+string ArcBoxSeries::Print(int indent) const
 {
-    string ss(ident*2, ' '); 
+    string ss(indent*2, ' '); 
     ss << "Box series";
     for (auto i = series.begin(); i!=series.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
+        ss << "\n" << (*i)->Print(indent+1);
     return ss;
 }
 
@@ -4524,10 +4524,10 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
     return this;
 }
 
-string ArcPipe::Print(int ident) const
+string ArcPipe::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << (*src)->name << "--" << (*dst)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     return ss;
@@ -4543,14 +4543,14 @@ EDirType ArcPipeSeries::GetToucedEntities(EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcPipeSeries::Print(int ident) const
+string ArcPipeSeries::Print(int indent) const
 {
-    string ss(ident*2, ' '); 
+    string ss(indent*2, ' '); 
     ss << "Pipe series";
     for (auto i = series.begin(); i!=series.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
+        ss << "\n" << (*i)->Print(indent+1);
     for (auto i = content.begin(); i != content.end(); i++)
-        ss << "\n" << (*i)->Print(ident+2);
+        ss << "\n" << (*i)->Print(indent+2);
     return ss;
 }
 
@@ -5673,15 +5673,15 @@ EDirType ArcParallel::GetToucedEntities(class EntityList &el) const
     return dir;
 }
 
-string ArcParallel::Print(int ident) const
+string ArcParallel::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << PrintType() << "\n";
     for (auto i = blocks.begin(); i!=blocks.end(); i++) {
         if (i!=blocks.begin())
-            ss << string(ident*2+2, ' ') << "---\n";
-        ss << i->Print(ident+2);
+            ss << string(indent*2+2, ' ') << "---\n";
+        ss << i->Print(indent+2);
         if (i!=blocks.end())
             ss << "\n";
     }

@@ -26,10 +26,10 @@ using namespace std;
 using contour::deg2rad;
 using contour::rad2deg;
 
-string ArcCommand::Print(int ident) const
+string ArcCommand::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << PrintType();
     return ss;
 }
@@ -149,14 +149,14 @@ void CommandEntity::MoveMyContentAfter(EntityAppHelper &e)
     e.note_targets.splice(e.note_targets.end(), tmp_stored_note_targets);
 } 
 
-string CommandEntity::Print(int ident) const
+string CommandEntity::Print(int indent) const
 {
     string ss;
-    ss << string(ident*2, ' ');
+    ss << string(indent*2, ' ');
     ss << "Entity Command";
     if (full_heading) ss<<"(full_heading)";
     for (auto i = entities.begin();i != entities.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
+        ss << "\n" << (*i)->Print(indent+1);
     return ss;
 }
 

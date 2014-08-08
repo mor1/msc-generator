@@ -77,11 +77,11 @@ Attribute::Attribute(const char*a, const char *s, const FileLineColRange &l,
 
 
 /** Converts the attribute to a string
- * @param [in] ident Tells how much space to prepend each line.
+ * @param [in] indent Tells how much space to prepend each line.
  * @returns The string */
-string Attribute::Print(int ident) const
+string Attribute::Print(int indent) const
 {
-    string s(ident*2,' ');
+    string s(indent*2,' ');
     s << name ;
     switch (type) {
     case MSC_ATTR_STYLE:

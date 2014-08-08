@@ -202,7 +202,7 @@ void MscInitializeCshAppearanceList(void)
     //However, some of the CSH entries are not only applied to plain text, but also 
     //on top of other CSH entries. E.g., text escapes on top of text, and often comments on
     //top of text, perhaps also error.
-    //Some others are needed for smart ident (LABEL_TEXT, COLON)
+    //Some others are needed for smart indent (LABEL_TEXT, COLON)
     //For these we widen the mask with COLOR_FLAG_DIFFERENT, so they become different from 
     //COLOR_NORMAL
 

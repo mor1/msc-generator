@@ -199,11 +199,11 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(IDC_COMBO_CSH, &CMscGenApp::OnComboCsh)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH, &CMscGenApp::OnUpdateCheckCsh)
     ON_UPDATE_COMMAND_UI(IDC_COMBO_CSH, &CMscGenApp::OnUpdateComboCsh)
-    ON_COMMAND(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnCheckSmartIdent)
-    ON_COMMAND(ID_CHECK_CSH_TAB, &CMscGenApp::OnCheckTABIdents)
+    ON_COMMAND(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnCheckSmartIndent)
+    ON_COMMAND(ID_CHECK_CSH_TAB, &CMscGenApp::OnCheckTABIndents)
     ON_COMMAND(IDC_CHECK_CSH_ERROR, &CMscGenApp::OnCheckCshError)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnUpdateCheckSmartIdent)
-    ON_UPDATE_COMMAND_UI(ID_CHECK_CSH_TAB, &CMscGenApp::OnUpdateCheckTABIdents)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnUpdateCheckSmartIndent)
+    ON_UPDATE_COMMAND_UI(ID_CHECK_CSH_TAB, &CMscGenApp::OnUpdateCheckTABIndents)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH_ERROR, &CMscGenApp::OnUpdateCheckCshError)
     ON_COMMAND(IDC_CHECK_CSH_ERROR_IN_WINDOW, &CMscGenApp::OnCheckCshErrorInWindow)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH_ERROR_IN_WINDOW, &CMscGenApp::OnUpdateCheckCshErrorInWindow)
@@ -601,8 +601,8 @@ void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/)
 	m_bShowCsh       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
-	m_bSmartIdent    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
-    m_bTABIdents = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABIDENTS, TRUE);;
+	m_bSmartIndent   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTINDENT, TRUE);
+    m_bTABIndents    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABINDENTS, TRUE);;
 	m_bShowCshErrors = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, TRUE);
 	m_bShowCshErrorsInWindow = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, FALSE);
 	m_trackLineColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, RGBA(128, 0, 0, 255));
@@ -1057,40 +1057,40 @@ void CMscGenApp::OnUpdateComboCsh(CCmdUI *pCmdUI)
 }
 
 
-/** Toggles the smart identation button.
+/** Toggles the smart indentation button.
  * Updates the registry.
  * Updates the csh info if the internal editor is running.*/
-void CMscGenApp::OnCheckSmartIdent()
+void CMscGenApp::OnCheckSmartIndent()
 {
-    m_bSmartIdent = !m_bSmartIdent;
-	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent);
-    if (IsInternalEditorRunning() && m_bSmartIdent)
+    m_bSmartIndent = !m_bSmartIndent;
+	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTINDENT, m_bSmartIndent);
+    if (IsInternalEditorRunning() && m_bSmartIndent)
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::HINTS_AND_LABELS);
 }
 
 /** Toggles the smart identation button.
 * Updates the registry.
 * Updates the csh info if the internal editor is running.*/
-void CMscGenApp::OnCheckTABIdents()
+void CMscGenApp::OnCheckTABIndents()
 {
-    m_bTABIdents = !m_bTABIdents;
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABIDENTS, m_bTABIdents);
+    m_bTABIndents = !m_bTABIndents;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABINDENTS, m_bTABIndents);
 }
 
 /** Enables the button only if we show csh and the internal editor is running.
- * Checks it if m_bTABIdents is true.*/
-void CMscGenApp::OnUpdateCheckTABIdents(CCmdUI *pCmdUI)
+ * Checks it if m_bTABIndents is true.*/
+void CMscGenApp::OnUpdateCheckTABIndents(CCmdUI *pCmdUI)
 {
-    pCmdUI->Enable(m_bSmartIdent && IsInternalEditorRunning());
-    pCmdUI->SetCheck(m_bTABIdents);
+    pCmdUI->Enable(m_bSmartIndent && IsInternalEditorRunning());
+    pCmdUI->SetCheck(m_bTABIndents);
 }
 
 /** Enables the button only if we show csh and the internal editor is running.
-* Checks it if m_bSmartIdent is true.*/
-void CMscGenApp::OnUpdateCheckSmartIdent(CCmdUI *pCmdUI)
+* Checks it if m_bSmartIndent is true.*/
+void CMscGenApp::OnUpdateCheckSmartIndent(CCmdUI *pCmdUI)
 {
     pCmdUI->Enable(IsInternalEditorRunning());
-    pCmdUI->SetCheck(m_bSmartIdent);
+    pCmdUI->SetCheck(m_bSmartIndent);
 }
 
 /** Toggels the colorize errors checkbox.

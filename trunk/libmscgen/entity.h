@@ -212,7 +212,7 @@ public:
            const StyleCoW &entity_style, const FileLineCol &fp, bool coll);
     void AddChildrenList(const EntityAppList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
-    string Print(int ident = 0) const;
+    string Print(int indent = 0) const;
 };
 
 /** A list of Entity object pointers.
@@ -363,7 +363,7 @@ public:
     EntityAppHelper* AddAttributeList(AttributeList *, ArcList *children, FileLineCol l);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual string Print(int ident=0) const;
+    virtual string Print(int indent=0) const;
     void Combine(EntityApp *ed); 
 
     double Width() const;
