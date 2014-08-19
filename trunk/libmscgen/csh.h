@@ -413,6 +413,8 @@ public:
     void AddDesignOptionsToHints();
     void AddKeywordsToHints(bool includeParallel=true);
     void AddEntitiesToHints();
+    void AddSymbolTypesToHints();
+    void AddLeftRightCenterToHints();
     /** Add entities, keywords and option names to hint list.*/
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
     /** @}*/

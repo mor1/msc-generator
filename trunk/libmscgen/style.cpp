@@ -198,10 +198,10 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
 /** Possible values for the 'side' attribute.*/
 template<> const char EnumEncapsulator<ESide>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "right", "end", ""};
-
-/** Descriptions for the 'side' attribute.*/
-template<> const char * const EnumEncapsulator<ESide>::descriptions[]=
-{NULL, "Left side/read from left.", "Right side/read from right.", "Places to the end of the chart/read from bottom.", ""};
+/** Possible values for the 'side' attribute.*/
+template<> const char * const EnumEncapsulator<ESide>::descriptions[] =
+    {NULL, "Read from left/place on left side.", "Read from right/place on right side.", 
+    "Read from bottom/place to document end.", ""};
 
 
 /** Apply an attribute to us.

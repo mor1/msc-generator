@@ -630,7 +630,7 @@ static const char * const keyword_names[] =
 "defcolor", "Define or redefine a color.",
 "defdesign", "Define a full or partial chart design.",
 "vertical", "Add a vertical chart element, such as a brace or vertical arrow.",
-"mark", "Note this vertical position and name it so that you can refer to it later in a vertical element definition."
+"mark", "Note this vertical position and name it so that you can refer to it later in a vertical element definition.",
 "show", "Turn on entities, so that they become visible.",
 "hide", "Turn off entities, so that they do not show from now on.",
 "activate", "Activate entities, so that their entity line becomes wider.",
@@ -1469,6 +1469,45 @@ void Csh::AddToHints(const char * const * names_descriptions,
                            t, true, c, p));
 }
 
+/** Append a bunch of hints to the hint list.
+ * 
+ * @param [in] names The text of the hints in a 2D char 
+ *                   array. The last hint shall be "".
+ * @param [in] descriptions The descriptions of the hints and in a char 
+ *                          pointer array. At least as many as in 'names'.
+ * @param [in] prefix A string to prepend to each hint.
+ * @param [in] t The type of the hints.
+ * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
+                     const string &prefix, EHintType t,
+                     CshHintGraphicCallback c)
+{
+    //index==0 is usually "invalid"
+    for (unsigned i = 1; names[i][0]; i++)
+        AddToHints(CshHint(prefix+names[i], descriptions ? descriptions[i] : NULL,
+                           t, true, c, CshHintGraphicParam(i)));
+}
+
+/** Append a bunch of hints to the hint list.
+ * 
+ * @param [in] names The text of the hints in a 2D char 
+ *                   array. The last hint shall be "".
+ * @param [in] descriptions The descriptions of the hints and in a char 
+ *                          pointer array. At least as many as in 'names'.
+ * @param [in] prefix A string to prepend to each hint.
+ * @param [in] t The type of the hints.
+ * @param [in] c The callback function to use. 
+ * @param [in] p The parameter to pass to the callback.*/
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
+                     const string &prefix, EHintType t,
+                     CshHintGraphicCallback c, CshHintGraphicParam p)
+{
+    //index==0 is usually "invalid"
+    for (unsigned i = 1; names[i][0]; i++)
+        AddToHints(CshHint(prefix+names[i], descriptions ? descriptions[i] : NULL,
+                           t, true, c, p));
+}
+
 /** Callback for drawing a symbol before color names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p, Csh &)
@@ -1654,6 +1693,38 @@ void Csh::AddStylesToHints(bool include_forbidden, bool define)
                                HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
+
+/** Add the symbol types to the hints.*/
+void Csh::AddSymbolTypesToHints()
+{
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "arc",
+        "This draws a circle or ellipse.",
+        HINT_KEYWORD, true));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "rectangle",
+        "This draws a rectangle.",
+        HINT_KEYWORD, true));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "...",
+        "This draws three small circles one below another, a kind of vertical ellipsys.",
+        HINT_KEYWORD, true));
+}
+
+/** Add the symbol types to the hints.*/
+void Csh::AddLeftRightCenterToHints()
+{
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "left", 
+        "Use this if you want to specify where the left edge shall be positioned.",
+        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
+        CshHintGraphicParam(MSC_IDENT_LEFT)));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "center", 
+        "Use this if you want to specify where the center shall be positioned.",
+        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
+        CshHintGraphicParam(MSC_IDENT_CENTER)));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "right", 
+        "Use this if you want to specify where the right edge shall be positioned.",
+        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
+        CshHintGraphicParam(MSC_IDENT_RIGHT)));
+}
+
 /** Add chart option names to the list of hints. */
 void Csh::AddOptionsToHints() 
 {
@@ -1681,7 +1752,7 @@ bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh 
 /** Add keywords to the list of hints. */
 void Csh::AddKeywordsToHints(bool includeParallel)
 {
-    AddToHints(keyword_names+1-(includeParallel?1:0), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
+    AddToHints(keyword_names+(includeParallel?0:4), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
                CshHintGraphicCallbackForKeywords);
 }
 
@@ -1738,7 +1809,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
     std::list<CshHint> group_hints;
     for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
         if (i->decorated.size() && 
-            i->decorated[i->decorated.size()-1]!='*') {
+            i->decorated[i->decorated.size()-1]=='*') {
             group_hints.push_back(*i);
             Hints.erase(i++);
         } else

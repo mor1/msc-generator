@@ -1263,7 +1263,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //See how many of the remaining hits fit the word under the cursor 
     auto hit = m_csh.Hints.end(), i = m_csh.Hints.begin();
     for (; i!=m_csh.Hints.end(); i++) {
-        //find a non-selectable item or one that the text under cursor fits 
+        //find a selectable item or one that the text under cursor fits 
         if (!i->selectable)
             continue;
         else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
@@ -1281,11 +1281,14 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         CancelHintMode();
         return;
     }
-    //If we are about to start hint mode due to a Ctrl+Space and there is only one hit 
-    //then auto complete without popping up the hint list. But if that would result in 
-    //no change to text (because the text under cursor is already complete), we pop
-    //up the hint box below, to give feedback to Ctrl+Space.
-    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text) {
+    //Here we know that the text under the cursor is not equal to any hint (may be a
+    //prefix though).
+    //If we are about to start hint mode due to a Ctrl+Space and there is only one selectable hit 
+    //then auto complete without popping up the hint list. 
+    //Except if we started from an empty text under the cursor and there are 
+    //non-selectable options - in this case show them, as well.
+    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text && 
+        (text.GetLength()>0 || m_csh.Hints.size()==1)) {
         ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 

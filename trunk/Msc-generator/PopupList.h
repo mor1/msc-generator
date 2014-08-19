@@ -24,6 +24,21 @@
 #include "stringparse.h"
 #include "csh.h"
 
+
+class CHintListBox;
+
+/** A tooltip window for hint descriptions.*/
+class CHintDescriptionWnd : public CWnd
+{
+    CHintListBox * const m_pHintListBox;
+    CBitmap m_bitmap;
+public:
+    CHintDescriptionWnd(CHintListBox *listbox) : m_pHintListBox(listbox) {}
+    void Update(int index, CRect hint);
+    void OnPaint();
+};
+
+
 /** An owner-drawn list box containing a list of hints.*/
 class CHintListBox : public CListBox 
 {
@@ -37,7 +52,9 @@ public:
     StringFormat      m_format;       ///<Default format for hints
     int               m_cur_sel;      ///<The index of the currently selected item
     Csh               m_csh;          ///<Stores the current set of hints and shapes
+    CHintDescriptionWnd m_descrWnd;
     CHintListBox();
+    
     bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey);
     CSize SetHintsToCurrent();
     void SetStringUnderCursor(const char *uc);
@@ -53,7 +70,6 @@ public:
     virtual void MeasureItem(LPMEASUREITEMSTRUCT /*lpMeasureItemStruct*/);
     virtual int CompareItem(LPCOMPAREITEMSTRUCT /*lpCompareItemStruct*/);
 };
-
 
 class CCshRichEditCtrl;
 
