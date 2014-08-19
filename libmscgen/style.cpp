@@ -38,6 +38,8 @@ MscStyle::MscStyle(EStyleType tt, EColorMeaning cm) : type(tt), color_meaning(cm
     f_makeroom=f_note=f_lost=f_lsym=true;
     f_arrow = ArrowHead::ANY;
     f_side = ESideType::ANY;
+    f_shape = true;
+    f_tag = true;
     Empty();
 }
 
@@ -384,7 +386,8 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
     if (f_shape) {
         if (a.Is("shape")) {
             if (!msc->Shapes) {
-                msc->Error.Error(a, false, "No shapes have been loaded. Ignoring attribute.");
+                msc->Error.Error(a, false, "No shapes have been defined. Ignoring attribute.", 
+                    "Use the 'defshape' command to define shapes.");
                 return true;
             }
             if (a.type == MSC_ATTR_CLEAR) {
@@ -410,7 +413,12 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
             }
             return true;
         }
-        if (a.Is("shape.size") && msc->Shapes) {
+        if (a.Is("shape.size")) {
+            if (!msc->Shapes) {
+                msc->Error.Error(a, false, "No shapes have been defined. Ignoring attribute.", 
+                    "Use the 'defshape' command to define shapes.");
+                return true;
+            }
             if (a.type == MSC_ATTR_CLEAR) {
                 shape_size.first = false; 
                 return true;
