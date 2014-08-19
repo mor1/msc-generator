@@ -1,0 +1,7 @@
+This is pixman 0.28.2.
+
+Changes made:
+BuildPixman.bat (added to build it using VC)
+BuildPixman-vs100.bat (added to build it using VC2010)
+Makefile.win32.common (changed for the bat files)
+pixman.vcxproj (added as a VC project)
