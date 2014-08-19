@@ -141,10 +141,6 @@ public:
         ERR_MARGIN,     ///<Bad margins
         ERR_DONE        ///<We have already closed this canvas.
     };
-    static XY DetermineScaling(const Block &total, const std::vector<XY> &scale,
-        const XY &pageSize, const double margins[4], 
-        double ctexth, const PBDataVector *pageBreakData);
-
 protected:
     /** @name Low-level compatibility options 
      * @{ */
@@ -185,7 +181,7 @@ protected:
     const Block       total;              ///<The full chart area (in unscaled chart coordinates, all pages) excluding copyright, but including notes and comments
     const bool        external_surface;   ///<True if we got the surface in the constructor externally (no need to destroy it at closure)
     const double      copyrightTextHeight;///<The height of the copyright text
-    const XY          user_scale;         ///<Stores the scale user specified at construction
+    XY                user_scale;         ///<Stores the scale user specified at construction
     Block             raw_page_clip;      ///<Used with fix-page outoput only. Contains the raw page size in points (pixels) minus margins. All zero if not a fixed page output.
     const int         h_alignment;        ///<Used with fix-page outoput only. Contains -1/0/+1 for left/center/right page alignment.
     const int         v_alignment;        ///<Used with fix-page outoput only. Contains -1/0/+1 for up/center/down page alignment.
@@ -196,7 +192,7 @@ protected:
     /** @name Logic 
      * @{ */
     void SetLowLevelParams();
-    static void GetPagePosition(const Block &total, const PBDataVector *pageBreakData, unsigned page, double &y_offset, double &y_size, double &autoHeadingSize);
+    void GetPagePosition(const PBDataVector *pageBreakData, unsigned page, double &y_offset, double &y_size, double &autoHeadingSize) const;
     EErrorType CreateSurface(const XY &size); 
     EErrorType CreateContext(double origYSize, double origYOffset, double autoHeadingSize);
     /** @} */
@@ -250,7 +246,7 @@ public:
            const string &fn, const XY &scale=XY(1.,1.), 
            const PBDataVector *pageBreakData=NULL, unsigned page=0);
     Canvas(EOutputType, const Block &tot, const string &fn, 
-           const XY &scale, const XY &pageSize, 
+           const std::vector<XY> &scale, const XY &pageSize, 
            const double margins[4],  int ha, int va, 
            double copyrightTextHeight, const PBDataVector *pageBreakData);
     Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, 

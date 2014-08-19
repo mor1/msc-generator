@@ -104,7 +104,7 @@ int CCshRichEditCtrl::GetLineString(int line, CString &str)
  * @param [in] Max The maximum value to return. If negative, no limit
  * @returns -1 if all the line is whitespace (or the first Max chars)
  *          else the offset of the first non-whitespace character*/
-int CCshRichEditCtrl::FirstNonWhitespaceIndent(const char *str, int Max) 
+int CCshRichEditCtrl::FirstNonWhitespaceIdent(const char *str, int Max) 
 {
 	int i = 0;
     if (Max <= -1) {
@@ -126,7 +126,7 @@ char CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
-    if (!pApp || !pApp->m_bSmartIndent) return 0;
+    if (!pApp || !pApp->m_bSmartIdent) return 0;
     int index = strlen(str)-1;
     while(1) {
         while (index>=0 && (str[index]==' ' || str[index]=='\t')) index--;
@@ -157,21 +157,21 @@ char CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
 	return 0;
 }
 
-/** Return the ident of a colon-label's applicable indent.
- * The returned value is the indentation of the first non-whitespace after the colon
+/** Return the ident of a colon-label's applicable ident.
+ * The returned value is the ident of the first non-whitespace after the colon
  * (can be in a different line than the colon). If the cursor is in-between
- * the colon and the first non-whitespace, we return the indent of the colon+2.
+ * the colon and the first non-whitespace, we return the ident of the colon+2.
  * @param [in] lStart The position of the cursor (assumedly inside a colon-label)
  * @param [out] line The number of the line we found the colon in.
- * @returns Return -1 if we are 1) not in a label or 2) smart indent is off 
+ * @returns Return -1 if we are 1) not in a label or 2) smart ident is off 
  *          or 3) no csh or 4) the label is not preceeeded by a colon.
  *          Else return the column of the first non whitespace character 
  *          after the colon*/
-int CCshRichEditCtrl::FindColonLabelIndent(long lStart, int *line) 
+int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    if (!pApp || !pApp->m_bSmartIndent) return -1;
+    if (!pApp || !pApp->m_bSmartIdent) return -1;
 	//Go through the list of colon labels
     const CshPos *pos = m_csh.IsInColonLabel(lStart);
     if (!pos)
@@ -188,17 +188,17 @@ int CCshRichEditCtrl::FindColonLabelIndent(long lStart, int *line)
     ConvertPosToLineCol(lStart, nLine, nCol);
     CString strLine;
     int nLineLength = GetLineString(nLine, strLine);
-    int indent1 = FirstNonWhitespaceIndent(strLine);
-    //if the line to indent begins with a { or [, use the line of the colon
+    int ident1 = FirstNonWhitespaceIdent(strLine);
+    //if the line to ident begins with a { or [, use the line of the colon
     //to align to.
-    if (indent1>=0 && (strLine[indent1] == '{' || strLine[indent1] == '[')) {
-        if (strLine[indent1] == '{')
+    if (ident1>=0 && (strLine[ident1] == '{' || strLine[ident1] == '[')) {
+        if (strLine[ident1] == '{')
             offset = 0;
         //store the line of the colon strLine and its pos in nLine, nCol
         ConvertPosToLineCol(pos->first_pos-1, nLine, nCol);
         nLineLength = GetLineString(nLine, strLine);
     } else {
-        //OK, we are really indenting a line of the label text
+        //OK, we are really identing a line of the label text
         //First see if the colon is the last char in its line
         //store the line of the colon strLine and its pos in nLine, nCol
         ConvertPosToLineCol(pos->first_pos-1, nLine, nCol);
@@ -210,7 +210,7 @@ int CCshRichEditCtrl::FindColonLabelIndent(long lStart, int *line)
         if (i > nCol) {
             //The colon is not the last char in the line.
             //Search the line after the colon to the first non whitespace:
-            //that will be the first char of the label - use that as indent
+            //that will be the first char of the label - use that as ident
             nCol++; //step over the colon
             while (nCol<nLineLength && (strLine[nCol]==' ' || strLine[nCol]=='\t')) 
                 nCol++;
@@ -223,53 +223,53 @@ int CCshRichEditCtrl::FindColonLabelIndent(long lStart, int *line)
             }
         }
         //OK, here the colon is the last char in its line,
-        //so the indent to return is the identation of the colon's line + m_tabsize
+        //so the ident to return is the ident of the colon's line + m_tabsize
         //Now offset==m_tabsize and strLine holds the line of the colon.
     } 
-    //All other cases use the indentation of strLine plus 'offset'
-    const int indent = FirstNonWhitespaceIndent(strLine);
-    //..and indent one compared to that
-    if (indent>=0)
-        return indent + offset;
+    //All other cases use the ident of strLine plus 'offset'
+    const int ident = FirstNonWhitespaceIdent(strLine);
+    //..and ident one compared to that
+    if (ident>=0)
+        return ident + offset;
     _ASSERT(0); //should not happen, the line of the colon must not be empty
     return -1;
 }
 
-/** Find what is the proper indentation for this line 
+/** Find what is the proper identation for this line 
  * Consider if we are in a label, and consider '{' and '}' chars.
  * @param [in] line the line we talk about
  * @returns the number of spaces proper at the head of this line */
-int  CCshRichEditCtrl::FindProperLineIndent(int line)
+int  CCshRichEditCtrl::FindProperLineIdent(int line)
 {
     //Check if the head of the line is in a label or not
     CString strLine;
     /*int nLineLength =*/ GetLineString(line, strLine);
-    const int current_indent = FirstNonWhitespaceIndent(strLine);
+    const int current_ident = FirstNonWhitespaceIdent(strLine);
     int colon_line;
     const long lStartLine = ConvertLineColToPos(line, 0);
-    const int label_indent = FindColonLabelIndent(lStartLine, &colon_line);
-    if (label_indent>=0)
-        return label_indent;
+    const int label_ident = FindColonLabelIdent(lStartLine, &colon_line);
+    if (label_ident>=0)
+        return label_ident;
     
     //if not, check if the line starts with a '}'
-    if (current_indent>=0 && strLine[current_indent] == '}') {
-        const int indent = FindIndentForClosingBrace(lStartLine);
-        return indent == -1 ? 0 : indent;
+    if (current_ident>=0 && strLine[current_ident] == '}') {
+        const int ident = FindIdentForClosingBrace(lStartLine);
+        return ident == -1 ? 0 : ident;
     }
     
     //Ok, we are not in a label, neither start with '}'
-    //Find the indent of the previous line, if the line above that ends in a semicolon
+    //Find the ident of the previous line, if the line above that ends in a semicolon
     for (--line; line>=0; line--) {
         //skip empty lines
         CString strLine2;
         GetLineString(line, strLine2);
-        int indent = FirstNonWhitespaceIndent(strLine2);
-        if (indent == -1) continue;
+        int ident = FirstNonWhitespaceIdent(strLine2);
+        if (ident == -1) continue;
 
         const char last_ch = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
-        //special case: a line starting with '}' and ending with ';' -> indent to '}'
-        if (';' == last_ch && strLine2[indent]=='}')
-            return indent;
+        //special case: a line starting with '}' and ending with ';' -> ident to '}'
+        if (';' == last_ch && strLine2[ident]=='}')
+            return ident;
         const int offset = ';' == last_ch ? 0 : m_tabsize;
         //OK, we have found the line above the start pos that has a non-whitespace
         //find the line above that ends in a semicolon
@@ -277,16 +277,16 @@ int  CCshRichEditCtrl::FindProperLineIndent(int line)
             GetLineString(line, strLine2);
             const char last_char = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
             if (last_char == ';')
-                return indent + offset;
+                return ident + offset;
             if (last_char == '{')
-                return indent + offset;
+                return ident + offset;
             //skip empty lines
-            const int tmp_indent = FirstNonWhitespaceIndent(strLine2);
-            if (tmp_indent>=0) 
-                indent = tmp_indent;
+            const int tmp_ident = FirstNonWhitespaceIdent(strLine2);
+            if (tmp_ident>=0) 
+                ident = tmp_ident;
         }
         //reached end of line - no command above us
-        return indent+ offset;
+        return ident+ offset;
     }
     //reached the beginning of the file, no whitespace above us
     return 0;
@@ -296,28 +296,28 @@ int  CCshRichEditCtrl::FindProperLineIndent(int line)
 /** Return the column of the first non space in the current line
  * @param [in] lStart the position of the cursor of which line we are interested in
  * @return -1 if current line has only spaces or is empty*/
-int CCshRichEditCtrl::FindCurrentLineIndent(long lStart) 
+int CCshRichEditCtrl::FindCurrentLineIdent(long lStart) 
 {
 	int line = LineFromChar(lStart);
 	CString strLine;
 	GetLineString(line, strLine);
-	return FirstNonWhitespaceIndent(strLine);
+	return FirstNonWhitespaceIdent(strLine);
 }
 
 
 /** Finds the first unmatched opening brace before the pos 
  * (used when inserting a closing brace)
- * @returns the indentation of the first character in the line of the '{'
+ * @returns the ident of the first character in the line of the '{'
  *      or -1 if no opening brace before us or we are in a label and we know it.*/
-int CCshRichEditCtrl::FindIndentForClosingBrace(int pos_to_be_inserted)
+int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//if color syntax highlighting is not enabled we cannot check for label
-    const bool haveSmartIndent = pApp && pApp->m_bSmartIndent;
+    const bool haveSmartIdent = pApp && pApp->m_bSmartIdent;
     
     //Do not do anything in a label
-    if (haveSmartIndent)
+    if (haveSmartIdent)
         if (m_csh.IsInColonLabel(pos_to_be_inserted) || 
             m_csh.IsInQuotedString(pos_to_be_inserted))
             return -1;
@@ -335,7 +335,7 @@ int CCshRichEditCtrl::FindIndentForClosingBrace(int pos_to_be_inserted)
 		while(--nLineLength>=0) {
 			if (strLine[nLineLength] != '{' && strLine[nLineLength] != '}') continue;
 			//if color syntax highlighting is not enabled we cannot check for label
-			if (haveSmartIndent) {
+			if (haveSmartIdent) {
 				//if a brace, but in a label, ignore
                 const long lPos = ConvertLineColToPos(line, nLineLength)+1;
                 if (m_csh.IsInColonLabel(lPos) ||
@@ -344,7 +344,7 @@ int CCshRichEditCtrl::FindIndentForClosingBrace(int pos_to_be_inserted)
             }
 			if (strLine[nLineLength] == '}') num_braces++;
 			else if (--num_braces<0) //OK our matching opening brace found
-				return FirstNonWhitespaceIndent(strLine, nLineLength);
+				return FirstNonWhitespaceIdent(strLine, nLineLength);
 		}
 	}
 	//We found no matching '{'
@@ -354,24 +354,24 @@ int CCshRichEditCtrl::FindIndentForClosingBrace(int pos_to_be_inserted)
 /** Calculates the tab stop from the current position 
  * @param [in] col The current column of the cursor (must be nonnegative)
  * @param [in] forward true if we look for a tabstop to the right, false if left
- * @param [in] smartIndent A pre-calculated smart ident position if >=0.
+ * @param [in] smartIdent A pre-calculated smart ident position if >=0.
  *                        In this we jump to that (if in the right direction), 
- *                        else we align to previndent (so end result differs 
- *                        from prev_indent in 'm_tabsize' (Man, what does this mean?!?)
- * @param [in] prevIndent The previously existing indentation of the line 
+ *                        else we align to prevident (so end result differs 
+ *                        from prev_ident in 'm_tabsize' (Man, what does this mean?!?)
+ * @param [in] prevIdent The previously existing identation of the line 
  *                       (must be nonnegative)
- * @param [in] strict If true and the actual value of prevIndent lies in the right 
+ * @param [in] strict If true and the actual value of prevIdent lies in the right 
  *                    direction, we jump there
- * @returns the calculated indentation */
-int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIndent, int prevIndent, bool strict)
+ * @returns the calculated identation */
+int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIdent, int prevIdent, bool strict)
 {
-	if (smartIndent>=0) {
-		if ( forward && col<smartIndent) return smartIndent;
-		if (!forward && col>smartIndent) return smartIndent;
+	if (smartIdent>=0) {
+		if ( forward && col<smartIdent) return smartIdent;
+		if (!forward && col>smartIdent) return smartIdent;
 	}
-	if (strict && prevIndent>=0) {
-		if ( forward && col<prevIndent) return prevIndent;
-		if (!forward && col>prevIndent) return prevIndent;
+	if (strict && prevIdent>=0) {
+		if ( forward && col<prevIdent) return prevIdent;
+		if (!forward && col>prevIdent) return prevIdent;
 	}
     if (forward)
         return ((col+m_tabsize)/m_tabsize)*m_tabsize;
@@ -380,13 +380,13 @@ int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIndent, int pr
     return ((col-1)/m_tabsize)*m_tabsize;
 }
 
-/** Sets the indentation of current line by adding or removing leading whitespace
- * Adds or removes spaces so that caret moves to right indent (from lStart) 
+/** Sets the identation of current line by adding or removing leading whitespace
+ * Adds or removes spaces so that caret moves to right ident (from lStart) 
  * This assumes there is enough space in front of us if we need to remove 
- * to get to the right indent.
+ * to get to the right ident.
  * We also assume
- * @param target_indent The identation we want 
- * @param current_indent The current identation of the line
+ * @param target_ident The identation we want 
+ * @param current_ident The current identation of the line
  * @param col The current cursor position in the line (lStart)
  * @param lStart The start of the selection or current cursor position
  * @param lEnd The end of the selection or current cursor position
@@ -397,39 +397,39 @@ int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIndent, int pr
  *                        subsequent lines work well.
  *                        Also, if we are standalone, we update last_change.
  * @returns true if the text has changed */
-bool CCshRichEditCtrl::SetCurrentIndentTo(int target_indent, int current_indent, int col,
+bool CCshRichEditCtrl::SetCurrentIdentTo(int target_ident, int current_ident, int col,
                                          long lStart, long lEnd, bool standalone)
 {
-    if (current_indent == -1) 
-        current_indent = col; //empty line - use current cursor pos as indent
-    if (target_indent == current_indent) return false; //nothing to do
+    if (current_ident == -1) 
+        current_ident = col; //empty line - use current cursor pos as ident
+    if (target_ident == current_ident) return false; //nothing to do
     WindowUpdateStatus state;
     if (standalone)
         state = DisableWindowUpdate();
     int line2, col2;
     ConvertPosToLineCol(lEnd, line2, col2);
-    if (target_indent > current_indent) {
+    if (target_ident > current_ident) {
         SetSel(lStart-col, lStart-col);
-        ReplaceSel(CString(' ', target_indent-current_indent));
+        ReplaceSel(CString(' ', target_ident-current_ident));
     } else {
-        SetSel(lStart-col, lStart-col+current_indent-target_indent);
+        SetSel(lStart-col, lStart-col+current_ident-target_ident);
         ReplaceSel("");
     }
     if (standalone) {
         const long lBegin = lStart - col;
-        if (col>=current_indent)
-            col += target_indent - current_indent; //move with idented text
+        if (col>=current_ident)
+            col += target_ident - current_ident; //move with idented text
         else
-            col = target_indent;
-        if (col2 >= current_indent)
-            col2 += target_indent - current_indent; //move with idented text
+            col = target_ident;
+        if (col2 >= current_ident)
+            col2 += target_ident - current_ident; //move with idented text
         else
-            col2 = target_indent;
+            col2 = target_ident;
         SetSel(lBegin+col, lBegin+col2);
         RestoreWindowUpdate(state);
     } else {
-        CshPos::AdjustList(m_csh.ColonLabels, lStart-col+1, target_indent-current_indent);
-        CshPos::AdjustList(m_csh.QuotedStrings, lStart-col+1, target_indent-current_indent);
+        CshPos::AdjustList(m_csh.ColonLabels, lStart-col+1, target_ident-current_ident);
+        CshPos::AdjustList(m_csh.QuotedStrings, lStart-col+1, target_ident-current_ident);
     }
     return true;
 }
@@ -475,8 +475,8 @@ LRESULT CCshRichEditCtrl::OnPasteSpecial(WPARAM wParam, LPARAM /*lParam*/)
 
 /** Implements smart behaviour by capturing relevant messages.
  * Catches if the user presses Ctrl+Space, moves the selection in hint 
- * mode, types a character in hint mode, types {, [ or } (for indenting),
- * presses ENTER, TAB, BACKSPACE (for indenting) or presses ESC
+ * mode, types a character in hint mode, types {, [ or } (for identing),
+ * presses ENTER, TAB, BACKSPACE (for identing) or presses ESC
  * (to cancel tracking or hint modes).*/
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
@@ -563,7 +563,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             }
             return TRUE;
         }
-        //call parent if not keys relevant for smart indenting
+        //call parent if not keys relevant for smart identing
         if (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && pMsg->wParam != VK_BACK)
             return CRichEditCtrl::PreTranslateMessage(pMsg);
     }
@@ -583,54 +583,54 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 
 	int line, col;
 	ConvertPosToLineCol(lStart, line, col);
-	const int current_indent = FindCurrentLineIndent(lStart);
+	const int current_ident = FindCurrentLineIdent(lStart);
 
     if (pMsg->wParam == '}') {
-        if (!pApp->m_bSmartIndent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //if we are in a label, do nothing
-        if (FindColonLabelIndent(lStart)>-1) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (FindColonLabelIdent(lStart)>-1) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //if we are not at the beginning of a line do nothing
-        if (current_indent!=-1 && current_indent<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
-        //else insert and auto-indent
+        if (current_ident!=-1 && current_ident<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
+        //else insert and auto-ident
         const auto state = DisableWindowUpdate();
         ReplaceSel("}", FALSE);
         GetSel(lStart, lEnd);
-        const int indent = FindProperLineIndent(line);
-        //If the determined indent is zero, just let the system handle the RETURN
+        const int ident = FindProperLineIdent(line);
+        //If the determined ident is zero, just let the system handle the RETURN
         const long line_begin = ConvertLineColToPos(line, 0);
-        const int new_current_indent = FindCurrentLineIndent(lStart);
-        if (new_current_indent>indent) {
-            SetSel(line_begin, line_begin + new_current_indent - indent);
+        const int new_current_ident = FindCurrentLineIdent(lStart);
+        if (new_current_ident>ident) {
+            SetSel(line_begin, line_begin + new_current_ident - ident);
             ReplaceSel("", FALSE);
-        } else if (new_current_indent<indent) {
-            //insert that many spaces as indent at the beginning of the line
+        } else if (new_current_ident<ident) {
+            //insert that many spaces as ident at the beginning of the line
             SetSel(line_begin, line_begin);
-            CString spaces(' ', indent-new_current_indent);
+            CString spaces(' ', ident-new_current_ident);
             ReplaceSel(spaces, FALSE);
         }
-        SetSel(lStart + indent - new_current_indent, lEnd + indent - new_current_indent);
+        SetSel(lStart + ident - new_current_ident, lEnd + ident - new_current_ident);
         UpdateCSH(CSH);
         RestoreWindowUpdate(state);
         return TRUE;
 	}
     WindowUpdateStatus state;
     if (pMsg->wParam == '{' || pMsg->wParam == '[') {
-        if (!pApp->m_bSmartIndent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //if we are not at the beginning of a line do nothing
-        if (current_indent!=-1 && current_indent<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
+        if (current_ident!=-1 && current_ident<col) return CRichEditCtrl::PreTranslateMessage(pMsg); //not in leading whitespace
         state = DisableWindowUpdate();
         ReplaceSel(pMsg->wParam=='{' ? "{" : "[", FALSE);
-    apply_indent:
+    apply_ident:
         UpdateCSH(HINTS_AND_LABELS);
         GetSel(lStart, lEnd);
         ConvertPosToLineCol(lStart, line, col);
-        int indent = FindProperLineIndent(line);
-        const int current_indent2 = FindCurrentLineIndent(lStart);
-        SetCurrentIndentTo(indent, current_indent2, col, lStart, lEnd, true);
+        int ident = FindProperLineIdent(line);
+        const int current_ident2 = FindCurrentLineIdent(lStart);
+        SetCurrentIdentTo(ident, current_ident2, col, lStart, lEnd, true);
         //if we have inserted a char, set cursor after it
         if (pMsg->wParam != VK_RETURN)
-            indent++;
-        lStart = ConvertLineColToPos(line, indent);
+            ident++;
+        lStart = ConvertLineColToPos(line, ident);
         SetSel(lStart, lStart);
         //always call it: we get here only if we insert {, [, or RETURN, so we 
         //have always changed the text and need to update coloring/
@@ -641,63 +641,63 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 
 	if (pMsg->wParam == VK_RETURN) {
         m_bWasReturnKey=true;
-        if (!pApp->m_bSmartIndent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
         state = DisableWindowUpdate();
         ReplaceSel("\n", FALSE);
-        goto apply_indent;
+        goto apply_ident;
 	}
     if (pMsg->wParam == VK_BACK) {
         //in case of ctrl+backspace we do not do
-        //any smart indent. (Why not??)
+        //any smart ident. (Why not??)
         if (bool(GetKeyState(VK_CONTROL) & 0x8000)) 
             return CRichEditCtrl::PreTranslateMessage(pMsg);
 		//if not in leading whitespace or at beginning of line
-        if ((col==0) || (current_indent!=-1 && current_indent<col)) 
+        if ((col==0) || (current_ident!=-1 && current_ident<col)) 
             return CRichEditCtrl::PreTranslateMessage(pMsg);
-		//in leading whitespace, consider smart indent and/or previous line indent
-        if (!pApp->m_bSmartIndent) return CRichEditCtrl::PreTranslateMessage(pMsg);
+		//in leading whitespace, consider smart ident and/or previous line indent
+        if (!pApp->m_bSmartIdent) return CRichEditCtrl::PreTranslateMessage(pMsg);
         if (lStart!=lEnd) return CRichEditCtrl::PreTranslateMessage(pMsg);
         //OK, here either there is nothing in the line or we are in leading whitespace,
         //but never at the beginning of the line.
-        const int smartIndent = FindProperLineIndent(line);
-        if (current_indent==col && smartIndent<col) {
+        const int smartIdent = FindProperLineIdent(line);
+        if (current_ident==col && smartIdent<col) {
             //if at the head of the text and required pos is before us - indent line
-            SetCurrentIndentTo(smartIndent, current_indent, col, lStart, lEnd, true);
+            SetCurrentIdentTo(smartIdent, current_ident, col, lStart, lEnd, true);
             return TRUE;
         }
-        const int indent = CalcTabStop(col, false, smartIndent, current_indent, true);
-        if (current_indent!=-1) {
+        const int ident = CalcTabStop(col, false, smartIdent, current_ident, true);
+        if (current_ident!=-1) {
             //if at the head of the text and required pos is NOT before us - 
             //move to previous tab stop
-            SetCurrentIndentTo(indent, current_indent, col, lStart, lEnd, true);
+            SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
         } else {
-            //backspace from col to indent
-            _ASSERT(indent<col);
+            //backspace from col to ident
+            _ASSERT(ident<col);
             auto state2 = DisableWindowUpdate();
-            SetSel(ConvertLineColToPos(line, indent), lEnd);
+            SetSel(ConvertLineColToPos(line, ident), lEnd);
             ReplaceSel("");
             RestoreWindowUpdate(state2);
         } 
         return TRUE;
 	}
     //Here are the rules for TAB
-    //1. if TAB mode is on, we indent all lines in selection correctly.
+    //1. if TAB mode is on, we ident all lines in selection correctly.
     //2. if TAB mode is off
     //    - if the selection is a cursor
     //        * if we are in the leading whitespace 
-    //             we indent the line correctly and jump to the beginning of the line
+    //             we ident the line correctly and jump to the beginning of the line
     //        * else we insert as many spaces to fall to int multiple of m_tabsize
     //    - if the selection is a range, we delete it and fall to int multiple of m_tabsize
     if (pMsg->wParam == VK_TAB) {
         const bool shift = bool(GetKeyState(VK_SHIFT) & 0x8000);
-        if (pApp->m_bTABIndents && pApp->m_bSmartIndent) { //TAB mode
+        if (pApp->m_bTABIdents && pApp->m_bSmartIdent) { //TAB mode
             int eLine, eCol;
             ConvertPosToLineCol(lEnd, eLine, eCol);
             const auto state2 = DisableWindowUpdate();
             bool changed = false;
             if (line == eLine) {
-                const int indent = FindProperLineIndent(line);
-                changed = SetCurrentIndentTo(indent, current_indent, col, lStart, lEnd, true);
+                const int ident = FindProperLineIdent(line);
+                changed = SetCurrentIdentTo(ident, current_ident, col, lStart, lEnd, true);
             } else { 
                 POINT scroll_pos;
                 ::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
@@ -710,14 +710,14 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                         break;
                     }
                     GetLineString(i, strLine);
-                    const int old_indent = FirstNonWhitespaceIndent(strLine);
-                    const int new_indent = FindProperLineIndent(i);
-                    changed |= SetCurrentIndentTo(new_indent, old_indent, 0, ConvertLineColToPos(i, 0), 0L, false);
-                    if (i==line && col>=old_indent)
-                        lStart += new_indent-old_indent;
+                    const int old_ident = FirstNonWhitespaceIdent(strLine);
+                    const int new_ident = FindProperLineIdent(i);
+                    changed |= SetCurrentIdentTo(new_ident, old_ident, 0, ConvertLineColToPos(i, 0), 0L, false);
+                    if (i==line && col>=old_ident)
+                        lStart += new_ident-old_ident;
                     else if (i==eLine) {
-                        if (eCol>=old_indent)
-                            lEnd = ConvertLineColToPos(eLine, eCol+new_indent-old_indent);
+                        if (eCol>=old_ident)
+                            lEnd = ConvertLineColToPos(eLine, eCol+new_ident-old_ident);
                         else
                             lEnd = ConvertLineColToPos(eLine, eCol);
                     }
@@ -728,32 +728,32 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (changed)
                 UpdateCSH(CSH);
             RestoreWindowUpdate(state2);
-        } else { //no smart indent or no tab mode
+        } else { //no smart ident or no tab mode
             //if no selection:
             if (lStart == lEnd) {
-                int indent;
+                int ident;
                 //just insert/remove spaces up to the next/prev tab stop
                 //if not in leading whitespace
-                if (current_indent!=-1 && current_indent<col) {
-                    indent = CalcTabStop(col, true);
+                if (current_ident!=-1 && current_ident<col) {
+                    ident = CalcTabStop(col, true);
                 } else {
                     //in leading whitespace, consider smart ident and/or previous line indent
-                    const int smartIndent = FindProperLineIndent(line);
-                    indent = CalcTabStop(col, !shift, smartIndent, current_indent, true);
+                    const int smartIdent = FindProperLineIdent(line);
+                    ident = CalcTabStop(col, !shift, smartIdent, current_ident, true);
                 }
-                if (indent != col) {
+                if (ident != col) {
                     const auto state2 = DisableWindowUpdate();
-                    if (indent<col) {
-                        SetSel(lStart+(indent-col), lStart);
+                    if (ident<col) {
+                        SetSel(lStart+(ident-col), lStart);
                         ReplaceSel("");
                     } else {
-                        ReplaceSel(CString(' ', indent-col));
+                        ReplaceSel(CString(' ', ident-col));
                     }
                     UpdateCSH(CSH);
                     RestoreWindowUpdate(state2);
                 }
             } else {
-                //a full selection, do indentation
+                //a full selection, do identation
                 //Leave last_change as if we deleted the whole selection
                 //and inserted something - we do not track where do we change what
 
@@ -768,13 +768,13 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 int headLine;
                 int headCol = -1;
                 for (headLine = startLine; headLine<endLine; headLine++) {
-                    headCol = FindCurrentLineIndent(LineIndex(headLine));
+                    headCol = FindCurrentLineIdent(LineIndex(headLine));
                     if (headCol >= 0) break;
                 }
                 //if all lines empty, nothing to do 
                 if (headCol == -1) return TRUE;
-                const int smartIndent = FindProperLineIndent(headLine);
-                const int offset = CalcTabStop(headCol, !shift, smartIndent, headCol, true) - headCol;
+                const int smartIdent = FindProperLineIdent(headLine);
+                const int offset = CalcTabStop(headCol, !shift, smartIdent, headCol, true) - headCol;
 
                 //Insert/remove "offset" amount of space from the beginning of each line
                 const auto state2 = DisableWindowUpdate();
@@ -783,10 +783,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
                 for (int l = startLine; l<=endLine; l++) {
                     const long lLineBegin = LineIndex(l);
-                    const int current_indent2 = FindCurrentLineIndent(lLineBegin);
-                    const int adjusted_offset = -std::min(current_indent2, -offset);  //reduce potential remove if not so many spaces at the beginning
+                    const int current_ident2 = FindCurrentLineIdent(lLineBegin);
+                    const int adjusted_offset = -std::min(current_ident2, -offset);  //reduce potential remove if not so many spaces at the beginning
                     //empty line - do nothing
-                    if (current_indent2==-1) continue;
+                    if (current_ident2==-1) continue;
                     SetSel(lLineBegin, lLineBegin + std::max(0, -adjusted_offset)); //empty selection if we insert, otherwise the spaces to remove
                     ReplaceSel(spaces);
 
@@ -884,8 +884,8 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             break;
         //fallthrough
     case HINTS_AND_LABELS:
-        //nothing to do if we do not hint or do smart indent
-        if (pApp->m_bSmartIndent || pApp->m_bHints)
+        //nothing to do if we do not hint or do smart ident
+        if (pApp->m_bSmartIdent || pApp->m_bHints)
             break;
         return false;
     }
@@ -918,7 +918,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         return m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
         //Here we do not update the doc. HINTS_AND_LABELS are
         //only used, when 1) user pressed Ctrl+Space (no change to text)
-        //or 2) when we do smart indent (will call this function again with CSH,
+        //or 2) when we do smart ident (will call this function again with CSH,
         //when we are done).
     }
 
@@ -1013,7 +1013,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         CshPos::AdjustList(m_csh.CshErrors.error_ranges, start+1, ins-del);
         //We do not adjust ColonLabels/QoutedStrings/CshErrors.error_texts 
         //here, since that is not needed
-        //for calculating coloring diffs, only to smart indent and error labels.
+        //for calculating coloring diffs, only to smart ident and error labels.
         //If we inserted, destroy any marking overlapping with the insertion.
         if (ins) {
             for (auto &csh : m_csh.CshList)
@@ -1263,7 +1263,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //See how many of the remaining hits fit the word under the cursor 
     auto hit = m_csh.Hints.end(), i = m_csh.Hints.begin();
     for (; i!=m_csh.Hints.end(); i++) {
-        //find a selectable item or one that the text under cursor fits 
+        //find a non-selectable item or one that the text under cursor fits 
         if (!i->selectable)
             continue;
         else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
@@ -1281,14 +1281,11 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         CancelHintMode();
         return;
     }
-    //Here we know that the text under the cursor is not equal to any hint (may be a
-    //prefix though).
-    //If we are about to start hint mode due to a Ctrl+Space and there is only one selectable hit 
-    //then auto complete without popping up the hint list. 
-    //Except if we started from an empty text under the cursor and there are 
-    //non-selectable options - in this case show them, as well.
-    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text && 
-        (text.GetLength()>0 || m_csh.Hints.size()==1)) {
+    //If we are about to start hint mode due to a Ctrl+Space and there is only one hit 
+    //then auto complete without popping up the hint list. But if that would result in 
+    //no change to text (because the text under cursor is already complete), we pop
+    //up the hint box below, to give feedback to Ctrl+Space.
+    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text) {
         ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 

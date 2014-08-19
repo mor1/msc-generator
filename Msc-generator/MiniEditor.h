@@ -31,7 +31,7 @@
 
 class CEditorBar;
 
-/** A color syntax highlighting and smart indenting editor control
+/** A color syntax highlighting and smart identing editor control
  * that is doing hinting.*/
 class CCshRichEditCtrl : public CRichEditCtrl
 {
@@ -57,7 +57,7 @@ private:
 public:
     /** Modes of updating CSH */
     typedef enum UpdateCSHType {
-        HINTS_AND_LABELS = 0, ///<Do not update colory syntax highlighting, just parse text for hints and the location of labels (for smart indenting)
+        HINTS_AND_LABELS = 0, ///<Do not update colory syntax highlighting, just parse text for hints and the location of labels (for smart identing)
         CSH = 1,              ///<Update color sytnax highlighting (and collect hints and label positions, as well)
         FORCE_CSH = 2         ///<Force an update of color sytnax highlighting (and collect hints and label positions, as well)
     };
@@ -79,16 +79,16 @@ public:
     /** Move the cart to a position */
 	void JumpToLine(int line, int col);
     //@}
-    /** @name Functions for intelligent indentation
+    /** @name Functions for intelligent identation
     * @{ */
-	int  FirstNonWhitespaceIndent(const char *str, int Max=-1);
+	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	char LastNonWhitespaceChar(const char *str, long pos) const;
-	int  FindColonLabelIndent(long lStart, int *line=NULL);
-    int  FindProperLineIndent(int lStart);
-    int  FindCurrentLineIndent(long lStart);
-	int  FindIndentForClosingBrace(int pos_to_be_inserted);
-	int  CalcTabStop(int col, bool forward, int smartIndent=-1, int prevIndent=-1, bool strict=false);
-    bool SetCurrentIndentTo(int target_indent, int current_indent, int col, long lStart, long lEnd, bool standalone);
+	int  FindColonLabelIdent(long lStart, int *line=NULL);
+    int  FindProperLineIdent(int lStart);
+    int  FindCurrentLineIdent(long lStart);
+	int  FindIdentForClosingBrace(int pos_to_be_inserted);
+	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=-1, bool strict=false);
+    bool SetCurrentIdentTo(int target_ident, int current_ident, int col, long lStart, long lEnd, bool standalone);
 	BOOL PreTranslateMessage(MSG* pMsg);
     WindowUpdateStatus GetWindowUpdate();
     WindowUpdateStatus DisableWindowUpdate();

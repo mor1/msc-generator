@@ -361,7 +361,7 @@ void ShapeCollection::AttributeValues(Csh &csh) const
 {
     for (unsigned u = 0; u<shapes.size(); u++)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+shapes[u].name, 
-                               NULL, HINT_ATTR_VALUE, true, 
+                               HINT_ATTR_VALUE, true, 
                                CshHintGraphicCallbackForEShapes, 
                                CshHintGraphicParam(u)));
 }
@@ -489,7 +489,9 @@ template class PtrList<Entity>;
  * @param [in] pe The position of the entity, if all group entities were expanded.
  * @param [in] entity_style The style of the entity at definition.
  * @param [in] fp The location of the entity definition in the input file.
- * @param [in] coll True if we are group, but show collapsed.*/
+ * @param [in] coll True if we are group, but show collapsed. 
+ * @param [in] sh The number of the Shape to apply, -1 if none.
+ * @param [in] sh_size The size of the Shape, ignored if no Shape.*/
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const StyleCoW &entity_style, const FileLineCol &fp,
     bool coll) :
@@ -557,10 +559,10 @@ double Entity::GetRunningWidth(double activeEntitySize) const
 }
 
 /** Prints the entity name and position*/
-string Entity::Print(int indent) const
+string Entity::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ') << name << " pos:" << pos;
+    ss << string(ident*2, ' ') << name << " pos:" << pos;
     return ss;
 }
 
@@ -942,27 +944,13 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
 /** Add the attribute names we take to `csh`.*/
 void EntityApp::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", 
-        "Set the text and line color.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
-        "Set the visible text of the entity.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", 
-        "Control if the entity is shown or is invisible.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "collapsed", 
-        "You can collapse group entities to a single one with this attribute.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", 
-        "You can specify the position of the entity with this attribute at declaration.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative",
-        "Use this attribute to indicate which entity is the reference for the value specified in the 'pos' attribute.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", 
-        "Turn this on to activate the entity.",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "collapsed", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -979,15 +967,12 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"show") || CaseInsensitiveEqual(attr,"collapsed")
         || CaseInsensitiveEqual(attr,"active")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>",
-            "This number will be added to the x coordinate of the last entity declared or to that of the entity given by the 'relative' attribute. "
-            "It is measured in units of entity distance (130 pixels times the value of the 'hscale' chart option), defaulting to 1.",
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "relative")) {
@@ -1000,10 +985,10 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
 }
 
 /** Prints the attributes of EntityApp*/
-string EntityApp::Print(int indent) const
+string EntityApp::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ') << name;
+    ss << string(ident*2, ' ') << name;
 
     if (label.first) ss << "(\"" << label.second << "\")";
     if (pos.first) ss << " pos:" << pos.second;
@@ -1186,28 +1171,6 @@ void EntityApp::PostPosProcess(Canvas &canvas)
         }
     }
     Element::PostPosProcess(canvas);
-
-    //Register the label
-    if ((*itr)->shape >= 0) {
-        const XY twh = parsed_label.getTextWidthHeight();
-        const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
-        if (b.IsInvalid()) {
-            const double x = outer_edge.x.MidPoint();
-            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY, 
-                                 x-twh.x/2, x+twh.x/2, outer_edge.y.till);
-        } else {
-            const double r = std::min(1., std::min(b.x.Spans()/twh.x, b.y.Spans()/twh.y));
-            const double yoff = (b.y.Spans() - twh.y*r)/2;
-            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
-                                 b.x.from, b.x.till, b.y.from + yoff);
-        }
-    } else {
-        const double lw = style.read().line.LineWidth();
-        Block b2(outer_edge);
-        b2.Expand(-lw/2);
-        chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
-                             b2.x.from, b2.x.till, b2.y.from + lw/2);
-    }
 }
 
 /** Draw an entity heading

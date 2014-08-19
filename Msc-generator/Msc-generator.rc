@@ -516,8 +516,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,3,2,0
- PRODUCTVERSION 4,3,2,0
+ FILEVERSION 4,2,1,0
+ PRODUCTVERSION 4,2,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -534,12 +534,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "4.3.2.0"
+            VALUE "FileVersion", "4.2.1.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2014.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "4.3.2.0"
+            VALUE "ProductVersion", "4.2.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -734,7 +734,7 @@ BEGIN
     IDC_INTERNAL_EDITOR     "Internal Editor"
     IDC_CHECK_PB_EMBEDDED   "Show page break indicators for multi-page charts in embedded charts\nShow Page Indicators in Embedded Charts"
     IDC_CHECK_CSH           "Enable Color Syntax Highlighting\nEnable Color Syntax Highlighting"
-    IDC_CHECK_SMART_IDENT   "Automatically indent subsequent lines of a multi-line label to the first line.\nEnable Smart Indent"
+    IDC_CHECK_SMART_IDENT   "Automatically ident subsequent lines of a multi-line label to the first line.\nEnable Smart Ident"
     IDC_COMBO_CSH           "Select the coloring scheme to use\nColor Scheme"
     IDC_CHECK_HINTS         "Provide hints for auto-completion when Ctrl+Space is pressed\nEnable Auto-Completion Hints"
     IDC_CHECK_SMART_HINT_ENTITY 
@@ -845,7 +845,7 @@ BEGIN
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
     ID_EDIT_PAGES           "Select Page\nPage"
     ID_BUTTON_PREVIEW_EXPORT "Exports the Chart in PDF\nExport"
-    ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-indent the line as opposed to inserting a tabulator."
+    ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-ident the line as opposed to inserting a tabulator."
 END
 
 STRINGTABLE

@@ -544,6 +544,8 @@ unsigned Edge::CrossingSegments_NoSnap(const Edge &o, XY r[], double pos_my[], d
     return num;
 }
 
+const double CP_PRECISION = 1e-8;
+
 /** Returns the crossing of a bezier with an infinite line.
  * We do not filter the result by position values falling outside [0,1]
  * Those that fall out in pos_my contains invalid values for pos_segment - should be
@@ -1016,11 +1018,28 @@ int Edge::CrossingVertical(double x, double y[3], double pos[3], int forward[3])
         return 0;
     }
 
-    unsigned ret = atX(x, pos, CP_PRECISION);
+    unsigned ret = atX(x, pos);
     if (ret==0)
         return 0;
     std::sort(pos, pos+ret);
     for (unsigned i = 0; i<ret; i++) {
+        //refine cp
+        const double coeff[4] = {start.x,
+                                 3*(c1.x-start.x),
+                                 3*(start.x-2*c1.x+c2.x),
+                                 -start.x+3*(c1.x-c2.x)+end.x};
+        while (1) {
+            const double xx = ((coeff[3]*pos[i] + coeff[2])*pos[i] + coeff[1])*pos[i] + coeff[0];
+            if (fabs(xx-x)<CP_PRECISION) break; //done. This means a precision of CP_PRECISION pixels
+            //approximate with the derivative
+            //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
+            const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
+            const double dx_per_dpos = (derive[2]*pos[i] +derive[1])*pos[i] + derive[0];
+            //protect against vertical tangent
+            if (fabs(dx_per_dpos)<1e-10)
+                break;
+            pos[i] += (x-xx)/dx_per_dpos;
+        }
         const double fw_x = NextTangentPoint(pos[i]).x;
         if (test_equal(x, fw_x))
             forward[i] = 0;
@@ -1158,7 +1177,7 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
         return 0;
 
     double pos[3], x[3];
-    unsigned num = atY(xy.y, pos, CP_PRECISION);
+    unsigned num = atY(xy.y, pos);
     if (num==0)
         return 0;
     std::sort(pos, pos+num);
@@ -1174,8 +1193,34 @@ int Edge::CrossingHorizontalCPEvaluate(const XY &xy, bool self) const
         close++;
         last = i;
     }
-    if (self && close==1) {
-        //if only one cp close to us and we know it exactly is on us, use exact value.
+    //now close holds the number of cps close to xy
+    if (close>(self ? 1U : 0U)) {
+        //refine the relevant cps
+        for (unsigned i = 0; i<num; i++) {
+            if (x[i]+threshold < xy.x) continue;
+            if (x[i]-threshold > xy.x) continue;
+            //refine this cp
+            //A==start, B==c1, C==c2, D==end
+            //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
+            const double coeff[4] = {start.y,
+                                     3*(c1.y-start.y),
+                                     3*(start.y-2*c1.y+c2.y),
+                                     -start.y+3*(c1.y-c2.y)+end.y};
+            while (1) {
+                double yy = ((coeff[3]*pos[i] + coeff[2])*pos[i] + coeff[1])*pos[i] + coeff[0];
+                if (fabs(xy.y-yy)<CP_PRECISION) break; //done. y is in pixel space (just rotated) so this means a precision of CP_PRECISION pixels
+                //approximate with the derivative
+                //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
+                const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
+                const double dy_per_dpos = (derive[2]*pos[i] +derive[1])*pos[i] + derive[0];
+                //protect against horizontal tangent
+                if (fabs(dy_per_dpos)<1e-10)
+                    break;
+                pos[i] += (xy.y-yy)/dy_per_dpos;
+            }
+        }
+    } else if (self && close==1) {
+        //if only one cp and we know it is on us, use exact value.
         x[last] = xy.x;
     }
     int ret = 0;
@@ -2441,91 +2486,49 @@ unsigned Edge::SolveForDistance(const XY &p, double pos[5]) const
     return FindRoots(w, pos, 0);
 }
 
-/** Return a series of parameter values where the x or y coordinate of the curve is 'y'.
- * @param [in] v The x or y coordinate in question.
- * @param [out] roots The parameter values returned. All will be in [0..1]
- * @param [in] precision The precision (in pixels) to apply when refining the position values.
- *             When it is zero or negative, no refinement happens (default).
- * @returns the number of crosses found. **/
-template <bool isY>
-unsigned Edge::atXorY(double v, double roots[3], double precision) const
+/** Return a series of parameter values where the x coordinate of the curve is 'x'*/
+unsigned Edge::atX(double x, double roots[3]) const
 {
     _ASSERT(!straight);
     //A==start, B==c1, C==c2, D==end
     //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
 
-    double coeff[4] = {COORD(start, isY)-v,
-                       3*(COORD(c1, isY)-COORD(start, isY)),
-                       3*(COORD(start, isY)+COORD(c2, isY))-6*COORD(c1, isY),
-                       -COORD(start, isY)+3*(COORD(c1, isY)-COORD(c2, isY))+COORD(end, isY)};
+    double coeff[4] = {start.x-x,
+        3*(c1.x-start.x),
+        3*(start.x+c2.x)-6*c1.x,
+        -start.x+3*(c1.x-c2.x)+end.x};
     unsigned ret = solve_degree3(coeff, roots);
-    for (unsigned i = 0; i<ret; /*nope*/) {
-        //if the root is significantly outside the [0..1] range, drop it
-        if (test_smaller(roots[i], 0) || test_smaller(1, roots[i])) 
-            goto kill;
-        if (isY) {
-            if (!GetHullYRange().Expand(1).IsWithinBool(COORD(Split(roots[i]), isY)))
-                goto kill;
-        } else {
-            if (!GetHullXRange().Expand(1).IsWithinBool(COORD(Split(roots[i]), isY)))
-                goto kill;
-        }
-        if (precision<=0 || RefineXorY<isY>(v, roots[i], precision)) {
-            //Success, good cp;
+    for (unsigned i = 0; i<ret; /*nope*/)
+        if (!between01_adjust(roots[i])) {
+            for (unsigned k = i+1; k<ret; k++)
+                roots[k-1] = roots[k];
+            ret--;
+        } else
             i++;
-            continue;
-        }
-    kill:
-        //remove this root
-        for (unsigned k = i+1; k<ret; k++)
-            roots[k-1] = roots[k];
-        ret--;
-    }
     return std::unique(roots, roots+ret) - roots;  //remove duplicate solutions
 }
 
-
-template <bool isY>
-bool Edge::RefineXorY(double v, double &root, double precision) const
+/** Return a series of parameter values where the x coordinate of the curve is 'x'*/
+unsigned Edge::atY(double y, double roots[3]) const
 {
-    //refine cps
-    const double coeff[4] = {COORD(start, isY),
-                             3*(COORD(c1, isY)-COORD(start, isY)),
-                             3*(COORD(start, isY)-2*COORD(c1, isY)+COORD(c2, isY)),
-                             -COORD(start, isY)+3*(COORD(c1, isY)-COORD(c2, isY))+COORD(end, isY)};
-    unsigned count = 1000;
-    while (1) {
-        const double vv = ((coeff[3]*root + coeff[2])*root + coeff[1])*root + coeff[0];
-        if (fabs(vv-v)<precision) break; //done. This means a precision of CP_PRECISION pixels
-        //approximate with the derivative
-        //Derivatie is: 3*(-A+3B-3C+D)t^2 + (6A-12B+6C)t + (-3A+3B)
-        const double derive[3] = {coeff[1], 2*coeff[2], 3*coeff[3]};
-        const double dv_per_dpos = (derive[2]*root +derive[1])*root + derive[0];
-        //protect against vertical tangent
-        if (fabs(dv_per_dpos)<1e-10)
-            break;
-        root += (v-vv)/dv_per_dpos;
-        if (--count) {
-            //If we could not get the precision good enough after this many iterations, drop cp
-            return false;
-        }
-    }
-    //re-test the refined cp
-    //if the root is significantly outside the [0..1] range, drop it
-    //also, snap to endpoints
-    if (!between01_adjust(root))
-        return false;
-    //if the root is outside the bounding box of the edge drop it
-    if (isY) {
-        if (!GetHullYRange().Expand(1).IsWithinBool(COORD(Split(root), isY)))
-            return false;
-    } else {
-        if (!GetHullXRange().Expand(1).IsWithinBool(COORD(Split(root), isY)))
-            return false;
-    }
-    return true;
-}
+    _ASSERT(!straight);
+    //A==start, B==c1, C==c2, D==end
+    //Curve is: (-A+3B-3C+D)t^3 + (3A-6B+3C)t^2 + (-3A+3B)t + A
 
+    double coeff[4] = {start.y-y,
+        3*(c1.y-start.y),
+        3*(start.y+c2.y)-6*c1.y,
+        -start.y+3*(c1.y-c2.y)+end.y};
+    unsigned ret = solve_degree3(coeff, roots);
+    for (unsigned i = 0; i<ret; /*nope*/)
+        if (!between01_adjust(roots[i])) {
+            for (unsigned k = i+1; k<ret; k++)
+                roots[k-1] = roots[k];
+            ret--;
+        } else
+            i++;
+    return std::unique(roots, roots+ret) - roots;  //remove duplicate solutions
+}
 
 /** Expands the edge.
 *

@@ -164,12 +164,14 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
  * 'emptyemphasis' and generate a warning. Else we return `style`.*/
 string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
 {
-    if (style != "emphasis" && style != "emptyemphasis") 
-        return style;
-    const char *newname = style == "emphasis" ? "box" : "emptybox";
-    msc.Error.Warning(MSC_POS(*loc).start,
-        "Stylename '" + style + "' is deprecated, using " + newname + " instead.");
-    return newname;
+    const char *newname = style == "emphasis"?"box":"emptybox";
+    if (style == "emphasis" || style == "emptyemphasis") {
+
+        msc.Error.Warning(MSC_POS(*loc).start,
+            "Stylename '" + style + "' is deprecated, using " + newname + " instead.");
+        return newname;
+    }
+    return style;
 }
 
 /** The error handling function required by yacc.

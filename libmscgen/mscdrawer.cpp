@@ -173,7 +173,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
     SetLowLevelParams();
     
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(total, pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     original_device_size.x = total.x.Spans();
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
@@ -209,87 +209,6 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
     else candraw = true;
 }
 
-
-/** Calculates the scaling to use, trying out potentially several suggested scaling
-    values suggested by the user.
-  A static function that enables calling without an actual canvas.
-  @param [in] total The total size of the chart in the canvas coordinate space.
-  @param [in] scale A series of scale factors to try. We go through them
-                    and see if the pages of the chart fit the fixed page size
-                    with the scale factor. We try in the list until we find
-                    a scale factor that fits. -1 value means "fit width",
-                    -2 value means "fit page" - this one scales to fit the 
-                    largest page and uses the same factor for all pages and
-                    always fits. If none of the values fit, we use the last one.
-  @param [in] pageSize The size of the fixed page in points/pixels.
-  @param [in] margins The margin size in points/pixels. The order is
-                      left,right, up,down.
-  @param [in] ctexth The height of the copyright text.
-  @param [in] pageBreakData The collection of page break associated data 
-                            generated during parsing. This function only
-                            uses the y coordinate of the page break and
-                            the size of the automatically inserted heading
-                            (if any.)
-  @returns the scaling to use. It can be (0,0) if the margins are too large for
-           the page size (no meaningful drawing area on paper)*/
-XY Canvas::DetermineScaling(const Block &total, const std::vector<XY> &scale,
-                            const XY &pageSize, const double margins[4], 
-                            double ctexth, const PBDataVector *pageBreakData)
-{
-    if (scale.size()==0) return XY(1, 1);
-    //If no page size is specified, we use first value in 'scale' that is
-    //deterministic (non-auto, non-width) or (1,1) if none.
-    if (pageSize.x<=0 || pageSize.y<=0) {
-        for (auto &xy : scale)
-            if (xy.x>0 && xy.y>0) return xy;
-        return XY(1, 1);
-    }
-    //Determine net page size (physical size - margins)
-    Block raw_page_clip = Block(XY(0, 0), pageSize);
-    if (margins) {
-        raw_page_clip.x.from += margins[0];
-        raw_page_clip.x.till -= margins[1];
-        raw_page_clip.y.from += margins[2];
-        raw_page_clip.y.till -= margins[3];
-    }
-    if (raw_page_clip.x.from >= raw_page_clip.x.till ||
-        raw_page_clip.y.from >= raw_page_clip.y.till) {
-        return XY(0,0); //too big margins
-    }
-    //Determine scaling
-    double origYSize, origYOffset, autoHeadingSize;
-    XY ret;
-    for (unsigned s = 0; s<scale.size(); s++) {
-        if (scale[s].x<=0) { //auto or width
-            _ASSERT(scale[s].x==-2 || scale[s].x==-1);
-            _ASSERT(scale[s].y==scale[s].x);
-            //Set scale to what is dictated by width
-            ret.x = raw_page_clip.x.Spans()/total.x.Spans();
-            if (scale[s].x==-2) { //auto
-                //check if we need to reduce scale for all page length to fit, as well
-                for (unsigned p = 1; p<=pageBreakData->size(); p++) {
-                    GetPagePosition(total, pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
-                    ret.x = std::min(ret.x, raw_page_clip.y.Spans()/(autoHeadingSize+origYSize+ctexth));
-                }
-                ret.y = ret.x;
-                break; //auto always fits
-            }
-            ret.y = ret.x; //width is always a proportional scale
-        } else
-            ret = scale[s];
-        //Check if we fit
-        bool oversize = raw_page_clip.x.Spans() < total.x.Spans()*ret.x;
-        if (!oversize)
-            for (unsigned p = 1; p<=pageBreakData->size(); p++) {
-            GetPagePosition(total, pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
-            oversize = raw_page_clip.x.Spans() < (autoHeadingSize+origYSize+ctexth)*ret.y;
-            if (oversize) break;
-            }
-        if (!oversize) break; //if all pages fit, we stick to this ret
-    }
-    return ret;
-}
-
 /** Creates a canvas to draw the chart to a fixed-page-size multi-page file & starts page No. 1.
   After creation you can start drawing in chart coordinates and the first page
   page will appear. Call PrepareForHeaderFoorter() before drawing the 
@@ -300,7 +219,13 @@ XY Canvas::DetermineScaling(const Block &total, const std::vector<XY> &scale,
                  file. Others create a Canvas in error.
   @param [in] tot The total size of the chart in the canvas coordinate space.
   @param [in] fn The filename.
-  @param [in] scale The scaling to apply.
+  @param [in] scale A series of scale factors to try. We go through them
+                    and see if the pages of the chart fit the fixed page size
+                    with the scale factor. We try in the list until we find
+                    a scale factor that fits. -1 value means "fit width",
+                    -2 value means "fit page" - this one scales to fit the 
+                    largest page and uses the same factor for all pages and
+                    always fits. If none of the values fit, we use the last one.
   @param [in] pageSize The size of the fixed page in points/pixels.
   @param [in] margins The margin size in points/pixels. The order is
                       left,right, up,down.
@@ -312,12 +237,12 @@ XY Canvas::DetermineScaling(const Block &total, const std::vector<XY> &scale,
                             uses the y coordinate of the page break and
                             the size of the automatically inserted heading
                             (if any.)*/
-Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const XY &scale, 
+Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
                      const XY &pageSize, const double margins[4],  int ha, int va, 
                      double ctexth, const PBDataVector *pageBreakData) :
     outFile(NULL), surface(NULL), cr(NULL), status(ERR_PARAM), candraw(false),
     fake_dash_offset(0), outType(ot), total(tot),
-    external_surface(false), copyrightTextHeight(ctexth), user_scale(scale),
+    external_surface(false), copyrightTextHeight(ctexth),
     raw_page_clip(0,0,0,0), h_alignment(ha), v_alignment(va)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL), external_hdc(false)
@@ -350,9 +275,38 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const XY &sca
         status = ERR_MARGIN;
         return; //too big margins
     }
-    //Create context for first page
+    //Determine scaling
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(total, pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
+    for (unsigned s=0; s<scale.size(); s++) {
+        if (scale[s].x<=0) { //auto or width
+            _ASSERT(scale[s].x==-2 || scale[s].x==-1);
+            _ASSERT(scale[s].y==scale[s].x);
+            //Set scale to what is dictated by width
+            user_scale.x = raw_page_clip.x.Spans()/total.x.Spans();
+            if (scale[s].x==-2) { //auto
+                //check if we need to reduce scale for all page length to fit, as well
+                for (unsigned p = 1; p<=pageBreakData->size(); p++) {
+                    GetPagePosition(pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
+                    user_scale.x = std::min(user_scale.x, raw_page_clip.y.Spans()/(autoHeadingSize+origYSize+copyrightTextHeight));
+                }
+                user_scale.y = user_scale.x;
+                break; //auto always fits
+            }
+            user_scale.y = user_scale.x;
+        } else 
+            user_scale = scale[s];
+        //Check if we fit
+        bool oversize = raw_page_clip.x.Spans() < total.x.Spans()*user_scale.x;
+        if (!oversize) 
+            for (unsigned p = 1; p<=pageBreakData->size(); p++) {
+                GetPagePosition(pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
+                oversize = raw_page_clip.x.Spans() < (autoHeadingSize+origYSize+copyrightTextHeight)*user_scale.y;
+                if (oversize) break;
+            }
+        if (!oversize) break; //if all pages fit, we stick to this user_scale
+    }
+    //Create context for first page
+    GetPagePosition(pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     original_device_size.x = total.x.Spans();
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
@@ -398,7 +352,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const XY &sca
     cairo_surface_show_page(surface);
     //Cretate context for next page
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(total, pageBreakData, next_page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, next_page, origYOffset, origYSize, autoHeadingSize);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     original_device_size.x = total.x.Spans();
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
@@ -468,7 +422,7 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
             error->Warning(FileLineCol(0, 0), err + "% wider than the paper size and will be cropped."); 
         }
         double origYSize, origYOffset, autoHeadingSize;
-        GetPagePosition(total, pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
+        GetPagePosition(pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
         if (raw_page_clip.y.Spans() <origYSize*user_scale.y) {
             string err = "First page is ";
             err << ceil(origYSize*user_scale.y*100./raw_page_clip.y.Spans()-100);
@@ -517,7 +471,7 @@ Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double c
     surface_size_x = surface_size_y = 0;
     SetLowLevelParams();
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(total, pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) CloseOutput();
@@ -603,9 +557,6 @@ void Canvas::SetLowLevelParams()
 
 /** Return position information about a page of the chart
  * All values returned are in chart coordinates.
- * This is static, so as to be possible to get called without an 
- * actual canvas.
- * @param [in] total The total size of the chart
  * @param [in] pageBreakData The collection of page break associated data 
  *                           generated during parsing. This function only
  *                           uses the y coordinate of the page break and
@@ -620,8 +571,8 @@ void Canvas::SetLowLevelParams()
  * @param [out] autoHeadingSize The size of the automatically inserted heading
  *                              at the top of the page (if any). These headings
  *                              are not included in the chart space. */
-void Canvas::GetPagePosition(const Block &total, const PBDataVector *pageBreakData, unsigned page, double &y_offset, 
-                             double &y_size, double &autoHeadingSize) 
+void Canvas::GetPagePosition(const PBDataVector *pageBreakData, unsigned page, double &y_offset, 
+                                double &y_size, double &autoHeadingSize) const
 {
     if (page==0 || pageBreakData==NULL || pageBreakData->size()==0) {
         y_offset = total.y.from;
@@ -876,7 +827,7 @@ Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth,
     SetLowLevelParams();
 
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(total, pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     original_device_size.x = total.x.Spans();
     original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
     original_device_size.x *= scale.x;//*fake_scale;

@@ -419,27 +419,13 @@ bool ArcBase::AddAttribute(const Attribute &a)
 
 void ArcBase::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", 
-        "Turn this on to shift this elements upwards until it bumps into the element above (to compress the chart vertically).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing", 
-        "Specify the vertical spacing above this element.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", 
-        "Turn this on so to put subsequent elements in parallel with this one and not stricly below (except if they overlap).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", 
-        "Turn this on so to put subsequent elements in parallel with this one and not below (even if they overlap).", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", 
-        "Name this element so that it can be referred to (e.g., from a label of another element via the '\r(name)' escape sequence).", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", 
-        "Turn this on if you do not want this element to break across pages.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", 
-        "Turn this on if you want this element on the same page with the subsequent one.",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", HINT_ATTR_NAME));
     Element::AttributeNames(csh);
 }
 
@@ -450,17 +436,13 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         CaseInsensitiveEqual(attr,"overlay") ||
         CaseInsensitiveEqual(attr,"keep_together") ||
         CaseInsensitiveEqual(attr,"keep_with_next")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "vspacing")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
-            "Specify extra spading above this element in pixels. 0 means no extra space.",
-            HINT_ATTR_VALUE, false));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", 
-            "Specifying 'compress' will auto-adjust vertical spacing to be as little as possible by moving the element up until it bumps into the ones above.", 
-            HINT_ATTR_VALUE, true));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", HINT_ATTR_VALUE, true));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "refname"))
@@ -845,14 +827,10 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
 void ArcLabelled::AttributeNames(Csh &csh)
 {
     ArcBase::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
-        "Specify the text of the label of this element.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", 
-        "Turn auto-numberin on or off. You can also give a specific number to use with auto-numbering of this element.", 
-        HINT_ATTR_NAME));
-    Element::AttributeNames(csh); //draw_time
-    csh.AddStylesToHints(false, false);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
+    csh.AddStylesToHints();
 }
 
 bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
@@ -861,27 +839,24 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", 
-            "Turn auto-numberin on. (May already be turned on via a style or chart option.)", 
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", 
-            "Turn auto-numberin off. (May already be turned off via a style, chart option or by default.)",
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
-            "Specify a number to use for this element. Auto-numbering will continue from this value.", 
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"draw_time")) 
-        return Element::AttributeValues(attr, csh);
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<EDrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
+        return true;
+    }
     if (ArcBase::AttributeValues(attr, csh)) return true;
     return false;
 }
 
-string ArcLabelled::Print(int indent) const
+string ArcLabelled::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     ss << PrintType().append(":").append(label);
     return ss;
 }
@@ -971,12 +946,8 @@ bool ArcArrow::AddAttribute(const Attribute &a)
 
 void ArcArrow::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", 
-        "Make this arrow slanted by this degree.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth", 
-        "Make this arrow slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("arrow").read().AttributeNames(csh);
 }
@@ -984,15 +955,11 @@ void ArcArrow::AttributeNames(Csh &csh)
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"angle")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45 [degrees]>", 
-            "Make this arrow slanted by this degree.", 
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45 [degrees]>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "slant_depth")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..1000 [pixels]>", 
-            "Make arrows slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)", 
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..1000 [pixels]>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (defaultDesign.styles.GetStyle("arrow").read().AttributeValues(attr, csh)) return true;
@@ -1049,10 +1016,10 @@ EDirType ArcSelfArrow::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcSelfArrow::Print(int indent) const
+string ArcSelfArrow::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     ss << (*src)->name << (isBidir()?"<->":"->") << (*src)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     return ss;
@@ -1182,7 +1149,6 @@ void ArcSelfArrow::PostPosProcess(Canvas &canvas)
         sss << " activated/deactivated in a parallel block causing conflict here.";
         chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
-    chart->RegisterLabel(parsed_label, LabelInfo::ARROW, sx, dx-src_act, yPos+chart->arcVGapAbove);
 }
 
 void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
@@ -1392,10 +1358,10 @@ EDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_LEFT;
 }
 
-string ArcDirArrow::Print(int indent) const
+string ArcDirArrow::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     const char *arrow_string = isBidir()?"<->":"->";
     ss << (*src)->name << arrow_string;
     for (unsigned i=0; i<middle.size(); i++)
@@ -2013,9 +1979,6 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
             chart->HideEntityLines(tmp);
         }
     }
-    chart->RegisterLabel(parsed_label, LabelInfo::ARROW, 
-                         sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, 
-                         XY(sx,yPos+centerline), slant_angle);
 }
 
 /** Draws an actual arrow using the parameters passed, not considering message loss. 
@@ -2133,12 +2096,7 @@ const StyleCoW *ArcBigArrow::GetRefinementStyle(EArcType t) const
 void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", 
-        "Make this arrow slanted by this degree.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth",
-        "Make this arrow slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("blockarrow").read().AttributeNames(csh);
 }
 
@@ -2146,16 +2104,16 @@ bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (defaultDesign.styles.GetStyle("blockarrow").read().AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    if (CaseInsensitiveEqual(attr, "angle") || CaseInsensitiveEqual(attr, "slant_depth")) {
-        ArcDirArrow::AttributeValues(attr, csh);
+    if (CaseInsensitiveEqual(attr,"angle")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
         return true;
     }
     return false;
 }
 
-string ArcBigArrow::Print(int indent) const
+string ArcBigArrow::Print(int ident) const
 {
-    return ArcDirArrow::Print(indent);
+    return ArcDirArrow::Print(ident);
 }
 
 ArcBase* ArcBigArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -2398,9 +2356,6 @@ void ArcBigArrow::PostPosProcess(Canvas &canvas)
         tmp.RotateAround(c, slant_angle);
         chart->HideEntityLines(tmp);
     }
-    chart->RegisterLabel(parsed_label, LabelInfo::ARROW,
-        sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->boxVGapInside, cx_text,
-        XY(sx, yPos+centerline), slant_angle);
 }
 
 void ArcBigArrow::Draw(Canvas &canvas, EDrawPassType pass)
@@ -2651,28 +2606,19 @@ void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("vertical").read().AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset",
-        "Move the vertical to the right by this many pixels (negative value for left).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"text.width",
-        "Use this attribute to specify the space available for the text if you want enable word wrapping.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom",
-        "Turn this on if you want this element to push neighbouring entities further to avoid overlap with other elements.",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"text.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
 
 bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"offset")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number> [pixels]", 
-            "Move the vertical to the right by this many pixels (negative value for left).",
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"makeroom")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "text.width") && WidthAttr::AttributeValues(attr, csh)) return true;
@@ -3295,8 +3241,6 @@ void ArcVerticalArrow::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(canvas);
-    chart->RegisterLabel(parsed_label, LabelInfo::VERTICAL, 
-                         s_text, d_text, t_text, style.read().side.second);
 }
 
 /** Draws the line and arrowhead of a brace, pointer or lost_pointer */
@@ -3428,9 +3372,6 @@ void ArcVerticalArrow::Draw(Canvas &canvas, EDrawPassType pass)
 template<> const char EnumEncapsulator<EBoxCollapseType>::names[][ENUM_STRING_LEN] =
     {"invalid", "no", "yes", "arrow", ""};
 
-template<> const char * const EnumEncapsulator<EBoxCollapseType>::descriptions[] =
-{"", "Do not collapse this box or entity.", "Collapse this box or entity.", 
-"Collapse the box to a block arrow.", ""};
 
 ArcSignatureCatalog::iterator ArcSignature::WhichIsSimilar(ArcSignatureCatalog &cat) const
 {
@@ -3477,7 +3418,8 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
     ArcBase(MSC_BOX_SOLID, MscProgress::BOX_SERIES, first->chart), 
     series(true), drawing_variant(1)
 {
-    AddBox(first);
+    series.Append(first);
+    draw_pass = first->draw_pass;
     keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
 }
 
@@ -3575,12 +3517,8 @@ void ArcBox::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("box").read().AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", 
-        "Turn this on to collapse the box (hiding its content).", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag", 
-        "Specify the tag label with this attribute. Needed if you want the box to have a tag.", 
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag", HINT_ATTR_NAME));
 }
 
 bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
@@ -3603,9 +3541,7 @@ bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p
 bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr, "collapsed")) {
-        csh.AddToHints(EnumEncapsulator<EBoxCollapseType>::names, 
-                       EnumEncapsulator<EBoxCollapseType>::descriptions, 
-                       csh.HintPrefix(COLOR_ATTRVALUE),
+        csh.AddToHints(EnumEncapsulator<EBoxCollapseType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
@@ -3616,40 +3552,33 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-//It can be called even if the series is empty.
-//If we add subsequent boxes, this should be called after adding content 
-//to "f', but before adding any attributes to it. (so that it can inherit
-//unset attributes from the first element in the series.)
-ArcBoxSeries* ArcBoxSeries::AddBox(ArcBox *f)
+//This should be called after adding content to "f', but before adding any attributes
+ArcBoxSeries* ArcBoxSeries::AddFollow(ArcBox *f)
 {
     _ASSERT(f);
     if (f==NULL) return this;
     if (f->valid) {
-        if (series.size()) {
-            //Use the style of the first box in the series as a base
-            StyleCoW s = series.front()->style;
-            //Override with the line type specified (if any)
-            if (f->type != MSC_BOX_UNDETERMINED_FOLLOW)
-                s += *f->GetRefinementStyle(f->type);
-            f->style = s;
-            //AddAttributeList will be called for "f" after this function
-        } else {
-            draw_pass = f->draw_pass;
-        }
+        //Use the style of the first box in the series as a base
+        StyleCoW s = (*series.begin())->style;
+        //Override with the line type specified (if any)
+        if (f->type != MSC_BOX_UNDETERMINED_FOLLOW)
+            s += *f->GetRefinementStyle(f->type);
+        f->style = s;
+        //AddAttributeList will be called for "f" after this function
     } else
         valid = false;
     series.Append(f);
     return this;
 }
 
-string ArcBox::Print(int indent) const
+string ArcBox::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     ss << (*src)->name << "--" << (*dst)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     for (auto i = content.begin(); i != content.end(); i++)
-        ss << "\n" << (*i)->Print(indent+1);
+        ss << "\n" << (*i)->Print(ident+1);
     return ss;
 }
 
@@ -3660,12 +3589,12 @@ EDirType ArcBoxSeries::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcBoxSeries::Print(int indent) const
+string ArcBoxSeries::Print(int ident) const
 {
-    string ss(indent*2, ' '); 
+    string ss(ident*2, ' '); 
     ss << "Box series";
     for (auto i = series.begin(); i!=series.end(); i++)
-        ss << "\n" << (*i)->Print(indent+1);
+        ss << "\n" << (*i)->Print(ident+1);
     return ss;
 }
 
@@ -4334,28 +4263,28 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     //And we do this for each segment sequentially
     for (auto pBox : series)
         if (pBox->valid) {
-        if (pBox->content.size())
-            switch (pBox->collapsed) {
-            case BOX_COLLAPSE_EXPAND:
-                pBox->controls.push_back(MSC_CONTROL_COLLAPSE);
-                if (series.size()==1)
-                    pBox->controls.push_back(MSC_CONTROL_ARROW);
-                break;
-            case BOX_COLLAPSE_COLLAPSE:
-                pBox->controls.push_back(MSC_CONTROL_EXPAND);
-                if (series.size()==1)
-                    pBox->controls.push_back(MSC_CONTROL_ARROW);
-                break;
-            case BOX_COLLAPSE_BLOCKARROW:
-            default:
-                _ASSERT(0); //should not happen here
-                break;
-        }
-        pBox->entityLineRange = pBox->area.GetBoundingBox().y;
-        pBox->ArcLabelled::PostPosProcess(canvas);
-        chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
-        if (pBox->content.size())
-            chart->PostPosProcessArcList(canvas, pBox->content);
+            if (pBox->content.size()) 
+                switch (pBox->collapsed) {
+                case BOX_COLLAPSE_EXPAND:
+                    pBox->controls.push_back(MSC_CONTROL_COLLAPSE);        
+                    if (series.size()==1) 
+                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
+                    break;
+                case BOX_COLLAPSE_COLLAPSE:
+                    pBox->controls.push_back(MSC_CONTROL_EXPAND);        
+                    if (series.size()==1) 
+                        pBox->controls.push_back(MSC_CONTROL_ARROW);        
+                    break;
+                case BOX_COLLAPSE_BLOCKARROW:
+                default:
+                    _ASSERT(0); //should not happen here
+                    break;
+                }
+            pBox->entityLineRange = pBox->area.GetBoundingBox().y;
+            pBox->ArcLabelled::PostPosProcess(canvas);
+            chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
+            if (pBox->content.size()) 
+                chart->PostPosProcessArcList(canvas, pBox->content);
         }
 
     //Hide entity lines during the lines inside the box
@@ -4365,12 +4294,12 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     const double dst_x = chart->XCoord(series.front()->dst);
     const double sx = src_x - left_space + lw;
     const double dx = dst_x + right_space - lw;
-    for (auto pBox : series)
+    for (auto pBox : series) 
         if (pBox!=series.front() && pBox->style.read().line.IsDoubleOrTriple()) {
-        const Block r(sx, dx, pBox->yPos, pBox->yPos + pBox->style.read().line.LineWidth());
-        chart->HideEntityLines(r);
+            const Block r(sx, dx, pBox->yPos, pBox->yPos + pBox->style.read().line.LineWidth());
+            chart->HideEntityLines(r);
         }
-
+    
     //hide the entity lines under the labels & tags
     for (auto pBox : series) {
         chart->HideEntityLines(pBox->text_cover);
@@ -4379,15 +4308,11 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
     //hide top and bottom line if double
     if (main_style.read().line.IsDoubleOrTriple()) {
         Block b(src_x - left_space + lw/2, dst_x + right_space - lw/2,
-            yPos + lw/2, yPos+total_height - lw/2); //The midpoint of the lines
+                yPos + lw/2, yPos+total_height - lw/2); //The midpoint of the lines
         //The radius specified in style.read().line will be that of the midpoint of the line
-        chart->HideEntityLines(main_style.read().line.CreateRectangle_OuterEdge(b) -
-            main_style.read().line.CreateRectangle_InnerEdge(b));
+        chart->HideEntityLines(main_style.read().line.CreateRectangle_OuterEdge(b) - 
+                               main_style.read().line.CreateRectangle_InnerEdge(b));
     }
-    const double mid = (chart->XCoord(series.front()->src) + chart->XCoord(series.front()->dst))/2;
-    for (auto pBox : series)
-        chart->RegisterLabel(pBox->parsed_label, pBox->content.size() ? LabelInfo::BOX : LabelInfo::EMPTYBOX,
-                             pBox->sx_text, pBox->dx_text, pBox->y_text, mid);
 }
 
 void ArcBoxSeries::RegisterCover(EDrawPassType pass)
@@ -4580,10 +4505,10 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
     return this;
 }
 
-string ArcPipe::Print(int indent) const
+string ArcPipe::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     ss << (*src)->name << "--" << (*dst)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
     return ss;
@@ -4599,14 +4524,14 @@ EDirType ArcPipeSeries::GetToucedEntities(EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-string ArcPipeSeries::Print(int indent) const
+string ArcPipeSeries::Print(int ident) const
 {
-    string ss(indent*2, ' '); 
+    string ss(ident*2, ' '); 
     ss << "Pipe series";
     for (auto i = series.begin(); i!=series.end(); i++)
-        ss << "\n" << (*i)->Print(indent+1);
+        ss << "\n" << (*i)->Print(ident+1);
     for (auto i = content.begin(); i != content.end(); i++)
-        ss << "\n" << (*i)->Print(indent+2);
+        ss << "\n" << (*i)->Print(ident+2);
     return ss;
 }
 
@@ -5278,27 +5203,23 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     //then the content (only in the first segment)
     //then those segments, which are fully opaque
     //(this is because search is backwards and this arrangement fits the visual best
-    for (auto pPipe : series)
-        if (pPipe->valid && pPipe->style.read().solid.second < 255) {
-            pPipe->entityLineRange = pPipe->area.GetBoundingBox().y;
-            pPipe->ArcLabelled::PostPosProcess(canvas);
+    for (auto i = series.begin(); i!=series.end(); i++) 
+        if ((*i)->valid && (*i)->style.read().solid.second < 255) {
+            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
+            (*i)->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
     if (content.size())
         chart->PostPosProcessArcList(canvas, content);
-    for (auto pPipe : series)
-        if (pPipe->valid && pPipe->style.read().solid.second == 255) {
-            pPipe->entityLineRange = pPipe->area.GetBoundingBox().y;
-            pPipe->ArcLabelled::PostPosProcess(canvas);
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->valid && (*i)->style.read().solid.second == 255) {
+            (*i)->entityLineRange = (*i)->area.GetBoundingBox().y;
+            (*i)->ArcLabelled::PostPosProcess(canvas);
             chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
-    for (auto pPipe : series)
-        if (pPipe->draw_pass != DRAW_BEFORE_ENTITY_LINES)
-            chart->HideEntityLines(pPipe->pipe_shadow);
-    //Register labels
-    for (auto pPipe : series)
-        chart->RegisterLabel(pPipe->parsed_label, LabelInfo::PIPE,
-                             pPipe->sx_text, pPipe->dx_text, pPipe->y_text);
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->draw_pass != DRAW_BEFORE_ENTITY_LINES)
+            chart->HideEntityLines((*i)->pipe_shadow);
 }
 
 //Draw a pipe, this is called for each segment, bool params dictate which part
@@ -5659,11 +5580,6 @@ void ArcDivider::PostPosProcess(Canvas &canvas)
     else
         entityLineRange = area.GetBoundingBox().y;
     ArcLabelled::PostPosProcess(canvas);
-    if (!wide)
-        chart->RegisterLabel(parsed_label, LabelInfo::DIVIDER,
-                             chart->GetDrawing().x.from + text_margin, 
-                             chart->GetDrawing().x.till - text_margin,
-                             yPos + chart->arcVGapAbove + extra_space);
 }
 
 void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
@@ -5729,15 +5645,15 @@ EDirType ArcParallel::GetToucedEntities(class EntityList &el) const
     return dir;
 }
 
-string ArcParallel::Print(int indent) const
+string ArcParallel::Print(int ident) const
 {
     string ss;
-    ss << string(indent*2, ' ');
+    ss << string(ident*2, ' ');
     ss << PrintType() << "\n";
     for (auto i = blocks.begin(); i!=blocks.end(); i++) {
         if (i!=blocks.begin())
-            ss << string(indent*2+2, ' ') << "---\n";
-        ss << i->Print(indent+2);
+            ss << string(ident*2+2, ' ') << "---\n";
+        ss << i->Print(ident+2);
         if (i!=blocks.end())
             ss << "\n";
     }

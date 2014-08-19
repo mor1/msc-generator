@@ -239,7 +239,6 @@ struct CshHint {
     std::string  decorated;         ///<Full text of the hint with formatting escapes
     EHintType  type;                ///<The type of the hint.
     bool selectable;                ///<True if this hint can be inserted to the chart text, false if it is just an explanation
-    mutable const char *description;///<Descriptive text of the hint
     CshHintGraphicCallback callback;///<A procedure that draws the small symbol before the hint text
     CshHintGraphicParam    param;   ///<A parameter to pass to the callback
     /** @name Derived values filled in by Csh::ProcessHints
@@ -254,8 +253,8 @@ struct CshHint {
     mutable int br_y;           ///<Size of the rectange shown in list box
     mutable EHintItemSelectionState state; ///<Will show if this hint is selected or not
     /** @} */
-    CshHint(const std::string &d, const char *desc, EHintType t, bool s = true, CshHintGraphicCallback c = NULL, CshHintGraphicParam p = 0) :
-        decorated(d), type(t), selectable(s), description(desc), callback(c), param(p), keep(false) {}
+    CshHint(const std::string &d, EHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=0)  : 
+        decorated(d), type(t), selectable(s), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
     bool operator < (const CshHint &o) const {if (type==o.type) return decorated<o.decorated; return type<o.type;}
     bool operator ==(const CshHint &o) const {return type == o.type && decorated == o.decorated;}
@@ -394,27 +393,17 @@ public:
      * @{ */
     void AddToHints(CshHint &&h);
     void AddToHints(const CshHint &h) {AddToHints(CshHint(h));} ///<Insert a hint to the list of hints.
-    void AddToHints(const char * const * names_descriptions, 
-                    const std::string &prefix, EHintType t, 
+    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, EHintType t, 
                     CshHintGraphicCallback c=NULL);
-    void AddToHints(const char * const * names_descriptions,
-                    const std::string &prefix, EHintType t,
-                    CshHintGraphicCallback c, CshHintGraphicParam);
-    void AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
-                    const std::string &prefix, EHintType t,
-                    CshHintGraphicCallback c = NULL);
-    void AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
-                    const std::string &prefix, EHintType t,
+    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, EHintType t, 
                     CshHintGraphicCallback c, CshHintGraphicParam);
     void AddColorValuesToHints(bool define);
     void AddDesignsToHints(bool full);
-    void AddStylesToHints(bool include_forbidden, bool define);
+    void AddStylesToHints(bool include_forbidden=false);
     void AddOptionsToHints();
     void AddDesignOptionsToHints();
     void AddKeywordsToHints(bool includeParallel=true);
     void AddEntitiesToHints();
-    void AddSymbolTypesToHints();
-    void AddLeftRightCenterToHints();
     /** Add entities, keywords and option names to hint list.*/
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
     /** @}*/
