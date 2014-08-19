@@ -285,14 +285,6 @@ defdesign norton_commander {
     comment.fill.color = grey;
 };
 
-defdesign pcore {
-    numbering=yes;
-    text.ident=left;
-    defstyle arrow [text.format="\pl\ml(6)"];
-    defstyle arrow [arrow.ymul=0.6];
-    defstyle entity [shape=def.square, shape.size=big, text.ident=center];
-};
-
 defshape def.trapezoid {
 T 1 1 10 9;
 S 2;
@@ -356,3 +348,12 @@ L 0 100;
 E;
 T 1 1 99 99;
 };
+
+defdesign pcore {
+    numbering=yes;
+    text.ident=left;
+    defstyle arrow [text.format="\pl\ml(6)"];
+    defstyle arrow [arrow.ymul=0.6];
+    defstyle entity [shape=def.square, shape.size=big, text.ident=center];
+};
+
