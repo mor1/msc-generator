@@ -35,7 +35,7 @@ END_MESSAGE_MAP()
 
 /** Just initialize. Also set default hint format.*/
 CHintListBox::CHintListBox() : 
-    m_csh(ArcBase::defaultDesign, NULL)
+    m_csh(ArcBase::defaultDesign, NULL), m_descrWnd(this)
 {
     m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
@@ -74,7 +74,7 @@ BOOL CHintListBox::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
 {
     const CshHint *hint = GetHint(pNMHDR->idFrom);
     if (!hint) return FALSE;
-    CString strTipText = hint->plain.c_str();
+    CString strTipText = hint->description;
 
     //Convert to return format
     TOOLTIPTEXTA* pTTTA = (TOOLTIPTEXTA*)pNMHDR;
@@ -266,13 +266,20 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
     }
     if (index<0 || index>=GetCount()) index=-1;
     m_cur_sel = index;
-    if (index==-1) return;
     const CshHint *item= GetHint(index);
-    item->state = state;
-    const CRect rect = ConvertABCDToCRect(item);
-    SetCurSel(index);
-    //InvalidateRect(rect);
-    //Invalidate();
+    if (item) {
+        item->state = state;
+        const CRect rect = ConvertABCDToCRect(item);
+        SetCurSel(index);
+        //InvalidateRect(rect);
+        //Invalidate();
+    }
+    CRect rect;
+    rect.top = item->ul_y;
+    rect.left = item->ul_x;
+    rect.bottom = item->br_y;
+    rect.right = item->br_x;
+    m_descrWnd.Update(index, rect);
 }
 
 
@@ -400,6 +407,66 @@ int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
     return 1;
 }
 
+void CHintDescriptionWnd::Update(int index, CRect hint)
+{
+    //Create window if not yet created
+    BOOL ret = TRUE;
+    if (m_hWnd==NULL) {
+        ret = Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 10, 10), m_pHintListBox, 0);
+    }
+
+    enum {WIDTH=100};
+    const CshHint * const h = m_pHintListBox->GetHint(index);
+    if (h==NULL) ShowWindow(SW_HIDE);
+    else {
+        Canvas empty_canvas(Canvas::PNG);
+        StringFormat sf;
+        sf.Default();
+        const Attribute a("text.wrap", true, FileLineColRange(), FileLineColRange());
+        sf.AddAttribute(a, NULL, EStyleType::STYLE_DEFAULT);
+        Label label(h->description, empty_canvas, sf);
+
+        label.Reflow(empty_canvas, WIDTH);
+        const XY twh = label.getTextWidthHeight();
+
+        CPaintDC origDC(this);
+        CDC memDC;
+        memDC.CreateCompatibleDC(&origDC);
+        CBitmap *oldBitmap;
+        if (m_bitmap.m_hObject)
+            m_bitmap.DeleteObject();
+        m_bitmap.CreateCompatibleBitmap(&origDC, int(twh.x), int(twh.y));
+        oldBitmap = memDC.SelectObject(&m_bitmap);
+        memDC.FillSolidRect(0, 0, int(twh.x), int(twh.y), origDC.GetBkColor());
+        Canvas canvas(Canvas::WIN, memDC.m_hDC);
+
+        const ColorType black(0, 0, 0);
+        const FillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
+        const LineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_NONE, 0);
+        const Block b(0, twh.x, 0, twh.y);
+        canvas.Fill(b, line, fill);
+        label.Draw(canvas, 0, twh.x, 0);
+
+        canvas.CloseOutput();
+        memDC.SelectObject(oldBitmap);
+
+        SetWindowPos(&CWnd::wndTop, hint.right, hint.top, int(twh.x), int(twh.y), SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+        ShowWindow(SW_SHOW);
+    }
+}
+
+
+void CHintDescriptionWnd::OnPaint()
+{
+    CPaintDC dc(this); // device context for painting
+    const CSize xy = m_bitmap.GetBitmapDimension();
+    CDC memDC;
+    HGDIOBJ oldBMP =  memDC.SelectObject(m_bitmap);
+    dc.BitBlt(0, 0, xy.cx, xy.cy, &memDC, 0, 0, SRCCOPY);
+    memDC.SelectObject(oldBMP);
+};
+
+
 // CPopupList dialog
 
 IMPLEMENT_DYNAMIC(CPopupList, CDialogEx)
@@ -409,7 +476,7 @@ IMPLEMENT_DYNAMIC(CPopupList, CDialogEx)
  * focus back to it and to be able to order the insertion of the
  * selected hint text into the editor.*/
 CPopupList::CPopupList(CWnd* pParent, CCshRichEditCtrl* pEditCtrl)
-	: CDialog(CPopupList::IDD, pParent)
+: CDialog(CPopupList::IDD, pParent)
 {
     m_pEditCtrl = pEditCtrl;
     m_shown=false;
@@ -480,5 +547,6 @@ void CPopupList::OnLbnSelcancelList2()
 /** Called by the framework if the user changes the selection.*/
 void CPopupList::OnLbnSelchangeList2()
 {
-    m_listBox.ChangeSelectionTo(m_listBox.GetCurSel());
+    int index = m_listBox.GetCurSel();
+    m_listBox.ChangeSelectionTo(index);
 }

@@ -682,10 +682,18 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_MARKER)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "brace", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "bracket", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "range", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "box", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "brace", 
+            "Use this to add a large vertical curly brace, like '}'.",
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "bracket", 
+            "Use this to add a large square baracket, like ']'.",
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "range", 
+            "Use this to mark a vertical range, like this 'I'.",
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "box", 
+            "Use this to add a box with vertically typeset text.",
+            HINT_KEYWORD));
     }
     csh.AddCSH_ErrorAfter(@1, "Missing a marker or one of 'brace', 'bracket', 'range', 'box' or an arrow or box symbol, such as '->' or '--'.");
   #else
@@ -981,7 +989,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-        csh.AddStylesToHints(true);
+        csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing style name to (re-)define.");
@@ -1152,8 +1160,12 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_KEYWORD, false));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Enter a number in pixels to set horizontal spacing.", 
+            HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", 
+            "Enter some text the width of which will be used as horizontal spacing.", 
+            HINT_KEYWORD, false));
         csh.hintStatus = HINT_READY;
     }
     csh.AddCSH_ErrorAfter(@1, "Missing either a number or a label.");
@@ -1167,8 +1179,12 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
+            "Use this to set the width of the left comment area.", 
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
+            "Use this to set the width of the right comment area.", 
+            HINT_KEYWORD));
     }
     csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
   #else
@@ -1195,8 +1211,12 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_KEYWORD, false));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Enter a number in pixels to add that much empty vertical spacing.", 
+            HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", 
+            "Enter some text the height of which will be added as vertical empty space.", 
+            HINT_KEYWORD, false));
         csh.hintStatus = HINT_READY;
     }
     csh.AddCSH_ErrorAfter(@1, "Missing either a number or a label.");
@@ -1218,8 +1238,12 @@ hspace_location: entityrel
         csh.AddCSH_Error(@1, "Use either `left` or `right` to specify which comment column to size.");
     csh.AddCSH(@2, COLOR_KEYWORD);
     if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", 
+            "Use this to size the left comment area.",
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", 
+            "Use this to size the right comment area.", 
+            HINT_KEYWORD));
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1243,8 +1267,11 @@ hspace_location: entityrel
     else
         csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
     if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
+            "Use this to size the left comment area.", 
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
+            "Use this to size the right comment area.", HINT_KEYWORD));
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1258,8 +1285,12 @@ hspace_location: entityrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", HINT_KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
+            "Use this to size the left comment area.", 
+            HINT_KEYWORD));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
+            "Use this to size the right comment area.", 
+            HINT_KEYWORD));
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1838,7 +1869,7 @@ stylenamelist : string
         ($$)->push_back("emptybox");
     else ($$)->push_back($1);
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-		csh.AddStylesToHints(true);
+		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1854,7 +1885,7 @@ stylenamelist : string
     $$ = new std::list<string>;
 	($$)->push_back("++");
     if (csh.CheckHintAt(@1, HINT_ATTR_VALUE)) {
-		csh.AddStylesToHints(true);
+		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1868,7 +1899,7 @@ stylenamelist : string
     csh.AddCSH(@2, COLOR_COMMA);
 	csh.AddCSH_ErrorAfter(@2, "Missing a style name to (re-)define.");
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-		csh.AddStylesToHints(true);
+		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
 	$$ = $1;
@@ -1889,7 +1920,7 @@ stylenamelist : string
         ($$)->push_back("emptybox");
     else ($$)->push_back($3);
     if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE)) {
-		csh.AddStylesToHints(true);
+		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -1906,7 +1937,7 @@ stylenamelist : string
     $$ = $1;
 	($$)->push_back("++");
     if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE)) {
-		csh.AddStylesToHints(true);
+		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -2404,7 +2435,7 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintBetweenPlusOne(@1, @2, HINT_ATTR_NAME)) {
-        csh.AddStylesToHints(true);
+        csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
   #endif
@@ -2415,7 +2446,7 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_VALUE)) {
-        csh.AddStylesToHints(true);
+        csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
 	csh.AddCSH_ErrorAfter(@$, "Missing style name to (re-)define.");
@@ -3236,7 +3267,7 @@ arcrel:       TOK_SPECIAL_ARC
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_ErrorAfter(@2, "Missing 'at' clause.");
     if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", NULL, HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3729,15 +3760,7 @@ extvertxpos: extvertxpos_no_string
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAt(@1, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_FILLING;
     }
   #else
@@ -3761,7 +3784,7 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", NULL, HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3784,22 +3807,12 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_FILLING;
     }
   #else
@@ -3820,9 +3833,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3843,22 +3854,12 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_FILLING;
     }
   #else
@@ -3879,9 +3880,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     csh.CheckHintBetween(@2, @3, HINT_MARKER);
@@ -3903,22 +3902,12 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3939,22 +3928,12 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     else if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAtAndBefore(@2, @3, HINT_MARKER)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3976,21 +3955,11 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
              CaseInsensitiveBeginsWith("...", $2)==0)
         csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_LEFT)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_CENTER)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
-                               CshHintGraphicCallbackForTextIdent,
-                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
 
     }
@@ -4005,9 +3974,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
   #else

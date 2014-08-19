@@ -767,14 +767,16 @@ bool CommandNewpage::AddAttribute(const Attribute &a)
 
 void CommandNewpage::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "auto_heading", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "auto_heading", 
+        "Turn this on to automatically generate an entity heading at the top of the new page.",
+        HINT_ATTR_NAME));
 }
 
 bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"auto_heading")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     return false;
@@ -919,13 +921,17 @@ bool CommandMark::AddAttribute(const Attribute &a)
 void CommandMark::AttributeNames(Csh &csh)
 {
     ArcBase::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", 
+        "Add this many pixels to the current location and mark that place.",
+        HINT_ATTR_NAME));
 }
 
 bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"offset")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", 
+            "Interpreted in pixels.",
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (ArcBase::AttributeValues(attr, csh)) return true;
@@ -1067,8 +1073,12 @@ bool CommandHSpace::AddAttribute(const Attribute &a)
 void CommandHSpace::AttributeNames(Csh &csh)
 {
     ArcCommand::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
+        "Enter some text the width of which will be used as horizontal spacing.",
+        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", 
+        "Enter a number in pixels to set horizontal spacing.",
+        HINT_ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
 }
 
@@ -1078,7 +1088,9 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"space")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Enter a number in pixels to set horizontal spacing.", 
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (StringFormat::AttributeValues(attr, csh)) return true;
@@ -1093,7 +1105,7 @@ ArcBase* CommandHSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
-        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a lable for the hspace command.");
+        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a label (or both) for the hspace command.");
         return NULL;
     }
     //Give error if user specified groupe entities
@@ -1157,9 +1169,15 @@ bool CommandVSpace::AddAttribute(const Attribute &a)
 void CommandVSpace::AttributeNames(Csh &csh)
 {
     ArcCommand::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
+        "Enter some text the height of which will be added as vertical empty space.",
+        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", 
+        "Enter a number in pixels to add that much empty vertical spacing.", 
+        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable",
+        "Turn this on so that the vertical space added can be compressed away if the next element has 'compress' turned on or 'vspacing' set to 'compress'.",
+        HINT_ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
 }
 
@@ -1169,12 +1187,14 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"space")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Enter a number in pixels to add that much empty vertical spacing.", 
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"compressable")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (StringFormat::AttributeValues(attr, csh)) return true;
@@ -1340,20 +1360,30 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
 void CommandSymbol::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", 
+        "Set the width of the symbol in pixels.",
+        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", 
+        "Set the height of the symbol in pixels.", 
+        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", 
+        "Set the size of the symbol.", 
+        HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("symbol").read().AttributeNames(csh);
 }
 
 bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"xsize")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Set the width of the symbol in pixels.", 
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"ysize")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+            "Set the height of the symbol in pixels.", 
+            HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"size")) {

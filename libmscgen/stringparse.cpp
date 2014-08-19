@@ -1245,13 +1245,28 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 /** Add the attribute names we take to `csh`.*/
 void StringFormat::AttributeNames(Csh &csh, const string &prefix)
 {
-    static const char names[][ENUM_STRING_LEN] =
-    {"", "color", "ident", "format", 
-    "font.face", "font.type", 
-    "bold", "italic", "underline", 
-    "gap.up", "gap.down", "gap.left", "gap.right",
-    "gap.spacing", "size.normal", "size.small", "wrap", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
+    static const char * const names_descriptions[] =
+    {"", NULL,
+    "color", "Set the color of the font",
+    "ident", "Select left, right idented or centered text.",
+    "format", "Use this attribute to set text format via formatting escapes, like '\b'.",
+    "font.face", "Select font face, such as 'Arial'.",
+    "font.type", "Select between normal or small text, subscript or superscript.",
+    "font.*", "Select font face and type.",
+    "bold", "Select bold face.",
+    "italic", "Select italics.",
+    "underline", "Make the font underlined.",
+    "gap.up", "Set the top margin of the label.",
+    "gap.down", "Set the bottom margin of the label.",
+    "gap.left", "Set the left margin of the label.",
+    "gap.right", "Set the right margin of the label.",
+    "gap.spacing", "Set the extra space between the lines of a multiline label.",
+    "gap.*", "Set margins and spacing.",
+    "size.normal", "Set the height of the normal text (i.e., not superscript or small font) in pixels.",
+    "size.small", "Set the height of small text (including superscript and subscript) in pixels.",
+    "wrap", "Turning this on will make the text word wrapped. This also means that horizontal auto-scaling is off, so caution with 'hscape=auto;'",
+    ""};
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before text ident types in the hints popup list box.

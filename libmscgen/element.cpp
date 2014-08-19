@@ -104,8 +104,17 @@ void Element::CombineComments(Element *te)
 
 /** Textual representation of drawing passes*/
 template<> const char EnumEncapsulator<EDrawPassType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
-     "note", "after_note", ""};
+{"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default",
+"note", "after_note", ""};
+
+/** Textual descripton of drawing passes*/
+template<> const char * const EnumEncapsulator<EDrawPassType>::descriptions[]=
+{"", "Draw it just after drawing the background, even before drawing the entity line.", 
+"Draw it just after the entity lines, but before chart elements of default drawing time.", 
+"This is the default drawing time for chart elements.", 
+"Draw them after chart elements of default drawing time, but before notes.",
+"Default drawing time for notes (pretty much the last things to draw).", 
+"Draw it last, even after the notes.", ""};
 
 
 /** Applies an Attribute to us.
@@ -127,14 +136,18 @@ bool Element::AddAttribute(const Attribute &a)
 /** Add the attribute names we take to `csh`.*/
 void Element::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", 
+        "Specify Z-ordering with this attribute to control which visual element is drawn on top of which other.",
+        HINT_ATTR_NAME));
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool Element::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"draw_time")) {
-        csh.AddToHints(EnumEncapsulator<EDrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+        csh.AddToHints(EnumEncapsulator<EDrawPassType>::names, 
+                       EnumEncapsulator<EDrawPassType>::descriptions,
+                       csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE);
         return true;
     }
