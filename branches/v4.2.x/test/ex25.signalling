@@ -1,0 +1,18 @@
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+box C==C: Generate\nrequest;
+C=>S: Request;
+box S--S: Check cache;
+box S--B: Alt\#1: cache miss
+    [color=lgray]
+{
+    S->B: Query;
+    S<-B: Response;
+}
+..: Alt\#2: cache hit
+{
+    S->S: Read\ncache;
+};
+C<=S: Reply;
