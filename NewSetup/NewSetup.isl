@@ -4539,9 +4539,9 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<row><td>PROGMSG_IIS_ROLLBACKVROOTS</td><td>##IDS_PROGMSG_IIS_ROLLBACKVROOTS##</td><td/></row>
 		<row><td>PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS</td><td>##IDS_PROGMSG_IIS_ROLLBACKWEBSERVICEEXTENSIONS##</td><td/></row>
 		<row><td>PROGRAMFILETOLAUNCHATEND</td><td>[INSTALLDIR]Msc-generator.Primary Output</td><td/></row>
-		<row><td>ProductCode</td><td>{3D12A92B-B984-4A8B-99D6-DE79F7E5AD3A}</td><td/></row>
+		<row><td>ProductCode</td><td>{19399593-8FCA-4D6D-BD71-8B4D72CDB416}</td><td/></row>
 		<row><td>ProductName</td><td>Msc-generator</td><td/></row>
-		<row><td>ProductVersion</td><td>4.3.2</td><td/></row>
+		<row><td>ProductVersion</td><td>4.2.1</td><td/></row>
 		<row><td>ProgressType0</td><td>install</td><td/></row>
 		<row><td>ProgressType1</td><td>Installing</td><td/></row>
 		<row><td>ProgressType2</td><td>installed</td><td/></row>

@@ -631,8 +631,9 @@ double CDrawingChartData::GetHeadingSize() const
 }
 
 void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, bool ignore_pagebreaks, 
-                                   XY scale, const XY &pageSize, 
-                                   const double margins[4], int ha, int va) const
+                                   double x_scale, double y_scale,
+                                   const XY &pageSize, const double margins[4],
+                                   int ha, int va) const
 {
 	string fn(fileName?fileName:"Untitled");
     size_t pos = fn.find_last_of('.');
@@ -653,7 +654,8 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, bool 
         ot = Canvas::PNG;
         fn += ".png";
     }
-    GetMsc()->DrawToFile(ot, scale, fn, bPageBreaks, ignore_pagebreaks,
+    GetMsc()->DrawToFile(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, 
+                         bPageBreaks, ignore_pagebreaks,
                          pageSize, margins, ha, va, false);
 }
 

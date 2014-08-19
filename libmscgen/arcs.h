@@ -222,8 +222,8 @@ public:
 
     /** Converting type to text for debugging*/
     virtual string PrintType(void) const;
-    /** Converting to text for debugging, indented at specified level*/
-    virtual string Print(int indent = 0) const = 0;
+    /** Converting to text for debugging, idented at specified level*/
+    virtual string Print(int ident = 0) const = 0;
 
     /** Add the current activation status to the last element in 'vdist'. Used by Width().*/
     void AddEntityLineWidths(DistanceMapVertical &vdist);
@@ -305,7 +305,7 @@ public:
     /** Returns the x coordinate in chart space of the middle of the indicator */
     double GetXCoord() const;
     virtual EDirType GetToucedEntities(class EntityList &el) const;
-    virtual string Print(int indent = 0) const {return string(indent*2, ' ')+"Indicator";}
+    virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
@@ -359,7 +359,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     /** Return the formatted number of the arc (empty string if none).*/
@@ -469,7 +469,7 @@ public:
                                  const FileLineColRange &l);
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
@@ -538,7 +538,7 @@ public:
     virtual void AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     /** Update the stored activation status of entities.
@@ -592,7 +592,7 @@ public:
     virtual const ArcSignature* GetSignature() const {return sig;}
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
@@ -711,7 +711,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
@@ -735,10 +735,10 @@ public:
     /** Create a series using a box as a first element */
     ArcBoxSeries(ArcBox *first);
     virtual bool CanBeAlignedTo() const { return true; }
-    /** Add the first and append subsequent boxes to the series */
-    ArcBoxSeries* AddBox(ArcBox *f);
+    /** Append subsequent boxes to the series */
+    ArcBoxSeries* AddFollow(ArcBox *f);
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
@@ -791,7 +791,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
     virtual void RegisterCover(EDrawPassType /*pass*/) {} //will never be called
@@ -819,7 +819,7 @@ public:
     ArcPipeSeries* AddArcList(ArcList*l);
     virtual bool CanBeAlignedTo() const { return true; }
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);
@@ -882,7 +882,7 @@ public:
     ArcParallel* AddArcList(ArcList*l);
     virtual bool CanBeAlignedTo() const { return true; }
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, Element **note_target, ArcBase *vertical_target);
     virtual void FinalizeLabels(Canvas &canvas);

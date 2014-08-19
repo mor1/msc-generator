@@ -335,8 +335,6 @@ DistanceMapVerticalElement DistanceMapVertical::Get(const_iterator m1, const_ite
 
 ///////////////////////////////////////////////////////////////////////
 
-const char LabelInfo::labelTypeChar[] = "-EADBbPVCN";
-
 /** We do some processing only for tracking (which is the ability on the GUI.
     to highlight elements and map them to their line number and vice versa).
     If `prepare_for_tracking` is not set, we omit these steps.
@@ -920,112 +918,37 @@ error:
  * If `designOnly` is true, only the attributes applicable for chart designs are added.*/
 void Msc::AttributeNames(Csh &csh, bool designOnly)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", 
-        "Apply a full or partial chart design using 'msc=<full_design> or msc+=<partial_design>, respectively.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", 
-        "Set the horizontal scaling factor (default is 1) and thereby infuence the width of the chart. Use 'auto' for automatic scaling.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", 
-        "Turn this on to shift all elements upwards until it bumps in to the element above resulting in compressing the chart vertically.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing",
-        "Specify the vertical spacing above each element.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "auto_heading",
-        "Turn this on to automatically display entity headings at the top of each page (after 'newpage;' commands).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", 
-        "Turning this on will make labelled elements auto-numbered.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", 
-        "Set the text to prepend to label numbers. E.g., use 'Step ' to achieve 'Step 1', 'Step 2', etc.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", 
-        "Set the text to append to label numbers. E.g., use ':' to achieve '1:', '2:', etc.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", 
-        "Set the format of auto-numbering, including text format, number type (like roman numbers) and the number of numbering levels.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", 
-        "Append a new numbering level, to have, e.g., 2.1, which lasts until the next closing brace ('}').",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.*",
-        "Auto numbering related options, like format or the number of levels.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "angle",
-        "Make arrows slanted by this degree.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", 
-        "Set the color of the background from this point downwards.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", 
-        "Set the second color of the background (useful for two-color gradients).", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", 
-        "Set the gradient type of the background from this point downwards.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.*",
-        "Set the background fill from this point downwards.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.color", 
-        "Set the color of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.type", 
-        "Set the type of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.width",
-        "Set the width of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.*",
-        "Set the attributes of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "auto_heading", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "angle", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color2", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.gradient", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color",
-        "Set the color of the background of the side comments (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color2", 
-        "Set the second color of the background of the side comments (if any), useful for two-color gradients.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.gradient",
-        "Set the gradient of the background fill of the side comments (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.*",
-        "Set the attributes of the background fill of the side comments (if any).",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", 
-        "Use this option to set the default side for comments.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.*",
-        "Options governing the appearance and location of chart comments.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.url", 
-        "Use this option to attach the URL of the file. Useful for design libraries.",
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.info", 
-        "Use this option to attach a description to the file. Useful for design libraries.", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.*",
-        "Use this option to attach a meta information to the file. Useful for design libraries.",
-        HINT_ATTR_NAME));
-    
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "meta.url", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "meta.info", HINT_ATTR_NAME));
+
     StringFormat::AttributeNames(csh, "comment.text.");
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.text.*",
-        "Set the text attributes of the side comments (if any).",
-        HINT_ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "text.*",
-        "Set the default text attributes.",
-        HINT_ATTR_NAME));
     if (designOnly) return;
     
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", 
-        "Turn this on to make parallel blocks be laid out allowing overlaps. (Deprecated, will be removed.)", 
-        HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", 
-        "Turn this on to generate an error for entities that are used without explicit declaration.",
-        HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
 }
 
 /** Adds the possible attribute values for a given attribute to csh.
@@ -1041,18 +964,12 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"hscale")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
-            "The default scaling is 1 and you can specify a multiplier. Use a larger number to make the space between entities larger.",
-            HINT_ATTR_VALUE, false));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", 
-            "This automatically sets the spacing between the entities to just as much as needed.",
-            HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", HINT_ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"angle")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
-            "Makes arrows to slant downwards and is measured in degrees.",
-            HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"compress") ||
@@ -1060,8 +977,8 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         CaseInsensitiveEqual(attr,"auto_heading") ||
         CaseInsensitiveEqual(attr,"classic_parallel_layout") ||
         CaseInsensitiveEqual(attr,"pednatic")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveBeginsWith(attr, "text") || 
@@ -1072,14 +989,9 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveBeginsWith(attr, "comment.fill"))
         return FillAttr::AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWith(attr, "comment.side")) {
-        const char * const descriptions[] =
-        {NULL, "Place comments on the left side.", "Place comments on the right side.", 
-        "Place comments to the end of the chart (i.e., convert to endnotes).", ""};
-
         for (auto s = ESide::LEFT; s<=ESide::END; s = ESide(int(s)+1))
             if (IsValidSideValue(ESideType::ANY, s))
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
-                                       descriptions[unsigned(s)],
                                        HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
                                        CshHintGraphicParam(s)));
         return true;
@@ -1091,20 +1003,20 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"numbering.pre")||
         CaseInsensitiveEqual(attr,"numbering.post")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"numbering.format")||
         CaseInsensitiveEqual(attr,"numbering.append")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "file.url")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted URL of file\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted URL of file\">", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "file.info")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted description of file\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted description of file\">", HINT_ATTR_VALUE, false));
         return true;
     }
     return false;
@@ -1188,10 +1100,10 @@ EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el,
     return dir;
 }
 
-string Msc::Print(int indent) const
+string Msc::Print(int ident) const
 {
-    string s = AllEntities.Print(indent).append("\n");
-    s.append(Arcs.Print(indent)).append("\n");
+    string s = AllEntities.Print(ident).append("\n");
+    s.append(Arcs.Print(ident)).append("\n");
     return s;
 }
 
@@ -1233,12 +1145,11 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     }
     //If a CommandNote is immediately after an CommandEntity, take it out 
     //and temporarily store it in the CommandEntity (for re-insertation further below)
-    //But only if the commandentity was not internally defined!!
     for (ArcList::iterator i = ++arcs.begin(); i != arcs.end(); /*none*/) {
         ArcList::iterator prev = i; prev--;
         CommandEntity *ce = dynamic_cast<CommandEntity *>(*prev);
         CommandNote *cn = dynamic_cast<CommandNote *>(*i);
-        if (ce == NULL || cn == NULL || ce->internally_defined) {
+        if (ce == NULL || cn == NULL) {
             i++;
             continue;
         }
@@ -2953,8 +2864,8 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
  * @param [in] ot The format of output. Determines what type of an output file to create.
- * @param [in] scale The scaling value requested by the user. Must be all-positive, if the
- *                   margins are valid.
+ * @param [in] scale A list of scaling values to try (avoiding overfill). A value of <zero,zero>
+ *                   means "fit to page" and can only be used if pageSize is nonzero.
  * @param [in] fn The name of the file to create. In case of multiple files, we append a number.
  * @param [in] bPageBreak If true, we draw dashed lines for page break, when the 
  *                        whole chart is drawn in one.
@@ -2969,16 +2880,18 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * @param [in] generateErrors If true and we cannot avoid overfill, we geenrate a warining.
  *                            Errors are also generated on file creation and similar hard errors.
  * @returns False on error (but not on warning) irrespective of `generateErrors`. */
-bool Msc::DrawToFile(Canvas::EOutputType ot, const XY &scale, 
+bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
                      const string &fn, bool bPageBreak, bool ignore_pagebreaks, 
                      const XY &pageSize, const double margins[4], 
                      int ha, int va, bool generateErrors)
 {
+    _ASSERT(scale.size()>0);
+    _ASSERT(scale.size()==1 || (pageSize.x>0 && pageSize.y>0)); //Multiple scales must be fixed-size output
     const unsigned from = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : 1;
     const unsigned till = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : pageBreakData.size();
     if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
-            Canvas canvas(ot, total, copyrightTextHeight, fn, scale, &pageBreakData, page);
+            Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
             if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
             DrawComplete(canvas, bPageBreak, page);
         }

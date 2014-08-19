@@ -202,7 +202,7 @@ void MscInitializeCshAppearanceList(void)
     //However, some of the CSH entries are not only applied to plain text, but also 
     //on top of other CSH entries. E.g., text escapes on top of text, and often comments on
     //top of text, perhaps also error.
-    //Some others are needed for smart indent (LABEL_TEXT, COLON)
+    //Some others are needed for smart ident (LABEL_TEXT, COLON)
     //For these we widen the mask with COLOR_FLAG_DIFFERENT, so they become different from 
     //COLOR_NORMAL
 
@@ -463,7 +463,6 @@ void CshHint::swap(CshHint &o)
     decorated.swap(o.decorated); 
     std::swap(type, o.type);
     std::swap(selectable, o.selectable);
-    std::swap(description, o.description);
     std::swap(param, o.param);
     std::swap(callback, o.callback);
 }
@@ -613,40 +612,15 @@ void Csh::AddCSH_LabelEscape(const CshPos& pos)
         }
 }
 
-/** Names and descriptions of keywords for coloring.
+/** Names of keywords for coloring.
  *
  * All keywords shall be repeated here, not only known by the parser.
  * We color only these where keywords should come.*/
-static const char * const keyword_names[] =
-{"", NULL,
-"parallel", "If you prepend 'parallel' in front of an element, subseqent elements will be laid besides it (and not strictly below), if possible without overlap.",
-"overlap", "If you prepend 'overlap' in front of an element, subseqent elements will be laid besides it even if overlap occurs. Useful for slanted arrows crossing each other.",
-"block", "Use before an an arrow definition to create a block arrow, like 'block a->b;'.",
-"pipe", "Create a pipe between two entitie.",
-"nudge", "Add a bit of a vertical space to pust subsequent elements lower.",
-"heading", "Force the display of an entity heading for each currently showing entity.",
-"newpage", "Insert a page break here.",
-"defstyle", "Define a new style or change existing styles.",
-"defcolor", "Define or redefine a color.",
-"defdesign", "Define a full or partial chart design.",
-"vertical", "Add a vertical chart element, such as a brace or vertical arrow.",
-"mark", "Note this vertical position and name it so that you can refer to it later in a vertical element definition.",
-"show", "Turn on entities, so that they become visible.",
-"hide", "Turn off entities, so that they do not show from now on.",
-"activate", "Activate entities, so that their entity line becomes wider.",
-"deactivate", "Deactivate entities, swicthing back to a single entity line.",
-"bye", "Anything specified after this command is treated as comment and is ignored.",
-"hspace", "Add (extra) horizontal spacing between two entities.",
-"vspace", "Add vertical space pushing subsequent elements lower.",
-"symbol", "Add a drawn element (arc, rectange, etc.) to the chart.",
-"note", "Add a note (floating in a callout) to the previous chart element.",
-"comment", "Add a comment (visible on the side) to the previous chart element.",
-"endnote", "Add an endnote (visible at the bottom of the chart) referring to the previous chart element.",
-/*"footnote", "Add footnote (visible at the bottom of the page) referring to the previous chart element.", */
-"title", "Add a title to the chart.",
-"subtitle", "Add a subtitle to a section of the chart.",
-"defshape", "Define a new shape.",
-""};
+static const char keyword_names[][ENUM_STRING_LEN] =
+{"", "parallel", "overlap", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+"defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
+"bye", "hspace", "vspace", "symbol", "note", "comment", "endnote", /*"footnote",*/
+"title", "subtitle", "defshape", ""};
 
 /** Names of chart options for coloring.
  *
@@ -739,17 +713,6 @@ unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN
     return 0;
 }
 
-/** Helper to check if 'name' us in the 'array' of string constants considering only every second element.*/
-unsigned find_opt_attr_name_with_description(const char *name, const char * const array[])
-{
-    for (unsigned i = 0; array[i][0]; i += 2)
-        switch (CaseInsensitiveBeginsWith(array[i], name)) {
-        case 1: return 1;
-        case 2: return 2;
-    }
-    return 0;
-}
-
 /** At this point it is either a keyword or an entity - decide and add appropriate coloring.
  *
  * This is called when a string is at the beginning of the line and is not part
@@ -765,7 +728,7 @@ unsigned find_opt_attr_name_with_description(const char *name, const char * cons
 void Csh::AddCSH_KeywordOrEntity(const CshPos&pos, const char *name)
 {
     EColorSyntaxType type = COLOR_KEYWORD;
-    unsigned match_result = find_opt_attr_name_with_description(name, keyword_names);
+    unsigned match_result = find_opt_attr_name(name, keyword_names);
     unsigned match_result_options = find_opt_attr_name(name, opt_names);
     //If options fit better, we switch to them
     if (match_result_options > match_result) {
@@ -980,9 +943,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     if (addMarkersAtEnd) {
         hintStatus = HINT_FILLING;
         for (auto i=MarkerNames.begin(); i!=MarkerNames.end(); i++)
-            AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, 
-            "Markers defined via the 'mark' command.", HINT_ATTR_VALUE,
-            true, CshHintGraphicCallbackForMarkers));
+            AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForMarkers));
         hintStatus = HINT_READY;
     }
     if (hintStatus == HINT_FILLING) hintStatus = HINT_READY;
@@ -1436,76 +1397,31 @@ void Csh::AddToHints(CshHint &&h)
 
 /** Append a bunch of hints to the hint list.
  * 
- * @param [in] names_descriptions The text of the hints and descriptions (alternating) in a char 
- *                                pointer array. The last hint shall be "".
+ * @param [in] names The text of the hints in a 2D char array. The last one shall be "".
  * @param [in] prefix A string to prepend to each hint.
  * @param [in] t The type of the hints.
  * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
-void Csh::AddToHints(const char * const * names_descriptions,
-                     const string &prefix, EHintType t,
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, EHintType t, 
                      CshHintGraphicCallback c)
 {
     //index==0 is usually "invalid"
-    for (unsigned i = 2; names_descriptions[i][0]; i += 2)
-        AddToHints(CshHint(prefix+names_descriptions[i], names_descriptions[i+1],
-                           t, true, c, CshHintGraphicParam(i)));
+    for (unsigned i=1; names[i][0]; i++)
+        AddToHints(CshHint(prefix+names[i], t, true, c, CshHintGraphicParam(i)));
 }
 
 /** Append a bunch of hints to the hint list.
  * 
- * @param [in] names_descriptions The text of the hints and descriptions (alternating) in a char 
- *                                pointer array. The last hint shall be "".
+ * @param [in] names The text of the hints in a 2D char array. The last one shall be "".
  * @param [in] prefix A string to prepend to each hint.
  * @param [in] t The type of the hints.
  * @param [in] c The callback function to use. 
  * @param [in] p The parameter to pass to the callback.*/
-void Csh::AddToHints(const char * const * names_descriptions,
-                     const string &prefix, EHintType t,
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, EHintType t, 
                      CshHintGraphicCallback c, CshHintGraphicParam p)
 {
     //index==0 is usually "invalid"
-    for (unsigned i = 2; names_descriptions[i][0]; i += 2)
-        AddToHints(CshHint(prefix+names_descriptions[i], names_descriptions[i+1],
-                           t, true, c, p));
-}
-
-/** Append a bunch of hints to the hint list.
- * 
- * @param [in] names The text of the hints in a 2D char 
- *                   array. The last hint shall be "".
- * @param [in] descriptions The descriptions of the hints and in a char 
- *                          pointer array. At least as many as in 'names'.
- * @param [in] prefix A string to prepend to each hint.
- * @param [in] t The type of the hints.
- * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
-void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
-                     const string &prefix, EHintType t,
-                     CshHintGraphicCallback c)
-{
-    //index==0 is usually "invalid"
-    for (unsigned i = 1; names[i][0]; i++)
-        AddToHints(CshHint(prefix+names[i], descriptions ? descriptions[i] : NULL,
-                           t, true, c, CshHintGraphicParam(i)));
-}
-
-/** Append a bunch of hints to the hint list.
- * 
- * @param [in] names The text of the hints in a 2D char 
- *                   array. The last hint shall be "".
- * @param [in] descriptions The descriptions of the hints and in a char 
- *                          pointer array. At least as many as in 'names'.
- * @param [in] prefix A string to prepend to each hint.
- * @param [in] t The type of the hints.
- * @param [in] c The callback function to use. 
- * @param [in] p The parameter to pass to the callback.*/
-void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const char * const descriptions[],
-                     const string &prefix, EHintType t,
-                     CshHintGraphicCallback c, CshHintGraphicParam p)
-{
-    //index==0 is usually "invalid"
-    for (unsigned i = 1; names[i][0]; i++)
-        AddToHints(CshHint(prefix+names[i], descriptions ? descriptions[i] : NULL,
-                           t, true, c, p));
+    for (unsigned i=1; names[i][0]; i++)
+        AddToHints(CshHint(prefix+names[i], t, true, c, p));
 }
 
 /** Callback for drawing a symbol before color names in the hints popup list box.
@@ -1543,36 +1459,16 @@ bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p, Csh 
 void Csh::AddColorValuesToHints(bool define)
 {
      if (define) {
-         AddToHints(CshHint(HintPrefixNonSelectable()+"new color name to define", 
-             "You can specify a new color name here if you want to define a new color.",
-             HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"new color name to define", HINT_ATTR_VALUE, false));
      } else {
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", 
-             "You can specify the three components of an RGB color. They can be either integers between "
-             "0..255 or floating point numbers between [0..1].",
-             HINT_ATTR_VALUE, false));
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">", 
-             "You can specify the three components of an RGB color, plus an opacity value. They can be either integers between "
-             "0..255 or floating point numbers between [0..1]. Opacity of zero means full transparency - nothing visible.", 
-             HINT_ATTR_VALUE, false));
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++red,green,blue,opacity\">", 
-             "Using the '++' prefix you can specify a transculent ovelay color, which will be overlaid on top of "
-             "an existing color.",
-             HINT_ATTR_VALUE, false));
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name,opacity\">", 
-             "You can make an existing color transparent by specifying an opacity value separated by a comma. "
-             "It can be either an integer between [0..255] or a floating point number between [0..1]. "
-             "Opacity of zero means full transparency - nothing visible.",
-             HINT_ATTR_VALUE, false));
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++color name,opacity\">", 
-             "Using the '++' prefix you can specify a transculent ovelay color, which will be overlaid on top of "
-             "an existing color.",
-             HINT_ATTR_VALUE, false));
-         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name+-brightness%\">", 
-             "You can take an existing color and make it lighter/darker like this.",
-             HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"++color name,opacity\">", HINT_ATTR_VALUE, false));
+         AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name+-brightness%\">", HINT_ATTR_VALUE, false));
      }
-    CshHint hint("", "Apply this color.", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForColors, 0);
+    CshHint hint("", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForColors, 0);
     for (auto i=Contexts.back().Colors.begin(); i!=Contexts.back().Colors.end(); i++) {
         hint.decorated = HintPrefix(COLOR_ATTRVALUE) + i->first;
         hint.param = i->second.ConvertToUnsigned();
@@ -1621,9 +1517,7 @@ bool CshHintGraphicCallbackForDesigns(Canvas *canvas, CshHintGraphicParam /*p*/,
 void Csh::AddDesignsToHints(bool full)
 {
     for (auto i= (full ? FullDesigns : PartialDesigns).begin(); i!=(full ? FullDesigns : PartialDesigns).end(); i++)
-        Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, 
-                             full ? "Apply this full design to the chart." : "Apply this partial design to the chart.",
-                             HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
+        Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 
 /** Callback for drawing a symbol before style names in the hints popup list box.
@@ -1678,51 +1572,12 @@ bool CshHintGraphicCallbackForStyles2(Canvas *canvas, CshHintGraphicParam, Csh &
     return true;
 }
 
-/** Add styles available at the cursor to the list of hints. 
- * @param [in] include_forbidden If true, we include the forbidden styles, too.
- *                               These include all default and refinement styles (like 'arrow' and '->'),
- *                               but not user-defined styles or 'strong' and 'weak'.
- * @param [in] define If true we formulate description appropriate for defstyle commands, else
- *                    as for when applying a style.*/
-void Csh::AddStylesToHints(bool include_forbidden, bool define)
+/** Add styles available at the cursor to the list of hints. */
+void Csh::AddStylesToHints(bool include_forbidden)
 {
     for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
         if (include_forbidden || ForbiddenStyles.find(*i) == ForbiddenStyles.end())
-            AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, 
-                               define ? "Change this style." : "Apply this style.",
-                               HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
-}
-
-
-/** Add the symbol types to the hints.*/
-void Csh::AddSymbolTypesToHints()
-{
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "arc",
-        "This draws a circle or ellipse.",
-        HINT_KEYWORD, true));
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "rectangle",
-        "This draws a rectangle.",
-        HINT_KEYWORD, true));
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "...",
-        "This draws three small circles one below another, a kind of vertical ellipsys.",
-        HINT_KEYWORD, true));
-}
-
-/** Add the symbol types to the hints.*/
-void Csh::AddLeftRightCenterToHints()
-{
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "left", 
-        "Use this if you want to specify where the left edge shall be positioned.",
-        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
-        CshHintGraphicParam(MSC_IDENT_LEFT)));
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "center", 
-        "Use this if you want to specify where the center shall be positioned.",
-        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
-        CshHintGraphicParam(MSC_IDENT_CENTER)));
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "right", 
-        "Use this if you want to specify where the right edge shall be positioned.",
-        HINT_KEYWORD, true, CshHintGraphicCallbackForTextIdent,
-        CshHintGraphicParam(MSC_IDENT_RIGHT)));
+            AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
 /** Add chart option names to the list of hints. */
@@ -1752,7 +1607,7 @@ bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh 
 /** Add keywords to the list of hints. */
 void Csh::AddKeywordsToHints(bool includeParallel)
 {
-    AddToHints(keyword_names+(includeParallel?0:4), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
+    AddToHints(keyword_names+1-(includeParallel?1:0), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
                CshHintGraphicCallbackForKeywords);
 }
 
@@ -1782,16 +1637,14 @@ bool CshHintGraphicCallbackForEntities(Canvas *canvas, CshHintGraphicParam /*p*/
 void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
-        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, NULL, HINT_ENTITY, true, CshHintGraphicCallbackForEntities));
+        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ENTITY, true, CshHintGraphicCallbackForEntities));
 }
 
 /** Post-process the list of hints.
  * 
  * Fill in the 'size' and 'plain' members.
- * Remove hints ending in an asterisk (like 'line.*') - these are just included to 
- * attach a description to a compacted group of hints. Compact means here that 
- * entries having the same beginning up to a dot will be combined to a single hint.
- * Then fill and compact the list (attach descriptions to compacted items). 
+ * Fill and compact the list. Compact means here that entries having the same beginning
+ * up to a dot will be combined to a single hint.
  * For example, if we have two hints "line.width" and "line.color" and the user has so
  * far typed "lin" we compact the two into "line.*". If, however, the user has already
  * typed "line.w" we do not compact (but perhaps filter line.color away if filterin is on).
@@ -1805,20 +1658,11 @@ void Csh::AddEntitiesToHints()
 void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, 
                        bool filter_by_uc, bool compact_same)
 {
-    //First separate hints ending in an asterisk.
-    std::list<CshHint> group_hints;
-    for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
-        if (i->decorated.size() && 
-            i->decorated[i->decorated.size()-1]=='*') {
-            group_hints.push_back(*i);
-            Hints.erase(i++);
-        } else
-            i++;
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;
     Label label;
-    CshHint start("", NULL, HINT_ENTITY); //empty start
+    CshHint start("", HINT_ENTITY); //empty start
     unsigned start_len=0;
     unsigned start_counter=0;
     for (auto i=Hints.begin(); i!=Hints.end(); /*none*/) {
@@ -1894,16 +1738,6 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
         start.state = HINT_ITEM_NOT_SELECTED;
         Hints.insert(start);
     }
-    //Now check if any one of the resulting hints ended up being the same as one of the group 
-    //hints separaeted at the beginning and if so, copy the description.
-    for (auto &hint : Hints) 
-        if (hint.decorated.size() && 
-            hint.decorated[hint.decorated.size()-1] == '*')
-            for (const auto &ghint : group_hints)
-                if (hint.decorated == ghint.decorated) {
-                    hint.description = ghint.description;
-                    break;
-                }
 }
 
 /** Helper to find a prefix in a set of strings.

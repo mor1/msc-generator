@@ -34,7 +34,7 @@ class ArcCommand : public ArcBase
 public:
     ArcCommand(EArcType t, MscProgress::ECategory c, Msc *msc) : ArcBase(t, c, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     virtual void Layout(Canvas &canvas, AreaList *cover);
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {}
 };
@@ -64,7 +64,7 @@ public:
     void TmpStoreNote(CommandNote *);
     void ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator after);
 	void MoveMyContentAfter(EntityAppHelper &e); 
-    string Print(int indent=0) const;
+    string Print(int ident=0) const;
     void AppendToEntities(const EntityAppList &e);
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
@@ -398,7 +398,7 @@ public:
     void PlaceSideTo(Canvas &canvas, AreaList *cover, double &y);
     //@}
 
-    virtual void PostPosProcess(Canvas &cover);
+    //virtual void PostPosProcess(Canvas &cover, double autoMarker);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

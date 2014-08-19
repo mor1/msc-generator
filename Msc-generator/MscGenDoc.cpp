@@ -800,7 +800,7 @@ void CMscGenDoc::DoExport(bool pdfOnly)
 	ASSERT(pApp != NULL);
     CompileEditingChart(false, false, false); //Start a compilation - usually in bkg, till the user selects file
     CString name = GetPathName();
-    XY scale(1,1);
+    double x_scale=1, y_scale=1;
     bool bitmap_format, multipage_format;
     do {  //must not call DoModal twice for the same instance of CFileDialog - new scope
         CFileDialog dialog(false);
@@ -892,29 +892,29 @@ void CMscGenDoc::DoExport(bool pdfOnly)
     }
 
     if (bitmap_format) {
-        CScaleDlg dlg;
-        dlg.m_orig_size = m_ChartShown.GetSize();
-        if (IDCANCEL == dlg.DoModal())
+        CScaleDlg scale;
+        scale.m_orig_size = m_ChartShown.GetSize();
+        if (IDCANCEL == scale.DoModal())
             return;
-        switch (dlg.m_selected) {
+        switch (scale.m_selected) {
         default: _ASSERT(0); //no break, release edition falls through to no scaling
-        case 0: scale.x = scale.y = 1; break;
-        case 1: scale.x = scale.y = dlg.m_scale; break;
-        case 2: scale.x = scale.y = double(dlg.m_x)/dlg.m_orig_size.cx; break;
-        case 3: scale.x = scale.y = double(dlg.m_y)/dlg.m_orig_size.cy; break;
+        case 0: x_scale = y_scale = 1; break;
+        case 1: x_scale = y_scale = scale.m_scale; break;
+        case 2: x_scale = y_scale = double(scale.m_x)/scale.m_orig_size.cx; break;
+        case 3: x_scale = y_scale = double(scale.m_y)/scale.m_orig_size.cy; break;
         case 4: 
-            scale.x = double(dlg.m_x)/dlg.m_orig_size.cx; 
-            scale.y = double(dlg.m_y)/dlg.m_orig_size.cy; 
+            x_scale = double(scale.m_x)/scale.m_orig_size.cx; 
+            y_scale = double(scale.m_y)/scale.m_orig_size.cy; 
             break;
         }
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_OPTION", dlg.m_selected);
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", int(dlg.m_scale*1000));
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_X", dlg.m_x);
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_Y", dlg.m_y);
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", dlg.m_xy_x);
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", dlg.m_xy_y);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_OPTION", scale.m_selected);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", int(scale.m_scale*1000));
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_X", scale.m_x);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_Y", scale.m_y);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", scale.m_xy_x);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", scale.m_xy_y);
     }
-    m_ChartShown.DrawToFile(name, false, ignore_pagebreaks, scale,
+    m_ChartShown.DrawToFile(name, false, ignore_pagebreaks, x_scale, y_scale, 
                             multipage_export ? PageSizeInfo::GetPhysicalPageSize(pApp->m_pageSize) : XY(0,0),
                             pApp->m_printer_usr_margins, pApp->m_iPageAlignment - (pApp->m_iPageAlignment/3)*3,
                             pApp->m_iPageAlignment/3);

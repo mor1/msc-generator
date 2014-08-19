@@ -142,7 +142,7 @@ public:
     bool DoIAcceptUnqualifiedColorAttr() const;
     void AttributeNames(Csh &csh) const;
     bool AttributeValues(const std::string &attr, Csh &csh) const;
-    std::string Print(int indent = 0) const;
+    std::string Print(int ident = 0) const;
 };
 
 /** A copy of an MscStyle object with a refernce counter.
