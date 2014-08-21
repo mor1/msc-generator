@@ -61,7 +61,6 @@ bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) co
 /**Checks if 'e' overlaps an entry already in the list */
 bool CshListType::CheckIfOverlap(const CshEntry &e) const
 {
-
     for (const auto &p :*this)
         if (p.first_pos<=e.last_pos && e.first_pos<=p.last_pos)
             return true;

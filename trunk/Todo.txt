@@ -42,7 +42,8 @@ ADD: Allow arrow to a group entity...
 ADD: A right-click context menu to the minieditor & outputview
 
 In 4.4 
-ADD: Explanatory tooltips for hints (preferably with chart examples.)
+ADDED: Explanatory tooltips for hints (preferably with chart examples.)
+FIX: grouped hints do not show asterisk and proper description
 ADD: Hints to escapes
 ADD: inline comments, comment at
 ADD: Vertical comment alignment
