@@ -1249,7 +1249,7 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     {"", NULL,
     "color", "Set the color of the font",
     "ident", "Select left, right idented or centered text.",
-    "format", "Use this attribute to set text format via formatting escapes, like '\b'.",
+    "format", "Use this attribute to set text format via formatting escapes, like '\\b'.",
     "font.face", "Select font face, such as 'Arial'.",
     "font.type", "Select between normal or small text, subscript or superscript.",
     "font.*", "Select font face and type.",
