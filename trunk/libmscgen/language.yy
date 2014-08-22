@@ -279,6 +279,8 @@ msc:
               | TOK_MSC braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckLineStartHintBefore(@1))
+        csh.AddLineBeginToHints();
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     msc.AddArcs($2);
@@ -288,7 +290,9 @@ msc:
               | msckey braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
+    if (csh.CheckLineStartHintBefore(@1))
+        csh.AddLineBeginToHints();
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
         csh.AddDesignsToHints(true);
   #else
     msc.AddArcs($2);
@@ -297,6 +301,8 @@ msc:
            | TOK_MSC error eof
 {
   #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckLineStartHintBefore(@1))
+        csh.AddLineBeginToHints();
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_Error(@2, "Missing an equal sign or a list of elements between braces ('{' and '}').");
   #else
@@ -308,7 +314,9 @@ msc:
            | top_level_arclist eof
 {
   #ifdef C_S_H_IS_COMPILED
-  #else
+    if (csh.CheckLineStartHintBefore(@1))
+        csh.AddLineBeginToHints();
+#else
     msc.AddArcs($1);
   #endif
 	YYACCEPT; //We should noty parse further in msc_with_bye as we may have something beyond BYE (in eof)
@@ -316,6 +324,8 @@ msc:
                  | top_level_arclist error eof
 {
   #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckLineStartHintBefore(@1))
+        csh.AddLineBeginToHints();
     CshPos pos = @2;
     if ((@1).last_pos >= (@2).first_pos)
         pos.first_pos = (@1).last_pos;
@@ -1523,7 +1533,8 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
-    csh.AddCSH_AttrValue(@3, $3, $1);
+    if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, $3, $1))
+        csh.AddEscapesToHints();    
     if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
@@ -4121,14 +4132,16 @@ comment:            comment_command full_arcattrlist_with_label
 colon_string: TOK_COLON_QUOTED_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH_ColonString(@1, $1, false);
+    if (csh.AddCSH_ColonString_CheckEscapeHint(@1, $1, false))
+        csh.AddEscapesToHints();
   #endif
     $$ = $1;
 }
              | TOK_COLON_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH_ColonString(@1, $1, true);
+    if (csh.AddCSH_ColonString_CheckEscapeHint(@1, $1, true))
+        csh.AddEscapesToHints();
 	csh.AddColonLabel(@1);
   #endif
     $$ = $1;
@@ -4300,7 +4313,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrValue(@3, $3, $1);
+        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, $3, $1))
+            csh.AddEscapesToHints();
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
@@ -4315,7 +4329,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrValue(@3+@4, (string("++")+$4).c_str(), $1);
+        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3+@4, (string("++")+$4).c_str(), $1))
+            csh.AddEscapesToHints();
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3+@4, HINT_ATTR_VALUE, $1);
   #else
@@ -4330,7 +4345,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_AttrValue(@3, "++", $1);
+        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, "++", $1))
+            csh.AddEscapesToHints();
 		csh.AddCSH_ErrorAfter(@3, "Continue with a color name or definition.");
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);

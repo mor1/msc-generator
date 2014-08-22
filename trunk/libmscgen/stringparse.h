@@ -198,6 +198,7 @@ class StringFormat {
     bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh, const string &prefix);
     static bool AttributeValues(const std::string &attr, Csh &csh);
+    static void EscapeHints(Csh &csh, const string &prefix);
 
     /** Returns the ident value, a MSC_IDENT_CENTER if not set.*/
     EIdentType GetIdent() const
@@ -211,7 +212,7 @@ class StringFormat {
     /** @name Static text manipulation functions
      * @{ */
     static bool HasEscapes(const char *text);
-    static void ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh);
+    static bool ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh);
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
     static void ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                                  const StringFormat *basic, bool references, 

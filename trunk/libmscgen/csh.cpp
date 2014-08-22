@@ -412,8 +412,7 @@ string Cshize(const char *input, unsigned len, const CshListType &cshList, unsig
     textState.erase(-1);
 
     unsigned offset = 0;
-    string ret;
-    ret.append(input, len);
+    string ret(input, len);
     CurrentState lastState;
     string format;
     for (auto i = textState.begin(); i!=textState.end(); i++) {
@@ -499,7 +498,12 @@ void Csh::AddCSH_ErrorAfter(const CshPos&pos, std::string &&text)
     CshErrors.Add(pos2, std::move(text));
 }
 
-void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name)
+/** Extract CSH entries for attribute values.
+ * At pos there is an attribute value. 
+ * If the attribute name indicates a label, color the escapes, too. 
+ * Not used for colon labels.
+ * returns true, if the cursor is at a place to add escape hints.*/
+bool Csh::AddCSH_AttrValue_CheckEscapeHint(const CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
         CaseInsensitiveEqual(name, "tag") ||
@@ -516,10 +520,11 @@ void Csh::AddCSH_AttrValue(const CshPos& pos, const char *value, const char *nam
         //quotation mark, so we add one.
         //If there are no escapes ExtractCSH() does nothing, so the passed 
         //pos will not matter anyway.
-        StringFormat::ExtractCSH(pos.first_pos+1, value, strlen(value), *this);
+        return StringFormat::ExtractCSH(pos.first_pos+1, value, strlen(value), *this);
     } else {
         // No match - regular attribute value
         AddCSH(pos, COLOR_ATTRVALUE);
+        return false;
     }
 }
 
@@ -528,8 +533,14 @@ void Csh::AddCSH_AttrColorValue(const CshPos& pos)
     AddCSH(pos, COLOR_ATTRVALUE);
 }
 
-void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments)
+/** Parse a colon-label for CSH entries and checks if we shall provide escape hints.
+ * This is called for a colon followed by a (quoted or unquoted) label. 
+ * if processComments is true, search for @# comments and color them so. 
+ * (False for quoted colon strings.)
+ * returns true, if the cursor is at a position to provide escape hints.*/
+bool Csh::AddCSH_ColonString_CheckEscapeHint(const CshPos& pos, const char *value, bool processComments)
 {
+    bool ret = false;
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
@@ -552,7 +563,7 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
                     txt.first_pos = pos.first_pos + int(beginning - value);
                     txt.last_pos = pos.first_pos + int(p - value) - 1;
                     if (txt.last_pos>=txt.first_pos) 
-                        StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this);
+                        ret |= StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this);
                     CshPos comment;
                     comment.first_pos = pos.first_pos + int(p - value);
                     //step to end of comment
@@ -569,47 +580,15 @@ void Csh::AddCSH_ColonString(const CshPos& pos, const char *value, bool processC
             CshPos txt;
             txt.first_pos = pos.first_pos + int(beginning - value);
             txt.last_pos = pos.first_pos + int(p - value) - 1;
-            StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this); //omit the colon
+            ret |= StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this); //omit the colon
         }
     } else {
         CshPos p;
         p.first_pos = pos.first_pos+1;
         p.last_pos = pos.last_pos;
-        StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value+1), *this); //omit the colon
+        ret = StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value+1), *this); //omit the colon
     }
-}
-
-void Csh::AddCSH_LabelEscape(const CshPos& pos)
-{
-    //We go back and find if there is any existing CSH record for us
-    for (auto i = --CshList.end(); i!=CshList.end() && i->last_pos>pos.first_pos; i--)
-        if (i->color == COLOR_LABEL_TEXT && i->first_pos < pos.last_pos) {
-            const int orig_end = i->last_pos;
-            CshEntry esc;
-            esc.color = COLOR_LABEL_ESCAPE;
-            esc.first_pos = pos.first_pos;
-            esc.last_pos = pos.last_pos;
-            if (i->first_pos<pos.first_pos) {
-                //LABEL_TEXT extends before pos.
-                //truncate it
-                i->last_pos = pos.first_pos-1;
-                //insert a LABEL_ESCAPE
-                i++;
-                i = CshList.insert(i, esc);
-            } else
-                //just change it to LABEL_ESCAPE
-                *i = esc;
-            //i now points to the LABEL_ESCAPE
-            if (orig_end > pos.last_pos) {
-                //LABEL_TEXT extended after pos: insert remainder
-                i++;
-                esc.color = COLOR_LABEL_TEXT;
-                esc.first_pos = pos.last_pos + 1;
-                esc.last_pos = orig_end;
-                CshList.insert(i, esc);
-            }
-            break; //we are done
-        }
+    return ret;
 }
 
 /** Names and descriptions of keywords for coloring.
@@ -990,7 +969,6 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     _ASSERT(hintStatus==HINT_READY || Hints.size()==0);
     if (hintStatus!=HINT_READY || Hints.size()==0)
         return;
-    //Find the plain text for all hints <-- What was this??
 }
 
 
@@ -1278,6 +1256,30 @@ bool Csh::CheckHintAt(const CshPos &one, EHintType ht, const char *a_name)
     return true;
 }
 
+
+/** Check if the cursor is anywhere before (or at the beginning of) 'pos'.
+* If so, mark hint status as HINT_FILLING and hint type as HINT_LINE_START
+*
+* Checks if the cursor is inside, just before or just after a range.
+* If so, it applies the hinttype with status HINT_LOCATED. hintedStringPos
+* is set to 'pos' only if the cursor is at its beginning. 
+* We set hintsForcedOnly to true, as such hints need Ctrl+Space.
+* This function is used to check if the cursor is before any characters in the file.
+* @param [in] pos The range to check 
+* @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckLineStartHintBefore(const CshPos &pos)
+{
+    const ECursorRelPosType p = CursorIn(pos);
+    if (p!=CURSOR_BEFORE && p!=CURSOR_AT_BEGINNING) return false;
+    hintStatus = HINT_FILLING;
+    hintsForcedOnly = true;
+    hintType = HINT_LINE_START;
+    if (p==CURSOR_AT_BEGINNING)
+        hintedStringPos = pos;
+    return true;
+}
+
+
 /** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is between two ranges or inside the second one.
  *
  * Checks if the cursor is between the two ranges or inside the second. If so, it sets hint type to 
@@ -1439,15 +1441,16 @@ void Csh::AddToHints(CshHint &&h)
  *                                pointer array. The last hint shall be "".
  * @param [in] prefix A string to prepend to each hint.
  * @param [in] t The type of the hints.
- * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
+ * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. 
+ * @param [in] in_order If true, elements will be attached a 'sort' key in the order they are added. (for HINT_ESCAPEs which do not sort alphabetically.)*/
 void Csh::AddToHints(const char * const * names_descriptions,
                      const string &prefix, EHintType t,
-                     CshHintGraphicCallback c)
+                     CshHintGraphicCallback c, bool in_order)
 {
     //index==0 is usually "invalid"
     for (unsigned i = 2; names_descriptions[i][0]; i += 2)
         AddToHints(CshHint(prefix+names_descriptions[i], names_descriptions[i+1],
-                           t, true, c, CshHintGraphicParam(i)));
+                           t, true, c, CshHintGraphicParam(i), in_order ? i/2 : 0));
 }
 
 /** Append a bunch of hints to the hint list.
@@ -1784,6 +1787,15 @@ void Csh::AddEntitiesToHints()
         AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, NULL, HINT_ENTITY, true, CshHintGraphicCallbackForEntities));
 }
 
+/** Add text escape sequences to hints.*/
+void Csh::AddEscapesToHints()
+{
+    StringFormat::EscapeHints(*this, string());
+    hintType = HINT_ESCAPE;
+    hintStatus = HINT_READY;
+    hintsForcedOnly = false;
+}
+
 /** Post-process the list of hints.
  * 
  * Fill in the 'size' and 'plain' members.
@@ -1797,30 +1809,43 @@ void Csh::AddEntitiesToHints()
  * Hints are also sorted.
  * @param [in] canvas A canvas to use at size calculation.
  * @param [in] format The text format to use at size calculation.
- * @param [in] uc The string under the cursor. Used as prefix for filtering and grouping.
+ * @param [in] orig_uc The string under the cursor. Used as prefix for filtering and grouping.
  * @param [in] filter_by_uc If true we remove those hints that do not start by 'uc'.
  * @param [in] compact_same We do compaction as described above if true.
  */
-void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, 
+void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &orig_uc, 
                        bool filter_by_uc, bool compact_same)
 {
-    //First separate hints ending in an asterisk.
+    //First separate hints ending in an asterisk (except for ESCAPE hints)
     std::list<CshHint> group_hints;
-    for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
-        if (i->decorated.size() && 
-            i->decorated[i->decorated.size()-1]=='*') {
-            group_hints.push_back(*i);
-            Hints.erase(i++);
-        } else
-            i++;
+    if (hintType!=HINT_ESCAPE)
+        for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
+            if (i->decorated.size() && 
+                i->decorated[i->decorated.size()-1]=='*') {
+                group_hints.push_back(*i);
+                Hints.erase(i++);
+            } else
+                i++;
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;
     Label label;
     CshHint start("", NULL, HINT_ENTITY); //empty start
-    unsigned start_len=0;
-    unsigned start_counter=0;
-    for (auto i=Hints.begin(); i!=Hints.end(); /*none*/) {
+    unsigned start_len = 0;
+    unsigned start_counter = 0;
+    string uc;
+    //remove the () part from the string under cursor.
+    if (hintType==HINT_ENTITY)
+        uc = orig_uc.substr(0, orig_uc.find('('));
+    else
+        uc = orig_uc;
+
+    //For escape hints we may only have groups for '\p' and '\m'. We shall display
+    //all hints for any other escape char.
+    if (hintType==HINT_ESCAPE && (uc.length()<2 || (uc[1]!='p' && uc[1]!='m')))
+        filter_by_uc = false;
+
+    for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) {
         label.Set(i->decorated, canvas, *format);
         i->plain = label;
         //if we filter and label does not begin with uc, we drop it
@@ -1837,7 +1862,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
             if (start_len) {
                 if (dot_pos != string::npos) {
                     len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), start.plain.c_str());
-                    if (len>=dot_pos && i->callback==start.callback && 
+                    if (len>=dot_pos && i->callback==start.callback &&
                         i->param == start.param && i->selectable == start.selectable) {
                         //OK, we need to be merged with start
                         //just erase us
@@ -1871,6 +1896,23 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
                 continue;
             }
         }
+        //if compacting is on and we process escape hints, we combine all hints with 
+        //the same prefix into a '\p*'-like hint
+        if (compact_same && i->type == HINT_ESCAPE) 
+            //We only compress \p* and \m*
+            if ((i->plain[1]=='p' || i->plain[1]=='m')) {
+                //if uc holds the same character as this entry, we delete the group version, else 
+                //individual versions
+                if ((uc[1]==i->plain[1]) == (i->plain[2]=='*')) {
+                    Hints.erase(i++);
+                    continue;
+                }
+                if (i->plain[2]=='*') {
+                    i->keep = true;
+                    i->replaceto = i->plain.substr(0, 2);
+                }
+            }
+
         //OK, either we do no compacting or this one is not even a candidate for compacting
         XY xy = label.getTextWidthHeight();
         i->x_size = int(xy.x);

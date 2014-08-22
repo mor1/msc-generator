@@ -213,7 +213,8 @@ enum EHintType {
     HINT_ATTR_NAME,  ///<Attribute names (which of these shall be determined)
     HINT_ATTR_VALUE, ///<Attribute values
     HINT_MARKER,     ///<Marker names
-    HINT_LINE_START  ///<Anything that can be at the beginning of a line (keyword, option, entity)
+    HINT_LINE_START, ///<Anything that can be at the beginning of a line (keyword, option, entity)
+    HINT_ESCAPE      ///<A string escape sequence
 };
 
 /** The relative position of the cursor to a range in the input file.
@@ -236,7 +237,8 @@ enum EHintItemSelectionState {
 
 /** One possibility for autocompletion valid at the cursor */
 struct CshHint {
-    std::string  decorated;         ///<Full text of the hint with formatting escapes
+    unsigned sort;                  ///<Governs ordering of entries. Used for HINT_ESCAPEs, which do not sort alphabetically
+    std::string decorated;          ///<Full text of the hint with formatting escapes
     EHintType  type;                ///<The type of the hint.
     bool selectable;                ///<True if this hint can be inserted to the chart text, false if it is just an explanation
     mutable const char *description;///<Descriptive text of the hint
@@ -244,7 +246,8 @@ struct CshHint {
     CshHintGraphicParam    param;   ///<A parameter to pass to the callback
     /** @name Derived values filled in by Csh::ProcessHints
      * @{  */
-    mutable std::string plain;  ///<Plain text of the hint for sorting and insertion into the chart text
+    mutable std::string plain;  ///<Plain text of the hint for sorting
+    mutable std::string replaceto;///<When selected, insert this to the chart text. When empty, use 'plain'.
     mutable bool keep;          ///<wether after insertion we shall keep the hint box up
     mutable int x_size;         ///<calculated size of hint text in the hint listbox
     mutable int y_size;         ///<calculated size of hint text in the hint listbox
@@ -254,11 +257,11 @@ struct CshHint {
     mutable int br_y;           ///<Size of the rectange shown in list box
     mutable EHintItemSelectionState state; ///<Will show if this hint is selected or not
     /** @} */
-    CshHint(const std::string &d, const char *desc, EHintType t, bool s = true, CshHintGraphicCallback c = NULL, CshHintGraphicParam p = 0) :
-        decorated(d), type(t), selectable(s), description(desc), callback(c), param(p), keep(false) {}
+    CshHint(const std::string &d, const char *desc, EHintType t, bool s = true, CshHintGraphicCallback c = NULL, CshHintGraphicParam p = 0, unsigned so = 0) :
+        sort(so), decorated(d), type(t), selectable(s), description(desc), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
-    bool operator < (const CshHint &o) const {if (type==o.type) return decorated<o.decorated; return type<o.type;}
-    bool operator ==(const CshHint &o) const {return type == o.type && decorated == o.decorated;}
+    bool operator < (const CshHint &o) const { if (type==o.type) { if (sort==o.sort) return decorated<o.decorated; return sort<o.sort; } return type<o.type; }
+    bool operator ==(const CshHint &o) const {return type == o.type && sort == o.sort && decorated == o.decorated;}
 };
 
 /** The max length of the keywords, attribute and option names.*/
@@ -343,10 +346,9 @@ public:
     void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
     void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
-    void AddCSH_ColonString(const CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a (quoted or unquoted) label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
-    void AddCSH_LabelEscape(const CshPos& pos); ///<Adds a COLOR_LABEL_ESCAPE. Splits any previous COLOR_LABEL_TEXT records.
+    bool AddCSH_ColonString_CheckEscapeHint(const CshPos& pos, const char *value, bool processComments);
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
-    void AddCSH_AttrValue(const CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too. Not used for colon labels.
+    bool AddCSH_AttrValue_CheckEscapeHint(const CshPos& pos, const char *value, const char *name); 
     void AddCSH_AttrColorValue(const CshPos& pos); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
     void AddCSH_StyleOrAttrName(const CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
     void AddCSH_EntityName(const CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
@@ -377,6 +379,7 @@ public:
     bool CheckHintAt(const CshPos &one, EHintType ht, const char *a_name=NULL);
     bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
     bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
+    bool CheckLineStartHintBefore(const CshPos &pos);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);
@@ -396,7 +399,7 @@ public:
     void AddToHints(const CshHint &h) {AddToHints(CshHint(h));} ///<Insert a hint to the list of hints.
     void AddToHints(const char * const * names_descriptions, 
                     const std::string &prefix, EHintType t, 
-                    CshHintGraphicCallback c=NULL);
+                    CshHintGraphicCallback c = NULL, bool in_order=false);
     void AddToHints(const char * const * names_descriptions,
                     const std::string &prefix, EHintType t,
                     CshHintGraphicCallback c, CshHintGraphicParam);
@@ -417,6 +420,7 @@ public:
     void AddLeftRightCenterToHints();
     /** Add entities, keywords and option names to hint list.*/
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
+    void AddEscapesToHints();
     /** @}*/
     //fill in size, plain and filter/compact if needed
     void ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);

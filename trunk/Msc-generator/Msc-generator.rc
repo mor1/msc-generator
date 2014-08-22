@@ -516,8 +516,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,3,3,0
- PRODUCTVERSION 4,3,3,0
+ FILEVERSION 4,3,4,0
+ PRODUCTVERSION 4,3,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -534,12 +534,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "4.3.3.0"
+            VALUE "FileVersion", "4.3.4.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2014.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "4.3.3.0"
+            VALUE "ProductVersion", "4.3.4.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -857,6 +857,12 @@ STRINGTABLE
 BEGIN
     ID_ZOOMMODE_KEEP100     "Automatically adjust the zoom to 100% after every update\nKeep 100%"
     ID_VIEW_ZOOM100         "Set the zoom to the original size of the chart\nOriginal Size"
+END
+
+STRINGTABLE
+BEGIN
+    IDC_CHECK_SMART_HINT_ESCAPE 
+                            "Automatically suggest hints when a text formatting escape is probable.\nAutomatic Hints for text formatting escape sequences beginning with a backslash ('\\')."
 END
 
 #endif    // English (United States) resources
