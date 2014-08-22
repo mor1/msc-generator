@@ -1,0 +1,14 @@
+msc += hcn;
+C: Client;
+S: Server;
+->C: Hit;
+box..: Server query
+{
+    box C==C: Generate\nrequest;
+    note: This is\na NOTE;
+    C=>S: Request;
+    endnote: This is an ENDNOTE;
+    C<=S: Reply;
+    comment: This is a COMMENT;
+};
+

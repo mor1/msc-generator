@@ -1,0 +1,56 @@
+﻿Build started 5/6/2014 3:35:59 PM.
+     1>Project "C:\Users\ethzrt\Documents\msc-generator\cairo\cairo.vcxproj" on node 3 (Build target(s)).
+     1>Build:
+         "C:\Users\ethzrt\Documents\msc-generator\cairo\\BuildCairoCairo.bat"
+         
+         make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo/src'
+         
+         cairo-spans-compositor.c
+            Creating library debug/cairo.lib and object debug/cairo.exp
+     1>LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
+     1>cairo-freed-pool.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+     1>cairo-fixed.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+         Built successfully!
+         You should copy the following files to a proper place now:
+         
+         	cairo-version.h (NOTE: toplevel, not the src/cairo-version.h one!)
+         	src/cairo-features.h
+         	src/cairo.h
+         	src/cairo-deprecated.h
+         	src/cairo-win32.h
+         	src/cairo-script.h
+         	src/cairo-ps.h
+         	src/cairo-pdf.h
+         	src/cairo-svg.h
+         	src/debug/cairo.dll
+         	src/debug/cairo-static.lib
+         make[1]: Leaving directory `/c/Users/ethzrt/Documents/msc-generator/cairo/src'
+         
+         make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo/src'
+         
+         cairo-spans-compositor.c
+            Creating library release/cairo.lib and object release/cairo.exp
+     1>LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
+     1>cairo-freed-pool.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+     1>cairo-fixed.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+         Built successfully!
+         You should copy the following files to a proper place now:
+         
+         	cairo-version.h (NOTE: toplevel, not the src/cairo-version.h one!)
+         	src/cairo-features.h
+         	src/cairo.h
+         	src/cairo-deprecated.h
+         	src/cairo-win32.h
+         	src/cairo-script.h
+         	src/cairo-ps.h
+         	src/cairo-pdf.h
+         	src/cairo-svg.h
+         	src/release/cairo.dll
+         	src/release/cairo-static.lib
+         make[1]: Leaving directory `/c/Users/ethzrt/Documents/msc-generator/cairo/src'
+         Press any key to continue . . . 
+     1>Done Building Project "C:\Users\ethzrt\Documents\msc-generator\cairo\cairo.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:13.40
