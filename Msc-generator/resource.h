@@ -201,6 +201,7 @@
 #define ID_EDIT_PRINTPREVIEW            33085
 #define ID_EDIT_NEXTERROR               33086
 #define ID_EDIT_PREVIOUSERROR           33087
+#define IDC_CHECK_SMART_HINT_ESCAPE     33088
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -209,7 +210,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        321
-#define _APS_NEXT_COMMAND_VALUE         33088
+#define _APS_NEXT_COMMAND_VALUE         33089
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

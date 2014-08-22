@@ -219,12 +219,14 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(IDC_CHECK_SMART_HINT_FILTER, &CMscGenApp::OnCheckSmartHintFilter)
     ON_COMMAND(IDC_CHECK_SMART_HINT_LINE_START, &CMscGenApp::OnCheckSmartHintLineStart)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ENTITY, &CMscGenApp::OnCheckSmartHintEntity)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_ESCAPE, &CMscGenApp::OnCheckSmartHintEscape)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnCheckSmartHintAttrName)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnCheckSmartHintAttrValue)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_FILTER, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_COMPACT, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_LINE_START, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ENTITY, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ESCAPE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_HINTS, &CMscGenApp::OnUpdateCheckHints)
@@ -610,6 +612,7 @@ void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/)
     m_bHints         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, TRUE);
     m_bHintLineStart = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, TRUE);
     m_bHintEntity    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, TRUE);
+    m_bHintEscape    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ESCAPE, TRUE);
     m_bHintAttrName  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, TRUE);
     m_bHintAttrValue = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, TRUE);
     m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
@@ -1280,6 +1283,14 @@ void CMscGenApp::OnCheckSmartHintEntity()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, m_bHintEntity);
 }
 
+/** Toggle whether hints are provided for text formatting escapes or or not.
+* Updates the registry*/
+void CMscGenApp::OnCheckSmartHintEscape()
+{
+    m_bHintEscape = !m_bHintEscape;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ESCAPE, m_bHintEscape);
+}
+
 
 /** Toggle whether hints are provided for attribute names or not.
 * Updates the registry*/
@@ -1310,6 +1321,7 @@ void CMscGenApp::OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI)
     case IDC_CHECK_SMART_HINT_COMPACT: set = m_bHintCompact; break;
     case IDC_CHECK_SMART_HINT_LINE_START: set = m_bHintLineStart; break;
     case IDC_CHECK_SMART_HINT_ENTITY: set = m_bHintEntity; break;
+    case IDC_CHECK_SMART_HINT_ESCAPE: set = m_bHintEscape; break;
     case IDC_CHECK_SMART_HINT_ATTR_NAME: set = m_bHintAttrName; break;
     case IDC_CHECK_SMART_HINT_ATTR_VALUE: set = m_bHintAttrValue; break;
     default: _ASSERT(0);

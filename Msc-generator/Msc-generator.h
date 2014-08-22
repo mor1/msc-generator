@@ -97,6 +97,7 @@ public:
     bool m_bHints;                       ///<True if hinting is turned on
     bool m_bHintLineStart;               ///<true if we provide hints at the beginning of a line
     bool m_bHintEntity;                  ///<True if we provide hints for entity names
+    bool m_bHintEscape;                  ///<True if we provide hints for text formatting escapes 
     bool m_bHintAttrName;                ///<True if we provide hints for attribute names
     bool m_bHintAttrValue;               ///<True if we provide hints for attribute values
     bool m_bHintFilter;                  ///<True if we filter the hint list to possible candidates
@@ -175,6 +176,7 @@ public:
     afx_msg void OnCheckSmartHintFilter();
     afx_msg void OnCheckSmartHintLineStart();
     afx_msg void OnCheckSmartHintEntity();
+    afx_msg void OnCheckSmartHintEscape();
     afx_msg void OnCheckSmartHintAttrName();
     afx_msg void OnCheckSmartHintAttrValue();
     afx_msg void OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI);
@@ -234,6 +236,7 @@ extern CMscGenApp theApp;
 #define REG_KEY_HINT "DoHints"
 #define REG_KEY_HINT_LINESTART "HintLineStart"
 #define REG_KEY_HINT_ENTITY "HintEntity"
+#define REG_KEY_HINT_ESCAPE "HintEscape"
 #define REG_KEY_HINT_ATTRNAME "HintAttrName"
 #define REG_KEY_HINT_ATTRVALUE "HintAttrValue"
 #define REG_KEY_HINT_COMPACT "HintCompact"

@@ -128,10 +128,10 @@ public:
      * the text the cursor has ended up in a different word.*/
     void CancelUserSelected() {m_bUserRequested = false;}
     /**Replace the hinted string of the text with the substitute.
-     * Called when we select a hint from the list. If endHintMode is true, we also 
-     * leave hint mode. We remain in hint mode if the user hit a '.' dot or if
+     * Called when we select a hint from the list. 
+     * We remain in hint mode if the user hit a '.' dot or if
      * the originator of the hint indicated so (like a grouped hint).*/
-    void ReplaceHintedString(const char *substitute, bool endHintMode);
+    void ReplaceHintedString(const CshHint *hint);
     //@}
 };
 

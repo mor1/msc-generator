@@ -42,13 +42,16 @@ ADD: Allow arrow to a group entity...
 ADD: A right-click context menu to the minieditor & outputview
 
 In 4.4 
-ADDED: Explanatory tooltips for hints (preferably with chart examples.)
-FIX: grouped hints do not show asterisk and proper description
-ADD: Hints to escapes
 ADD: inline comments, comment at
 ADD: Vertical comment alignment
-FIXED: indent to indent
-FIX: CSHIZE with new label behaviour
+
+In 4.3.4
+ADDED: Explanatory tooltips for hints (preferably with chart examples.)
+FIXED: grouped hints do not show asterisk and proper description
+FIXED: indent to indent in doc
+FIXED: CSHIZE with new label behaviour
+CANCELLED: Incorrect GUI in case of notes above y==0 line.
+ADDED: Hints to escapes
 
 In 4.3.1
 FIXED: 'box {};' bug from Martin.

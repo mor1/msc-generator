@@ -38,7 +38,7 @@ public:
     CMFCToolTipCtrl   m_tooltip;
     CHintListBox();
     
-    bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey);
+    bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode);
     CSize SetHintsToCurrent();
     void SetStringUnderCursor(const char *uc);
     void UpDownKey(int offset);

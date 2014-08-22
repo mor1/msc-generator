@@ -704,8 +704,16 @@ int do_main(const std::list<std::string> &args,
             err << std::numeric_limits<string::size_type>::max()-10 << ".";
             msc.Error.Error(opt_pos, opt_pos, err);
         } else {
-            csh.ParseText(input, (unsigned)strlen(input), -1, 1);
-            string tmp = Cshize(input, (unsigned)strlen(input), csh.CshList, 1, csh_textformat.c_str());
+            //convert crlf to '\n'
+            char *from = input, *to = input;
+            for (; *from; from++)
+                if (*from=='\r') continue; 
+                else if (from==to) to++; 
+                else *to++ = *from;
+            *to = 0;
+            const unsigned len = to-input;
+            csh.ParseText(input, len, -1, 1);
+            string tmp = Cshize(input, len, csh.CshList, 1, csh_textformat.c_str());
             FILE *out = oOutputFile.length() ? fopen(oOutputFile.c_str(), "w") : stdout;
             if (out) {
                 fwrite(tmp.c_str(), 1, tmp.length(), out);

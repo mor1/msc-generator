@@ -54,25 +54,26 @@ CHintListBox::CHintListBox() :
  * @param [in] uc The string under the cursor, that we are hinting on.
  * @param [in] userRequest True, if the hint session started via Ctrl+Space.
  * @param [in] afterReturnKey True, if the session started after pressing return (we may show the first line hints).
+ * @param [in] inhintmode True, if we are already in hint mode. In this mode we tend to keep hints open.
  * @returns True, if the list of hints has changed.*/
-bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey)
+bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     if (!pApp->m_bHints || csh.hintStatus != HINT_READY)
         csh.Hints.clear();
-    else {
+    else if (!userRequest && !inhintmode) {
         //Now delete those hints not requested by the user preferences,
         //but only if we do hints not in response to a Ctrl+Space
         //Keep first line ones only if after the user pressed newline
-        if (csh.hintType == HINT_LINE_START && !userRequest)
+        if (csh.hintType == HINT_LINE_START)
             if (!pApp->m_bHintLineStart || (!afterReturnKey && uc.length()==0))
                 csh.Hints.clear();
-        if (!userRequest)
-            if ((!pApp->m_bHintAttrName && csh.hintType==HINT_ATTR_NAME) ||
-                (!pApp->m_bHintAttrValue && csh.hintType==HINT_ATTR_VALUE) ||
-                (!pApp->m_bHintEntity && csh.hintType==HINT_ENTITY))
-                csh.Hints.clear();
+        if ((!pApp->m_bHintAttrName && csh.hintType==HINT_ATTR_NAME) ||
+            (!pApp->m_bHintAttrValue && csh.hintType==HINT_ATTR_VALUE) ||
+            (!pApp->m_bHintEntity && csh.hintType==HINT_ENTITY) ||
+            (!pApp->m_bHintEscape && csh.hintType==HINT_ESCAPE))
+            csh.Hints.clear();
     }    
     //Now process the list of hints: fill extra fields, compute size, filter by uc and compact
     if (csh.Hints.size()) {
@@ -211,13 +212,9 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
         item_orig->state = HINT_ITEM_NOT_SELECTED;
         InvalidateRect(ConvertABCDToCRect(item_orig));
     }
-    if (index<0 || index>=GetCount()) index=-1;
+    if (index<0 || index>=GetCount()) index = -1;
     m_cur_sel = index;
-    const CshHint *item= GetHint(index);
-    if (!m_tooltip.m_hWnd) 
-        m_tooltip.Create(this);
-    TOOLINFO ti;
-    m_tooltip.FillInToolInfo(ti, this, 1);
+    const CshHint *item = GetHint(index);
     if (item) {
         item->state = state;
         const CRect rect = ConvertABCDToCRect(item);
@@ -225,15 +222,12 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
         //InvalidateRect(rect);
         //Invalidate();
         //m_descrWnd.Update(index, rect);
+    }
 
-        ti.uFlags |= TTF_TRACK;
-        ti.rect.top = item->ul_y;
-        ti.rect.left = item->ul_x;
-        ti.rect.bottom = item->br_y;
-        ti.rect.right = item->br_x;
-        ti.lpszText = LPSTR_TEXTCALLBACK;
-        int ret = m_tooltip.SendMessage(TTM_ADDTOOL, 0, (LPARAM)&ti);
-        m_tooltip.SetToolInfo(&ti);
+    //Now adjust description tool tip
+    if (!m_tooltip.m_hWnd) {
+        //Create window if needed (once per program run)
+        m_tooltip.Create(this);
         CMFCToolTipInfo* params = new CMFCToolTipInfo();
         params->m_bBoldLabel = TRUE;
         params->m_bDrawDescription = TRUE;
@@ -245,17 +239,32 @@ void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
         params->m_clrText = RGB(61, 83, 80);
         params->m_clrBorder = RGB(144, 149, 168);
         m_tooltip.SetParams(params);
+    }
+    TOOLINFO ti;
+    m_tooltip.FillInToolInfo(ti, this, 1);
+    if (item && item->description && item->description[0]) {
+        //if we have a selection and it actually has a description,
+        //update the tooltip and show it.
+        ti.uFlags |= TTF_TRACK;
+        ti.rect.top = item->ul_y;
+        ti.rect.left = item->ul_x;
+        ti.rect.bottom = item->br_y;
+        ti.rect.right = item->br_x;
+        ti.lpszText = LPSTR_TEXTCALLBACK;
+        int ret = m_tooltip.SendMessage(TTM_ADDTOOL, 0, (LPARAM)&ti);
+        m_tooltip.SetToolInfo(&ti);
         m_tooltip.SetDescription(item->description);
         m_tooltip.SetFixedWidth(150, 250);
-        ret = m_tooltip.SendMessage(TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-        ret = ::SetWindowPos(m_tooltip.m_hWnd, HWND_TOPMOST, 0, 0, 0, 0,
-            SWP_NOACTIVATE|SWP_NOSIZE|SWP_NOMOVE|SWP_NOOWNERZORDER);
         CPoint p;
         p.x = item->br_x;
         p.y = item->ul_y;
         ClientToScreen(&p);
         ret = m_tooltip.SendMessage(TTM_TRACKPOSITION, 0, MAKELPARAM(p.x, p.y));
+        ret = m_tooltip.SendMessage(TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+        ret = ::SetWindowPos(m_tooltip.m_hWnd, HWND_TOPMOST, 0, 0, 0, 0,
+            SWP_NOACTIVATE|SWP_NOSIZE|SWP_NOMOVE|SWP_NOOWNERZORDER);
     } else {
+        //Else turn it off
         m_tooltip.SendMessage(TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
     }
 }
@@ -268,6 +277,8 @@ BOOL CHintListBox::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
     const CshHint *hint = GetHint(m_cur_sel);
     if (!hint) return FALSE;
     CString strTipText = hint->plain.c_str();
+    if (strTipText.GetLength() && strTipText[strTipText.GetLength()-1]=='.')
+        strTipText.Append("*");
 
     //Convert to return format
     TOOLTIPTEXTA* pTTTA = (TOOLTIPTEXTA*)pNMHDR;
@@ -300,7 +311,6 @@ const CshHint* CHintListBox::GetHint(const char *plain) const
             break;
         else
             i++;
-    _ASSERT(i!=m_csh.Hints.end());
     if (i==m_csh.Hints.end()) return NULL;
     return &*i;
 }
@@ -481,7 +491,7 @@ void CPopupList::OnLbnDblclkList2()
 {
     const CshHint *item = m_listBox.GetSelectedHint();
     if (item && item->state == HINT_ITEM_SELECTED) 
-        m_pEditCtrl->ReplaceHintedString(item->plain.c_str(), !item->keep);
+        m_pEditCtrl->ReplaceHintedString(item);
 }
 
 

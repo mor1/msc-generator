@@ -754,12 +754,15 @@ bool StringFormat::HasEscapes(const char *text)
  * @param [in] text The text to process.
  * @param [in] len The length of the text to process. If text has a zero
  *                 before len, we terminate processing there.
- * @param csh The object collecting the entries.*/
-void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
+ * @param csh The object collecting the entries.
+ * @returns true if the cursor position in 'csh' is at a place, where we should provide 
+ *               escape hints. In that case we also set hintedStringPos to the escape (all of it).*/
+bool StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
 {
     _ASSERT(len<32000000U); //safety against negative numbers
     _ASSERT(len<=strlen(text)); //safety against idiotic callers
-    if (text==NULL) return;
+    bool ret = false;
+    if (text==NULL) return ret;
     size_t pos = 0;
     StringFormat sf;
     while (pos<len) {
@@ -771,9 +774,14 @@ void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
         switch (escape) {
         case NON_ESCAPE:
             if (length==0)
-                return; //len>actual string length - we are done
+                return ret; //len>actual string length - we are done
             //fallthrough
         case SOLO_ESCAPE:
+            if (csh.cursor_pos==loc.last_pos) {
+                ret = true;
+                csh.hintedStringPos = loc;
+            }
+            //fallthrough
         default:
             csh.AddCSH(loc, COLOR_LABEL_TEXT);
             break;
@@ -789,9 +797,14 @@ void StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
             else
                 csh.AddCSH(loc, COLOR_LABEL_ESCAPE);
+            if (csh.CursorIn(loc)>=CURSOR_AT_BEGINNING) {
+                ret = true;
+                csh.hintedStringPos = loc;
+            }
         }
         pos+=length;
     }
+    return ret;
 }
 
 /** Replaces style, color names to actual definitions.
@@ -1268,6 +1281,63 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     ""};
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
+
+void StringFormat::EscapeHints(Csh &csh, const string &prefix)
+{
+    //We escape the initial escape so that a decorated->plain conversion keeps a literal '\' at the font
+    static const char * const names_descriptions[] =
+    {"", NULL,
+    "\\\\n", "Insert a manual line break. This line break will be honoured even with word wrapping turned on.",
+    "\\\\b", "Toggle bold font.",
+    "\\\\i", "Toggle italics font.",
+    "\\\\u", "Toggle font underline.",
+    "\\\\+", "Change to normal font (as opposed to superscript, subscript or small font.",
+    "\\\\-", "Change to small font. (Revert to normal font via '\\+'.)",
+    "\\\\_", "Change to subscript. (Revert to normal font via '\\+'.)",
+    "\\\\^", "Change to superscript. (Revert to normal font via '\\+'.)",
+    "\\\\pc", "Center the text.",
+    "\\\\pl", "Ident the text left.",
+    "\\\\pr", "Ident the text right.",
+    "\\\\p*", "Set paragraph ident.",
+    "\\\\c()", "Set font color. Omitting the color name will restore the default color of the label (in effect at its beginning).",
+    "\\\\s()", "Apply a style. Omitting the style name will restore the default formatting of the label (in effect at its beginning).",
+    "\\\\\\", "Insert a literal '\\'.",
+    "\\\\#", "Insert a literal '#'.",
+    "\\\\{", "Insert a literal '{'.",
+    "\\\\}", "Insert a literal '}'.",
+    "\\\\[", "Insert a literal '['.",
+    "\\\\]", "Insert a literal ']'.",
+    "\\\\;", "Insert a literal semicolon (';').",
+    "\\\\\"", "Insert a literal quotation mark ('\"').",
+    "\\\\r()", "Paste the number of another chart element name by its 'refname' attribute.",
+    "\\\\f()", "Set the font family of the text. Omitting the font name will restore the default font of the label (in effect at its beginning).",
+    "\\\\mu()", "Set the top margin of the label in pixels.",
+    "\\\\md()", "Set the bottom margin of the label in pixels.",
+    "\\\\ml()", "Set the left margin of the label in pixels.",
+    "\\\\mr()", "Set the right margin of the label in pixels.",
+    "\\\\mn()", "Set the font height of normal font in pixels.",
+    "\\\\ms()", "Set the font height of small font, superscript and subscript in pixels.",
+    "\\\\m*()", "Set margins and font height.",
+    "\\\\N", "Use this escape to specify the location of the automatic numbering within a label. Useful if you want it somewhere else than the front of the label.",
+    "\\\\B", "Make the font bold (no change if already bold).",
+    "\\\\I", "Make the font italic (no change if already italic).",
+    "\\\\U", "Make the font underlined (no change if already so).",
+    "\\\\0", "Remove line spacing from below this line.",
+    "\\\\1", "Create one pixel of line spacing below this line.",
+    "\\\\2", "Create two pixels of line spacing below this line.",
+    "\\\\3", "Create three pixels of line spacing below this line.",
+    "\\\\4", "Create four pixels of line spacing below this line.",
+    "\\\\5", "Create five pixels of line spacing below this line.",
+    "\\\\6", "Create six pixels of line spacing below this line.",
+    "\\\\7", "Create seven pixels of line spacing below this line.",
+    "\\\\8", "Create eight pixels of line spacing below this line.",
+    "\\\\9", "Create nine pixels of line spacing below this line.",
+    "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
+           "The escapes before this one will determine the default format of the label, used by empty '\\s()', '\\c()', etc. escapes to restore default style, color and so on.",
+    ""};
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_LABEL_ESCAPE)+prefix, HINT_ESCAPE, NULL, true);
+}
+
 
 /** Callback for drawing a symbol before text ident types in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/

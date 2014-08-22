@@ -313,7 +313,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
  ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
  ** (representing a commented section inside a label)
  */
-\:[\t]*((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*  %{
+\:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
