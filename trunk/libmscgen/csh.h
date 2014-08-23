@@ -427,6 +427,7 @@ public:
 };
 
 void CshParse(Csh &csh, const char *buff, unsigned len);
+bool CshHintGraphicCallbackForStyles(Canvas *canvas, CshHintGraphicParam, Csh &);
 
 //returns -1 if txt is ""
 //returns 0 if txt is not in coll

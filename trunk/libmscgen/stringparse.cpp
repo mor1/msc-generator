@@ -1282,71 +1282,14 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
 }
 
-void StringFormat::EscapeHints(Csh &csh, const string &prefix)
-{
-    //We escape the initial escape so that a decorated->plain conversion keeps a literal '\' at the font
-    static const char * const names_descriptions[] =
-    {"", NULL,
-    "\\\\n", "Insert a manual line break. This line break will be honoured even with word wrapping turned on.",
-    "\\\\b", "Toggle bold font.",
-    "\\\\i", "Toggle italics font.",
-    "\\\\u", "Toggle font underline.",
-    "\\\\+", "Change to normal font (as opposed to superscript, subscript or small font.",
-    "\\\\-", "Change to small font. (Revert to normal font via '\\+'.)",
-    "\\\\_", "Change to subscript. (Revert to normal font via '\\+'.)",
-    "\\\\^", "Change to superscript. (Revert to normal font via '\\+'.)",
-    "\\\\pc", "Center the text.",
-    "\\\\pl", "Ident the text left.",
-    "\\\\pr", "Ident the text right.",
-    "\\\\p*", "Set paragraph ident.",
-    "\\\\c()", "Set font color. Omitting the color name will restore the default color of the label (in effect at its beginning).",
-    "\\\\s()", "Apply a style. Omitting the style name will restore the default formatting of the label (in effect at its beginning).",
-    "\\\\\\", "Insert a literal '\\'.",
-    "\\\\#", "Insert a literal '#'.",
-    "\\\\{", "Insert a literal '{'.",
-    "\\\\}", "Insert a literal '}'.",
-    "\\\\[", "Insert a literal '['.",
-    "\\\\]", "Insert a literal ']'.",
-    "\\\\;", "Insert a literal semicolon (';').",
-    "\\\\\"", "Insert a literal quotation mark ('\"').",
-    "\\\\r()", "Paste the number of another chart element name by its 'refname' attribute.",
-    "\\\\f()", "Set the font family of the text. Omitting the font name will restore the default font of the label (in effect at its beginning).",
-    "\\\\mu()", "Set the top margin of the label in pixels.",
-    "\\\\md()", "Set the bottom margin of the label in pixels.",
-    "\\\\ml()", "Set the left margin of the label in pixels.",
-    "\\\\mr()", "Set the right margin of the label in pixels.",
-    "\\\\mn()", "Set the font height of normal font in pixels.",
-    "\\\\ms()", "Set the font height of small font, superscript and subscript in pixels.",
-    "\\\\m*()", "Set margins and font height.",
-    "\\\\N", "Use this escape to specify the location of the automatic numbering within a label. Useful if you want it somewhere else than the front of the label.",
-    "\\\\B", "Make the font bold (no change if already bold).",
-    "\\\\I", "Make the font italic (no change if already italic).",
-    "\\\\U", "Make the font underlined (no change if already so).",
-    "\\\\0", "Remove line spacing from below this line.",
-    "\\\\1", "Create one pixel of line spacing below this line.",
-    "\\\\2", "Create two pixels of line spacing below this line.",
-    "\\\\3", "Create three pixels of line spacing below this line.",
-    "\\\\4", "Create four pixels of line spacing below this line.",
-    "\\\\5", "Create five pixels of line spacing below this line.",
-    "\\\\6", "Create six pixels of line spacing below this line.",
-    "\\\\7", "Create seven pixels of line spacing below this line.",
-    "\\\\8", "Create eight pixels of line spacing below this line.",
-    "\\\\9", "Create nine pixels of line spacing below this line.",
-    "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
-           "The escapes before this one will determine the default format of the label, used by empty '\\s()', '\\c()', etc. escapes to restore default style, color and so on.",
-    ""};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_LABEL_ESCAPE)+prefix, HINT_ESCAPE, NULL, true);
-}
-
-
 /** Callback for drawing a symbol before text ident types in the hints popup list box.
- * @ingroup libmscgen_hintpopup_callbacks*/
+* @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, Csh&)
 {
     if (!canvas) return false;
     const EIdentType t = (EIdentType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
-    const LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
+    const LineAttr line(LINE_SOLID, ColorType(0, 0, 0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
     for (size_t i = 0; i<sizeof(sizePercentage)/sizeof(double); i++) {
@@ -1359,9 +1302,202 @@ bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, C
         case MSC_IDENT_RIGHT: x2 = floor(HINT_GRAPHIC_SIZE_X*0.8); x1 = x2-x1; break;
         }
         canvas->Line(XY(x1, y+y_inc), XY(x2, y+y_inc), line);
-        y+=y_inc;
+        y += y_inc;
     }
     return true;
+}
+
+
+/** Draws a symbol for text formatting escapes in the hints popup list box.
+* Helper to CshHintGraphicCallbackForEscapes() .*/
+bool DrawTextForHint(Canvas *canvas, const std::string &text1, const std::string &text2)
+{
+    StringFormat sf;
+    sf.Default();
+    string ss("\\pl\\mn(");
+    ss << (int)(HINT_GRAPHIC_SIZE_Y*0.8) << ")";
+    sf.Apply(ss);
+    canvas->Clip(0, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y);
+    Label label1(text1, *canvas, sf);
+    Label label2(text1+text2, *canvas, sf);
+    const double w1 = label1.getTextWidthHeight().x;
+    const double h2 = label2.getTextWidthHeight().y;
+    label2.Draw(*canvas, HINT_GRAPHIC_SIZE_X*0.4-w1, HINT_GRAPHIC_SIZE_X, 
+        HINT_GRAPHIC_SIZE_Y/2-h2/2); //center vertically. Start text2 at 40% of X range
+    canvas->UnClip();
+    return true;
+}
+
+/** Draws a symbol before some of the text formatting escapes in the hints popup list box.
+* Helper to CshHintGraphicCallbackForEscapes() .*/
+bool DrawFormattingEscape(Canvas *canvas, const char *format)
+{
+    return DrawTextForHint(canvas, "ABD", string(format)+"FGH");
+}
+
+/** Draws a symbol before literal escapes in the hints popup list box.
+* Helper to CshHintGraphicCallbackForEscapes() .*/
+bool DrawLiteral(Canvas *canvas, const char *literal)
+{
+    return DrawTextForHint(canvas, "", literal);
+}
+
+/** Callback for drawing a symbol before text formatting escapes in the hints popup list box.
+* @ingroup libmscgen_hintpopup_callbacks*/
+bool CshHintGraphicCallbackForEscapes(Canvas *canvas, CshHintGraphicParam p, Csh&csh)
+{
+    if (!canvas) return false;
+
+    LineAttr line; //black, single line
+    FillAttr fill(ColorType(0,0,0), GRADIENT_NONE); //black
+
+    const double X = HINT_GRAPHIC_SIZE_X/10.;
+    const double Y = HINT_GRAPHIC_SIZE_Y/10.;
+
+    switch (unsigned(p)/2) {
+    case 01: // \n
+        canvas->Line(XY(9*X,   0), XY(9*X, 7*Y), line);
+        canvas->Line(XY(9*X, 7*Y), XY(4*X, 7*Y), line);
+        canvas->Line(XY(2*X, 7*Y), XY(6*X, 4*Y), line);
+        canvas->Line(XY(2*X, 7*Y), XY(6*X, 10*Y), line);
+        return true;
+    case 02: // \b
+    case 33: // \B
+        return DrawFormattingEscape(canvas, "\\b");
+    case 03: // \i
+    case 34: // \I
+        return DrawFormattingEscape(canvas, "\\i");
+    case 04: // \u
+    case 35: // \U
+        return DrawFormattingEscape(canvas, "\\u");
+    case 05: // \+
+        return DrawFormattingEscape(canvas, "\\+");
+    case 06: // \-
+        return DrawFormattingEscape(canvas, "\\-");
+    case 07: // \_
+        return DrawFormattingEscape(canvas, "\\_");
+    case  8: // \^
+        return DrawFormattingEscape(canvas, "\\^");
+    case 12: // \p*
+    case  9: // \pc
+        return CshHintGraphicCallbackForTextIdent(canvas, (CshHintGraphicParam)(int)MSC_IDENT_CENTER, csh);
+    case 10: // \pl
+        return CshHintGraphicCallbackForTextIdent(canvas, (CshHintGraphicParam)(int)MSC_IDENT_LEFT, csh);
+    case 11: // \pr
+        return CshHintGraphicCallbackForTextIdent(canvas, (CshHintGraphicParam)(int)MSC_IDENT_RIGHT, csh);
+    case 13: // \c()
+        return DrawFormattingEscape(canvas, "\\c(1,0,0)");
+    case 14: // \s()
+        return CshHintGraphicCallbackForStyles(canvas, 0, csh);
+    case 15: // '\\'
+        return DrawLiteral(canvas, "\\");
+    case 16: // \#
+        return DrawLiteral(canvas, "#");
+    case 17: // \{
+        return DrawLiteral(canvas, "{");
+    case 18: // \}
+        return DrawLiteral(canvas, "}");
+    case 19: // \[
+        return DrawLiteral(canvas, "[");
+    case 20: // \]
+        return DrawLiteral(canvas, "]");
+    case 21: // \;
+        return DrawLiteral(canvas, ";");
+    case 22: // \\"
+        return DrawLiteral(canvas, "\"");
+    case 23: // \r()
+        return DrawLiteral(canvas, "Ref");
+    case 24: // \f()
+        return DrawFormattingEscape(canvas, "\\f(Courier New)");
+    case 31: // \m*()
+    case 25: // \mu()
+    case 26: // \md()
+    case 27: // \ml()
+    case 28: // \mr()
+    case 29: // \mn()
+    case 30: // \ms()
+        return true;
+    case 32: // \N
+        return DrawTextForHint(canvas, "(", "1)");
+    case 36: // \0
+    case 37: // \1
+    case 38: // \2
+    case 39: // \3
+    case 40: // \4
+    case 41: // \5
+    case 42: // \6
+    case 43: // \7
+    case 44: // \8
+    case 45: // \9     
+        canvas->Line(XY(5*X, 3*Y), XY(5*X, 7*Y), line);
+        canvas->Line(XY(5*X, 3*Y), XY(4*X, 4*Y), line);
+        canvas->Line(XY(5*X, 3*Y), XY(6*X, 4*Y), line);
+        canvas->Line(XY(5*X, 7*Y), XY(4*X, 6*Y), line);
+        canvas->Line(XY(5*X, 7*Y), XY(6*X, 6*Y), line);
+        //line.width.second = 1.5;
+        canvas->Line(XY(2*X, 3*Y), XY(8*X, 3*Y), line);
+        canvas->Line(XY(2*X, 7*Y), XY(8*X, 7*Y), line);
+        return true;
+    case 46: // \|
+        return DrawTextForHint(canvas, "a", "|b");
+    };
+    return false;
+}
+
+void StringFormat::EscapeHints(Csh &csh, const string &prefix)
+{
+    //We escape the initial escape so that a decorated->plain conversion keeps a literal '\' at the font
+    static const char * const names_descriptions[] ={ "", NULL,
+/*01*/  "\\\\n", "Insert a manual line break. This line break will be honoured even with word wrapping turned on.",
+/*02*/  "\\\\b", "Toggle bold font.",
+/*03*/  "\\\\i", "Toggle italics font.",
+/*04*/  "\\\\u", "Toggle font underline.",
+/*05*/  "\\\\+", "Change to normal font (as opposed to superscript, subscript or small font.",
+/*06*/  "\\\\-", "Change to small font. (Revert to normal font via '\\+'.)",
+/*07*/  "\\\\_", "Change to subscript. (Revert to normal font via '\\+'.)",
+/*08*/  "\\\\^", "Change to superscript. (Revert to normal font via '\\+'.)",
+/*09*/  "\\\\pc", "Center the text.",
+/*10*/  "\\\\pl", "Ident the text left.",
+/*11*/  "\\\\pr", "Ident the text right.",
+/*12*/  "\\\\p*", "Set paragraph ident.",
+/*13*/  "\\\\c()", "Set font color. Omitting the color name will restore the default color of the label (in effect at its beginning).",
+/*14*/  "\\\\s()", "Apply a style. Omitting the style name will restore the default formatting of the label (in effect at its beginning).",
+/*15*/  "\\\\\\", "Insert a literal '\\'.",
+/*16*/  "\\\\#", "Insert a literal '#'.",
+/*17*/  "\\\\{", "Insert a literal '{'.",
+/*18*/  "\\\\}", "Insert a literal '}'.",
+/*19*/  "\\\\[", "Insert a literal '['.",
+/*20*/  "\\\\]", "Insert a literal ']'.",
+/*21*/  "\\\\;", "Insert a literal semicolon (';').",
+/*22*/  "\\\\\"", "Insert a literal quotation mark ('\"').",
+/*23*/  "\\\\r()", "Paste the number of another chart element name by its 'refname' attribute.",
+/*24*/  "\\\\f()", "Set the font family of the text. Omitting the font name will restore the default font of the label (in effect at its beginning).",
+/*25*/  "\\\\mu()", "Set the top margin of the label in pixels.",
+/*26*/  "\\\\md()", "Set the bottom margin of the label in pixels.",
+/*27*/  "\\\\ml()", "Set the left margin of the label in pixels.",
+/*28*/  "\\\\mr()", "Set the right margin of the label in pixels.",
+/*29*/  "\\\\mn()", "Set the font height of normal font in pixels.",
+/*30*/  "\\\\ms()", "Set the font height of small font, superscript and subscript in pixels.",
+/*31*/  "\\\\m*()", "Set margins and font height.",
+/*32*/  "\\\\N", "Use this escape to specify the location of the automatic numbering within a label. Useful if you want it somewhere else than the front of the label.",
+/*33*/  "\\\\B", "Make the font bold (no change if already bold).",
+/*34*/  "\\\\I", "Make the font italic (no change if already italic).",
+/*35*/  "\\\\U", "Make the font underlined (no change if already so).",
+/*36*/  "\\\\0", "Remove line spacing from below this line.",
+/*37*/  "\\\\1", "Create one pixel of line spacing below this line.",
+/*38*/  "\\\\2", "Create two pixels of line spacing below this line.",
+/*39*/  "\\\\3", "Create three pixels of line spacing below this line.",
+/*40*/  "\\\\4", "Create four pixels of line spacing below this line.",
+/*41*/  "\\\\5", "Create five pixels of line spacing below this line.",
+/*42*/  "\\\\6", "Create six pixels of line spacing below this line.",
+/*43*/  "\\\\7", "Create seven pixels of line spacing below this line.",
+/*44*/  "\\\\8", "Create eight pixels of line spacing below this line.",
+/*45*/  "\\\\9", "Create nine pixels of line spacing below this line.",
+/*46*/  "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
+               "The escapes before this one will determine the default format of the label, used by empty '\\s()', '\\c()', etc. escapes to restore default style, color and so on.",
+    ""};
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_LABEL_ESCAPE)+prefix, HINT_ESCAPE,
+        CshHintGraphicCallbackForEscapes, true);
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
