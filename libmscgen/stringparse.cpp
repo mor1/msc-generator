@@ -426,7 +426,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     was_m = (input[1] == 'm');
 
     if (input[was_m+2]!='(') {
-        length = 2 + was_m;
+        //report length of 3 if we have a \m escape followed by one of 'udlrins' (valid)
+        length = 2 + (was_m && strchr("udlrins", input[2]));
         if (input[1] == 's') {
             maybe_s_msg = "Missing style name after \\s control escape. Assuming small text switch.";
             goto maybe_s;
@@ -462,7 +463,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (msc && linenum && !references)
             msc->Error.Error(*linenum, "Missing closing parenthesis after " + string(input, length) +
                              " control escape." + errorAction);
-        length = 3 + was_m;
+        length = strlen(input);
         goto nok;
     }
     length = end-input+1; //since we have both ( and ) found, we have at least () after the escape
@@ -755,13 +756,14 @@ bool StringFormat::HasEscapes(const char *text)
  * @param [in] len The length of the text to process. If text has a zero
  *                 before len, we terminate processing there.
  * @param csh The object collecting the entries.
- * @returns true if the cursor position in 'csh' is at a place, where we should provide 
- *               escape hints. In that case we also set hintedStringPos to the escape (all of it).*/
-bool StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
+ * @returns what kind of hint shall we provide based on the cursor position in 'csh'.
+ *               If we shall provide escape hints also set hintedStringPos to the escape (all of it),
+ *               if we shall provide parameter hint, we set hintedStringPos to the parameter itself.*/
+EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh)
 {
     _ASSERT(len<32000000U); //safety against negative numbers
     _ASSERT(len<=strlen(text)); //safety against idiotic callers
-    bool ret = false;
+    EEscapeHintType ret = HINTE_NONE;
     if (text==NULL) return ret;
     size_t pos = 0;
     StringFormat sf;
@@ -772,15 +774,15 @@ bool StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
         loc.first_pos = startpos + pos;
         loc.last_pos =  startpos + std::min(pos+length, len)-1;
         switch (escape) {
+        case SOLO_ESCAPE:
+            if (csh.cursor_pos==loc.last_pos) {
+                ret = HINTE_ESCAPE;
+                csh.hintedStringPos = loc;
+            }
+            //fallthrough
         case NON_ESCAPE:
             if (length==0)
                 return ret; //len>actual string length - we are done
-            //fallthrough
-        case SOLO_ESCAPE:
-            if (csh.cursor_pos==loc.last_pos) {
-                ret = true;
-                csh.hintedStringPos = loc;
-            }
             //fallthrough
         default:
             csh.AddCSH(loc, COLOR_LABEL_TEXT);
@@ -798,8 +800,33 @@ bool StringFormat::ExtractCSH(int startpos, const char *text, const size_t len, 
             else
                 csh.AddCSH(loc, COLOR_LABEL_ESCAPE);
             if (csh.CursorIn(loc)>=CURSOR_AT_BEGINNING) {
-                ret = true;
+                //Assume cursor does not stand in a parameter
+                //->we hint the whole escepa
+                ret = HINTE_ESCAPE;
                 csh.hintedStringPos = loc;
+                //check if there is a parenthesis before the cursor
+                for (unsigned u = csh.cursor_pos+1 - loc.first_pos; u>0; u--)
+                    if (text[pos+u-1] == ')') {
+                        //after the closing parenthesis do not hint
+                        //(but otherwise hint at the end of the escape)
+                        ret = HINTE_NONE;
+                        break; 
+                    } else if (text[pos+u-1] == '(') {
+                        //Yes, now the cursor stands in a parameter.
+                        //Update ret and hintedstringpos
+                        switch (text[pos+1]) {
+                        case 'c': ret = HINTE_PARAM_COLOR; break;
+                        case 's': ret = HINTE_PARAM_STYLE; break;
+                        case 'f': ret = HINTE_PARAM_FONT; break;
+                        case 'r': ret = HINTE_PARAM_REF; break;
+                        default: _ASSERT(0); //fallthrough
+                        case 'm': ret = HINTE_PARAM_NUMBER; break;
+                        }
+                        csh.hintedStringPos.first_pos += u;
+                        if (text[pos+length-1] == ')')
+                            csh.hintedStringPos.last_pos--;
+                        break;
+                    }
             }
         }
         pos+=length;

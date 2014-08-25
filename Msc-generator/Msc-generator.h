@@ -81,6 +81,7 @@ public:
 	unsigned m_uFallbackResolution;      ///<The resolution of fallback images (OLE objects)
     std::map<string, Context> m_Designs; ///<The list of designs in the design library.
     ShapeCollection m_Shapes;            ///<The list of shapes in the design/shape library
+    std::set<string> m_sFontNames;       ///<List of fonts on this system (for hints)
     MscError m_ShapeErrors;              ///<Errors collected during the compilation of the shape files.
     MscError m_DesignErrors;             ///<Errors collected during the compilation of the design lib.
     Csh m_designlib_csh;                 ///<The color & other info collected during design library. Used to seed the Csh of the internal editor.

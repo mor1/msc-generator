@@ -42,8 +42,12 @@ ADD: Allow arrow to a group entity...
 ADD: A right-click context menu to the minieditor & outputview
 
 In 4.4 
-ADD: inline comments, comment at
+ADD: symbol text
 ADD: Vertical comment alignment
+
+In 4.3.5
+ADDED: Hints for text formatting escape parameters
+FIX: #s in quoted colon labels, also on the last line
 
 In 4.3.4
 ADDED: Explanatory tooltips for hints (preferably with chart examples.)

@@ -269,7 +269,7 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
 /** Default constructor.
  * As per MFC custioms, this is not doing real initialization, just
  * sets the main fields to meaningful defaults.*/
-CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true), &m_Shapes)
+CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true), &m_Shapes, &m_sFontNames)
 {
 	// replace application ID string below with unique ID string; recommended
 	// format for string is CompanyName.ProductName.SubProduct.VersionInformation
@@ -306,6 +306,17 @@ static const CLSID clsid =
 
 
 UINT CheckVersionFreshness(LPVOID);
+
+/** A callback to enumerate fonts */
+BOOL CALLBACK EnumFamCallBack(LPLOGFONTA lplf, LPTEXTMETRICA lpntm, DWORD FontType, LPVOID fontset)
+{
+    if (TRUETYPE_FONTTYPE&FontType) {
+        std::set<string> *set = static_cast<std::set<string>*>(fontset);
+        if (set)
+            set->insert(lplf->lfFaceName);
+    }
+    return 1;
+}
 
 /** CMscGenApp initialization 
  * This is doing all the important initialization.
@@ -447,8 +458,13 @@ BOOL CMscGenApp::InitInstance()
 	m_pMainWnd->DragAcceptFiles();
 
     //Set focus to Internal editor, if any
-    if (IsInternalEditorRunning() && m_pWndEditor->IsVisible())
-		m_pWndEditor->m_ctrlEditor.SetFocus();
+    if (IsInternalEditorRunning() && m_pWndEditor->IsVisible()) {
+        //enumerate fonts for hints
+        HDC hdc = GetDC(NULL);
+        EnumFontFamilies(hdc, NULL, (FONTENUMPROC)&EnumFamCallBack, LPARAM(&m_sFontNames));
+        ReleaseDC(NULL, hdc);
+        m_pWndEditor->m_ctrlEditor.SetFocus();
+    }
 
 	return TRUE;
 }
@@ -805,9 +821,11 @@ int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
     //2. clear entity names, marker names, all but the top of the the context stack
     _ASSERT(m_designlib_csh.EntityNames.size()==0);
     _ASSERT(m_designlib_csh.MarkerNames.size()==0);
+    _ASSERT(m_designlib_csh.RefNames.size()==0);
     _ASSERT(m_designlib_csh.Contexts.size()==1);
     m_designlib_csh.EntityNames.clear();
     m_designlib_csh.MarkerNames.clear();
+    m_designlib_csh.RefNames.clear();
     m_designlib_csh.Contexts.erase(++m_designlib_csh.Contexts.begin(), m_designlib_csh.Contexts.end());
     //3. clear shape names, too: these will be added via pShapes (in parsed form)
     m_designlib_csh.shape_names.clear();

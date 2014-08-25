@@ -503,7 +503,7 @@ void Csh::AddCSH_ErrorAfter(const CshPos&pos, std::string &&text)
  * If the attribute name indicates a label, color the escapes, too. 
  * Not used for colon labels.
  * returns true, if the cursor is at a place to add escape hints.*/
-bool Csh::AddCSH_AttrValue_CheckEscapeHint(const CshPos& pos, const char *value, const char *name)
+void Csh::AddCSH_AttrValue_CheckAndAddEscapeHint(const CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
         CaseInsensitiveEqual(name, "tag") ||
@@ -520,11 +520,16 @@ bool Csh::AddCSH_AttrValue_CheckEscapeHint(const CshPos& pos, const char *value,
         //quotation mark, so we add one.
         //If there are no escapes ExtractCSH() does nothing, so the passed 
         //pos will not matter anyway.
-        return StringFormat::ExtractCSH(pos.first_pos+1, value, strlen(value), *this);
+        const EEscapeHintType hint = 
+            StringFormat::ExtractCSH(pos.first_pos+1, value, strlen(value), *this);
+        if (hint != HINTE_NONE)
+            AddEscapesToHints(hint);
     } else {
         // No match - regular attribute value
         AddCSH(pos, COLOR_ATTRVALUE);
-        return false;
+        //Register reference names
+        if (CaseInsensitiveEqual(name, "refname"))
+            RefNames.insert(value);
     }
 }
 
@@ -535,16 +540,16 @@ void Csh::AddCSH_AttrColorValue(const CshPos& pos)
 
 /** Parse a colon-label for CSH entries and checks if we shall provide escape hints.
  * This is called for a colon followed by a (quoted or unquoted) label. 
- * if processComments is true, search for @# comments and color them so. 
+ * if unquoted is true, search for @# comments and color them so. 
  * (False for quoted colon strings.)
  * returns true, if the cursor is at a position to provide escape hints.*/
-bool Csh::AddCSH_ColonString_CheckEscapeHint(const CshPos& pos, const char *value, bool processComments)
+void Csh::AddCSH_ColonString_CheckAndAddEscapeHint(const CshPos& pos, const char *value, bool unquoted)
 {
-    bool ret = false;
+    EEscapeHintType ret = HINTE_NONE;
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
-    if (processComments) {
+    if (unquoted) {
         const char *beginning = value+1;
         if (*beginning) {
             const char *p = beginning;
@@ -580,15 +585,25 @@ bool Csh::AddCSH_ColonString_CheckEscapeHint(const CshPos& pos, const char *valu
             CshPos txt;
             txt.first_pos = pos.first_pos + int(beginning - value);
             txt.last_pos = pos.first_pos + int(p - value) - 1;
-            ret |= StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this); //omit the colon
+            ret |= StringFormat::ExtractCSH(txt.first_pos, beginning, p-beginning, *this); 
         }
     } else {
-        CshPos p;
-        p.first_pos = pos.first_pos+1;
-        p.last_pos = pos.last_pos;
-        ret = StringFormat::ExtractCSH(p.first_pos, value+1, strlen(value+1), *this); //omit the colon
+        //This is a quoted string
+        CshPos p(pos);
+        //search for heading quotation mark
+        while (*value && *value!='"') {
+            value++;
+            p.first_pos++;
+        }
+        _ASSERT(*value); //we should not reach end - this function must be called like this only for qouted strings
+        //check trailing quotation mark (may be missing)
+        size_t len = strlen(value);
+        if (len && value[len-1]=='"')
+            len--;
+        ret = StringFormat::ExtractCSH(p.first_pos, value, len, *this); //omit the colon and quotation marks
     }
-    return ret;
+    if (ret != HINTE_NONE)
+        AddEscapesToHints(ret);
 }
 
 /** Names and descriptions of keywords for coloring.
@@ -942,6 +957,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     CshErrors.clear();
     EntityNames.clear();
     MarkerNames.clear();
+    RefNames.clear();
     if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())
         Contexts.back() = FullDesigns[ForcedDesign];
     hintStatus = HINT_NONE;
@@ -961,6 +977,14 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
             AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, 
             "Markers defined via the 'mark' command.", HINT_ATTR_VALUE,
             true, CshHintGraphicCallbackForMarkers));
+        hintStatus = HINT_READY;
+    }
+    if (addRefNamesAtEnd) {
+        hintStatus = HINT_FILLING;
+        for (auto i = RefNames.begin(); i!=RefNames.end(); i++)
+            AddToHints(CshHint(HintPrefix(COLOR_ATTRVALUE) + *i,
+            "Reference names defined via the 'refname' attributes.", HINT_ATTR_VALUE,
+            true));
         hintStatus = HINT_READY;
     }
     if (hintStatus == HINT_FILLING) hintStatus = HINT_READY;
@@ -1003,14 +1027,17 @@ void CshContext::SetToDesign(const Context &design)
         StyleNames.insert(i->first);
 }
 
-Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes) : 
+Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes, 
+         const std::set<string> *fn) :
     was_partial(false), 
     input_text_length(0),
     hintStatus(HINT_NONE), 
     addMarkersAtEnd(false), 
+    addRefNamesAtEnd(false),
     pShapes(shapes),
     cursor_pos(-1),
-    use_scheme(NULL)
+    use_scheme(NULL), 
+    fontnames(fn)
 {
     for (auto i=defaultDesign.styles.begin(); i!=defaultDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);
@@ -1788,10 +1815,42 @@ void Csh::AddEntitiesToHints()
 }
 
 /** Add text escape sequences to hints.*/
-void Csh::AddEscapesToHints()
+void Csh::AddEscapesToHints(EEscapeHintType hint)
 {
-    StringFormat::EscapeHints(*this, string());
-    hintType = HINT_ESCAPE;
+    switch (hint) {
+    default: _ASSERT(0); //fallthrough
+    case HINTE_NONE: 
+        return;
+    case HINTE_ESCAPE:
+        StringFormat::EscapeHints(*this, string());
+        hintType = HINT_ESCAPE;
+        break;
+    case HINTE_PARAM_COLOR:
+        AddColorValuesToHints(false);
+        hintType = HINT_ATTR_VALUE;
+        break;
+    case HINTE_PARAM_STYLE:
+        AddStylesToHints(false, false);
+        hintType = HINT_ATTR_VALUE;
+        break;
+    case HINTE_PARAM_FONT:
+        if (fontnames) {
+            for (const auto &str : *fontnames)
+                if (str.length() && str[0]!='@')
+                    AddToHints(CshHint(HintPrefix(COLOR_ATTRVALUE)+str, NULL,
+                        HINT_ATTR_VALUE));
+            hintType = HINT_ATTR_VALUE;
+        }
+        break;
+    case HINTE_PARAM_REF:
+        addRefNamesAtEnd = true;
+        hintType = HINT_ATTR_VALUE;
+        break;
+    case HINTE_PARAM_NUMBER:
+        AddToHints(CshHint(HintPrefixNonSelectable()+"<number in pixels>", NULL,
+            HINT_ATTR_VALUE, false));
+        hintType = HINT_ATTR_VALUE;
+    }
     hintStatus = HINT_READY;
     hintsForcedOnly = false;
 }
@@ -1835,7 +1894,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
     unsigned start_counter = 0;
     string uc;
     //remove the () part from the string under cursor.
-    if (hintType==HINT_ENTITY)
+    if (hintType==HINT_ESCAPE)
         uc = orig_uc.substr(0, orig_uc.find('('));
     else
         uc = orig_uc;

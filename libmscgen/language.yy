@@ -1533,8 +1533,7 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
-    if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, $3, $1))
-        csh.AddEscapesToHints();    
+    csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, $3, $1);
     if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
@@ -4132,16 +4131,15 @@ comment:            comment_command full_arcattrlist_with_label
 colon_string: TOK_COLON_QUOTED_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.AddCSH_ColonString_CheckEscapeHint(@1, $1, false))
-        csh.AddEscapesToHints();
-  #endif
+    csh.AddCSH_ColonString_CheckAndAddEscapeHint(@1, $1, false);
+    csh.AddColonLabel(@1);
+#endif
     $$ = $1;
 }
              | TOK_COLON_STRING
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.AddCSH_ColonString_CheckEscapeHint(@1, $1, true))
-        csh.AddEscapesToHints();
+    csh.AddCSH_ColonString_CheckAndAddEscapeHint(@1, $1, true);
 	csh.AddColonLabel(@1);
   #endif
     $$ = $1;
@@ -4313,8 +4311,7 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, $3, $1))
-            csh.AddEscapesToHints();
+        csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, $3, $1);
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
@@ -4329,8 +4326,7 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3+@4, (string("++")+$4).c_str(), $1))
-            csh.AddEscapesToHints();
+        csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3+@4, (string("++")+$4).c_str(), $1);
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3+@4, HINT_ATTR_VALUE, $1);
   #else
@@ -4345,8 +4341,7 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        if (csh.AddCSH_AttrValue_CheckEscapeHint(@3, "++", $1))
-            csh.AddEscapesToHints();
+        csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, "++", $1);
 		csh.AddCSH_ErrorAfter(@3, "Continue with a color name or definition.");
         csh.CheckHintAt(@1, HINT_ATTR_NAME);
         csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
