@@ -217,6 +217,24 @@ enum EHintType {
     HINT_ESCAPE      ///<A string escape sequence
 };
 
+/** Describes what kind of hints we shall give to the user from a text escape.*/
+enum EEscapeHintType
+{
+    HINTE_NONE = 0,      ///<The cursor is not at a hint position.
+    HINTE_ESCAPE,        ///<The cursor is around an escape
+    HINTE_PARAM_COLOR,   ///<The cursor is inside the parenthesis of a \c() escape
+    HINTE_PARAM_STYLE,   ///<The cursor is inside the parenthesis of a \s() escape
+    HINTE_PARAM_FONT,    ///<The cursor is inside the parenthesis of a \f() escape
+    HINTE_PARAM_REF,     ///<The cursor is inside the parenthesis of a \r() escape
+    HINTE_PARAM_NUMBER,  ///<The cursor is inside the parenthesis of a \mX() escape
+};
+
+/** Merge two values. Error if neither are NONE */
+inline EEscapeHintType operator |= (EEscapeHintType &a, EEscapeHintType b)
+     { if (a==HINTE_NONE) return a = b; _ASSERT(b==HINTE_NONE); return a; }
+
+
+
 /** The relative position of the cursor to a range in the input file.
  *
  * Note that the cursor is always between two character positions.*/
@@ -303,6 +321,7 @@ public:
      * @{  */
     std::set<std::string>             EntityNames;    ///<The names of entities defined so far
     std::set<std::string>             MarkerNames;    ///<The names of markers defined so far
+    std::set<std::string>             RefNames;       ///<The names of references defined so far
     std::map<std::string, CshContext> FullDesigns;    ///<The names and content of full designs defined so far
     std::map<std::string, CshContext> PartialDesigns; ///<The names and content of partial designs defined so far
     std::list<CshContext>             Contexts;       ///<The context stack
@@ -312,6 +331,7 @@ public:
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
     bool                              addMarkersAtEnd;///<Set to true if at the end of the csh parsing we shall add the name of the markers to the hint list.
+    bool                              addRefNamesAtEnd;///<Set to true if at the end of the csh parsing we shall add the name of the references to the hint list.
     unsigned                          asteriskNo;     ///<Number of asterisks inside an arrow spec so far.
     /** @}*/
     /** @name Input parameters to the hint lookup process
@@ -322,6 +342,7 @@ public:
     std::string           ForcedDesign;    ///<What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
     unsigned             *use_scheme;      ///<A pointer to the color scheme to use or NULL if unknown. Used to ignore CSH entries same as COLOR_NORMAL.                   
+    const std::set<std::string> *fontnames;///<A list of font names for hinting (NULL if none).
     /** @} */
 
     /** Initializes the Csh Object.
@@ -331,7 +352,7 @@ public:
      *   ArcBase::defaultDesign.
      * @param [in] shapes Specifies a shape collection to learn available shape 
      *   names from. May be NULL, if no shapes.*/
-    Csh(const Context &defaultDesign, const ShapeCollection *shapes);
+    Csh(const Context &defaultDesign, const ShapeCollection *shapes, const std::set<std::string> *fn);
 
     /**Add a name of a shape (whithout the actual shape)*/
     void AddShapeName(const char *n) { shape_names.emplace_back(n); }
@@ -346,9 +367,9 @@ public:
     void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
     void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
-    bool AddCSH_ColonString_CheckEscapeHint(const CshPos& pos, const char *value, bool processComments);
+    void AddCSH_ColonString_CheckAndAddEscapeHint(const CshPos& pos, const char *value, bool unquoted);
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
-    bool AddCSH_AttrValue_CheckEscapeHint(const CshPos& pos, const char *value, const char *name); 
+    void AddCSH_AttrValue_CheckAndAddEscapeHint(const CshPos& pos, const char *value, const char *name);
     void AddCSH_AttrColorValue(const CshPos& pos); ///<At pos there is an attribute value that looks like a color definition (with commas and all). 
     void AddCSH_StyleOrAttrName(const CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
     void AddCSH_EntityName(const CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
@@ -420,7 +441,7 @@ public:
     void AddLeftRightCenterToHints();
     /** Add entities, keywords and option names to hint list.*/
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
-    void AddEscapesToHints();
+    void AddEscapesToHints(EEscapeHintType);
     /** @}*/
     //fill in size, plain and filter/compact if needed
     void ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);

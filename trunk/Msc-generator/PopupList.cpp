@@ -35,11 +35,15 @@ END_MESSAGE_MAP()
 
 /** Just initialize. Also set default hint format.*/
 CHintListBox::CHintListBox() : 
-    m_csh(ArcBase::defaultDesign, NULL)
+    m_csh(ArcBase::defaultDesign, NULL, NULL)
 {
     m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    if (pApp)
+        m_csh.fontnames = &pApp->m_sFontNames;
 }
 
 /** Take a list of hints, filter & group them and copy them to us.
@@ -206,7 +210,7 @@ void CHintListBox::ChangeSelectionTo(int index)
 * Range safe, if index is out of bounds, we deselect.*/
 void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
 {
-    if (index == m_cur_sel) return;
+    //if (index == m_cur_sel) return; This would miss updating the descr
     const CshHint *item_orig = (m_cur_sel>=0) ? GetHint(m_cur_sel) : NULL;
     if (item_orig) {
         item_orig->state = HINT_ITEM_NOT_SELECTED;

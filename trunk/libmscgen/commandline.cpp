@@ -695,7 +695,7 @@ int do_main(const std::list<std::string> &args,
     } else if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
-        Csh csh(ArcBase::defaultDesign, &msc.Shapes);
+        Csh csh(ArcBase::defaultDesign, &msc.Shapes, NULL);
         if (strlen(input)>std::numeric_limits<string::size_type>::max()-10) {
             string err = "The input '";
             err << oInputFile << "' is too long (" << strlen(input) << " bytes).";

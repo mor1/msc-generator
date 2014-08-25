@@ -38,7 +38,8 @@ END_MESSAGE_MAP()
 
 
 CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) : 
-    m_csh(ArcBase::defaultDesign, NULL), m_hintsPopup(parent, this),
+    m_csh(ArcBase::defaultDesign, NULL, NULL),
+    m_hintsPopup(parent, this),
     m_parent(parent)
 {
     m_tabsize = 4;
@@ -46,6 +47,11 @@ CCshRichEditCtrl::CCshRichEditCtrl(CEditorBar *parent) :
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
     m_bRedrawState = true;
+
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp != NULL);
+    if (pApp)
+        m_csh.fontnames = &pApp->m_sFontNames;
 }
 
 #define LIMIT_TEXT 64000
@@ -525,7 +531,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     ReplaceHintedString(item);
                     return CRichEditCtrl::PreTranslateMessage(pMsg);
                 }
-            }
+            } else if (item->type==HINT_ESCAPE && (pMsg->wParam=='(' || pMsg->wParam==')'))
+                //Do not expand for ( or ) 
+                return CRichEditCtrl::PreTranslateMessage(pMsg);
             ReplaceHintedString(item);
             return CRichEditCtrl::PreTranslateMessage(pMsg);
         }
@@ -1328,7 +1336,7 @@ void CCshRichEditCtrl::ReplaceHintedString(const CshHint *hint)
     }
     UpdateCSH(CSH);  //also generates the new hints
     RestoreWindowUpdate(state);
-    if (hint && hint->keep)
+    if ((hint && hint->keep) || step_back)
         StartHintMode(false); //refresh the hint popup content 
     else
         CancelHintMode();
