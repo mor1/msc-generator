@@ -296,6 +296,7 @@ struct LabelInfo {
         PIPE,      ///<The label belongs to a pipe (segment)
         VERTICAL,  ///<The label belongs to a vertical (brace, etc.)
         COMMENT,   ///<The label belongs to a comment (side or end)
+        SYMBOL,    ///<The label of symbol commands
         NOTE,      ///<The label belongs to a floating note
     };
     static const char labelTypeChar[NOTE+2];

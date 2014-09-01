@@ -335,7 +335,7 @@ DistanceMapVerticalElement DistanceMapVertical::Get(const_iterator m1, const_ite
 
 ///////////////////////////////////////////////////////////////////////
 
-const char LabelInfo::labelTypeChar[] = "-EADBbPVCN";
+const char LabelInfo::labelTypeChar[] = "-EADBbPVCSN";
 
 /** We do some processing only for tracking (which is the ability on the GUI.
     to highlight elements and map them to their line number and vice versa).
@@ -922,110 +922,110 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", 
         "Apply a full or partial chart design using 'msc=<full_design> or msc+=<partial_design>, respectively.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", 
         "Set the horizontal scaling factor (default is 1) and thereby infuence the width of the chart. Use 'auto' for automatic scaling.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", 
         "Turn this on to shift all elements upwards until it bumps in to the element above resulting in compressing the chart vertically.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing",
         "Specify the vertical spacing above each element.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "auto_heading",
         "Turn this on to automatically display entity headings at the top of each page (after 'newpage;' commands).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", 
         "Turning this on will make labelled elements auto-numbered.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", 
         "Set the text to prepend to label numbers. E.g., use 'Step ' to achieve 'Step 1', 'Step 2', etc.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", 
         "Set the text to append to label numbers. E.g., use ':' to achieve '1:', '2:', etc.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", 
         "Set the format of auto-numbering, including text format, number type (like roman numbers) and the number of numbering levels.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", 
         "Append a new numbering level, to have, e.g., 2.1, which lasts until the next closing brace ('}').",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.*",
         "Auto numbering related options, like format or the number of levels.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "angle",
         "Make arrows slanted by this degree.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", 
         "Set the color of the background from this point downwards.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", 
         "Set the second color of the background (useful for two-color gradients).", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", 
         "Set the gradient type of the background from this point downwards.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.*",
         "Set the background fill from this point downwards.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.color", 
         "Set the color of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.type", 
         "Set the type of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.width",
         "Set the width of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.*",
         "Set the attributes of the line separating side comments from the chart (if any).",
-        HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.radius", EHintType::ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.line.corner", EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color",
         "Set the color of the background of the side comments (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.color2", 
         "Set the second color of the background of the side comments (if any), useful for two-color gradients.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.gradient",
         "Set the gradient of the background fill of the side comments (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.fill.*",
         "Set the attributes of the background fill of the side comments (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.side", 
         "Use this option to set the default side for comments.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.*",
         "Options governing the appearance and location of chart comments.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.url", 
         "Use this option to attach the URL of the file. Useful for design libraries.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.info", 
         "Use this option to attach a description to the file. Useful for design libraries.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "file.*",
         "Use this option to attach a meta information to the file. Useful for design libraries.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     
     StringFormat::AttributeNames(csh, "comment.text.");
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "comment.text.*",
         "Set the text attributes of the side comments (if any).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "text.*",
         "Set the default text attributes.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (designOnly) return;
     
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", 
         "Turn this on to make parallel blocks be laid out allowing overlaps. (Deprecated, will be removed.)", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", 
         "Turn this on to generate an error for entities that are used without explicit declaration.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 /** Adds the possible attribute values for a given attribute to csh.
@@ -1043,16 +1043,16 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"hscale")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "The default scaling is 1 and you can specify a multiplier. Use a larger number to make the space between entities larger.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", 
             "This automatically sets the spacing between the entities to just as much as needed.",
-            HINT_ATTR_VALUE));
+            EHintType::ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"angle")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Makes arrows to slant downwards and is measured in degrees.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"compress") ||
@@ -1060,8 +1060,8 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         CaseInsensitiveEqual(attr,"auto_heading") ||
         CaseInsensitiveEqual(attr,"classic_parallel_layout") ||
         CaseInsensitiveEqual(attr,"pednatic")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveBeginsWith(attr, "text") || 
@@ -1080,7 +1080,7 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
             if (IsValidSideValue(ESideType::ANY, s))
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
                                        descriptions[unsigned(s)],
-                                       HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
+                                       EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
                                        CshHintGraphicParam(s)));
         return true;
     }
@@ -1091,20 +1091,20 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"numbering.pre")||
         CaseInsensitiveEqual(attr,"numbering.post")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", NULL, EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"numbering.format")||
         CaseInsensitiveEqual(attr,"numbering.append")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", NULL, EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "file.url")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted URL of file\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted URL of file\">", NULL, EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "file.info")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted description of file\">", NULL, HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"quoted description of file\">", NULL, EHintType::ATTR_VALUE, false));
         return true;
     }
     return false;

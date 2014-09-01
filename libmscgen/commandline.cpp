@@ -770,9 +770,9 @@ int do_main(const std::list<std::string> &args,
 
         const bool to_stdout = oOutputFile.length()==0;
         if (to_stdout) {
-            //We cannot write to standard output a multi-page file.
-            if (msc.pageBreakData.size()>1 && !oLmap) {
-                msc.Error.Error(opt_pos, "Cannot write multi-page graphics to the standard output.");
+            //We cannot write to standard output a multi-page file, unless -p.
+            if (msc.pageBreakData.size()>1 && oPageSize==PageSizeInfo::NO_PAGE && !oLmap) {
+                msc.Error.Error(opt_pos, "Cannot write multiple files (one per page) to the standard output.");
                 goto fatal;
             }
             oOutputFile = tmpnam(NULL);

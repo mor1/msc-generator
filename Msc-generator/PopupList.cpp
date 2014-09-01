@@ -70,13 +70,15 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         //Now delete those hints not requested by the user preferences,
         //but only if we do hints not in response to a Ctrl+Space
         //Keep first line ones only if after the user pressed newline
-        if (csh.hintType == HINT_LINE_START)
+        if (csh.hintSource == EHintSourceType::LINE_START)
             if (!pApp->m_bHintLineStart || (!afterReturnKey && uc.length()==0))
                 csh.Hints.clear();
-        if ((!pApp->m_bHintAttrName && csh.hintType==HINT_ATTR_NAME) ||
-            (!pApp->m_bHintAttrValue && csh.hintType==HINT_ATTR_VALUE) ||
-            (!pApp->m_bHintEntity && csh.hintType==HINT_ENTITY) ||
-            (!pApp->m_bHintEscape && csh.hintType==HINT_ESCAPE))
+        if ((!pApp->m_bHintAttrName && csh.hintSource == EHintSourceType::ATTR_NAME) ||
+            (!pApp->m_bHintAttrValue && csh.hintSource == EHintSourceType::ATTR_VALUE) ||
+            (!pApp->m_bHintEntity && csh.hintSource == EHintSourceType::ENTITY) ||
+            (!pApp->m_bHintEscape && csh.hintSource == EHintSourceType::ESCAPE) ||
+            (!pApp->m_bHintKeywordMarker && 
+                (csh.hintSource == EHintSourceType::KEYWORD || csh.hintSource == EHintSourceType::MARKER)))
             csh.Hints.clear();
     }    
     //Now process the list of hints: fill extra fields, compute size, filter by uc and compact

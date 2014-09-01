@@ -416,8 +416,9 @@ struct VertXPos
     /** Calculate the x coordinate of the middle of the element we specify the location for (only after entities are placed)
     * @param m The chart
     * @param width The width of the object
-    * @param gap Specifies how much gap between the entity and the object for POS_XXX_BY. Defaults to `m.hscaleAutoXGap`*/
-    double CalculatePos(Msc &m, double width = 0, double gap = -1) const;
+    * @param gap1 Specifies how much gap between the entity and object for POS_XXX_SIDE. Defaults to `m.hscaleAutoXGap`.
+    * @param gap2 Specifies how much extra gap between the entity and the object for POS_XXX_BY compared to POS_XXX_SIDE. Defaults to `m.hscaleAutoXGap`*/
+    double CalculatePos(Msc &m, double width = 0, double gap1 = -1, double gap2 = -1) const;
 };
 
 /** The base class for all arrows: Self, Dir, Block and Vertical*/

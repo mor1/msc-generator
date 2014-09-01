@@ -112,8 +112,9 @@ extern int yydebug;
     TOK_COMMAND_FOOTNOTE = 321,
     TOK_COMMAND_TITLE = 322,
     TOK_COMMAND_SUBTITLE = 323,
-    TOK_SHAPE_COMMAND = 324,
-    TOK__NEVER__HAPPENS = 325
+    TOK_COMMAND_TEXT = 324,
+    TOK_SHAPE_COMMAND = 325,
+    TOK__NEVER__HAPPENS = 326
   };
 #endif
 /* Tokens.  */
@@ -184,8 +185,9 @@ extern int yydebug;
 #define TOK_COMMAND_FOOTNOTE 321
 #define TOK_COMMAND_TITLE 322
 #define TOK_COMMAND_SUBTITLE 323
-#define TOK_SHAPE_COMMAND 324
-#define TOK__NEVER__HAPPENS 325
+#define TOK_COMMAND_TEXT 324
+#define TOK_SHAPE_COMMAND 325
+#define TOK__NEVER__HAPPENS 326
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -220,7 +222,7 @@ union YYSTYPE
 	CHAR_IF_CSH(Shape)            *shape;
 	CHAR_IF_CSH(ShapeElement)     *shapeelement;
 
-#line 224 "language.h" /* yacc.c:1909  */
+#line 226 "language.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

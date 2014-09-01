@@ -101,6 +101,7 @@ public:
     bool m_bHintEscape;                  ///<True if we provide hints for text formatting escapes 
     bool m_bHintAttrName;                ///<True if we provide hints for attribute names
     bool m_bHintAttrValue;               ///<True if we provide hints for attribute values
+    bool m_bHintKeywordMarker;           ///<True if we provide hints for mid-command keywords and markers
     bool m_bHintFilter;                  ///<True if we filter the hint list to possible candidates
     bool m_bHintCompact;                 ///<True if we compact the hint list hiding hints with same prefix
     bool m_bShowControls;                ///<True if we show element controls (collapse/expand)
@@ -179,6 +180,7 @@ public:
     afx_msg void OnCheckSmartHintEntity();
     afx_msg void OnCheckSmartHintEscape();
     afx_msg void OnCheckSmartHintAttrName();
+    afx_msg void OnCheckSmartHintKeywordMarker();
     afx_msg void OnCheckSmartHintAttrValue();
     afx_msg void OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI);
     afx_msg void OnUpdateCheckHints(CCmdUI *pCmdUI);
@@ -240,6 +242,7 @@ extern CMscGenApp theApp;
 #define REG_KEY_HINT_ESCAPE "HintEscape"
 #define REG_KEY_HINT_ATTRNAME "HintAttrName"
 #define REG_KEY_HINT_ATTRVALUE "HintAttrValue"
+#define REG_KEY_HINT_KEYWORD_MARKER "HintKeywordMarker"
 #define REG_KEY_HINT_COMPACT "HintCompact"
 #define REG_KEY_HINT_FILTER "HintFilter"
 #define REG_KEY_SHOW_CONTROLS "ShowElementControls"

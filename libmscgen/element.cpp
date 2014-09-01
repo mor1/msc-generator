@@ -138,7 +138,7 @@ void Element::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", 
         "Specify Z-ordering with this attribute to control which visual element is drawn on top of which other.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
@@ -148,7 +148,7 @@ bool Element::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(EnumEncapsulator<EDrawPassType>::names, 
                        EnumEncapsulator<EDrawPassType>::descriptions,
                        csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE);
+                       EHintType::ATTR_VALUE);
         return true;
     }
     return false;

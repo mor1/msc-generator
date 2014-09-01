@@ -200,6 +200,7 @@ H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND
 (?i:footnote)  yylval_param->str = strdup(yytext); return TOK_COMMAND_FOOTNOTE;
 (?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
 (?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
+(?i:text)      yylval_param->str = strdup(yytext); return TOK_COMMAND_TEXT;
 (?i:brace)     yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 (?i:bracket)   yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 (?i:range)     yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
@@ -259,7 +260,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
  ** : "<string>"
  ** <string> can contain escaped quotation marks, hashmarks, but no line breaks
  */
-\:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*\" %{
+\:[ \t]*\"([^\"\x0d\x0a]|(\\\"))*\" %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
@@ -283,9 +284,10 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
  ** : "<string>$
  ** <string> can contain escaped quotation marks, hashmarks, but no line breaks
  */
-\:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*/[\x0d\x0a] %{
+\:[ \t]*\"([^\"\x0d\x0a]|(\\\"))*  %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
+    yyget_extra(yyscanner)->csh->AddCSH_ErrorAfter(*yylloc, "Missing closing quotation mark.");
   #else
     {
     /* after whitespaces we are guaranteed to have a heading quot */
@@ -312,8 +314,9 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
  ** Can contain quotation marks (escaped or unescaped), but can not start with it
  ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
  ** (representing a commented section inside a label)
+ *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  
  */
-\:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  %{
+\:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))* %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
@@ -324,17 +327,18 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 %}
 
  /* A simple quoted string, that can have escaped quotation marks inside.*/
-\"([^\"\x0d\x0a]*(\\\")*)*\" %{
+\"([^\"\x0d\x0a]|(\\\"))*\" %{
     yylval_param->str = strdup(yytext+1);
     yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
     return TOK_QSTRING;
 %}
 
  /* A simple quoted string, missing a closing quotation mark */
-\"([^\"\x0d\x0a]*(\\\")*)*/[\x0d\x0a] %{
+\"([^\"\x0d\x0a]|(\\\"))* %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext+1);
-  #else
+    yyget_extra(yyscanner)->csh->AddCSH_ErrorAfter(*yylloc, "Missing closing quotation mark.");
+#else
     {
     yylval_param->str = strdup(yytext+1);
     FileLineCol pos(yyget_extra(yyscanner)->msc->current_file,
@@ -360,7 +364,8 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     return TOK_STRING;
 %}
 
- /* Strings ending with a dot, not followed by a second dot */
+ /* Strings ending with a dot, not followed by a second dot 
+  * Two dots one after another shall be parsed a '..' into TOK_EMPH*/
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])*\./[^\.] %{
     yylval_param->str = strdup(yytext);
     return TOK_STRING;

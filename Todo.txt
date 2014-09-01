@@ -40,14 +40,15 @@ FIX: Re-layouting nested parallel blocks - introduce keep together, take care of
 ADD: arrows to point to boxes.
 ADD: Allow arrow to a group entity...
 ADD: A right-click context menu to the minieditor & outputview
+ADD: Vertical comment alignment
 
 In 4.4 
-ADD: symbol text
-ADD: Vertical comment alignment
+ADD: text at
+ADD: DOC, 'text' style
 
 In 4.3.5
 ADDED: Hints for text formatting escape parameters
-FIX: #s in quoted colon labels, also on the last line
+FIXED: #s in quoted colon labels, also on the last line
 
 In 4.3.4
 ADDED: Explanatory tooltips for hints (preferably with chart examples.)

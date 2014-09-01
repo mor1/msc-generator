@@ -206,15 +206,35 @@ enum EHintStatus {
     HINT_READY     ///<We have a complete set of hints ready (may be empty)
 };
 
-/** The type of language element under the cursor that we shall provide alternatives (hints) for.*/
-enum EHintType {
-    HINT_ENTITY,     ///<Entities
-    HINT_KEYWORD,    ///<Commands and other keywords
-    HINT_ATTR_NAME,  ///<Attribute names (which of these shall be determined)
-    HINT_ATTR_VALUE, ///<Attribute values
-    HINT_MARKER,     ///<Marker names
-    HINT_LINE_START, ///<Anything that can be at the beginning of a line (keyword, option, entity)
-    HINT_ESCAPE      ///<A string escape sequence
+/** The type of a hint we give.*/
+enum class EHintType {
+    OTHER,           ///<Anything not specifically something below
+    ENTITY,          ///<An entity
+    KEYWORD,         ///<Commands and other keywords
+    ATTR_NAME,       ///<Attribute names (which of these shall be determined)
+    ATTR_VALUE,      ///<Attribute values
+    MARKER,          ///<Marker names
+    ESCAPE           ///<A string escape sequence (not including parameters)
+};
+
+/** The type of processing to apply to the entire hint list*/
+enum class EHintProcessingType {
+    NONE,            ///<No special processing
+    DOT_COMPRESS,    ///<If user requests to group hints of the same prefix, do that along dots (like to 'fill.*')
+    ESCAPE_PROC,     ///<The list is a list of text formatting escapes. Compress them like that (and also adjust string under cursor, etc. like this).
+};
+
+
+/** The situation the cursor is in when we provide hints. These can be set from preferences.*/
+enum class EHintSourceType
+{
+    ENTITY,         ///<Entities
+    KEYWORD,        ///<Mid-command keywords
+    ATTR_NAME,      ///<Attribute names (which of these shall be determined)
+    ATTR_VALUE,     ///<Attribute values
+    MARKER,         ///<Marker names
+    LINE_START,     ///<Anything that can be at the beginning of a line (keyword, option, entity)
+    ESCAPE          ///<A string escape sequence (including parameters)
 };
 
 /** Describes what kind of hints we shall give to the user from a text escape.*/
@@ -222,11 +242,11 @@ enum EEscapeHintType
 {
     HINTE_NONE = 0,      ///<The cursor is not at a hint position.
     HINTE_ESCAPE,        ///<The cursor is around an escape
-    HINTE_PARAM_COLOR,   ///<The cursor is inside the parenthesis of a \c() escape
-    HINTE_PARAM_STYLE,   ///<The cursor is inside the parenthesis of a \s() escape
-    HINTE_PARAM_FONT,    ///<The cursor is inside the parenthesis of a \f() escape
-    HINTE_PARAM_REF,     ///<The cursor is inside the parenthesis of a \r() escape
-    HINTE_PARAM_NUMBER,  ///<The cursor is inside the parenthesis of a \mX() escape
+    HINTE_PARAM_COLOR,   ///<The cursor is inside the parenthesis of a \\c() escape
+    HINTE_PARAM_STYLE,   ///<The cursor is inside the parenthesis of a \\s() escape
+    HINTE_PARAM_FONT,    ///<The cursor is inside the parenthesis of a \\f() escape
+    HINTE_PARAM_REF,     ///<The cursor is inside the parenthesis of a \\r() escape
+    HINTE_PARAM_NUMBER,  ///<The cursor is inside the parenthesis of a \\mX() escape
 };
 
 /** Merge two values. Error if neither are NONE */
@@ -326,7 +346,8 @@ public:
     std::map<std::string, CshContext> PartialDesigns; ///<The names and content of partial designs defined so far
     std::list<CshContext>             Contexts;       ///<The context stack
     std::list<std::string>            shape_names;    ///<list of shape names we have parsed definition for, but did not store
-    EHintType                         hintType;       ///<The type of hint we found the cursor is at
+    EHintSourceType                   hintSource;     ///<The type of situation we found the cursor is at and for which the hint is provided. Used also in status HINT_LOCATED.
+    EHintProcessingType               hintProc;       ///<The type of processing to apply to hints.
     EHintStatus                       hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
@@ -351,7 +372,9 @@ public:
      *   from. If not in the initialization of a global variable, best to use 
      *   ArcBase::defaultDesign.
      * @param [in] shapes Specifies a shape collection to learn available shape 
-     *   names from. May be NULL, if no shapes.*/
+     *   names from. May be NULL, if no shapes.
+     * @param fn [in] A list of font names to provide as hints to the parameter of
+     *                the \\f() text formatting escape. May be NULL, if none.*/
     Csh(const Context &defaultDesign, const ShapeCollection *shapes, const std::set<std::string> *fn);
 
     /**Add a name of a shape (whithout the actual shape)*/
@@ -393,20 +416,20 @@ public:
     ECursorRelPosType CursorIn(int a, int b) const;
     /** @name Set hint status if cursor position is at a hintable place.
      * @{ */
-    bool CheckHintBetween(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
-    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
-    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
-    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
-    bool CheckHintAt(const CshPos &one, EHintType ht, const char *a_name=NULL);
-    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
-    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
+    bool CheckHintBetween(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintAt(const CshPos &one, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
     bool CheckLineStartHintBefore(const CshPos &pos);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);
     bool CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd);
     bool CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd);
-    bool CheckHintLocated(EHintType ht, const CshPos  &location_to_check);
+    bool CheckHintLocated(EHintSourceType hsource, const CshPos  &location_to_check);
     /** @}*/
     
     /** Tells what formatting prefix to append to an information-only hint that should not be inserted to chart text.*/
@@ -415,6 +438,7 @@ public:
     std::string HintPrefix(EColorSyntaxType) const;
 
     /** @name Add specific items to the list of hints.
+     * None of these sets hintSource, hintStatus, hintsForcedOnly
      * @{ */
     void AddToHints(CshHint &&h);
     void AddToHints(const CshHint &h) {AddToHints(CshHint(h));} ///<Insert a hint to the list of hints.
