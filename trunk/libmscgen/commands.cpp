@@ -769,14 +769,14 @@ void CommandNewpage::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "auto_heading", 
         "Turn this on to automatically generate an entity heading at the top of the new page.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"auto_heading")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     return false;
@@ -923,7 +923,7 @@ void CommandMark::AttributeNames(Csh &csh)
     ArcBase::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", 
         "Add this many pixels to the current location and mark that place.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
@@ -931,7 +931,7 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"offset")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", 
             "Interpreted in pixels.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (ArcBase::AttributeValues(attr, csh)) return true;
@@ -1075,10 +1075,10 @@ void CommandHSpace::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
         "Enter some text the width of which will be used as horizontal spacing.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", 
         "Enter a number in pixels to set horizontal spacing.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
 }
 
@@ -1090,7 +1090,7 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"space")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Enter a number in pixels to set horizontal spacing.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (StringFormat::AttributeValues(attr, csh)) return true;
@@ -1171,13 +1171,13 @@ void CommandVSpace::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
         "Enter some text the height of which will be added as vertical empty space.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", 
         "Enter a number in pixels to add that much empty vertical spacing.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable",
         "Turn this on so that the vertical space added can be compressed away if the next element has 'compress' turned on or 'vspacing' set to 'compress'.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     StringFormat::AttributeNames(csh, "text.");
 }
 
@@ -1189,12 +1189,12 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"space")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Enter a number in pixels to add that much empty vertical spacing.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"compressable")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (StringFormat::AttributeValues(attr, csh)) return true;
@@ -1277,11 +1277,14 @@ const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
 CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
                 const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
-    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc, msc->Contexts.back().styles["symbol"]),
+    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc, 
+        CaseInsensitiveEqual(symbol, "text") ? msc->Contexts.back().styles["text"] :
+             msc->Contexts.back().styles["symbol"]),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
     vpos(enp ? *enp : NamePair(NULL, FileLineColRange(), NULL, FileLineColRange())),
-    xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL)
+    xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL),
+    gap1(chart->hscaleAutoXGap), gap2(chart->hscaleAutoXGap)
 {
     if (CaseInsensitiveEqual(symbol, "arc"))
         symbol_type = ARC;
@@ -1289,7 +1292,27 @@ CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
         symbol_type = RECTANGLE;
     else if (CaseInsensitiveEqual(symbol, "..."))
         symbol_type = ELLIPSIS;
-    else {
+    else if (CaseInsensitiveEqual(symbol, "text")) {
+        symbol_type = RECTANGLE;
+        gap1 = 0;
+        _ASSERT(vxpos1);
+        switch (vxpos1->side) {
+        case ExtVertXPos::BAD_SIDE:
+        case ExtVertXPos::NONE:
+        default: 
+            _ASSERT(0);
+            break;
+        case ExtVertXPos::LEFT:
+            style.write().text += "\\pl";
+            break;
+        case ExtVertXPos::RIGHT:
+            style.write().text += "\\pr";
+            break;
+        case ExtVertXPos::CENTER:
+            style.write().text += "\\pc";
+            break;
+        }
+    } else {
         valid = false;
         return;
     }
@@ -1362,13 +1385,13 @@ void CommandSymbol::AttributeNames(Csh &csh)
     ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", 
         "Set the width of the symbol in pixels.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", 
         "Set the height of the symbol in pixels.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", 
         "Set the size of the symbol.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     defaultDesign.styles.GetStyle("symbol").read().AttributeNames(csh);
 }
 
@@ -1377,13 +1400,13 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"xsize")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Set the width of the symbol in pixels.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"ysize")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Set the height of the symbol in pixels.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"size")) {
@@ -1449,11 +1472,11 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     case RECTANGLE:
         if (hpos2.side == ExtVertXPos::NONE && xsize.first == false) {
             xsize.first = true;
-            xsize.second = 10; //default size;
+            xsize.second = symbol_type==RECTANGLE ? DBL_MIN : 10; //size not set vs default size
         }
         if (!(vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
             ysize.first = true;
-            ysize.second = 10; //default size;
+            ysize.second = symbol_type==RECTANGLE ? DBL_MIN : 10; //size not set vs default size
         }
         break;
     case ELLIPSIS:
@@ -1467,11 +1490,129 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
 
 void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
+    if (symbol_type==RECTANGLE) {
+        //set sizes now, if not yet set - label is now final
+        if (xsize.first && xsize.second==DBL_MIN)
+            xsize.second = parsed_label.size() ? parsed_label.getTextWidthHeight().x : 10;
+        if (ysize.first && ysize.second==DBL_MIN)
+            ysize.second = parsed_label.size() ? parsed_label.getTextWidthHeight().y : 10;
+    }
     //Add a new element to vdist
     vdist.InsertElementTop(this);
     //Add activation status right away
     AddEntityLineWidths(vdist);
-    ArcLabelled::Width(canvas, distances, vdist);
+
+    //Now make some room, but only if
+    // - makeroom is true AND
+    // - we have only one pos specified or we have two pos, one left and one right
+    if (style.read().makeroom.second &&
+          (hpos2.side == ExtVertXPos::NONE ||
+          (hpos1.side != ExtVertXPos::CENTER && hpos2.side != ExtVertXPos::CENTER))) {
+
+        //First seee to the case with one position specifier only
+        const unsigned index = (*hpos1.entity1)->index; //index of the (first) entity
+        const double width = xsize.second; //must be valid if only one pos specifier
+        double off = hpos1.pos == VertXPos::POS_LEFT_BY ? -gap1-gap2 :
+                     hpos1.pos == VertXPos::POS_RIGHT_BY ? +gap1+gap2 :
+                     hpos1.pos == VertXPos::POS_LEFT_SIDE ? -gap1 :
+                     hpos1.pos == VertXPos::POS_RIGHT_SIDE ? +gap1 : 0;
+        off += hpos1.offset;
+
+        const auto si = vpos.src==MARKER_HERE_STR ? vdist.GetIteratorEnd() :
+                               vdist.GetIterator(vpos.src);
+        const auto di = vpos.dst==MARKER_HERE_STR ? vdist.GetIteratorEnd() :
+                               vdist.GetIterator(vpos.dst);
+        if (hpos2.side == ExtVertXPos::NONE)
+            switch (hpos1.side) {
+            case ExtVertXPos::CENTER:
+                switch (hpos1.pos) {
+                default:
+                    _ASSERT(0); //fallthrough
+                case VertXPos::POS_RIGHT_BY:
+                case VertXPos::POS_LEFT_BY:
+                case VertXPos::POS_LEFT_SIDE:
+                case VertXPos::POS_RIGHT_SIDE:
+                case VertXPos::POS_AT:
+                    distances.Insert(index, DISTANCE_LEFT, width/2 - off);
+                    distances.Insert(index, DISTANCE_RIGHT, width/2 + off);
+                    vdist.Insert(index, DISTANCE_LEFT, width/2 - off, si, di);
+                    vdist.Insert(index, DISTANCE_RIGHT, width/2 + off, si, di);
+                    vdist.InsertEntity(hpos1.entity1);
+                    break;
+                case VertXPos::POS_THIRD_LEFT:
+                case VertXPos::POS_THIRD_RIGHT:
+                    _ASSERT(0); //fallthrough, these should not appear here, used only for loss
+                case VertXPos::POS_CENTER:
+                    distances.Insert(index, (*hpos1.entity2)->index, width + off);
+                    vdist.InsertEntity(hpos1.entity1);
+                    vdist.InsertEntity(hpos1.entity2);
+                    break;
+                }
+                break;
+            case ExtVertXPos::LEFT:
+                switch (hpos1.pos) {
+                default:
+                    _ASSERT(0); //fallthrough
+                case VertXPos::POS_RIGHT_BY:
+                case VertXPos::POS_LEFT_BY:
+                case VertXPos::POS_RIGHT_SIDE:
+                case VertXPos::POS_LEFT_SIDE:
+                case VertXPos::POS_AT:
+                    distances.Insert(index, DISTANCE_RIGHT, width + off);
+                    vdist.Insert(index, DISTANCE_RIGHT, width + off, di, si);
+                    vdist.InsertEntity(hpos1.entity1);
+                    break;
+                case VertXPos::POS_THIRD_LEFT:
+                case VertXPos::POS_THIRD_RIGHT:
+                    _ASSERT(0); //fallthrough, these should not appear here, used only for loss
+                case VertXPos::POS_CENTER:
+                    distances.Insert(index, (*hpos1.entity2)->index, 2*(width + off));
+                    vdist.InsertEntity(hpos1.entity1);
+                    vdist.InsertEntity(hpos1.entity2);
+                    break;
+                }
+                break;
+            case ExtVertXPos::RIGHT:
+                switch (hpos1.pos) {
+                default:
+                    _ASSERT(0); //fallthrough
+                case VertXPos::POS_RIGHT_BY:
+                case VertXPos::POS_LEFT_BY:
+                case VertXPos::POS_RIGHT_SIDE:
+                case VertXPos::POS_LEFT_SIDE:
+                case VertXPos::POS_AT:
+                    distances.Insert(index, DISTANCE_LEFT, width - off);
+                    vdist.Insert(index, DISTANCE_LEFT, width - off, di, si);
+                    vdist.InsertEntity(hpos1.entity1);
+                    break;
+                case VertXPos::POS_THIRD_LEFT:
+                case VertXPos::POS_THIRD_RIGHT:
+                    _ASSERT(0); //fallthrough, these should not appear here, used only for loss
+                case VertXPos::POS_CENTER:
+                    distances.Insert(index, (*hpos1.entity2)->index, 2*(width + off));
+                    vdist.InsertEntity(hpos1.entity1);
+                    vdist.InsertEntity(hpos1.entity2);
+                    break;
+                }
+            case ExtVertXPos::NONE:
+            case ExtVertXPos::BAD_SIDE:
+            default:
+                _ASSERT(0);
+                break;
+        }
+        //Ok, now one of them (hpos1) is left, the other is right (hpos2)
+        //We can insert distances only if none of them is a-b-type
+        else if (hpos1.pos!=VertXPos::POS_CENTER && hpos2.pos!=VertXPos::POS_CENTER) {
+            double off2 = hpos2.pos == VertXPos::POS_LEFT_BY ? -gap1-gap2 :
+                          hpos2.pos == VertXPos::POS_RIGHT_BY ? +gap1-gap2  :
+                          hpos2.pos == VertXPos::POS_LEFT_SIDE ? -gap1 :
+                          hpos2.pos == VertXPos::POS_RIGHT_SIDE ? +gap1 : 0;
+            off2 += hpos2.offset;
+            distances.Insert(index, (*hpos2.entity1)->index, width + off - off2);
+            vdist.InsertEntity(hpos1.entity1);
+            vdist.InsertEntity(hpos2.entity1);
+        }
+    }
     //Add a new element to vdist
     vdist.InsertElementBottom(this);
     //Add activation status right away
@@ -1483,7 +1624,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
 {
     //Calculate x positions
     const double lw = style.read().line.LineWidth();
-    double x1 = hpos1.CalculatePos(*chart);
+    double x1 = hpos1.CalculatePos(*chart, 0, gap1, gap2);
     switch (hpos2.side) {
     case ExtVertXPos::NONE:
         switch (hpos1.side) {
@@ -1505,7 +1646,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
         }
         break;
     case ExtVertXPos::RIGHT:
-        outer_edge.x.till = hpos2.CalculatePos(*chart);
+        outer_edge.x.till = hpos2.CalculatePos(*chart, 0, gap1, gap2);
         if (hpos1.side == ExtVertXPos::LEFT)
             outer_edge.x.from = x1;
         else //can only be center
@@ -1514,7 +1655,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
     case ExtVertXPos::CENTER:
         //here hpos1 can only be LEFT
         outer_edge.x.from = x1;
-        outer_edge.x.till = 2*hpos2.CalculatePos(*chart) - x1;
+        outer_edge.x.till = 2*hpos2.CalculatePos(*chart, 0, gap1, gap2) - x1;
         break;
     default:
         _ASSERT(0);
@@ -1529,8 +1670,8 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
         height = 0;
         return; //No call to CommentHeight(), it will be done in postposprocess?
     } 
-    outer_edge.y.from = 0;
-    outer_edge.y.till = lw + ysize.second;
+    outer_edge.y.from = chart->arcVGapAbove;
+    outer_edge.y.till = 2*lw + ysize.second + chart->arcVGapAbove;
 
     CalculateAreaFromOuterEdge(canvas);
     area_important = area;
@@ -1541,7 +1682,7 @@ void CommandSymbol::Layout(Canvas &canvas, AreaList *cover)
         else
             *cover = area;
     }
-    height = outer_edge.y.till + style.read().shadow.offset.second;
+    height = outer_edge.y.till + style.read().shadow.offset.second + chart->arcVGapBelow;
     LayoutComments(canvas, cover);
 }
 
@@ -1590,7 +1731,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge(Canvas &canvas)
                            outer_edge.y.Spans()/2);
             break;
         case RECTANGLE:
-            area = style.read().line.CreateRectangle_OuterEdge(outer_edge);
+            area = style.read().line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-style.read().line.LineWidth()/2));
             break;
         case ELLIPSIS:
             const double r = outer_edge.x.Spans()/2;
@@ -1610,10 +1751,22 @@ void CommandSymbol::CalculateAreaFromOuterEdge(Canvas &canvas)
     const XY twh = parsed_label.getTextWidthHeight();
     if (twh.x>0) {
         const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
-        area = parsed_label.Cover(b.x.from, b.x.till, b.y.from);
+        area += parsed_label.Cover(b.x.from, b.x.till, b.y.from);
     }
     area.arc = this;
     area.mainline = Block(chart->GetDrawing().x, area.GetBoundingBox().y);
+}
+
+void CommandSymbol::PostPosProcess(Canvas &canvas)
+{
+    if (!valid) return;
+    //Expand area and add us to chart's all covers list
+    ArcLabelled::PostPosProcess(canvas);
+    const XY twh = parsed_label.getTextWidthHeight();
+    const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
+    chart->RegisterLabel(parsed_label, LabelInfo::SYMBOL,
+        b.x.from, b.x.till, b.y.from);
+    chart->HideEntityLines(parsed_label.Cover(b.x.from, b.x.till, b.y.from));
 }
 
 void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)

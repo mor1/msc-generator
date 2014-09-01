@@ -531,7 +531,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     ReplaceHintedString(item);
                     return CRichEditCtrl::PreTranslateMessage(pMsg);
                 }
-            } else if (item->type==HINT_ESCAPE && (pMsg->wParam=='(' || pMsg->wParam==')'))
+            } else if (item->type==EHintType::ESCAPE && (pMsg->wParam=='(' || pMsg->wParam==')'))
                 //Do not expand for ( or ) 
                 return CRichEditCtrl::PreTranslateMessage(pMsg);
             ReplaceHintedString(item);
@@ -548,7 +548,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             //see if we are at the beginning of a word (except escape hints)
             bool till_cursor_only = false;
             if (lStart==0) till_cursor_only = true;
-            else if (m_csh.hintType!=HINT_ESCAPE) {
+            else if (m_csh.hintProc!=EHintProcessingType::ESCAPE_PROC) {
                 CString str;
                 GetTextRange(lStart-1, lStart, str);
                 if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;

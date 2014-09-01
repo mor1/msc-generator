@@ -219,7 +219,7 @@ void ArrowHead::AttributeNames(Csh &csh, const string &prefix)
         "xmul", "A size multiplier applied to the width arrowheads. To increase width, for example, specify a number greater than 1.",
         "ymul", "A size multiplier applied to the height arrowheads. To decrease height, for example, specify a number smaller than 1.",
         ""};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, EHintType::ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before arrowhead type names for line arrows in the hints popup list box.
@@ -311,7 +311,7 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, EArcArrowType
                           (t==ARROW && MSC_ARROW_OK_FOR_ARROWS(EArrowType(i))))
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + EnumEncapsulator<EArrowType>::names[i],
                                EnumEncapsulator<EArrowType>::descriptions[i],
-                               HINT_ATTR_VALUE, true, 
+                               EHintType::ATTR_VALUE, true, 
                                t==BIGARROW ? CshHintGraphicCallbackForBigArrows : CshHintGraphicCallbackForArrowTypes,
                                CshHintGraphicParam(i)));
         return true;
@@ -319,20 +319,20 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, EArcArrowType
     if (CaseInsensitiveEndsWith(attr, "xmul")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between [0.1 and 10]>",
             "Specify a number how much wider you want the arrowhead.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ymul")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between [0.1 and 10]>",
             "Specify a number how much higher you want the arrowhead.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "arrowsize") ||
         CaseInsensitiveEndsWith(attr, "size")) {
         csh.AddToHints(EnumEncapsulator<EArrowSize>::names, EnumEncapsulator<EArrowSize>::descriptions,
                        csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForArrowSizes);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForArrowSizes);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "color") ||

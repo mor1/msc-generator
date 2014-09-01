@@ -222,6 +222,7 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ESCAPE, &CMscGenApp::OnCheckSmartHintEscape)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnCheckSmartHintAttrName)
     ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnCheckSmartHintAttrValue)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_KEYWORD_MARKER, &CMscGenApp::OnCheckSmartHintKeywordMarker)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_FILTER, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_COMPACT, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_LINE_START, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
@@ -229,6 +230,7 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ESCAPE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_KEYWORD_MARKER, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_HINTS, &CMscGenApp::OnUpdateCheckHints)
     ON_COMMAND(ID_BUTTON_TRACK_COLOR, &CMscGenApp::OnButtonTrackColor)
     ON_COMMAND(ID_EMBEDDEDOPTIONS_FALLBACK_RES, &CMscGenApp::OnEmbeddedoptionsFallbackRes)
@@ -631,6 +633,7 @@ void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/)
     m_bHintEscape    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ESCAPE, TRUE);
     m_bHintAttrName  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, TRUE);
     m_bHintAttrValue = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, TRUE);
+    m_bHintKeywordMarker = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_KEYWORD_MARKER, TRUE);
     m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
     m_bHintCompact   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, TRUE);
     m_bShowControls  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SHOW_CONTROLS, TRUE);
@@ -1319,6 +1322,15 @@ void CMscGenApp::OnCheckSmartHintAttrName()
 }
 
 
+/** Toggle whether hints are provided for mid-command keywords and markers or not.
+* Updates the registry*/
+void CMscGenApp::OnCheckSmartHintKeywordMarker()
+{
+    m_bHintKeywordMarker = !m_bHintKeywordMarker;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, m_bHintKeywordMarker);
+}
+
+
 /** Toggle whether hints are provided for attribute values or not.
 * Updates the registry*/
 void CMscGenApp::OnCheckSmartHintAttrValue()
@@ -1342,6 +1354,7 @@ void CMscGenApp::OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI)
     case IDC_CHECK_SMART_HINT_ESCAPE: set = m_bHintEscape; break;
     case IDC_CHECK_SMART_HINT_ATTR_NAME: set = m_bHintAttrName; break;
     case IDC_CHECK_SMART_HINT_ATTR_VALUE: set = m_bHintAttrValue; break;
+    case IDC_CHECK_SMART_HINT_KEYWORD_MARKER: set = m_bHintKeywordMarker; break;
     default: _ASSERT(0);
     }
     pCmdUI->SetCheck(set);

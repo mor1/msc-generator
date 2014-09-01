@@ -449,7 +449,7 @@ void LineAttr::AttributeNames(Csh &csh, const string &prefix)
     "width", "The width of the line", 
     "radius", "How wide the line turns in corners (only for some corner types)",
     "corner", "The style of tunrning at corners."};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, EHintType::ATTR_NAME);
 }
 
 /** Callback for drawing a symbol before line type names in the hints popup list box.
@@ -486,26 +486,26 @@ bool LineAttr::AttributeValues(const std::string &attr, Csh &csh)
     }
     if (CaseInsensitiveEndsWith(attr, "type")) {
         csh.AddToHints(EnumEncapsulator<ELineType>::names, NULL, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForLineType);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForLineType);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "width")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", 
             "Specify the with of the line in pixels. For double and triple lines, this is not the total width of the line, just the width of one component line.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "corner")) {
         csh.AddToHints(EnumEncapsulator<ECornerType>::names, 
                        NULL, //graphics hints tell it all 
                        csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForCornerType);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForCornerType);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "radius")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", 
             "Specify how wide the line turns at corners, such as rectangle corners.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     return false;
@@ -890,7 +890,7 @@ void FillAttr::AttributeNames(Csh &csh, const string &prefix)
     "color2", "The second color of the fill (only for two-color gradients).",
     "gradient", "The gradient type of the fill.",
     ""};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, HINT_ATTR_NAME);
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, EHintType::ATTR_NAME);
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
@@ -902,7 +902,7 @@ bool FillAttr::AttributeValues(const std::string &attr, Csh &csh)
     }
     if (CaseInsensitiveEndsWith(attr, "gradient")) {
         csh.AddToHints(EnumEncapsulator<EGradientType>::names, NULL, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForGradient);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForGradient);
         return true;
     }
     return false;
@@ -1037,10 +1037,10 @@ void ShadowAttr::AttributeNames(Csh &csh)
     "shadow.offset", "The width of the shadow in pixels, that is, how 'high' the element appears above the background.",
     "shadow.blur", "How much of the shadow is blurred in pixels. Zero means no blur.",
     ""};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME), EHintType::ATTR_NAME);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"shadow.*",
         "Options for the shadow of the element.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
@@ -1053,13 +1053,13 @@ bool ShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
     if (CaseInsensitiveEndsWith(attr, "offset")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>", 
             "The width of the shadow in pixels, that is, how 'high' the element appears above the background.",
-            HINT_ATTR_VALUE));
+            EHintType::ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "blur")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>", 
             "Specify how much of the shadow is blurred in pixels. Zero means no blur.",
-            HINT_ATTR_VALUE));
+            EHintType::ATTR_VALUE));
         return true;
     }
     return false;
@@ -1158,10 +1158,10 @@ bool WidthAttr::AttributeValues(const std::string &attr, Csh &csh)
     if (CaseInsensitiveEndsWith(attr, "width")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Specify the width in pixels with a number.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<string>", 
             "You can also specify a string and then the width will be set to the width of this string.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     return false;
@@ -1291,10 +1291,10 @@ void NoteAttr::AttributeNames(Csh &csh)
     "note.pos", "Influence where the note is placed.",
     "note.width", "Select the width of the note. Useful if you want the text to wrap inside it (via 'text.warp=yes').",
     ""};
-    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME), EHintType::ATTR_NAME);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"note.*",
         "Adust the pointer, position and size of the note.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 /** Possible values for a note pointer type*/
@@ -1321,14 +1321,14 @@ bool NoteAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "pointer")) {
         csh.AddToHints(EnumEncapsulator<NoteAttr::EPointerType>::names, NULL, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForPointer);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForPointer);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "pos")) {
         csh.AddToHints(EnumEncapsulator<NoteAttr::EPosType>::names, 
                        EnumEncapsulator<NoteAttr::EPosType>::descriptions, 
                        csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForPos);
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForPos);
         return true;
     }
     if (WidthAttr::AttributeValues(attr, csh)) return true;

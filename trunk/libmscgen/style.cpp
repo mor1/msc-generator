@@ -468,68 +468,68 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (DoIAcceptUnqualifiedColorAttr())
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"color",
           "Set the color of the element.", 
-          HINT_ATTR_NAME));
+          EHintType::ATTR_NAME));
     if (f_line) {
         LineAttr::AttributeNames(csh, "line.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"line.*",
             "Options for the line style of the element.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_fill) {
         FillAttr::AttributeNames(csh, "fill.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"fill.*",
             "Options for how to fill the inside of the element.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_arrow!=ArrowHead::NONE) {
         ArrowHead::AttributeNames(csh, "arrow.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"arrow.*",
             "Adjust the style of the arrowheads.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_shadow) ShadowAttr::AttributeNames(csh);
     if (f_text) {
         StringFormat::AttributeNames(csh, "text.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"text.*",
             "Adjust the format of the label text.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_solid)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid",
         "Specifies, how much the pipe covers its content. Use a value between [0..255] or [0..1], where 0 is fully transparent.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (f_side != ESideType::NO)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", 
         "Specify which side the element ends up.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", 
         "Turn numberin off or specify a concrete number.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", 
         "Enable or disable indicators for this element (in case of a collapsed group entity or box).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (f_makeroom) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", 
         "Specify if this vertical makes more horizontal space to avoid overlap.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     if (f_vspacing) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", 
             "Turning this on will push this element upwards until it bumps into the one above it in order to compress the chart vertically.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"vspacing", 
             "Specify the vertical spacing above this element.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_vline) {
         LineAttr::AttributeNames(csh, "vline.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"vline.*",
             "Set how the entity lines look like for this entity (or around this element).",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_vfill) {
         FillAttr::AttributeNames(csh, "vfill.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"vfill.*",
             "Set how to fill the activated entity lines for this entity (or around this element).",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_note) NoteAttr::AttributeNames(csh);
     if (f_lost) {
@@ -538,33 +538,33 @@ void MscStyle::AttributeNames(Csh &csh) const
         StringFormat::AttributeNames(csh, "lost.text.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"lost.line.*",
             "Options for how the line of the lost part of a lost message appears.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"lost.arrow.*",
             "Options for how the arrowhead of the lost part of a lost message appears.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"lost.text.*",
             "Options for how the label at the lost part of a lost message appears.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"lost.*",
             "Options for how the lost part of the lost message appears.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_lsym) {
         LineAttr::AttributeNames(csh, "x.line.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"x.size", 
             "Specify the size of the loss symbol.", 
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"x.*",
             "Options for how the loss symbol appears.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_shape && csh.pShapes && *csh.pShapes) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape", 
             "Set the shape of the entity.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "shape.size",
             "Set the shape size of the entity.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     if (f_tag) {
         LineAttr::AttributeNames(csh, "tag.line.");
@@ -572,16 +572,16 @@ void MscStyle::AttributeNames(Csh &csh) const
         StringFormat::AttributeNames(csh, "tag.text.");
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag.line.*",
             "Set the line style of the tag of the box.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag.fill.*",
             "Set the fill style of the tag of the box.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag.text.*",
             "Set the text format of the tag label.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag.*",
             "Options to control how box tags appear.",
-            HINT_ATTR_NAME));
+            EHintType::ATTR_NAME));
     }
     csh.AddStylesToHints(false, false);
 }
@@ -645,26 +645,26 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
     if (CaseInsensitiveEqual(attr, "solid") && f_solid) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>", 
             "Specify the opacity as a floating point number. 0 is fully transparent, 1 is fully opaque.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", 
             "Specify the opacity as an integer. 0 is fully transparent, 255 is fully opaque.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if ((CaseInsensitiveEqual(attr, "compress") && f_vspacing) ||
         (CaseInsensitiveEqual(attr, "indicator") && f_indicator) ||
         (CaseInsensitiveEqual(attr, "makeroom") && f_makeroom)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "vspacing") && f_vspacing) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Specify extra spading above this element in pixels. 0 means no extra space.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", 
             "Specifying 'compress' will auto-adjust vertical spacing to be as little as possible by moving the element up until it bumps into the ones above.",
-            HINT_ATTR_VALUE, true));
+            EHintType::ATTR_VALUE, true));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "side")) {
@@ -672,20 +672,20 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
             if (IsValidSideValue(f_side, s))
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+EnumEncapsulator<ESide>::names[unsigned(s)], 
                                        EnumEncapsulator<ESide>::descriptions[unsigned(s)],
-                                       HINT_ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
+                                       EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForSide, 
                                        CshHintGraphicParam(s)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Specify a concrete number to set the number of the element.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", 
             "Turn on auto-numbering for this element.",
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+            EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", 
             "Exempt this element from auto-numbering and have no number here.",
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+            EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (f_note && CaseInsensitiveBeginsWith(attr, "note"))
@@ -712,7 +712,7 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
             for (const auto &s : csh.shape_names)
                 csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+s,
                 NULL,
-                HINT_ATTR_VALUE, true));
+                EHintType::ATTR_VALUE, true));
             return true;
         }
         if (CaseInsensitiveEqual(attr, "shape.size")) {
@@ -939,10 +939,17 @@ void Context::Empty()
                  //fill line shadow only
     styles["symbol"] =
         MscStyle(STYLE_DEFAULT, EColorMeaning::NOHOW, ArrowHead::NONE, 
-                 false, true, true, true, false,
-                 false, false, false, ESideType::NO, false, false, false, false, 
+                 true, true, true, true, false,
+                 false, false, false, ESideType::NO, false, false, true, false, 
                  false, false, false, false);
-                 //only line fill and shadow
+                 //only line fill shadow text makeroom
+    styles["text"] = 
+                MscStyle(STYLE_DEFAULT, EColorMeaning::TEXT, ArrowHead::NONE, 
+                 true, true, true, true, false,
+                 false, false, false, ESideType::NO, false, false, true, false, 
+                 false, false, false, false);
+                 //only line fill shadow text makeroom; color is for text
+
 
     styles["note"] = 
         MscStyle(STYLE_DEFAULT, EColorMeaning::NOHOW, ArrowHead::NOTE,
@@ -1172,6 +1179,11 @@ void Context::Plain()
     styles["indicator"].write().line.width.second = 2;
 
     styles["symbol"].write().MakeCompleteButText();
+    styles["symbol"].write().makeroom.second = true;
+    styles["text"] = styles["symbol"];
+    styles["text"].write().line.type.second = LINE_NONE;
+    styles["text"].write().fill.color.second = ColorType(0, 0, 0, 0); //fully transparent
+    styles["text"].write().text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
 
     styles["note"].write().MakeCompleteButText();
     styles["note"].write().numbering.first = false;

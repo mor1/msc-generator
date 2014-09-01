@@ -863,6 +863,8 @@ STRINGTABLE
 BEGIN
     IDC_CHECK_SMART_HINT_ESCAPE 
                             "Automatically suggest hints when a text formatting escape is probable.\nAutomatic Hints for text formatting escape sequences beginning with a backslash ('\\')."
+    IDC_CHECK_SMART_HINT_KEYWORD_MARKER 
+                            "Automatically suggest hints when a mid-command keyword or marker name is expected.\nAutomatic Hints for Keywords and Markers"
 END
 
 #endif    // English (United States) resources

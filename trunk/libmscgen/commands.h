@@ -283,6 +283,8 @@ protected:
     std::pair<bool, double> xsize;                ///<(optional) X size specified by the user. (used for 'arc' and 'rectangle')
     std::pair<bool, double> ysize;                ///<(optional) Y size specified by the user. (used for 'arc' and 'rectangle')
     EArrowSize              size;                 ///<Size of the dots in the ellipsis (used only for '...')
+    double                  gap1;                 ///<The gap to apply with 'at entity+' and 'at entity-' clauses
+    double                  gap2;                 ///<The increase of gap to apply with 'at entity++' and 'at entity--' clauses compared to +/- only. (So the total gap to apply for ++/-- is gap1+gap2.)
     mutable Block           outer_edge;           ///<The cpmputed bounding box of the symbol
     void CalculateAreaFromOuterEdge(Canvas &canvas);
 public:
@@ -305,6 +307,7 @@ public:
                                     bool /*addHeading*/, ArcList &/*res*/)
                                        {return outer_edge.y.IsInvalid() ? -2 : -1;}
     virtual void PlaceWithMarkers(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 

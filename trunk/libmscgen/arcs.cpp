@@ -421,25 +421,25 @@ void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", 
         "Turn this on to shift this elements upwards until it bumps into the element above (to compress the chart vertically).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing", 
         "Specify the vertical spacing above this element.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", 
         "Turn this on so to put subsequent elements in parallel with this one and not stricly below (except if they overlap).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", 
         "Turn this on so to put subsequent elements in parallel with this one and not below (even if they overlap).", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", 
         "Name this element so that it can be referred to (e.g., from a label of another element via the '\r(name)' escape sequence).", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", 
         "Turn this on if you do not want this element to break across pages.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", 
         "Turn this on if you want this element on the same page with the subsequent one.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     Element::AttributeNames(csh);
 }
 
@@ -450,17 +450,17 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         CaseInsensitiveEqual(attr,"overlay") ||
         CaseInsensitiveEqual(attr,"keep_together") ||
         CaseInsensitiveEqual(attr,"keep_with_next")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "vspacing")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Specify extra spading above this element in pixels. 0 means no extra space.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", 
             "Specifying 'compress' will auto-adjust vertical spacing to be as little as possible by moving the element up until it bumps into the ones above.", 
-            HINT_ATTR_VALUE, true));
+            EHintType::ATTR_VALUE, true));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "refname"))
@@ -847,10 +847,10 @@ void ArcLabelled::AttributeNames(Csh &csh)
     ArcBase::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
         "Specify the text of the label of this element.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", 
         "Turn auto-numberin on or off. You can also give a specific number to use with auto-numbering of this element.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     Element::AttributeNames(csh); //draw_time
     csh.AddStylesToHints(false, false);
 }
@@ -863,13 +863,13 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"number")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", 
             "Turn auto-numberin on. (May already be turned on via a style or chart option.)", 
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+            EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", 
             "Turn auto-numberin off. (May already be turned off via a style, chart option or by default.)",
-            HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+            EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Specify a number to use for this element. Auto-numbering will continue from this value.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"draw_time")) 
@@ -973,10 +973,10 @@ void ArcArrow::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", 
         "Make this arrow slanted by this degree.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth", 
         "Make this arrow slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
     defaultDesign.styles.GetStyle("arrow").read().AttributeNames(csh);
 }
@@ -986,13 +986,13 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"angle")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45 [degrees]>", 
             "Make this arrow slanted by this degree.", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "slant_depth")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..1000 [pixels]>", 
             "Make arrows slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)", 
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (defaultDesign.styles.GetStyle("arrow").read().AttributeValues(attr, csh)) return true;
@@ -1750,7 +1750,7 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     }
     //Check if the loss happens in-between (untransformed) sx and dx
     if (lost_pos.valid) {
-        cx_lsym = lost_pos.CalculatePos(*chart, lsym_size.x, lsym_size.x*lsym_side_by_offset);
+        cx_lsym = lost_pos.CalculatePos(*chart, lsym_size.x, chart->hscaleAutoXGap, lsym_size.x*lsym_side_by_offset);
         if (cx_lsym < std::min(sx, dx) || std::max(sx, dx) < cx_lsym) {
             chart->Error.Error(linenum_lost_at.IsInvalid() ? this->file_pos.start : linenum_lost_at,
                 "The position of the loss is " +
@@ -2135,10 +2135,10 @@ void ArcBigArrow::AttributeNames(Csh &csh)
     ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", 
         "Make this arrow slanted by this degree.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "slant_depth",
         "Make this arrow slanted such that the end of it is this many pixels below the start of it. (An alternative way to specify angle.)",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     defaultDesign.styles.GetStyle("blockarrow").read().AttributeNames(csh);
 }
 
@@ -2479,11 +2479,11 @@ VertXPos::VertXPos(Msc&m)
     _ASSERT(entity2 != m.AllEntities.end());
 }
 
-double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
+double VertXPos::CalculatePos(Msc &chart, double width, double gap, double gap2) const
 {
     double xpos = chart.XCoord(entity1);
-    const double gap = chart.hscaleAutoXGap;
-    if (aw<0) aw = gap;
+    if (gap<0) gap = chart.hscaleAutoXGap;
+    if (gap2<0) gap2 = chart.hscaleAutoXGap;
     const double a = std::min(xpos, chart.XCoord(entity2));
     const double b = std::max(xpos, chart.XCoord(entity2));
     switch (pos) {
@@ -2492,8 +2492,8 @@ double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
     case VertXPos::POS_CENTER:      xpos = (  a +   b)/2; break;
     case VertXPos::POS_THIRD_LEFT:  xpos = (2*a +   b)/3; break;
     case VertXPos::POS_THIRD_RIGHT: xpos = (  a + 2*b)/3; break;
-    case VertXPos::POS_LEFT_BY:     xpos -= width/2 + aw + gap; break;
-    case VertXPos::POS_RIGHT_BY:    xpos += width/2 + aw + gap; break;
+    case VertXPos::POS_LEFT_BY:     xpos -= width/2 + gap2 + gap; break;
+    case VertXPos::POS_RIGHT_BY:    xpos += width/2 + gap2 + gap; break;
     case VertXPos::POS_LEFT_SIDE:   xpos -= width/2 + gap; break;
     case VertXPos::POS_RIGHT_SIDE:  xpos += width/2 + gap; break;
     };
@@ -2653,13 +2653,13 @@ void ArcVerticalArrow::AttributeNames(Csh &csh)
     defaultDesign.styles.GetStyle("vertical").read().AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset",
         "Move the vertical to the right by this many pixels (negative value for left).",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"text.width",
         "Use this attribute to specify the space available for the text if you want enable word wrapping.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom",
         "Turn this on if you want this element to push neighbouring entities further to avoid overlap with other elements.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
@@ -2667,12 +2667,12 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"offset")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number> [pixels]", 
             "Move the vertical to the right by this many pixels (negative value for left).",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"makeroom")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "text.width") && WidthAttr::AttributeValues(attr, csh)) return true;
@@ -3103,7 +3103,7 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
         (style.read().side.second!=ESide::END && ypos[1]-ypos[0] < fabs(s_text-d_text)))
         chart->Error.Warning(file_pos.start, "Too little vertical space for label - may look bad.");
 
-    xpos = pos.CalculatePos(*chart, width, ext_width/2);
+    xpos = pos.CalculatePos(*chart, width, chart->hscaleAutoXGap, ext_width/2);
     //xpos is now the middle of the vertical object.
     //This is good for arrow/box, but not for others, since
     //for bracket/brace/pointer/range it should be the main vertical line 
@@ -3577,10 +3577,10 @@ void ArcBox::AttributeNames(Csh &csh)
     defaultDesign.styles.GetStyle("box").read().AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", 
         "Turn this on to collapse the box (hiding its content).", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"tag", 
         "Specify the tag label with this attribute. Needed if you want the box to have a tag.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
 }
 
 bool CshHintGraphicCallbackForBoxCollapsed(Canvas *canvas, CshHintGraphicParam p, Csh &csh)
@@ -3606,7 +3606,7 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(EnumEncapsulator<EBoxCollapseType>::names, 
                        EnumEncapsulator<EBoxCollapseType>::descriptions, 
                        csh.HintPrefix(COLOR_ATTRVALUE),
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
+                       EHintType::ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
     if (defaultDesign.styles.GetStyle("box").read().AttributeValues(attr, csh)) return true;

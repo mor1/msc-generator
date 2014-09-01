@@ -361,7 +361,7 @@ void ShapeCollection::AttributeValues(Csh &csh) const
 {
     for (unsigned u = 0; u<shapes.size(); u++)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+shapes[u].name, 
-                               NULL, HINT_ATTR_VALUE, true, 
+                               NULL, EHintType::ATTR_VALUE, true, 
                                CshHintGraphicCallbackForEShapes, 
                                CshHintGraphicParam(u)));
 }
@@ -944,25 +944,25 @@ void EntityApp::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", 
         "Set the text and line color.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
         "Set the visible text of the entity.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", 
         "Control if the entity is shown or is invisible.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "collapsed", 
         "You can collapse group entities to a single one with this attribute.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", 
         "You can specify the position of the entity with this attribute at declaration.", 
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative",
         "Use this attribute to indicate which entity is the reference for the value specified in the 'pos' attribute.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", 
         "Turn this on to activate the entity.",
-        HINT_ATTR_NAME));
+        EHintType::ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -979,15 +979,15 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"show") || CaseInsensitiveEqual(attr,"collapsed")
         || CaseInsensitiveEqual(attr,"active")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"pos")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>",
             "This number will be added to the x coordinate of the last entity declared or to that of the entity given by the 'relative' attribute. "
             "It is measured in units of entity distance (130 pixels times the value of the 'hscale' chart option), defaulting to 1.",
-            HINT_ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "relative")) {
