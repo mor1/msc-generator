@@ -1039,7 +1039,7 @@ Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes,
          const std::set<string> *fn) :
     was_partial(false), 
     input_text_length(0),
-    hintProc(EHintProcessingType::NONE),
+    hadEscapeHint(false),
     hintStatus(HINT_NONE),
     addMarkersAtEnd(false), 
     addRefNamesAtEnd(false),
@@ -1108,11 +1108,10 @@ ECursorRelPosType Csh::CursorIn(int a, int b) const
  * @param [in] one The first range
  * @param [in] two The second range
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, 
-                           EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                           EHintSourceType hsource, const char *a_name)
 {
     switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
     case CURSOR_AT_BEGINNING:
@@ -1120,7 +1119,6 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two,
         hintStatus = HINT_LOCATED;
         hintsForcedOnly = false;
         hintSource = hsource;
-        hintProc = hproc;
         if (hsource == EHintSourceType::MARKER)
             addMarkersAtEnd = true;
         hintAttrName = a_name?a_name:"";
@@ -1142,17 +1140,15 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two,
  * @param [in] one The first range
  * @param [in] two The second range
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two,
-                                  EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                                  EHintSourceType hsource, const char *a_name)
 {
     if  (CursorIn(one.last_pos+1, two.first_pos-1) == CURSOR_IN) {
         hintStatus = HINT_LOCATED;
         hintsForcedOnly = false;
         hintSource = hsource;
-        hintProc = hproc;
         if (hsource == EHintSourceType::MARKER)
             addMarkersAtEnd = true;
         hintAttrName = a_name ? a_name : "";
@@ -1174,11 +1170,10 @@ bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two,
  * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
  * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, 
-                         EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                         EHintSourceType hsource, const char *a_name)
 {
     if (atEnd) {
         switch (CursorIn(one)) {
@@ -1200,7 +1195,6 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintSource = hsource;
-    hintProc = hproc;
     if (hsource == EHintSourceType::MARKER)
         addMarkersAtEnd = true;
     hintAttrName = a_name ? a_name : "";
@@ -1220,16 +1214,15 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
  * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
  * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, 
-                                EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                                EHintSourceType hsource, const char *a_name)
 {
     if (one.last_pos >= lookahead.first_pos) return false;
     CshPos one_oneAfter = one;
     one_oneAfter.last_pos++;
-    return CheckHintAfter(one_oneAfter, lookahead, atEnd, hsource, hproc, a_name);
+    return CheckHintAfter(one_oneAfter, lookahead, atEnd, hsource, a_name);
 }
 
 /** Mark hint status to HINT_LOCATED if cursor is between two ranges or inside the second one.
@@ -1241,17 +1234,15 @@ bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool
  * @param [in] one The first range
  * @param [in] two The second range
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, 
-                               EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                               EHintSourceType hsource, const char *a_name)
 {
     if (CursorIn(one.last_pos+1, two.last_pos)<=CURSOR_AFTER) return false;
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintSource = hsource;
-    hintProc = hproc;
     if (hsource == EHintSourceType::MARKER)
         addMarkersAtEnd = true;
     hintAttrName = a_name ? a_name : "";
@@ -1273,15 +1264,14 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two,
  * @param [in] one The first range
  * @param [in] two The second range
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, 
-                                      EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                                      EHintSourceType hsource, const char *a_name)
 {
     CshPos one_oneAfter = one;
     one_oneAfter.last_pos++;
-    return CheckHintAtAndBefore(one_oneAfter, two, hsource, hproc, a_name);
+    return CheckHintAtAndBefore(one_oneAfter, two, hsource, a_name);
 }
 
 
@@ -1293,17 +1283,15 @@ bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two,
  * or is at the end of one
  * @param [in] one The range
  * @param [in] hsource The source type at the position in the file.
- * @param [in] hproc The type of processing to apply to hints.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAt(const CshPos &one, 
-                      EHintSourceType hsource, EHintProcessingType hproc, const char *a_name)
+                      EHintSourceType hsource, const char *a_name)
 {
     if (CursorIn(one)<=CURSOR_AFTER) return false;
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintSource = hsource;
-    hintProc = hproc;
     if (hsource == EHintSourceType::MARKER)
         addMarkersAtEnd = true;
     hintAttrName = a_name ? a_name : "";
@@ -1315,8 +1303,8 @@ bool Csh::CheckHintAt(const CshPos &one,
 /** Check if the cursor is anywhere before (or at the beginning of) 'pos'.
 * If so, mark hint status as HINT_FILLING and hint type as HINT_LINE_START
 *
-* Checks if the cursor is inside, just before or just after a range.
-* If so, it applies the hinttype with status HINT_LOCATED. hintedStringPos
+* Checks if the cursor is well before or just before a range.
+* If so, it applies the hinttype with status HINT_FILLING. hintedStringPos
 * is set to 'pos' only if the cursor is at its beginning. 
 * We set hintsForcedOnly to true, as such hints need Ctrl+Space.
 * This function is used to check if the cursor is before any characters in the file.
@@ -1329,9 +1317,27 @@ bool Csh::CheckLineStartHintBefore(const CshPos &pos)
     hintStatus = HINT_FILLING;
     hintsForcedOnly = true;
     hintSource = EHintSourceType::LINE_START;
-    hintProc = EHintProcessingType::NONE;
     if (p==CURSOR_AT_BEGINNING)
         hintedStringPos = pos;
+    return true;
+}
+
+/** Check if the cursor is anywhere in 'pos'.
+* If so, mark hint status as HINT_FILLING and hint type as HINT_LINE_START
+*
+* Checks if the cursor just before, in or just after a range.
+* If so, it applies the hinttype with status HINT_FILLING. hintedStringPos
+* is set to 'pos'.
+* @param [in] pos The range to check
+* @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckLineStartHintAt(const CshPos &pos)
+{
+    const ECursorRelPosType p = CursorIn(pos);
+    if (p<CURSOR_AT_BEGINNING) return false;
+    hintStatus = HINT_FILLING;
+    hintsForcedOnly = true;
+    hintSource = EHintSourceType::LINE_START;
+    hintedStringPos = pos;
     return true;
 }
 
@@ -1348,7 +1354,7 @@ bool Csh::CheckLineStartHintBefore(const CshPos &pos)
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
 {
-    if (!CheckHintAtAndBefore(one, two, EHintSourceType::ENTITY, EHintProcessingType::NONE)) 
+    if (!CheckHintAtAndBefore(one, two, EHintSourceType::ENTITY)) 
         return false;
     AddEntitiesToHints();
     hintStatus = HINT_READY;
@@ -1385,7 +1391,7 @@ bool Csh::CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckEntityHintAt(const CshPos &one)
 {
-    if (!CheckHintAt(one, EHintSourceType::ENTITY, EHintProcessingType::NONE))
+    if (!CheckHintAt(one, EHintSourceType::ENTITY))
         return false;
     AddEntitiesToHints();
     hintStatus = HINT_READY;
@@ -1408,7 +1414,7 @@ bool Csh::CheckEntityHintAt(const CshPos &one)
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd)
 {
-    if (!CheckHintAfter(one, lookahead, atEnd, EHintSourceType::ENTITY, EHintProcessingType::NONE))
+    if (!CheckHintAfter(one, lookahead, atEnd, EHintSourceType::ENTITY))
         return false;
     AddEntitiesToHints();
     hintStatus = HINT_READY;
@@ -1432,7 +1438,7 @@ bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool 
  * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd)
 {
-    if (!CheckHintAfterPlusOne(one, lookahead, atEnd, EHintSourceType::ENTITY, EHintProcessingType::NONE))
+    if (!CheckHintAfterPlusOne(one, lookahead, atEnd, EHintSourceType::ENTITY))
         return false;
     AddEntitiesToHints();
     hintStatus = HINT_READY;
@@ -1486,14 +1492,21 @@ bool CshHintGraphicCallbackForAttributeNames(Canvas *canvas, CshHintGraphicParam
 }
 
 /** Insert a hint to the list of hints.*/
-void Csh::AddToHints(CshHint &&h) 
+void Csh::AddToHints(CshHint &&h)
 {
+    _ASSERT(hintStatus!=HINT_READY);
     if (hintStatus == HINT_READY) return; //we add no more
     if (h.callback==NULL && h.type == EHintType::ATTR_NAME) {
         h.callback = CshHintGraphicCallbackForAttributeNames;
-        h.param = 0; 
+        h.param = 0;
     }
     Hints.insert(std::move(h));
+    if (h.type == EHintType::ESCAPE)
+        hadEscapeHint = true;
+    else {
+        //when we add an escape hint, we should have only hints of escape type
+        _ASSERT(!hadEscapeHint); 
+    }
 }
 
 /** Append a bunch of hints to the hint list.
@@ -1860,15 +1873,12 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
         return;
     case HINTE_ESCAPE:
         StringFormat::EscapeHints(*this, string());
-        hintProc = EHintProcessingType::ESCAPE_PROC;
         break;
     case HINTE_PARAM_COLOR:
         AddColorValuesToHints(false);
-        hintProc = EHintProcessingType::DOT_COMPRESS;
         break;
     case HINTE_PARAM_STYLE:
         AddStylesToHints(false, false);
-        hintProc = EHintProcessingType::NONE; //Normally we do not compress style names
         break;
     case HINTE_PARAM_FONT:
         if (fontnames) {
@@ -1876,17 +1886,14 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
                 if (str.length() && str[0]!='@')
                     AddToHints(CshHint(HintPrefix(COLOR_ATTRVALUE)+str, NULL,
                                        EHintType::ATTR_VALUE));
-            hintProc = EHintProcessingType::NONE;
         }
         break;
     case HINTE_PARAM_REF:
         addRefNamesAtEnd = true;
-        hintProc = EHintProcessingType::DOT_COMPRESS;  //Normally we do not compress ref names either
         break;
     case HINTE_PARAM_NUMBER:
         AddToHints(CshHint(HintPrefixNonSelectable()+"<number in pixels>", NULL,
                            EHintType::ATTR_VALUE, false));
-        hintProc = EHintProcessingType::NONE;
     }
 }
 
@@ -1913,14 +1920,13 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
     //First separate hints ending in an asterisk (except for ESCAPE hints)
     std::list<CshHint> group_hints;
     //In case of dot compression, copy the elements ending in * to a separate list
-    if (hintProc == EHintProcessingType::DOT_COMPRESS) 
-        for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
-            if (i->decorated.size() && 
-                i->decorated[i->decorated.size()-1]=='*') {
-                group_hints.push_back(*i);
-                Hints.erase(i++);
-            } else
-                i++;
+    for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) 
+        if (i->decorated.size() && WantsDotCompress(i->type) &&
+            i->decorated[i->decorated.size()-1]=='*') {
+            group_hints.push_back(*i);
+            Hints.erase(i++);
+        } else
+            i++;
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;
@@ -1930,14 +1936,14 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
     unsigned start_counter = 0;
     string uc;
     //remove the () part from the string under cursor.
-    if (hintProc==EHintProcessingType::ESCAPE_PROC)
+    if (hadEscapeHint)
         uc = orig_uc.substr(0, orig_uc.find('('));
     else
         uc = orig_uc;
 
     //For escape hints we may only have groups for '\p' and '\m'. We shall display
     //all hints for any other escape char.
-    if (hintProc==EHintProcessingType::ESCAPE_PROC && (uc.length()<2 || (uc[1]!='p' && uc[1]!='m')))
+    if (hadEscapeHint && (uc.length()<2 || (uc[1]!='p' && uc[1]!='m')))
         filter_by_uc = false;
 
     for (auto i = Hints.begin(); i!=Hints.end(); /*none*/) {
@@ -1949,9 +1955,27 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
             continue;
         }
         string::size_type dot_pos;
-        //if compacting is on we combine all hints with the same prefix into a xxx.*-like hint
-        //but only if  its type is ATTR_NAME or ATTR_VALUE (values for what reason?)
-        if (compact_same && hintProc==EHintProcessingType::DOT_COMPRESS) {
+        /* if compacting is on we combine all hints with the same prefix into a xxx.*-like hint
+          There are two kinds of compression, dot_compression and escape compression
+          
+          With dot compression we may have multiple levels of compression, e.g.,
+          tag.line.width can be compressed into either tag.* or tag.line.* depending
+          on what is the string under the cursor, that is, if it begins with 
+          'tag.' we have to use the latter, else the former.
+          With dot compression we add hints for both of these cases (with individual
+          descriptions), but remove them to 'group_hints' above. So when we create
+          the the grouping, we actually create the group hint (only the right one, 
+          so only one of tag.* or tag.line.*) and add it to Hints in this for cycle. 
+          Then later, at the end of this function we match 'group_hints' with 
+          'Hints' and if we find a match, we copy the description to the entry in
+          'Hints'.
+
+          With escape hints, the situation is different. Only one level of
+          compress may happen and not along dots. Specialty is that only \\p and \\m
+          escapes can be grouped. In this case we simply drop the non-grouped
+          hint from Hints if we need the grouped one and vice versa.
+         */
+        if (compact_same && WantsDotCompress(i->type)) {
             unsigned len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
             dot_pos = i->plain.find('.', len);
             if (start_len) {
@@ -1993,7 +2017,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
         }
         //if compacting is on and we process escape hints, we combine all hints with 
         //the same prefix into a '\p*'-like hint
-        if (hintProc==EHintProcessingType::ESCAPE_PROC) {
+        if (i->type == EHintType::ESCAPE) {
             if (compact_same) {
                 //We only compress \p* and \m*
                 if ((i->plain[1]=='p' || i->plain[1]=='m')) {

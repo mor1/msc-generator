@@ -217,13 +217,8 @@ enum class EHintType {
     ESCAPE           ///<A string escape sequence (not including parameters)
 };
 
-/** The type of processing to apply to the entire hint list*/
-enum class EHintProcessingType {
-    NONE,            ///<No special processing
-    DOT_COMPRESS,    ///<If user requests to group hints of the same prefix, do that along dots (like to 'fill.*')
-    ESCAPE_PROC,     ///<The list is a list of text formatting escapes. Compress them like that (and also adjust string under cursor, etc. like this).
-};
-
+inline bool WantsDotCompress(EHintType t) 
+{ return t == EHintType::ENTITY || t==EHintType::ATTR_NAME || t==EHintType::ATTR_VALUE || t==EHintType::MARKER; }
 
 /** The situation the cursor is in when we provide hints. These can be set from preferences.*/
 enum class EHintSourceType
@@ -347,7 +342,7 @@ public:
     std::list<CshContext>             Contexts;       ///<The context stack
     std::list<std::string>            shape_names;    ///<list of shape names we have parsed definition for, but did not store
     EHintSourceType                   hintSource;     ///<The type of situation we found the cursor is at and for which the hint is provided. Used also in status HINT_LOCATED.
-    EHintProcessingType               hintProc;       ///<The type of processing to apply to hints.
+    bool                              hadEscapeHint;  ///<True, if we had escape hints - we select character under the cursor and next char differently in MiniEditor.
     EHintStatus                       hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
@@ -416,14 +411,15 @@ public:
     ECursorRelPosType CursorIn(int a, int b) const;
     /** @name Set hint status if cursor position is at a hintable place.
      * @{ */
-    bool CheckHintBetween(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintAt(const CshPos &one, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
-    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, EHintProcessingType hproc = EHintProcessingType::NONE, const char *a_name = NULL);
+    bool CheckHintBetween(const CshPos &one, const CshPos &two, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintAt(const CshPos &one, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, const char *a_name = NULL);
+    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, const char *a_name = NULL);
     bool CheckLineStartHintBefore(const CshPos &pos);
+    bool CheckLineStartHintAt(const CshPos &pos);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);

@@ -1488,7 +1488,7 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     return ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
 }
 
-void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
+void CommandSymbol::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
     if (symbol_type==RECTANGLE) {
         //set sizes now, if not yet set - label is now final

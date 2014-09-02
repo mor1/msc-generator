@@ -1540,9 +1540,10 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "format")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<\format string\">",
-            "Specify a format string using text escapes, like '\\b'. Do not use plain text (non-formatting characters or escapes).",
-            EHintType::ATTR_VALUE, false));
+        if (!csh.hadEscapeHint)
+            csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"\"format string\"",
+                "Specify a format string using text escapes, like '\\b'. Do not use plain text (non-formatting characters or escapes).",
+                EHintType::ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "font.type")) {
