@@ -548,10 +548,11 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             //see if we are at the beginning of a word (except escape hints)
             bool till_cursor_only = false;
             if (lStart==0) till_cursor_only = true;
-            else if (m_csh.hintProc!=EHintProcessingType::ESCAPE_PROC) {
+            else if (m_csh.hadEscapeHint) {
                 CString str;
                 GetTextRange(lStart-1, lStart, str);
-                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
+                if (str[0]!='_' && !isalnum(str[0])) 
+                    till_cursor_only = true;
             }
             //if so, set the hint mode such that we only consider the word under the curson
             //up to the cursor (and cut away the remainder)

@@ -271,7 +271,6 @@ msc:
     csh.AddLineBeginToHints();
     csh.hintStatus = HINT_READY;
     csh.hintSource = EHintSourceType::LINE_START;
-    csh.hintProc = EHintProcessingType::NONE;
     csh.hintsForcedOnly = true;
   #else
     //no action for empty file
@@ -280,8 +279,10 @@ msc:
               | TOK_MSC braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckLineStartHintBefore(@1))
+    if (csh.CheckLineStartHintBefore(@1) || csh.CheckLineStartHintAt(@1)) {
         csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     msc.AddArcs($2);
@@ -296,6 +297,10 @@ msc:
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1))
         csh.AddDesignsToHints(true);
+    else if (csh.CheckHintLocated(EHintSourceType::LINE_START, @1)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
   #else
     msc.AddArcs($2);
   #endif
@@ -369,8 +374,7 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH_ErrorAfter(@2, "Missing a design name.");
-    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                       EHintProcessingType::DOT_COMPRESS, "msc");
+    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc");
   #else
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing design name.");
   #endif
@@ -382,8 +386,7 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_DESIGNNAME);
-    csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                             EHintProcessingType::DOT_COMPRESS, "msc");
+    csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc");
     std::string msg = csh.SetDesignTo($3, true);
     if (msg.length())
         csh.AddCSH_Error(@3, msg.c_str());
@@ -1560,8 +1563,7 @@ optlist:     opt
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME, 
-                             EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -1580,8 +1582,7 @@ optlist:     opt
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME, 
-                           EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -1608,12 +1609,10 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_ATTRVALUE);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, 
-                            EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
     }
@@ -1629,12 +1628,10 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, $3, $1);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, 
-                        EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
     }
@@ -1650,13 +1647,11 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH_ErrorAfter(@2, "Missing option value.");
-    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                           EHintProcessingType::DOT_COMPRESS, $1)) {
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
     }
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, 
-                        EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -1672,8 +1667,7 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_DESIGNNAME);
-        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                     EHintProcessingType::DOT_COMPRESS, "msc")) {
+        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints(true);
             csh.hintStatus = HINT_READY;
         }
@@ -1692,13 +1686,11 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_ErrorAfter(@2, "Missing option value.");
-        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                               EHintProcessingType::DOT_COMPRESS, "msc")) {
+        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints(true);
             csh.hintStatus = HINT_READY;
         }
-        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, 
-                            EHintProcessingType::DOT_COMPRESS)) {
+        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
             csh.AddOptionsToHints();
             csh.hintStatus = HINT_READY;
         }
@@ -1714,8 +1706,7 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_DESIGNNAME);
-        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                     EHintProcessingType::DOT_COMPRESS, "msc+")) {
+        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc+")) {
             csh.AddDesignsToHints(false);
             csh.hintStatus = HINT_READY;
         }
@@ -1734,13 +1725,11 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_ErrorAfter(@2, "Missing option value.");
-        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                               EHintProcessingType::DOT_COMPRESS, "msc+")) {
+        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc+")) {
             csh.AddDesignsToHints(false);
             csh.hintStatus = HINT_READY;
         }
-        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, 
-                            EHintProcessingType::DOT_COMPRESS)) {
+        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
             csh.AddOptionsToHints();
             csh.hintStatus = HINT_READY;
         }
@@ -1983,7 +1972,7 @@ stylenamelist : string
     else if (strcmp($1, "emptyemphasis")==0)
         ($$)->push_back("emptybox");
     else ($$)->push_back($1);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -1999,7 +1988,7 @@ stylenamelist : string
     csh.AddCSH(@1, COLOR_STYLENAME);
     $$ = new std::list<string>;
 	($$)->push_back("++");
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2013,8 +2002,7 @@ stylenamelist : string
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
 	csh.AddCSH_ErrorAfter(@2, "Missing a style name to (re-)define.");
-    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE,
-                                  EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2035,8 +2023,7 @@ stylenamelist : string
     else if (strcmp($3, "emptyemphasis")==0)
         ($$)->push_back("emptybox");
     else ($$)->push_back($3);
-    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2053,8 +2040,7 @@ stylenamelist : string
     csh.AddCSH(@3, COLOR_STYLENAME);
     $$ = $1;
 	($$)->push_back("++");
-    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2368,8 +2354,7 @@ colordeflist: colordef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_VALUE, 
-                             EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_VALUE)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2379,8 +2364,7 @@ colordeflist: colordef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                           EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2597,11 +2581,10 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_ATTRVALUE);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddDesignOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
     }
@@ -2617,11 +2600,10 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_ATTRVALUE);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddDesignOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
     }
@@ -2637,11 +2619,10 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_DESIGNNAME);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddDesignOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues("msc", csh);
         csh.hintStatus = HINT_READY;
     }
@@ -2660,11 +2641,10 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_DESIGNNAME);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddDesignOptionsToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                        EHintProcessingType::DOT_COMPRESS, $1)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues("msc+", csh);
         csh.hintStatus = HINT_READY;
     }
@@ -4253,7 +4233,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_BRACKET);
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = new AttributeList;
   #endif
@@ -4263,7 +4243,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_BRACKET);
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = $2;
   #endif
@@ -4274,7 +4254,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_Error(@3, "Extra stuff after an attribute list. Maybe missing a comma?");
         csh.AddCSH(@4, COLOR_BRACKET);
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = $2;
   #endif
@@ -4285,7 +4265,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_Error(@2, "Could not recognize this as an attribute.");
         csh.AddCSH(@3, COLOR_BRACKET);
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = new AttributeList;
   #endif
@@ -4295,7 +4275,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_ErrorAfter(@2, "Missing a square bracket (']').");
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = $2;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing ']'.");
@@ -4306,7 +4286,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_Error(@3, "Missing a ']'.");
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = $2;
     msc.Error.Error(MSC_POS(@3).start, "Missing ']'.");
@@ -4317,7 +4297,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_ErrorAfter(@1, "Missing a square bracket (']').");
-        csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME);
   #else
     $$ = new AttributeList;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ']'.");
@@ -4334,7 +4314,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH_Error(@2, "Missing a ']'.");
-        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = new AttributeList;
     msc.Error.Error(MSC_POS(@2).start, "Missing ']'.");
@@ -4352,7 +4332,7 @@ arcattrlist:    arcattr
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+    csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME);
   #else
     $$ = ($1)->Append($3);
   #endif
@@ -4361,7 +4341,7 @@ arcattrlist:    arcattr
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME);
   #else
     $$ = $1;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Expecting an entity here.");
@@ -4376,9 +4356,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, $3, $1);
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
-        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS, $1);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, $3, MSC_POS(@1), MSC_POS(@3));
   #endif
@@ -4392,9 +4371,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3+@4, (string("++")+$4).c_str(), $1);
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
-        csh.CheckHintAtAndBefore(@2, @3+@4, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS, $1);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3+@4, EHintSourceType::ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, string("++")+$4, MSC_POS(@1), MSC_POS2(@3,@4));
   #endif
@@ -4409,9 +4387,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_AttrValue_CheckAndAddEscapeHint(@3, "++", $1);
 		csh.AddCSH_ErrorAfter(@3, "Continue with a color name or definition.");
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
-        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS, $1);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, "++", MSC_POS(@1), MSC_POS(@3));
   #endif
@@ -4423,9 +4400,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
-        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, 
-                                 EHintProcessingType::DOT_COMPRESS, $1);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, atof($3), MSC_POS(@$), MSC_POS(@3), $3);
   #endif
@@ -4437,9 +4413,8 @@ arcattr:         alpha_string TOK_EQUAL color_string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
-        csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, 
-                           EHintProcessingType::DOT_COMPRESS, $1);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+        csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, (char*)NULL, MSC_POS(@$), MSC_POS(@$));
   #endif
@@ -4457,7 +4432,7 @@ arcattr:         alpha_string TOK_EQUAL color_string
   //here we accept non alpha strings for "->" and similar style names
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_StyleOrAttrName(@1, $1);
-        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME, EHintProcessingType::DOT_COMPRESS);
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
   #else
         $$ = new Attribute($1, MSC_POS(@$));
   #endif
