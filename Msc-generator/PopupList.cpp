@@ -59,8 +59,8 @@ CHintListBox::CHintListBox() :
  * @param [in] userRequest True, if the hint session started via Ctrl+Space.
  * @param [in] afterReturnKey True, if the session started after pressing return (we may show the first line hints).
  * @param [in] inhintmode True, if we are already in hint mode. In this mode we tend to keep hints open.
- * @returns True, if the list of hints has changed.*/
-bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode)
+ * @returns If the list of hints has changed or if we need to replace the string under the cursor.*/
+CHintListBox::EHintProcResult CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -81,22 +81,70 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
                 (csh.hintSource == EHintSourceType::KEYWORD || csh.hintSource == EHintSourceType::MARKER)))
             csh.Hints.clear();
     }    
-    //Now process the list of hints: fill extra fields, compute size, filter by uc and compact
-    if (csh.Hints.size()) {
-        CDC* pDC = GetDC();
-        {
-            Canvas canvas(Canvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
-            csh.ProcessHints(canvas, &m_format, uc, pApp->m_bHintFilter,
-                             pApp->m_bHintCompact);
-            //Destroy canvas before the DC
+    bool filter_by_uc = pApp->m_bHintFilter;
+    EHintProcResult ret = HINTS_CHANGED;
+    while(1) {
+        //Save hints
+        std::set<CshHint> saved_hints = csh.Hints;
+        //Now process the list of hints: fill extra fields, compute size, filter by uc and compact
+        if (csh.Hints.size()) {
+            CDC* pDC = GetDC();
+            {
+                Canvas canvas(Canvas::WIN, pDC->m_hDC, Block(0, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y));
+                csh.ProcessHints(canvas, &m_format, uc, filter_by_uc,
+                    pApp->m_bHintCompact);
+                //Destroy canvas before the DC
+            }
+            ReleaseDC(pDC);
         }
-        ReleaseDC(pDC);
+
+        //See how many of the remaining hits fit the word under the cursor 
+        unsigned no_selectable = 0; //count how many selectable hints we have fow which 'text' is a prefix
+        unsigned no_unselectable = 0; //count how many unselectable hints we have 
+        auto hit = csh.Hints.end(); //The last selectable hint
+        for (auto i = csh.Hints.begin(); i!=csh.Hints.end(); i++) {
+            //find a selectable item or one that the text under cursor fits 
+            if (!i->selectable) {
+                no_unselectable++;
+            } else if (uc == i->plain.substr(0, uc.length())) {
+                no_selectable++;
+                hit = i;
+            }
+        }
+        //we will not consider unselectable hints if we have something under the cursor
+        if (uc.length()) no_unselectable = 0;
+        //Check if we have only one hint (group hints count as multiple)
+        const bool onlyOne = no_unselectable==0 && no_selectable==1 &&
+            hit->decorated[hit->decorated.size()-1]!='*';
+        if (onlyOne && userRequest && hit->plain != uc) {
+            //If we are about to start hint mode due to a Ctrl+Space and there is only one selectable hit 
+            //then auto complete without popping up the hint list. 
+            ret = HINTS_REPLACE;
+        } else if (onlyOne && hit->GetReplacementString()== uc) {
+            //if there is only one hit and it is equal to the word under cursor, cancel hit mode,
+            //but not if it was a Ctrl+Space - in that case show the only choice as a feedback
+            //to Ctrl+Space
+            if (userRequest) {
+                //...if the user requested the thing, preprocess again, but without
+                //filter set.
+                if (filter_by_uc) {
+                    filter_by_uc = false;
+                    csh.Hints = saved_hints; //restore hints;
+                    continue; //repeat processing
+                }
+                //if filtering was already off, just keep what we have now
+            } else 
+                csh.Hints.clear();
+        }
+        break; 
     }
-    bool changed = csh.Hints != m_csh.Hints;
+    if (ret != HINTS_REPLACE)
+        ret = csh.Hints == m_csh.Hints ? HINTS_NOT_CHANGED : HINTS_CHANGED;
     //save so much of "csh" as is needed to draw the hints & symbols
-    m_csh.Hints = csh.Hints; 
+    if (ret != HINTS_NOT_CHANGED)
+        m_csh.Hints = csh.Hints;
     m_csh.pShapes = csh.pShapes;
-    return changed;
+    return ret;
 }
 
 /** This number of hints are visible in the hint box.*/
