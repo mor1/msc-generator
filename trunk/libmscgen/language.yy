@@ -297,6 +297,8 @@ msc:
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1))
         csh.AddDesignsToHints(true);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1))
+        csh.AddOptionsToHints();
     else if (csh.CheckHintLocated(EHintSourceType::LINE_START, @1)) {
         csh.AddLineBeginToHints();
         csh.hintStatus = HINT_READY;
@@ -308,8 +310,10 @@ msc:
            | TOK_MSC error eof
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckLineStartHintBefore(@1))
+    if (csh.CheckLineStartHintBefore(@1) || csh.CheckLineStartHintAt(@1)) {
         csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_Error(@2, "Missing an equal sign or a list of elements between braces ('{' and '}').");
   #else
@@ -321,8 +325,10 @@ msc:
            | top_level_arclist eof
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckLineStartHintBefore(@1))
+    if (csh.CheckLineStartHintBefore(@1)) {
         csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
 #else
     msc.AddArcs($1);
   #endif
@@ -331,8 +337,10 @@ msc:
                  | top_level_arclist error eof
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckLineStartHintBefore(@1))
+    if (csh.CheckLineStartHintBefore(@1)) {
         csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     CshPos pos = @2;
     if ((@1).last_pos >= (@2).first_pos)
         pos.first_pos = (@1).last_pos;
@@ -374,6 +382,7 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH_ErrorAfter(@2, "Missing a design name.");
+    csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc");
   #else
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing design name.");
@@ -386,6 +395,7 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_DESIGNNAME);
+    csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
     csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc");
     std::string msg = csh.SetDesignTo($3, true);
     if (msg.length())
@@ -590,7 +600,7 @@ arc_with_parallel: arc
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
-        csh.AddLineBeginToHints(false);
+        csh.AddLineBeginToHints(true);
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::LINE_START)) {
         csh.AddLineBeginToHints(false);
@@ -614,7 +624,7 @@ arc_with_parallel: arc
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
-        csh.AddLineBeginToHints(false);
+        csh.AddLineBeginToHints(true);
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::LINE_START)) {
         csh.AddLineBeginToHints(false);
@@ -651,7 +661,12 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else
+        csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@1, "Missing an arrow specification.");
   #else
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing an arrow specification.");
@@ -663,7 +678,12 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else
+        csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
     //Returns NULL, if BIG is before a self-pointing arrow
     ArcBase *arc = msc.CreateArcBigArrow($2);
@@ -678,11 +698,16 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
         ArcBigArrow::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         ArcBigArrow::AttributeValues(csh.hintAttrName, csh);
+    else 
+        csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
     //Returns NULL, if BIG is before a self-pointing arrow
     ArcBigArrow *arrow = msc.CreateArcBigArrow($2);
@@ -696,19 +721,12 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "brace", 
-            "Use this to add a large vertical curly brace, like '}'.",
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "bracket", 
-            "Use this to add a large square baracket, like ']'.",
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "range", 
-            "Use this to mark a vertical range, like this 'I'.",
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "box", 
-            "Use this to add a box with vertically typeset text.",
-            EHintType::KEYWORD));
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
         csh.hintStatus = HINT_READY;
     }
     csh.AddCSH_ErrorAfter(@1, "Missing a marker or one of 'brace', 'bracket', 'range', 'box' or an arrow or box symbol, such as '->' or '--'.");
@@ -721,7 +739,15 @@ arc:           arcrel
               |TOK_VERTICAL vertrel
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+    }
+    csh.AddCSH(@1, COLOR_KEYWORD);
   #else
     if ($2) {
       ($2)->SetVerticalShape(ArcVerticalArrow::ARROW_OR_BOX);
@@ -736,7 +762,16 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintAt(@2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    }
+#else
     if ($3) {
       ($3)->SetVerticalShape($2);
       ($3)->AddAttributeList(NULL);
@@ -750,7 +785,19 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintAt(@2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, EHintSourceType::MARKER)) {
+        csh.hintStatus = HINT_FILLING;
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+    }
+#else
 	ArcTypePlusDir typeplusdir;
 	typeplusdir.arc.type = MSC_ARC_SOLID;
 	typeplusdir.arc.lost = EArrowLost::NOT;
@@ -768,7 +815,14 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+    } if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
         ArcVerticalArrow::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
@@ -786,7 +840,14 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @4))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAt(@2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @4))
         ArcVerticalArrow::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @4))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
@@ -804,7 +865,18 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints(false);
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintAt(@2, EHintSourceType::KEYWORD)) {
+        csh.AddVerticalTypesToHints();
+        csh.hintStatus = HINT_READY;
+        csh.hintsForcedOnly = true;
+    } else if (csh.CheckHintBetween(@2, @3, EHintSourceType::MARKER)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_FILLING;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
         ArcVerticalArrow::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
@@ -846,7 +918,11 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
   #else
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing an entity.");
@@ -858,7 +934,11 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
     CommandEntity *ce = new CommandEntity($2, &msc, false);
     ce->AddAttributeList(NULL);
@@ -883,6 +963,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    csh.CheckEntityHintBetween(@2, @3);
   #else
     ($3)->Prepend($1);
     CommandEntity *ce = new CommandEntity($3, &msc, false);
@@ -896,7 +977,11 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@3, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@3, "Missing an entity.");
   #else
@@ -912,7 +997,12 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@3, COLOR_COMMA);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else 
+        csh.CheckEntityHintBetween(@3, @4);
+#else
     ($4)->Prepend($2);
     CommandEntity *ce = new CommandEntity($4, &msc, false);
     delete ($2);
@@ -962,7 +1052,25 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
   #else
+    $$ = NULL;
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_DEFSHAPE 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
+    csh.AddCSH_ErrorAfter(@$, "Missing shape name and definition.");
+#else
     $$ = NULL;
   #endif
     free($1);
@@ -971,6 +1079,13 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_VALUE)) {
+        csh.AddColorValuesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     $$ = NULL;
   #endif
@@ -980,7 +1095,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -995,6 +1113,13 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_VALUE)) {
+        csh.AddStylesToHints(true, true);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     $$ = NULL;
   #endif
@@ -1004,7 +1129,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
         csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
@@ -1019,6 +1147,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
   #else
     $$ = NULL;
   #endif
@@ -1028,7 +1160,11 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-	csh.AddCSH_ErrorAfter(@$, "Missing design name to (re-)define.");
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
+    csh.AddCSH_ErrorAfter(@$, "Missing design name to (re-)define.");
   #else
     msc.Error.Error(MSC_POS(@$).end, "Missing a design name to (re-)define.");
     $$ = NULL;
@@ -1039,6 +1175,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
   #else
     $$ = (new CommandEntity(NULL, &msc, false));
     ($$)->AddAttributeList(NULL);
@@ -1049,7 +1189,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandEntity::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
@@ -1063,6 +1206,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
   #else
     $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
     ($$)->AddAttributeList(NULL);
@@ -1073,7 +1220,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         ArcDivider::AttributeNames(csh, true, false);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
@@ -1087,7 +1237,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         ArcDivider::AttributeNames(csh, false, true);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
@@ -1100,10 +1253,32 @@ arc:           arcrel
   #endif
     free($1);
 }
+          | titlecommandtoken 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
+    csh.AddCSH_ErrorAfter(@$, "Missing label.");
+  #else
+    msc.Error.Error(MSC_POS(@$).end, "Missing label. Ignoring (sub)title.", "Titles and subtitles must have a label.");
+    $$ = NULL;
+  #endif
+    free($1);
+}
               | TOK_COMMAND_TEXT
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing 'at' keyword.");
   #else
     $$ = NULL;
@@ -1115,6 +1290,13 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing 'at' keyword.");
   #else
     $$ = NULL;
@@ -1128,7 +1310,11 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
+#else
     if ($2) {
         const char *ident;
         switch (($2)->pos) {
@@ -1168,11 +1354,15 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH_ErrorAfter(@1, "Missing label.");
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
+    csh.AddCSH_ErrorAfter(@2, "Missing label.");
   #else
     if ($2)
         delete $2;
-    msc.Error.Error(MSC_POS(@1).end, "Missing actual text - specify a label. Ignoring this.");
+    msc.Error.Error(MSC_POS(@2).end, "Missing actual text - specify a label. Ignoring this.");
     $$ = NULL;
 #endif
     free($1);
@@ -1181,6 +1371,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing marker name.");
   #else
     $$ = NULL;
@@ -1192,6 +1386,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.MarkerNames.insert($2);
   #else
@@ -1207,7 +1405,10 @@ arc:           arcrel
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.MarkerNames.insert($2);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandMark::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandMark::AttributeValues(csh.hintAttrName, csh);
@@ -1222,6 +1423,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_ErrorAfter(@1, "Missing marker name.");
   #else
     $$ = NULL;
@@ -1235,7 +1440,11 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
+#else
     $$ = (new CommandNewpage(&msc, true));
     ($$)->AddAttributeList(NULL);
   #endif
@@ -1245,7 +1454,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandNewpage::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
@@ -1262,9 +1474,12 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
         CommandHSpace::AttributeNames(csh);
-    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandHSpace(&msc, $2));
@@ -1276,7 +1491,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Enter a number in pixels to set horizontal spacing.", 
             EHintType::KEYWORD, false));
@@ -1295,17 +1513,40 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
-            "Use this to set the width of the left comment area.", 
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
-            "Use this to set the width of the right comment area.", 
-            EHintType::KEYWORD));
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::ENTITY)) {
+        csh.AddEntitiesToHints();
+        csh.AddLeftRightHSpaceToHints();
+        csh.hintStatus = HINT_READY;
     }
-    csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
+    csh.AddCSH_ErrorAfter(@1, "Missing an entity, 'left comment' or 'right comment'.");
   #else
     $$ = NULL;
+    msc.Error.Error(MSC_POS(@1).end, "Missing an entity, 'left comment' or 'right comment'. Ignoring this command.");
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_HSPACE full_arcattrlist_with_label_or_number
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::ENTITY)) {
+        csh.AddEntitiesToHints();
+        csh.AddLeftRightHSpaceToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+        CommandHSpace::AttributeNames(csh);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
+        CommandHSpace::AttributeValues(csh.hintAttrName, csh);
+  #else
+    $$ = NULL;
+    msc.Error.Error(MSC_POS(@1).end, "Missing an entity, 'left comment' or 'right comment'. Ignoring this command.");
+    delete $2;
   #endif
     free($1);
 }
@@ -1313,7 +1554,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandHSpace::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
@@ -1327,7 +1571,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
             "Enter a number in pixels to add that much empty vertical spacing.", 
             EHintType::KEYWORD, false));
@@ -1352,17 +1599,13 @@ hspace_location: entityrel
     if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
         csh.AddCSH(@1, COLOR_KEYWORD);
     else
-        csh.AddCSH_Error(@1, "Use either `left` or `right` to specify which comment column to size.");
+        csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
     csh.AddCSH(@2, COLOR_KEYWORD);
-    if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", 
-            "Use this to size the left comment area.",
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", 
-            "Use this to size the right comment area.", 
-            EHintType::KEYWORD));
+    if (csh.CheckHintAt(@1, EHintSourceType::ENTITY)) {
+        csh.AddEntitiesToHints();
+        csh.AddLeftRightHSpaceToHints();
         csh.hintStatus = HINT_READY;
-    }
+    } 
   #else
     if (CaseInsensitiveEqual($1, "left"))
         $$ = new NamePair(LNOTE_ENT_STR, MSC_POS(@1), NULL, MSC_POS(@1));
@@ -1379,18 +1622,19 @@ hspace_location: entityrel
                  | TOK_AT_POS
 {
   #ifdef C_S_H_IS_COMPILED
-    if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right"))
+    if (CaseInsensitiveEqual($1, "left") || CaseInsensitiveEqual($1, "right")) {
         csh.AddCSH(@1, COLOR_KEYWORD);
-    else
+        if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+            csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "comment", NULL, EHintType::KEYWORD, true));
+            csh.hintStatus = HINT_READY;
+        }
+    }  else
         csh.AddCSH_Error(@1, "Use either `left comment` or `right comment` to specify which comment column to size.");
-    if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
-            "Use this to size the left comment area.", 
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
-            "Use this to size the right comment area.", EHintType::KEYWORD));
+    if (csh.CheckHintAt(@1, EHintSourceType::ENTITY)) {
+        csh.AddEntitiesToHints();
+        csh.AddLeftRightHSpaceToHints();
         csh.hintStatus = HINT_READY;
-    }
+    } 
   #else
     msc.Error.Error(MSC_POS(@1).start, "Use <entity>-<entity>, `left comment`, `right comment` to specify horizontal spacing. Ignoring command.");
     $$ = NULL;
@@ -1401,15 +1645,11 @@ hspace_location: entityrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckEntityHintAt(@1)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left comment", 
-            "Use this to size the left comment area.", 
-            EHintType::KEYWORD));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right comment", 
-            "Use this to size the right comment area.", 
-            EHintType::KEYWORD));
+    if (csh.CheckHintAt(@1, EHintSourceType::ENTITY)) {
+        csh.AddEntitiesToHints();
+        csh.AddLeftRightHSpaceToHints();
         csh.hintStatus = HINT_READY;
-    }
+    } 
   #else
     msc.Error.Error(MSC_POS(@1).start, "Use `left comment` or `right comment` to specify horizontal spacing for comments. Ignoring command.");
     $$ = NULL;
@@ -1596,6 +1836,10 @@ optlist:     opt
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME)) {
+        csh.AddOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_Error(@3, "An option expected here.");
   #else
     $$ = $1;
@@ -1650,8 +1894,7 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
     if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, $1)) {
         Msc::AttributeValues($1, csh);
         csh.hintStatus = HINT_READY;
-    }
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+    } else if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
         csh.AddOptionsToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -1664,18 +1907,21 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
             | TOK_MSC TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_DESIGNNAME);
-        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc")) {
-            csh.AddDesignsToHints(true);
-            csh.hintStatus = HINT_READY;
-        }
-        std::string msg = csh.SetDesignTo($3, true);
-        if (msg.length())
-            csh.AddCSH_Error(@3, msg.c_str());
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH(@3, COLOR_DESIGNNAME);
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc")) {
+        csh.AddDesignsToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }
+    std::string msg = csh.SetDesignTo($3, true);
+    if (msg.length())
+        csh.AddCSH_Error(@3, msg.c_str());
   #else
-        $$ = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
+    $$ = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
     free($1);
     free($3);
@@ -1683,17 +1929,16 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
             | TOK_MSC TOK_EQUAL
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter(@2, "Missing option value.");
-        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc")) {
-            csh.AddDesignsToHints(true);
-            csh.hintStatus = HINT_READY;
-        }
-        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
-            csh.AddOptionsToHints();
-            csh.hintStatus = HINT_READY;
-        }
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH_ErrorAfter(@2, "Missing option value.");
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc")) {
+        csh.AddDesignsToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }
   #else
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing option value.");
     $$ = NULL;
@@ -1703,16 +1948,19 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
             | TOK_MSC TOK_PLUS_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_DESIGNNAME);
-        if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc+")) {
-            csh.AddDesignsToHints(false);
-            csh.hintStatus = HINT_READY;
-        }
-        std::string msg = csh.SetDesignTo($3, false);
-        if (msg.length())
-            csh.AddCSH_Error(@3, msg.c_str());
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH(@3, COLOR_DESIGNNAME);
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE, "msc+")) {
+        csh.AddDesignsToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }
+    std::string msg = csh.SetDesignTo($3, false);
+    if (msg.length())
+        csh.AddCSH_Error(@3, msg.c_str());
   #else
         $$ = msc.AddAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
@@ -1722,17 +1970,16 @@ opt:         entity_string TOK_EQUAL TOK_NUMBER
             | TOK_MSC TOK_PLUS_EQUAL
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter(@2, "Missing option value.");
-        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc+")) {
-            csh.AddDesignsToHints(false);
-            csh.hintStatus = HINT_READY;
-        }
-        if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
-            csh.AddOptionsToHints();
-            csh.hintStatus = HINT_READY;
-        }
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH_ErrorAfter(@2, "Missing option value.");
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc+")) {
+        csh.AddDesignsToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }
   #else
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing option value.");
     $$ = NULL;
@@ -1750,7 +1997,8 @@ entitylist:   entity
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-  #else
+    csh.CheckEntityHintBetween(@2, @3);
+#else
     ($3)->Prepend($1);
     $$ = $3;
     delete ($1);
@@ -1838,7 +2086,7 @@ first_entity:  entity_string full_arcattrlist_with_label
         EntityApp::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         EntityApp::AttributeValues(csh.hintAttrName, csh);
-    csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
+    csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so if this is a newly defined entity it one is not included among the hints
   #else
     EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
@@ -1853,7 +2101,7 @@ first_entity:  entity_string full_arcattrlist_with_label
         csh.AddLineBeginToHints();
         csh.hintStatus = HINT_READY;
     }
-    csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
+    csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so if this is a newly defined entity it one is not included among the hints
   #else
     EntityApp *ed = new EntityApp($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
@@ -1900,7 +2148,23 @@ styledeflist: styledef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_VALUE)) {
+        csh.AddStylesToHints(true, true);
+        csh.hintStatus = HINT_READY;
+    }
   #endif
+}
+             | styledeflist TOK_COMMA 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
+        csh.AddStylesToHints(true, true);
+        csh.hintStatus = HINT_READY;
+    }
+  #else 
+    msc.Error.Error(MSC_POS(@$).end, "Missing style definition here.", "Try just removing the comma.");
+#endif
 };
 
 styledef : stylenamelist full_arcattrlist
@@ -1954,9 +2218,9 @@ styledef : stylenamelist full_arcattrlist
                  | stylenamelist 
 {
   #ifdef C_S_H_IS_COMPILED
-	csh.AddCSH_ErrorAfter(@$, "Missing attribute definitons in brackets ('[' and ']').");
+	csh.AddCSH_ErrorAfter(@$, "Missing attribute definitons in square brackets ('[' and ']').");
   #else
-    msc.Error.Error(MSC_POS(@$).end, "Missing attribute definitons in brackets ('[' and ']').");
+    msc.Error.Error(MSC_POS(@$).end, "Missing attribute definitons in square brackets ('[' and ']').");
   #endif
     delete($1);
 };
@@ -1972,7 +2236,7 @@ stylenamelist : string
     else if (strcmp($1, "emptyemphasis")==0)
         ($$)->push_back("emptybox");
     else ($$)->push_back($1);
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -1988,7 +2252,7 @@ stylenamelist : string
     csh.AddCSH(@1, COLOR_STYLENAME);
     $$ = new std::list<string>;
 	($$)->push_back("++");
-    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2002,7 +2266,7 @@ stylenamelist : string
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
 	csh.AddCSH_ErrorAfter(@2, "Missing a style name to (re-)define.");
-    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2023,7 +2287,7 @@ stylenamelist : string
     else if (strcmp($3, "emptyemphasis")==0)
         ($$)->push_back("emptybox");
     else ($$)->push_back($3);
-    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_NAME)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2040,7 +2304,7 @@ stylenamelist : string
     csh.AddCSH(@3, COLOR_STYLENAME);
     $$ = $1;
 	($$)->push_back("++");
-    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_NAME)) {
 		csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
     }
@@ -2354,7 +2618,7 @@ colordeflist: colordef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::ATTR_NAME)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2364,7 +2628,7 @@ colordeflist: colordef
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE)) {
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2464,6 +2728,11 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     csh.AddCSH(@5, COLOR_BRACE);
     (csh.Contexts.back().full ? csh.FullDesigns : csh.PartialDesigns)[$1] += csh.Contexts.back();
     csh.PopContext();
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::LINE_START) || 
+        csh.CheckHintBetween(@4, @5, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
   #else
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
@@ -2484,7 +2753,12 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     csh.AddCSH(@6, COLOR_BRACE);
     (csh.Contexts.back().full ? csh.FullDesigns : csh.PartialDesigns)[$1] = csh.Contexts.back();
     csh.PopContext();
-  #else
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::LINE_START) ||
+        csh.CheckHintBetween(@4, @5, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
+#else
     //if closing brace missing, still do the design definition
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
@@ -2510,13 +2784,24 @@ designelementlist: designelement
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_SEMICOLON);
-  #endif
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    }
+#endif
 };
 
 designelement: TOK_COMMAND_DEFCOLOR colordeflist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME)) {
+        csh.AddColorValuesToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
   #endif
     free($1);
 }
@@ -2524,7 +2809,10 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
         csh.AddColorValuesToHints(true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2538,7 +2826,10 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ATTR_NAME)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ATTR_NAME)) {
         csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2549,7 +2840,10 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddDesignLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
         csh.AddStylesToHints(true, true);
         csh.hintStatus = HINT_READY;
 	}
@@ -2566,6 +2860,20 @@ designoptlist: designopt
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintBetween(@2, @3, EHintSourceType::ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }   
+  #endif
+}
+               | designoptlist TOK_COMMA 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    }   
   #endif
 }
                | designoptlist error
@@ -2613,6 +2921,23 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
     free($1);
     free($3);
 }
+            | entity_string TOK_EQUAL 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, $1)) {
+        Msc::AttributeValues($1, csh);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing option value. Ignoring this.");
+#endif
+    free($1);
+}
             | TOK_MSC TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
@@ -2656,6 +2981,40 @@ designopt:         entity_string TOK_EQUAL TOK_NUMBER
   #endif
     free($1);
     free($3);
+}
+            | TOK_MSC TOK_EQUAL 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc")) {
+        Msc::AttributeValues($1, csh);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing design name. Ignoring this.");
+#endif
+    free($1);
+}
+            | TOK_MSC TOK_PLUS_EQUAL 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    if (csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_VALUE, "msc+")) {
+        Msc::AttributeValues($1, csh);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing design name. Ignoring this.");
+#endif
+    free($1);
 };
 
 
@@ -2687,7 +3046,9 @@ parallel:    braced_arclist
 //the parser will turn that to a 'first' box and we are OK.)
 box_list: first_box
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
+  #else
     ($1)->SetLineEnd(MSC_POS(@$));
     $$ = new ArcBoxSeries($1);
   #endif
@@ -2696,7 +3057,11 @@ box_list: first_box
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
   #else
     $$ = NULL;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), 
@@ -2710,6 +3075,11 @@ box_list: first_box
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);   
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     ($2)->ExpandLineEnd(MSC_POS(@$));
     $$ = new ArcBoxSeries($2);
@@ -2732,6 +3102,8 @@ box_list: first_box
         ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
+    else 
+        csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
 
@@ -2741,7 +3113,9 @@ box_list: first_box
 }
            | box_list boxrel braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
+  #else
     ($2)->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddBox($2);
     ($2)->AddAttributeList(NULL); //should come after AddBox
@@ -2749,7 +3123,9 @@ box_list: first_box
 }
            | box_list braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
+  #else
     if ($1) {
         ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
         temp->AddArcList($2);
@@ -2771,6 +3147,8 @@ box_list: first_box
         ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
+    else 
+        csh.CheckEntityHintAfter(@4, yylloc, yychar==YYEOF);
   #else
     ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddBox($2);
@@ -2784,6 +3162,8 @@ box_list: first_box
         ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
+    else     
+        csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     if ($1) {
         ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
@@ -2851,7 +3231,10 @@ first_pipe: TOK_COMMAND_PIPE boxrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ENTITY)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ENTITY)) {
         csh.AddEntitiesToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -2867,7 +3250,10 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.CheckHintAtAndBeforePlusOne(@1, @2, EHintSourceType::ENTITY)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBeforePlusOne(@1, @2, EHintSourceType::ENTITY)) {
         csh.AddEntitiesToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -2882,7 +3268,11 @@ first_pipe: TOK_COMMAND_PIPE boxrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
   #else
     $$ = NULL;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "The keyword '" + string($1) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
@@ -2893,7 +3283,10 @@ first_pipe: TOK_COMMAND_PIPE boxrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ENTITY)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetweenPlusOne(@1, @2, EHintSourceType::ENTITY)) {
         csh.AddEntitiesToHints();
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
@@ -2911,6 +3304,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
 pipe_list_no_content: first_pipe
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAfter(@$, yylloc, yychar==YYEOF);
   #else
     if ($1)
       $$ = new ArcPipeSeries($1);
@@ -2920,7 +3314,9 @@ pipe_list_no_content: first_pipe
 }
              | pipe_list_no_content boxrel
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAfter(@$, yylloc, yychar==YYEOF);
+#else
     //($2) is never NULL: "boxrel" always return a value (except oo memory)
     ArcPipe *ap = new ArcPipe($2);
     ap->SetLineEnd(MSC_POS(@2));
@@ -2939,6 +3335,8 @@ pipe_list_no_content: first_pipe
         ArcPipe::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
+    else
+        csh.CheckEntityHintAfter(@$, yylloc, yychar==YYEOF);
   #else
     //($2) is never NULL: "boxrel" always return a value (except oo memory)
     ArcPipe *ap = new ArcPipe($2);
@@ -2956,6 +3354,7 @@ pipe_list: pipe_list_no_content
          | pipe_list_no_content braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
+    csh.CheckEntityBetween(@1, @2);
     $$ = ($1)->AddArcList($2);
   #endif
 };
@@ -3013,7 +3412,13 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_EntityName(@2, $2);
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2));
@@ -3025,7 +3430,13 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_ATTRVALUE);
   #else
@@ -3039,10 +3450,16 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
-    csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_SIDE);
   #endif
@@ -3053,10 +3470,16 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
     csh.AddCSH(@4, COLOR_ATTRVALUE);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } 
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_SIDE, -atof($4));
   #endif
@@ -3068,9 +3491,15 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_SIDE);
   #endif
@@ -3081,11 +3510,17 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
     csh.AddCSH(@4, COLOR_ATTRVALUE);
-  #else
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
+#else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_SIDE, atof($4));
   #endif
     free($1);
@@ -3096,9 +3531,15 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     switch ($3) {
     default:
@@ -3130,11 +3571,17 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
-    csh.CheckEntityHintAtAndBefore(@3, @4);
     csh.AddCSH_EntityName(@4, $4);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4));
   #endif
@@ -3146,12 +3593,18 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
     csh.AddCSH(@3, COLOR_SYMBOL);
-    csh.CheckEntityHintAtAndBefore(@3, @4);
     csh.AddCSH_EntityName(@4, $4);
     csh.AddCSH(@5, COLOR_ATTRVALUE);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
     $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), atof($5));
   #endif
@@ -3164,7 +3617,13 @@ vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar=YYEOF)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } 
     csh.AddCSH_ErrorAfter(@1, "Missing an entity name.");
   #else
     $$ = NULL;
@@ -3189,6 +3648,7 @@ empharcrel_straight: emphrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.CheckEntityHintBetween(@1, @2);
 	$$ = 0; //dummy to supress warning	
   #else
     ($$).arc.type = $2;
@@ -3214,7 +3674,8 @@ empharcrel_straight: emphrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
     csh.AddCSH_Error(@3, MULTIPLE_ASTERISK_ERROR_MSG);
-	$$ = 0; //dummy to supress warning	
+    csh.CheckEntityHintBetween(@1, @2);
+    $$ = 0; //dummy to supress warning	
   #else
     msc.Error.Error(MSC_POS(@3).start, "Only one loss can be specified. Ignoring second asterisk ('*').");
     ($$).arc.type = $2;
@@ -3324,7 +3785,11 @@ vertrel: vertrel_no_xpos vertxpos
          | vertrel_no_xpos
 {
   #ifdef C_S_H_IS_COMPILED
-  #else
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
+#else
 	VertXPos vxp(msc);
 	$$ = ($1)->AddXpos(&vxp);
   #endif
@@ -3345,7 +3810,6 @@ vertrel: vertrel_no_xpos vertxpos
 	} else
 	    $$ = NULL;
   #endif
-
 };
 
 arcrel:       TOK_SPECIAL_ARC
@@ -3371,7 +3835,7 @@ arcrel:       TOK_SPECIAL_ARC
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_ErrorAfter(@2, "Missing 'at' clause.");
     if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", NULL, EHintType::KEYWORD, true));
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
         csh.hintStatus = HINT_READY;
     }
   #else
@@ -3382,8 +3846,17 @@ arcrel:       TOK_SPECIAL_ARC
 }
              | arcrel_arrow
 {
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "lost at", 
+            "Use the 'lost at' keyword to indicate that the message has been lost.", 
+            EHintType::KEYWORD, false));
+        csh.hintStatus = HINT_READY;
+    }
+  #endif
     //explicit copy here to suppress bison warning (since the two types are different)
     $$ = $1;
+
 };
 
 arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir;
@@ -3856,14 +4329,14 @@ relation_bidir_cont: relation_bidir_cont_no_loss
   #endif
 };
 
-
+//This is there so that when the user starts typing "left" and is at
+//"lef", we match the entity string here.
 extvertxpos: extvertxpos_no_string
              | entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
-    if (csh.hintStatus != HINT_READY &&
-        csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
         csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_FILLING;
     }
@@ -3877,7 +4350,13 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
-
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    }
   #else
     $$ = new ExtVertXPos($1, MSC_POS(@1), $2);
   #endif
@@ -3887,8 +4366,11 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName(@1, $1);
-    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", NULL, EHintType::KEYWORD, true));
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
         csh.hintStatus = HINT_READY;
     }
   #else

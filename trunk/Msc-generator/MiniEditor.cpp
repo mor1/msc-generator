@@ -1269,38 +1269,15 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     if (m_csh.hintedStringPos.first_pos>=0) 
         GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
     
-    bool changed = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey, InHintMode());
-    //See how many of the remaining hits fit the word under the cursor 
-    unsigned no_selectable = 0; //count how many selectable hints we have fow which 'text' is a prefix
-    unsigned no_unselectable = 0; //count how many unselectable hints we have 
-    auto hit = m_csh.Hints.end(); //The last selectable hint
-    for (auto i = m_csh.Hints.begin(); i!=m_csh.Hints.end(); i++) {
-        //find a selectable item or one that the text under cursor fits 
-        if (!i->selectable) {
-            no_unselectable++;
-        } else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
-            no_selectable++;
-            hit = i;
-        }
-    }
-    //we will not consider unselectable hints if we have something under the cursor
-    if (text.GetLength()) no_unselectable = 0;
-    //Check if we have only one hint (group hints count as multiple)
-    const bool onlyOne = no_unselectable==0 && no_selectable==1 && 
-        hit->decorated[hit->decorated.size()-1]!='*';
-    //if there is only one hit and it is equal to the word under cursor, cancel hit mode,
-    //but not if it was a Ctrl+Space - in that case show the only choice as a feedback
-    //to Ctrl+Space
-    if (onlyOne && !m_bUserRequested && hit->plain.c_str() == text) {
-        CancelHintMode();
-        return;
-    }
-    //If we are about to start hint mode due to a Ctrl+Space and there is only one selectable hit 
-    //then auto complete without popping up the hint list. 
-    if (onlyOne && m_bUserRequested && hit->plain.c_str() != text) {
-        ReplaceHintedString(&*hit);
-        return;
-    } 
+    const auto res = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey, InHintMode());
+    if (res == CHintListBox::HINTS_REPLACE) 
+        //we need to replace - there is only one selectable hint
+        for (const auto &h : m_csh.Hints)
+            if (h.selectable) {
+                ReplaceHintedString(&h);
+                return;
+            }
+
     //Show the window (or keep it shown & update the list)
     m_hintsPopup.Show(text, pt.x, pt.y);
     SetFocus();
@@ -1322,13 +1299,11 @@ void CCshRichEditCtrl::ReplaceHintedString(const CshHint *hint)
     if (!hint) {
         ReplaceSel("");
         step_back = false;
-    } else if (hint->replaceto.length()) {
-        ReplaceSel(hint->replaceto.c_str());
-        step_back = hint->replaceto.length() && hint->replaceto[hint->replaceto.size()-1]==')';
     } else {
-        ReplaceSel(hint->plain.c_str());
-        step_back = hint->plain.length() && hint->plain[hint->plain.size()-1]==')';
-    }
+        string rep = hint->GetReplacementString();
+        ReplaceSel(rep.c_str());
+        step_back = rep.length() && rep[rep.size()-1]==')';
+    } 
     //selection ends up at the end of the inserted text
     if (step_back) {
         long s, e;

@@ -38,7 +38,13 @@ public:
     CMFCToolTipCtrl   m_tooltip;
     CHintListBox();
     
-    bool PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode);
+    enum EHintProcResult {
+        HINTS_REPLACE,     ///<After chain forwarding, we determine, we need to replace the string under cursor (only one result and user pressed Ctrl+Space)
+        HINTS_CHANGED,     ///<The list of hints changed
+        HINTS_NOT_CHANGED, ///<The list of hints remained as before
+    };
+
+    EHintProcResult PreprocessHints(Csh &csh, const std::string &uc, bool userRequest, bool afterReturnKey, bool inhintmode);
     CSize SetHintsToCurrent();
     void SetStringUnderCursor(const char *uc);
     void UpDownKey(int offset);

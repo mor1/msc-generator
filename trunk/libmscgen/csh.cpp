@@ -617,7 +617,7 @@ void Csh::AddCSH_ColonString_CheckAndAddEscapeHint(const CshPos& pos, const char
 /** Names and descriptions of keywords for coloring.
  *
  * All keywords shall be repeated here, not only known by the parser.
- * We color only these where keywords should come.*/
+ * We color only these where keywords should come. We also give hints based on these.*/
 static const char * const keyword_names[] =
 {"", NULL,
 "parallel", "If you prepend 'parallel' in front of an element, subseqent elements will be laid besides it (and not strictly below), if possible without overlap.",
@@ -647,12 +647,25 @@ static const char * const keyword_names[] =
 "title", "Add a title to the chart.",
 "subtitle", "Add a subtitle to a section of the chart.",
 "defshape", "Define a new shape.",
+"text at", "Draws free text.",
 ""};
+
+/** Names and descriptions of keywords valid inside a design definition for coloring/hints.
+*
+* All keywords shall be repeated here, not only known by the parser.
+* We color only these where keywords should come. We also give hints based on these.*/
+static const char * const design_keyword_names[] =
+{"", NULL,
+"defstyle", "Define a new style or change existing styles (applicable only in this design).",
+"defcolor", "Define or redefine a color. (applicable only in this design)",
+""
+};
+
 
 /** Names of chart options for coloring.
  *
  * All options shall be repeated here, not only known by class Msc.
- * We color only these where options should come.*/
+ * We color only these where options should come. We also give hints based on these.*/
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "vspacing", "compress", "numbering", "indicator", "auto_heading",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
@@ -1159,16 +1172,20 @@ bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two,
 
 /** Mark hint status to HINT_LOCATED if cursor is after a range.
  *
- * Checks if the cursor is between 'one' and 'lookahead'.
- * If 'atEnd' is true we trigger only if the cursor is immediately after
- *'one'. If so, it applies
+ * Checks if the cursor is between 'one' and 'lookahead'. If so, it applies
  * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * If 'atEnd' is true we are at the very end of the file, 'one' is the last symbol and
+ * 'lookahead' is ignored.
  * This function is used when we want to hint something at the end of a yacc rule.
  * In this case lookahead contains the location of the next token. 
- * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing.
  * @param [in] one The first range
  * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
- * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @param [in] atEnd If true, we are at the end of the file and no lookahead symbol is 
+ *                   detected (parameter 'lookahead' is ignored). We just test if the cursor
+ *                   is just after or well after 'one'. If false, we have a lookahead symbol
+ *                   and we test if the cursor is just after 'one' or well after it, but 
+ *                   strictly before or just before 'lookahead'.
  * @param [in] hsource The source type at the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
@@ -1204,15 +1221,19 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
 /** Mark hint status to HINT_LOCATED if cursor is after a range, but not immediately after.
  *
  * Checks if the cursor is between 'one' and 'lookahead', but not immediately after 'one'.
- * If 'atEnd' is true we trigger only if the cursor is exactly one character after
- *'one'. If so, it applies
- * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * If so, it applies the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * If 'atEnd' is true we are at the very end of the file, 'one' is the last symbol and
+ * 'lookahead' is ignored.
  * This function is used when we want to hint something at the end of a yacc rule.
  * In this case lookahead contains the location of the next token. 
- * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing.
  * @param [in] one The first range
  * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
- * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @param [in] atEnd If true, we are at the end of the file and no lookahead symbol is
+ *                   detected (parameter 'lookahead' is ignored). We just test if the cursor
+ *                   is just after or well after 'one'. If false, we have a lookahead symbol
+ *                   and we test if the cursor is just after 'one' or well after it, but
+ *                   strictly before or just before 'lookahead'.
  * @param [in] hsource The source type at the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
@@ -1341,8 +1362,26 @@ bool Csh::CheckLineStartHintAt(const CshPos &pos)
     return true;
 }
 
+/** Mark hint type to HINT_ENTITY and status to HINT_FILLING if cursor is between two ranges.
+*
+* Checks if the cursor is between the two ranges. If so, it sets hint type to
+* HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+* If cursor is inside two, hintedStringPos
+* is set to two. hintsForcedOnly is set to true iff the cursor is truely before two
+* or is at the end of two.
+* @param [in] one The first range
+* @param [in] two The second range
+* @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintBetween(const CshPos &one, const CshPos &two)
+{
+    if (!CheckHintBetween(one, two, EHintSourceType::ENTITY))
+        return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_FILLING;
+    return true;
+}
 
-/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is between two ranges or inside the second one.
+/** Mark hint type to HINT_ENTITY and status to HINT_FILLING if cursor is between two ranges or inside the second one.
  *
  * Checks if the cursor is between the two ranges or inside the second. If so, it sets hint type to 
  * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
@@ -1357,11 +1396,11 @@ bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
     if (!CheckHintAtAndBefore(one, two, EHintSourceType::ENTITY)) 
         return false;
     AddEntitiesToHints();
-    hintStatus = HINT_READY;
+    hintStatus = HINT_FILLING;
     return true;
 }
 
-/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is between two range or inside the second one, but not immediately after the first one.
+/** Mark hint type to HINT_ENTITY and status to HINT_FILLING if cursor is between two range or inside the second one, but not immediately after the first one.
  *
  * Checks if the cursor is between the two ranges or inside the second, but not 
  * immediately after the first. If so, sets hint type to 
@@ -1379,11 +1418,11 @@ bool Csh::CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two
     return CheckEntityHintAtAndBefore(one_oneAfter, two);
 }
 
-/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is inside, just before or just after a range.
+/** Mark hint type to HINT_FILLING and status to HINT_FILLING if cursor is inside, just before or just after a range.
  *
  * Checks if the cursor is inside, just before or just after a range.
  * If so, sets hint type to 
- * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * HINT_ENTITY and status to HINT_FILLING and adds the entities collected so far to the hints.
  * hintedStringPos
  * is set to 'one'. hintsForcedOnly is set to true if the cursor is just before one
  * or is at the end of one
@@ -1394,16 +1433,16 @@ bool Csh::CheckEntityHintAt(const CshPos &one)
     if (!CheckHintAt(one, EHintSourceType::ENTITY))
         return false;
     AddEntitiesToHints();
-    hintStatus = HINT_READY;
+    hintStatus = HINT_FILLING;
     return true;
 }
 
-/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is after a range.
+/** Mark hint type to HINT_ENTITY and status to HINT_FILLING if cursor is after a range.
  *
  * Checks if the cursor is between 'one' and 'lookahead'.
  * If 'atEnd' is true we trigger only if the cursor is immediately after
  *'one'.  If so, sets hint type to 
- * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * HINT_ENTITY and status to HINT_FILLING and adds the entities collected so far to the hints.
  * It sets hintsForcedOnly to false.
  * This function is used when we want to hint an entity at the end of a yacc rule.
  * In this case lookahead contains the location of the next token. 
@@ -1422,12 +1461,12 @@ bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool 
 }
 
 
-/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is after a range, but not immediately after.
+/** Mark hint type to HINT_ENTITY and status to HINT_FILLING if cursor is after a range, but not immediately after.
  *
  * Checks if the cursor is between 'one' and 'lookahead', but not immediately after 'one'.
  * If 'atEnd' is true we trigger only if the cursor is exactly one character after
  *'one'. If so, sets hint type to 
- * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * HINT_ENTITY and status to HINT_FILLING and adds the entities collected so far to the hints.
  * It sets hintsForcedOnly to false.
  * This function is used when we want to hint something at the end of a yacc rule.
  * In this case lookahead contains the location of the next token. 
@@ -1441,7 +1480,7 @@ bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead
     if (!CheckHintAfterPlusOne(one, lookahead, atEnd, EHintSourceType::ENTITY))
         return false;
     AddEntitiesToHints();
-    hintStatus = HINT_READY;
+    hintStatus = HINT_FILLING;
     return true;
 }
 
@@ -1787,21 +1826,50 @@ void Csh::AddSymbolTypesToHints()
         EHintType::KEYWORD, true));
 }
 
-/** Add the symbol types to the hints.*/
+/** Add the left/right/center keyword (for symbol positioning) to the hints.*/
 void Csh::AddLeftRightCenterToHints()
 {
     AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "left", 
         "Use this if you want to specify where the left edge shall be positioned.",
         EHintType::KEYWORD, true, CshHintGraphicCallbackForTextIdent,
         CshHintGraphicParam(MSC_IDENT_LEFT)));
-    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "center", 
-        "Use this if you want to specify where the center shall be positioned.",
-        EHintType::KEYWORD, true, CshHintGraphicCallbackForTextIdent,
-        CshHintGraphicParam(MSC_IDENT_CENTER)));
     AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "right", 
         "Use this if you want to specify where the right edge shall be positioned.",
         EHintType::KEYWORD, true, CshHintGraphicCallbackForTextIdent,
         CshHintGraphicParam(MSC_IDENT_RIGHT)));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "center",
+        "Use this if you want to specify where the center shall be positioned.",
+        EHintType::KEYWORD, true, CshHintGraphicCallbackForTextIdent,
+        CshHintGraphicParam(MSC_IDENT_CENTER)));
+}
+
+/** Add the left/right keyword (for hspace specification) to the hints.*/
+void Csh::AddLeftRightHSpaceToHints()
+{
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "left comment",
+        "Use this to size the left comment area.",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "right comment",
+        "Use this to size the right comment area.",
+        EHintType::KEYWORD));
+}
+
+
+/** Add the vertical types to the hints.*/
+void Csh::AddVerticalTypesToHints()
+{
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "brace",
+        "Use this to add a large vertical curly brace, like '}'.",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "bracket",
+        "Use this to add a large square baracket, like ']'.",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "range",
+        "Use this to mark a vertical range, like this 'I'.",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "box",
+        "Use this to add a box with vertically typeset text.",
+        EHintType::KEYWORD));
 }
 
 /** Add chart option names to the list of hints. */
@@ -1814,6 +1882,14 @@ void Csh::AddOptionsToHints()
 void Csh::AddDesignOptionsToHints() 
 {
     Msc::AttributeNames(*this, true);
+}
+
+/** Add names of chart options and commands that are valid inside a design definition to the list of hints. */
+void Csh::AddDesignLineBeginToHints()
+{
+    AddDesignOptionsToHints();
+    AddToHints(design_keyword_names, HintPrefix(COLOR_KEYWORD), EHintType::KEYWORD,
+        CshHintGraphicCallbackForKeywords);
 }
 
 /** Callback for drawing a symbol before keywords in the hints popup list box.
@@ -1831,7 +1907,7 @@ bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh 
 /** Add keywords to the list of hints. */
 void Csh::AddKeywordsToHints(bool includeParallel)
 {
-    AddToHints(keyword_names+(includeParallel?0:4), HintPrefix(COLOR_KEYWORD), EHintType::ATTR_VALUE, 
+    AddToHints(keyword_names+(includeParallel?0:4), HintPrefix(COLOR_KEYWORD), EHintType::KEYWORD, 
                CshHintGraphicCallbackForKeywords);
 }
 
@@ -1862,6 +1938,34 @@ void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
         AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, NULL, EHintType::ENTITY, true, CshHintGraphicCallbackForEntities));
+}
+
+
+void Csh::AddVertXPosSyntaxNonSelectableToHints(bool include_at)
+{
+    const string prefix = include_at ? 
+                           "\|"+HintPrefix(COLOR_KEYWORD)+"at\s()"+HintPrefixNonSelectable() :
+                           HintPrefixNonSelectable();
+    AddToHints(CshHint(prefix + "<entity> [offset]",
+        "Position exactly on the entity line (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(prefix + "<entity>+ [offset]",
+        "Position a bit right of the entity line (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(prefix + "<entity>- [offset]",
+        "Position a bit left of the entity line (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(prefix + "<entity>++ [offset]",
+        "Position a somewhat right of the entity line (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(prefix + "<entity>-- [offset]",
+        "Position a somewhat left of the entity line (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    AddToHints(CshHint(prefix + "<entity>-<entity> [offset]",
+        "Position to the midpoint between the two entities (optionally offset by the specified number of pixels).",
+        EHintType::KEYWORD));
+    if (include_at)
+        AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "at", NULL, EHintType::KEYWORD, true));
 }
 
 /** Add text escape sequences to hints.*/

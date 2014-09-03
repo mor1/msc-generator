@@ -295,6 +295,8 @@ struct CshHint {
     void swap(CshHint &o);
     bool operator < (const CshHint &o) const { if (type==o.type) { if (sort==o.sort) return decorated<o.decorated; return sort<o.sort; } return type<o.type; }
     bool operator ==(const CshHint &o) const {return type == o.type && sort == o.sort && decorated == o.decorated;}
+    std::string &GetReplacementString() { return replaceto.size() ? replaceto : plain; }
+    const std::string &GetReplacementString() const { return replaceto.size() ? replaceto : plain; }
 };
 
 /** The max length of the keywords, attribute and option names.*/
@@ -420,6 +422,7 @@ public:
     bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintSourceType hsource, const char *a_name = NULL);
     bool CheckLineStartHintBefore(const CshPos &pos);
     bool CheckLineStartHintAt(const CshPos &pos);
+    bool CheckEntityHintBetween(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);
@@ -455,12 +458,16 @@ public:
     void AddStylesToHints(bool include_forbidden, bool define);
     void AddOptionsToHints();
     void AddDesignOptionsToHints();
+    void AddDesignLineBeginToHints();
     void AddKeywordsToHints(bool includeParallel=true);
     void AddEntitiesToHints();
     void AddSymbolTypesToHints();
     void AddLeftRightCenterToHints();
+    void AddLeftRightHSpaceToHints();
+    void AddVerticalTypesToHints();
     /** Add entities, keywords and option names to hint list.*/
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
+    void AddVertXPosSyntaxNonSelectableToHints(bool include_at);
     void AddEscapesToHints(EEscapeHintType);
     /** @}*/
     //fill in size, plain and filter/compact if needed
