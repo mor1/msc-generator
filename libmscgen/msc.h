@@ -53,6 +53,10 @@ using std::string;
 
 /** Name of a virtual marker representing the current vertical location. Used in verticals when one end is not specified.*/
 #define MARKER_HERE_STR "\""
+/** Name of the builtin chart.top marker */
+#define MARKER_BUILTIN_CHART_TOP_STR "chart.top"
+/** Name of the builtin chart.bottom marker */
+#define MARKER_BUILTIN_CHART_BOTTOM_STR "chart.bottom"
 
 /** The margin on left and right side, between LNote-LSide and RSide-RNote. 
  * In pos space, will be fed into XCoord().*/
@@ -335,7 +339,7 @@ class Msc {
 public:
     /** Data we store about a marker */
     struct MarkerData {
-        FileLineCol line; ///<Marker's location in the input file 
+        FileLineCol line; ///<Marker's location in the input file, invalid if a built-in marker 
         double      y;    ///<Marker's vertical position in chart space
     };
     /** Data we store about a named arc, that can be referenced via @\r(<name>) */

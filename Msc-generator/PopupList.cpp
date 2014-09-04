@@ -64,15 +64,25 @@ CHintListBox::EHintProcResult CHintListBox::PreprocessHints(Csh &csh, const std:
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    if (!pApp->m_bHints || csh.hintStatus != HINT_READY)
+    if (!pApp->m_bHints)
         csh.Hints.clear();
     else if (!userRequest && !inhintmode) {
         //Now delete those hints not requested by the user preferences,
         //but only if we do hints not in response to a Ctrl+Space
         //Keep first line ones only if after the user pressed newline
+        //If user requested no automatic hints for line start, but did request for
+        //entities, then on a line_start location, filter out all non-entity ones
         if (csh.hintSource == EHintSourceType::LINE_START)
-            if (!pApp->m_bHintLineStart || (!afterReturnKey && uc.length()==0))
-                csh.Hints.clear();
+            if (!pApp->m_bHintLineStart || (!afterReturnKey && uc.length()==0)) {
+                if (pApp->m_bHintEntity)
+                    for (auto i = csh.Hints.begin(); i!=csh.Hints.end(); /*nope*/)
+                        if (i->type == EHintType::ENTITY)
+                            i++;
+                        else
+                            csh.Hints.erase(i++);
+                else
+                    csh.Hints.clear();
+            }
         if ((!pApp->m_bHintAttrName && csh.hintSource == EHintSourceType::ATTR_NAME) ||
             (!pApp->m_bHintAttrValue && csh.hintSource == EHintSourceType::ATTR_VALUE) ||
             (!pApp->m_bHintEntity && csh.hintSource == EHintSourceType::ENTITY) ||

@@ -376,6 +376,8 @@ public:
 
     /**Add a name of a shape (whithout the actual shape)*/
     void AddShapeName(const char *n) { shape_names.emplace_back(n); }
+    /** Clear all marker names and add the name of built-in markers.*/
+    void ResetMarkers();
 
     /** @name Functions to add a CSH entry 
      * @{  */
@@ -396,6 +398,7 @@ public:
     void AddCSH_EntityOrMarkerName(const CshPos&pos, const char *name); ///<At pos there is an entity or marker name. Search and color.
     void AddCSH_ExtvxposDesignatorName(const CshPos&pos, const char *name); ///<At pos there is an ext pos designator name. Search and color.
     void AddCSH_SymbolName(const CshPos&pos, const char *name); ///<At pos there is a symbol. Color it.
+    void AddCSH_LeftRightCenterMarker(const CshPos&pos, const char *name); ///<At pos there is either left/right/center or a marker. Color it appropriately.
     void AddCSH_AllCommentBeyond(const CshPos&pos); ///<Mark anything beyond the end of 'pos' as comment
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 

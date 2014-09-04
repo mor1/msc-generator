@@ -823,11 +823,10 @@ int CMscGenApp::ReadDesigns(unsigned folder, const char *fileName)
     m_designlib_csh.Hints.clear();
     //2. clear entity names, marker names, all but the top of the the context stack
     _ASSERT(m_designlib_csh.EntityNames.size()==0);
-    _ASSERT(m_designlib_csh.MarkerNames.size()==0);
     _ASSERT(m_designlib_csh.RefNames.size()==0);
     _ASSERT(m_designlib_csh.Contexts.size()==1);
-    m_designlib_csh.EntityNames.clear();
     m_designlib_csh.MarkerNames.clear();
+    m_designlib_csh.ResetMarkers();
     m_designlib_csh.RefNames.clear();
     m_designlib_csh.Contexts.erase(++m_designlib_csh.Contexts.begin(), m_designlib_csh.Contexts.end());
     //3. clear shape names, too: these will be added via pShapes (in parsed form)

@@ -911,6 +911,21 @@ void Csh::AddCSH_SymbolName(const CshPos&pos, const char *name)
     AddCSH_Error(pos, s);
 }
 
+void Csh::AddCSH_LeftRightCenterMarker(const CshPos&pos, const char *name)
+{
+    switch (find_opt_attr_name(name, extvxpos_designator_names)) {
+    case 2: //Full match
+        AddCSH(pos, COLOR_KEYWORD); break;
+    case 1: //partial match
+        AddCSH(pos, COLOR_KEYWORD_PARTIAL); break;
+    default:
+        _ASSERT(0); //fallthrough
+    case 0:
+        AddCSH(pos, COLOR_MARKERNAME);
+    }
+}
+
+
 //Mark anything beyond the end of 'pos' as comment
 void Csh::AddCSH_AllCommentBeyond(const CshPos&pos)
 {
@@ -977,7 +992,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     QuotedStrings.clear();
     CshErrors.clear();
     EntityNames.clear();
-    MarkerNames.clear();
+    ResetMarkers();
     RefNames.clear();
     if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())
         Contexts.back() = FullDesigns[ForcedDesign];
@@ -1068,7 +1083,16 @@ Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes,
     PushContext(true);
     Contexts.back().SetToDesign(defaultDesign);
     FullDesigns["plain"] = Contexts.back();
+    ResetMarkers();
 }
+
+void Csh::ResetMarkers()
+{
+    MarkerNames.clear();
+    MarkerNames.insert(MARKER_BUILTIN_CHART_TOP_STR);
+    MarkerNames.insert(MARKER_BUILTIN_CHART_BOTTOM_STR);
+}
+
 
 void Csh::PushContext(bool empty)
 {
@@ -1884,24 +1908,24 @@ void Csh::AddDesignOptionsToHints()
     Msc::AttributeNames(*this, true);
 }
 
+/** Callback for drawing a symbol before keywords in the hints popup list box.
+* @ingroup libmscgen_hintpopup_callbacks*/
+bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh &)
+{
+    if (!canvas) return false;
+    ColorType color(128, 64, 64);
+    canvas->Clip(Contour(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.4));
+    canvas->Fill(XY(0, 0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), FillAttr(color, GRADIENT_DOWN));
+    canvas->UnClip();
+    return true;
+}
+
 /** Add names of chart options and commands that are valid inside a design definition to the list of hints. */
 void Csh::AddDesignLineBeginToHints()
 {
     AddDesignOptionsToHints();
     AddToHints(design_keyword_names, HintPrefix(COLOR_KEYWORD), EHintType::KEYWORD,
         CshHintGraphicCallbackForKeywords);
-}
-
-/** Callback for drawing a symbol before keywords in the hints popup list box.
- * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam, Csh &)
-{
-    if (!canvas) return false;
-    ColorType color(128, 64, 64);
-    canvas->Clip(Contour(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.4));
-    canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), FillAttr(color, GRADIENT_DOWN));
-    canvas->UnClip();
-    return true;
 }
 
 /** Add keywords to the list of hints. */
@@ -1944,7 +1968,7 @@ void Csh::AddEntitiesToHints()
 void Csh::AddVertXPosSyntaxNonSelectableToHints(bool include_at)
 {
     const string prefix = include_at ? 
-                           "\|"+HintPrefix(COLOR_KEYWORD)+"at\s()"+HintPrefixNonSelectable() :
+                           "\\|"+HintPrefix(COLOR_KEYWORD)+"at\\s()"+HintPrefixNonSelectable() :
                            HintPrefixNonSelectable();
     AddToHints(CshHint(prefix + "<entity> [offset]",
         "Position exactly on the entity line (optionally offset by the specified number of pixels).",

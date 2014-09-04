@@ -3353,8 +3353,9 @@ pipe_list_no_content: first_pipe
 pipe_list: pipe_list_no_content
          | pipe_list_no_content braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
-    csh.CheckEntityBetween(@1, @2);
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintBetween(@1, @2);
+  #else
     $$ = ($1)->AddArcList($2);
   #endif
 };
@@ -3481,7 +3482,7 @@ vertxpos: TOK_AT entity_string
         csh.hintStatus = HINT_READY;
     } 
   #else
-    $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_SIDE, -atof($4));
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_SIDE, atof($4));
   #endif
     free($1);
     free($2);
@@ -3620,7 +3621,7 @@ vertxpos: TOK_AT entity_string
     if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
         csh.AddVertXPosSyntaxNonSelectableToHints(true);
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar=YYEOF)) {
+    } else if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF)) {
         csh.AddVertXPosSyntaxNonSelectableToHints(false);
         csh.hintStatus = HINT_READY;
     } 
@@ -3848,9 +3849,9 @@ arcrel:       TOK_SPECIAL_ARC
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
-        AddToHints(CshHint(HintPrefix(COLOR_KEYWORD) + "lost at", 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "lost at", 
             "Use the 'lost at' keyword to indicate that the message has been lost.", 
-            EHintType::KEYWORD, false));
+            EHintType::KEYWORD, true)); ///XXX Other can come?
         csh.hintStatus = HINT_READY;
     }
   #endif
@@ -4386,8 +4387,16 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@3, @4, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
         csh.AddLeftRightCenterToHints();
@@ -4404,12 +4413,63 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@3, @4, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@4, @5, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@5, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
     }
-  #else
+#else
     $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
+  #endif
+    free($1);
+    free($2);
+}
+//This is to cater for when the user has entered multiple extvertpos stuff - we indicate only one is needed
+                | TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string extvertxpos extvertxpos extvertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH_SymbolName(@2, $2);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddSymbolTypesToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@3, @4, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@4, @5, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@4, @6, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@6, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
+    }
+    csh.AddCSH_Error(@6, "Too many left/center/right specifiers here, at most two can be given.");
+#else
+    $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
+    if ($6)
+        delete $6;
+    msc.Error.Error(MSC_POS(@6).start, "Too many specifiers here, ignoring last one.", "At most two can be given.");
   #endif
     free($1);
     free($2);
@@ -4419,8 +4479,14 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@2, @3, EHintSourceType::MARKER)) {
+        csh.AddLeftRightCenterToHints(); //markers, plus left/center/right
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
         csh.AddLeftRightCenterToHints();
@@ -4437,12 +4503,23 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
-    } else 
-        csh.CheckHintBetween(@2, @3, EHintSourceType::MARKER);
-  #else
+    } else if (csh.CheckHintBetween(@2, @3, EHintSourceType::MARKER)) {
+        csh.AddLeftRightCenterToHints(); //markers, plus left/center/right
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@3, @4, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
+    }
+#else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, $4);
   #endif
     free($1);
@@ -4453,14 +4530,19 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
-        csh.AddLeftRightCenterToHints();
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
         csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+        csh.AddLeftRightCenterToHints();
+        csh.hintStatus = HINT_FILLING;
     }
-  #else
+#else
     $$ = new CommandSymbol(&msc, $2, $3, NULL, NULL);
   #endif
     free($1);
@@ -4471,16 +4553,20 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    csh.AddCSH_LeftRightCenterMarker(@3, $3);
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
-    } else if (csh.hintStatus != HINT_READY &&
-        csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
+    } else if (csh.CheckHintAtAndBefore(@2, @3, EHintSourceType::MARKER)) {
         csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
     }
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, NULL, NULL);
+    msc.Error.Error(MSC_POS(@3).start, "Expecting 'left', 'right', 'center' or a marker name followed by a dash. Ignoring this piece.");
   #endif
     free($1);
     free($2);
@@ -4491,13 +4577,15 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_SymbolName(@2, $2);
-    if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@1, @2, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     } else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, EHintSourceType::MARKER)) {
         csh.AddLeftRightCenterToHints();
         csh.hintStatus = HINT_READY;
-
     }
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, NULL, NULL);
@@ -4509,7 +4597,10 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, EHintSourceType::KEYWORD)) {
         csh.AddSymbolTypesToHints();
         csh.hintStatus = HINT_READY;
     }
@@ -4546,10 +4637,15 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_EntityOrMarkerName(@3, $3);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @4))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @4))
         CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @4))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
+    else if (csh.CheckEntityHintAtAndBefore(@2, @3))
+        csh.addMarkersAtEnd = true; //after 'at' a marker or an entity may come
   #else
     $$ = new CommandNote(&msc, $3, MSC_POS(@3));
     ($$)->AddAttributeList($4);
@@ -4562,7 +4658,12 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintBetween(@1, @2, EHintSourceType::KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", NULL, EHintType::KEYWORD, true)); //XXX Other can come
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
@@ -4579,11 +4680,16 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_ErrorAfter(@2, "Missing an entity or marker name.");
     csh.AddCSH_ErrorAfter(@2, "Notes need a label.");
-    if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
-        csh.addMarkersAtEnd = true;
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF)) 
+        csh.addMarkersAtEnd = true; //after 'at' a marker or an entity may come
   #else
     $$ = NULL;
-  #endif
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity or marker name after 'at'.");
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing a label, ignoring note.", "Notes and comments must have text, specify a label.");
+#endif
     free($1);
     free($2);
 }
@@ -4593,13 +4699,17 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_ErrorAfter(@2, "Missing an entity or marker name.");
-    if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
         csh.addMarkersAtEnd = true;
     if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
         CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity or marker name after 'at'. Ignoring 'at' clause.");
     $$ = new CommandNote(&msc);
     ($$)->AddAttributeList($3);
   #endif
@@ -4633,7 +4743,10 @@ comment:            comment_command full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         CommandNote::AttributeNames(csh, false);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, false);
@@ -4647,9 +4760,12 @@ comment:            comment_command full_arcattrlist_with_label
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH_ErrorAfter(@1, "Comments and notes need a label.");
-    if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF))
-        csh.addMarkersAtEnd = true;
+    if (csh.CheckHintAt(@1, EHintSourceType::LINE_START)) {
+        csh.AddLineBeginToHints();
+        csh.hintStatus = HINT_READY;
+    } 
   #else
+    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a label, ignoring comment/note.", "Notes and comments must have text, specify a label.");
     $$ = NULL;
   #endif
 };
@@ -4745,12 +4861,13 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH_Error(@2, "Could not recognize this as an attribute.");
+        csh.AddCSH_Error(@2, "Could not recognize this as an attribute or style name.");
         csh.AddCSH(@3, COLOR_BRACKET);
         csh.CheckHintBetween(@1, @2, EHintSourceType::ATTR_NAME);
   #else
     $$ = new AttributeList;
-  #endif
+    msc.Error.Error(MSC_POS(@2).start, "Expecting an attribute or style name. Ignoring all until the closing square bracket (']').");
+#endif
 }
                    | TOK_OSBRACKET arcattrlist
 {
@@ -4824,9 +4941,10 @@ arcattrlist:    arcattr
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, EHintSourceType::ATTR_NAME);
+    csh.AddCSH_ErrorAfter(@2, "Missing attribute or style name.");
   #else
     $$ = $1;
-    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Expecting an entity here.");
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Expecting an attribute or style name here.");
   #endif
 }
               | arcattrlist TOK_COMMA TOK__NEVER__HAPPENS;
