@@ -896,15 +896,19 @@ CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
     ArcCommand(MSC_COMMAND_MARK, MscProgress::TINY_EFFORT, msc), name(m)
 {
     auto i = chart->Markers.find(name);
-    if (i != chart->Markers.end()) {
-		chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
-        chart->Error.Error(i->second.line,  ml.start, "Location of previous definition.");
-        valid = false;
+    if (i == chart->Markers.end()) {
+        chart->Markers[name].line = ml.start;
+        chart->Markers[name].y = -1001;
+        offset = 0;
         return;
     }
-    chart->Markers[name].line = ml.start;
-    chart->Markers[name].y = -1001;
-    offset = 0;
+    if (i->second.line.IsInvalid()) {
+        chart->Error.Error(ml.start, "Marker '"+name+"' is a built-in marker. Ignoring this command.", "Try using another name.");
+    } else {
+        chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
+        chart->Error.Error(i->second.line, ml.start, "Location of previous definition.");
+    }
+    valid = false;
 }
 
 bool CommandMark::AddAttribute(const Attribute &a)

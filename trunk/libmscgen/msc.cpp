@@ -292,14 +292,15 @@ DistanceMapVerticalElement &DistanceMapVerticalElement::operator += (const Dista
 
 /** Insert a side distance between the two given markers (which may come in any order)
  * if one of the markers is not yet found (or is empty) we insert the side distance
- * from the valid marker to the currently last one. If none found, we do nothing. */
+ * from the valid marker to the currently last one. If none found, we do nothing. 
+ * Both markers may equal to .end() - this is the case of future markers, not
+ * yet added. */
 void DistanceMapVertical::Insert(unsigned e1, int e2, double d, iterator since, iterator to)
 {
     //Find first marker
     auto i = elements.begin();
     while (i!=elements.end() && i!=since && i!=to)
         i++;
-    _ASSERT(i!=elements.end()); //one marker assumed to be there
     if (i==elements.end()) return;
     //insert in all subsequent ranges till we find the other one
     do {
@@ -410,6 +411,10 @@ Msc::Msc() :
     AllEntities.Append(RSide);
     AllEntities.Append(RNote);
     AllEntities.Append(EndEntity);
+
+    //Add default markers
+    Markers[MARKER_BUILTIN_CHART_TOP_STR].line.MakeInvalid();
+    Markers[MARKER_BUILTIN_CHART_BOTTOM_STR].line.MakeInvalid();
 
     //This sets the global context to "plain" (redundant) 
     //and adds CommandEntities for lcomment.* and CommandBackground if needed.
@@ -1223,7 +1228,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     for (auto i = arcs.begin(); i != arcs.end(); /*none*/) {
         CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
         if (al) {
-            al->MoveContent(arcs, i);
+            al->MoveContentAfter(arcs, i);
             //al now empty
             delete al;
             arcs.erase(i++);  //we will also check the content of al for further CommandArcLists
@@ -1318,25 +1323,20 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
 		} else {
             //The arc requested a replacement
             //Note that any replacement already has its postparseprocess called
-            delete *i; //destroy the arc (*i now invalid)
+            delete *i; //destroy the arc (*i becomes invalid)
             if (replace == NULL) 
                 arcs.erase(i++); //Nothing to replace to: remove pointer from list
-            else {
-                //if we replace to an arclist, unroll the arclist
+            else {                
+                Progress.DoneItem(MscProgress::POST_PARSE, replace->myProgressCategory);
                 CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
-                if (1 || al == NULL) { //Do not unroll, so that we can adjust vertical to it
-					Progress.DoneItem(MscProgress::POST_PARSE, replace->myProgressCategory);
+                if (al) {
+                    //if we replace to an arclist, transform to an arcparallel
+                    //so that it can be laid out in harmony with other arcparallels
+                    replace = (*i++) = new ArcParallel(this, &al->content);
+                } else
                     (*i++) = replace;
-                    if (replace->CanBeAlignedTo())
-                        prev_arc = replace;
-				} else {
-                    auto j = i;
-                    i++; //next element to PostParseProcess
-                    al->MoveContent(arcs, j);  //this content was ppp'd
-                    //al now empty
-                    delete al;
-                    arcs.erase(j);  //delete replaced element
-                }
+                if (replace->CanBeAlignedTo())
+                    prev_arc = replace;
             }
         }
     }
@@ -2523,6 +2523,7 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     Progress.StartSection(MscProgress::WIDTH);
     EntityDistanceMap distances;
     DistanceMapVertical vdist;
+    vdist.InsertMarker(MARKER_BUILTIN_CHART_TOP_STR);
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances, vdist);
@@ -2646,6 +2647,12 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     total.y.till = LayoutArcList(canvas, Arcs, NULL) + chartTailGap;
     //total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
     drawing.y = total.y;  
+
+    //record the top and bottom positions.
+    //Note that notes may extend above and below, resp., but this is OK, 
+    //we want these to refer to the top and bottom without considering notes.
+    Markers[MARKER_BUILTIN_CHART_TOP_STR].y = total.y.from;
+    Markers[MARKER_BUILTIN_CHART_BOTTOM_STR].y = total.y.till;
 
     //If at least 10% of the labels are overflown (but at least 3), emit warning
     if (noOverflownLabels>2 && noOverflownLabels > noLabels/10) 

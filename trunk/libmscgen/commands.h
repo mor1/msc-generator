@@ -408,9 +408,8 @@ public:
 /** An arc holding a list of arcs for internal use.*/
 class CommandArcList : public ArcCommand
 {
-protected:
-    ArcList content; ///<The list of arcs we represent
 public:
+    ArcList content; ///<The list of arcs we represent
     explicit CommandArcList(Msc *m) : 
         ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {}
     CommandArcList(Msc *m, ArcBase *p) :  
@@ -424,7 +423,7 @@ public:
     /** Move a complete list to us */
     void Append(ArcList *l) {content.splice(content.end(), *l);}
     /** Move our arc to another ArcList */
-    void MoveContent(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
+    void MoveContentAfter(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
     virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/)

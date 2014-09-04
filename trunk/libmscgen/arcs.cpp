@@ -3014,7 +3014,7 @@ void ArcVerticalArrow::ShiftBy(double y)
 Contour BeltQuarter(double x, double y, double r, double lw, unsigned q)
 {
     _ASSERT(q<=3);
-    if (r<=0 || lw<=0) return Contour();
+    if (r<=lw || lw<=0) return Contour();
     std::vector<Edge> edges;
     Edge::GenerateEllipse(edges, XY(x, y), r+lw/2, 0, 0, 90*q, 90*(q+1));
     const size_t end1 = edges.size();
