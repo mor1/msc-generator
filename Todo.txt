@@ -48,9 +48,13 @@ FIXED: verticals to a future marker
 FIXED: If user wanted no line start hints, but entity ones, we give entity hints at the beginning of a line
 FIXED: Now hints are produced at even more locations. Even for keywords.
 ADDED: Built-in markers.
-DOC: New preferences tab.
-DOC: text at, 'text' style
-DOC: chart.top and chart.bottom built-in markers.
+DOCED: New preferences tab.
+DOCED: text at, 'text' style
+DOCED: chart.top and chart.bottom built-in markers.
+FIX: underspecified symbol crashes
+FIX: allow -- in entityrel
+FIX: no copyright in linux command-line
+FIX: symbol text not working, due to 'text' being a token.
 
 In 4.3.5
 ADDED: Hints for text formatting escape parameters

@@ -4614,7 +4614,8 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 symbol_command: symbol_command_no_attr
 {
   #ifndef C_S_H_IS_COMPILED
-    ($1)->AddAttributeList(NULL);
+    if ($1)
+        ($1)->AddAttributeList(NULL);
     $$ = ($1);
   #endif
 }
@@ -4626,7 +4627,8 @@ symbol_command: symbol_command_no_attr
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         CommandSymbol::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($1)->AddAttributeList($2);
+    if ($1)
+        ($1)->AddAttributeList($2);
     $$ = ($1);
   #endif
 };

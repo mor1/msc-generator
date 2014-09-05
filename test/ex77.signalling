@@ -6,3 +6,5 @@ symbol rectangle left at a +30 [xsize=30, ysize=30];
 symbol rectangle center at c-- [xsize=30, ysize=30];
 symbol rectangle left at a-- right at d++ [ysize=30];
 symbol rectangle center at b left at a [ysize=30];
+symbol text at a+: Two\nlines;
+symbol rectangle at a-: Two longer\nlines;
