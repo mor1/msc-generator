@@ -1267,6 +1267,14 @@ VertXPos(*p), side_line(sl)
         side = BAD_SIDE;
 }
 
+ExtVertXPos::ExtVertXPos(ERelativeTo t, const FileLineColRange &sl, const VertXPos *p) :
+VertXPos(*p), side(t), side_line(sl)
+{
+    if (!valid) 
+        side = BAD_SIDE;
+}
+
+
 ExtVertXPos::ExtVertXPos(const VertXPos *p) :
 VertXPos(*p), side(CENTER), side_line()
 {
@@ -1279,11 +1287,11 @@ VertXPos(*p), side(CENTER), side_line()
 const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
 
+/** Create symbol as a result of a 'symbol' command. */
 CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
                 const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
     ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc, 
-        CaseInsensitiveEqual(symbol, "text") ? msc->Contexts.back().styles["text"] :
-             msc->Contexts.back().styles["symbol"]),
+        msc->Contexts.back().styles["symbol"]),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
     vpos(enp ? *enp : NamePair(NULL, FileLineColRange(), NULL, FileLineColRange())),
@@ -1298,24 +1306,12 @@ CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
         symbol_type = ELLIPSIS;
     else if (CaseInsensitiveEqual(symbol, "text")) {
         symbol_type = RECTANGLE;
-        gap1 = 0;
-        _ASSERT(vxpos1);
-        switch (vxpos1->side) {
-        case ExtVertXPos::BAD_SIDE:
-        case ExtVertXPos::NONE:
-        default: 
-            _ASSERT(0);
-            break;
-        case ExtVertXPos::LEFT:
-            style.write().text += "\\pl";
-            break;
-        case ExtVertXPos::RIGHT:
-            style.write().text += "\\pr";
-            break;
-        case ExtVertXPos::CENTER:
-            style.write().text += "\\pc";
-            break;
-        }
+        style.write().line.type.first = true;
+        style.write().line.type.second = LINE_NONE;
+        style.write().fill.color.first = true;
+        style.write().fill.color.second = ColorType();
+        style.write().fill.color2.first = true;
+        style.write().fill.color2.second = ColorType();
     } else {
         valid = false;
         return;
@@ -1331,6 +1327,42 @@ CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
         }
         style.write().fill.color.second = style.read().line.color.second;
     }
+}
+
+ExtVertXPos::ERelativeTo CommandSymbol::CalcRelToForTextCommand(const VertXPos *vpos)
+{
+    if (!vpos)
+        return ExtVertXPos::NONE;
+    switch (vpos->pos) {
+    default:
+    case VertXPos::POS_THIRD_LEFT:
+    case VertXPos::POS_THIRD_RIGHT:
+    case VertXPos::POS_INVALID:
+        _ASSERT(0);
+        //fallthrough
+    case VertXPos::POS_AT:
+    case VertXPos::POS_CENTER:
+        return ExtVertXPos::CENTER;
+    case VertXPos::POS_LEFT_BY:
+    case VertXPos::POS_LEFT_SIDE:
+        return ExtVertXPos::RIGHT;
+    case VertXPos::POS_RIGHT_BY:
+    case VertXPos::POS_RIGHT_SIDE:
+        return ExtVertXPos::LEFT;
+    }
+}
+
+/** Create symbol as a result of a 'text at' command. */
+CommandSymbol::CommandSymbol(Msc*msc, const VertXPos *vpos, const FileLineColRange &at_pos) :
+    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc,
+    msc->Contexts.back().styles["text"]),
+    symbol_type(RECTANGLE),
+    hpos1(CalcRelToForTextCommand(vpos), at_pos, vpos),
+    hpos2(*msc),
+    vpos(NULL, FileLineColRange(), NULL, FileLineColRange()),
+    xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL),
+    gap1(0), gap2(chart->hscaleAutoXGap)
+{
 }
 
 bool CommandSymbol::AddAttribute(const Attribute &a)
@@ -1451,7 +1483,7 @@ ArcBase* CommandSymbol::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         return NULL;
     }
     if (hpos1.side == ExtVertXPos::NONE) {
-        chart->Error.Error(hpos1.side_line.start, "You need to specify at least one horizontal position designator. Ignoring symbol.", "Use 'left at', 'right at' or 'center at'.");
+        chart->Error.Error(file_pos.end, "You need to specify at least one horizontal position designator. Ignoring symbol.", "Use 'left at', 'right at' or 'center at'.");
         return NULL;
     }
     if (hpos1.side == hpos2.side) {
@@ -1598,6 +1630,7 @@ void CommandSymbol::Width(Canvas &, EntityDistanceMap &distances, DistanceMapVer
                     vdist.InsertEntity(hpos1.entity2);
                     break;
                 }
+                break;
             case ExtVertXPos::NONE:
             case ExtVertXPos::BAD_SIDE:
             default:
