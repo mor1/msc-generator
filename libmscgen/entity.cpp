@@ -876,6 +876,15 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
             style_to_use.write().indicator.first = true;
             style_to_use.write().indicator.second = chart->Contexts.back().indicator.second;
         }
+        //Copy shapeand shape size from 'style' (where set by attributes) to 'style_to_use'
+        //which contains the default shape.
+        //Note that all other attributes will be reflected via the 'running_style' mechanism,
+        //so we need not copy them, but this is a const member of Entity and we need it in
+        //Entity::Entity in the style we pass.
+        if (style.read().shape.first)
+            style_to_use.write().shape = style.read().shape;
+        if (style.read().shape_size.first)
+            style_to_use.write().shape_size = style.read().shape_size;
 
         //Create a fully specified string format for potential
         //\s() \f() \c() and \mX() in label that are resolved here

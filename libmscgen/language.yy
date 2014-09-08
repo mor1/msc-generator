@@ -1654,7 +1654,9 @@ full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
     free($1);
 };
 
-entityrel: entity_string TOK_DASH
+dash_or_dashdash: TOK_DASH | TOK_EMPH;
+
+entityrel: entity_string dash_or_dashdash
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_EntityName(@1, $1);
@@ -1666,7 +1668,7 @@ entityrel: entity_string TOK_DASH
   #endif
     free($1);
 }
-           | TOK_DASH entity_string
+           | dash_or_dashdash entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1677,7 +1679,7 @@ entityrel: entity_string TOK_DASH
   #endif
     free($2);
 }
-           | TOK_DASH
+           | dash_or_dashdash
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1686,7 +1688,7 @@ entityrel: entity_string TOK_DASH
     $$ = NULL;
   #endif
 }
-           | entity_string TOK_DASH entity_string
+           | entity_string dash_or_dashdash entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_EntityName(@1, $1);
@@ -1712,7 +1714,7 @@ entityrel: entity_string TOK_DASH
 };
 
 
-markerrel_no_string: entity_string TOK_DASH
+markerrel_no_string: entity_string dash_or_dashdash
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -1724,7 +1726,7 @@ markerrel_no_string: entity_string TOK_DASH
   #endif
     free($1);
 }
-           | TOK_DASH entity_string
+           | dash_or_dashdash entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1735,7 +1737,7 @@ markerrel_no_string: entity_string TOK_DASH
   #endif
     free($2);
 }
-           | TOK_DASH
+           | dash_or_dashdash
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1745,7 +1747,7 @@ markerrel_no_string: entity_string TOK_DASH
     $$ = NULL;
   #endif
 }
-           | entity_string TOK_DASH entity_string
+           | entity_string dash_or_dashdash entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -3563,7 +3565,53 @@ vertxpos: TOK_AT entity_string
     free($2);
     free($4);
 }
+         | TOK_AT entity_string TOK_EMPH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_SYMBOL);
+    csh.AddCSH_EntityName(@4, $4);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBefore(@3, @4);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4));
+  #endif
+    free($1);
+    free($2);
+    free($4);
+}
          | TOK_AT entity_string TOK_DASH entity_string TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_SYMBOL);
+    csh.AddCSH_EntityName(@4, $4);
+    csh.AddCSH(@5, COLOR_ATTRVALUE);
+    if (csh.CheckHintAt(@1, EHintSourceType::KEYWORD)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(true);
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckEntityHintAtAndBeforePlusOne(@1, @2)) {
+        csh.AddVertXPosSyntaxNonSelectableToHints(false);
+        csh.hintStatus = HINT_READY;
+    } else
+        csh.CheckEntityHintAtAndBefore(@3, @4);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), atof($5));
+  #endif
+    free($1);
+    free($2);
+    free($4);
+    free($5);
+}
+         | TOK_AT entity_string TOK_EMPH entity_string TOK_NUMBER
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);

@@ -1363,6 +1363,12 @@ CommandSymbol::CommandSymbol(Msc*msc, const VertXPos *vpos, const FileLineColRan
     xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL),
     gap1(0), gap2(chart->hscaleAutoXGap)
 {
+    switch (hpos1.side) {
+    case ExtVertXPos::LEFT: style.write().text.Apply("\\pl"); break;
+    case ExtVertXPos::RIGHT: style.write().text.Apply("\\pr"); break; 
+    case ExtVertXPos::CENTER: style.write().text.Apply("\\pc"); break;
+    default: _ASSERT(0);
+    }
 }
 
 bool CommandSymbol::AddAttribute(const Attribute &a)
