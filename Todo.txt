@@ -51,10 +51,11 @@ ADDED: Built-in markers.
 DOCED: New preferences tab.
 DOCED: text at, 'text' style
 DOCED: chart.top and chart.bottom built-in markers.
-FIX: underspecified symbol crashes
+FIXED: underspecified symbol crashes
+FIX: text at always center idented
 FIX: allow -- in entityrel
 FIX: no copyright in linux command-line
-FIX: symbol text not working, due to 'text' being a token.
+FIXED: symbol text not working, due to 'text' being a token.
 
 In 4.3.5
 ADDED: Hints for text formatting escape parameters

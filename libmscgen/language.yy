@@ -1315,38 +1315,11 @@ arc:           arcrel
         csh.hintStatus = HINT_READY;
     } 
 #else
-    if ($2) {
-        const char *ident;
-        switch (($2)->pos) {
-        default:
-        case VertXPos::POS_THIRD_LEFT:
-        case VertXPos::POS_THIRD_RIGHT:
-        case VertXPos::POS_INVALID:
-            _ASSERT(0);
-        case VertXPos::POS_AT:
-        case VertXPos::POS_CENTER:
-            ident = "center";
-            break;
-        case VertXPos::POS_LEFT_BY:
-        case VertXPos::POS_LEFT_SIDE:
-            ident = "right";
-            break;
-        case VertXPos::POS_RIGHT_BY:
-        case VertXPos::POS_RIGHT_SIDE:
-            ident = "left";
-        }
-        //Set positioning to appropriate one
-        ExtVertXPos *pos = new ExtVertXPos(ident, FileLineColRange(), $2);
+    CommandSymbol *s = new CommandSymbol(&msc, $2, MSC_POS(@2));
+    s->AddAttributeList($3);
+    $$ = s;
+    if ($2)
         delete $2;
-        //Create symbol
-        CommandSymbol *s = new CommandSymbol(&msc, "text", NULL, pos, NULL);
-        s->AddAttributeList($3);
-        $$ = s;
-    } else {
-        if ($3)
-            delete $3;
-        $$ = NULL;
-    }
   #endif
     free($1);
 }
@@ -4380,7 +4353,7 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
     free($1);
 };
 
-symbol_type_string: entity_string | symbol_string;
+symbol_type_string: entity_string | symbol_string | TOK_COMMAND_TEXT;
 
 symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string extvertxpos
 {

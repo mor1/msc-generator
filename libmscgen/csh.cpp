@@ -733,7 +733,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
  * All keywords shall be repeated here, not only known by the parser.
  * We only color these as keywords where a symbol name is expected (after 'symbol' keyword).*/
 static const char symbol_names[][ENUM_STRING_LEN] =
-{"arc", "rectangle", "...", ""};
+{"arc", "rectangle", "...", "text", ""};
 
 /** Names of extended vertical position designators for coloring
  *

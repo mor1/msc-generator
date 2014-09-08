@@ -262,6 +262,7 @@ public:
     FileLineColRange side_line; ///<The location of the input file where the left/right/center clause was specified
     explicit ExtVertXPos(Msc&m) : VertXPos(m), side(NONE) {}
     ExtVertXPos(const char *s, const FileLineColRange &sl, const VertXPos *p);
+    ExtVertXPos(ERelativeTo t, const FileLineColRange &sl, const VertXPos *p);
     ExtVertXPos(const VertXPos *p);
 };
 
@@ -286,11 +287,13 @@ protected:
     double                  gap1;                 ///<The gap to apply with 'at entity+' and 'at entity-' clauses
     double                  gap2;                 ///<The increase of gap to apply with 'at entity++' and 'at entity--' clauses compared to +/- only. (So the total gap to apply for ++/-- is gap1+gap2.)
     mutable Block           outer_edge;           ///<The cpmputed bounding box of the symbol
+    static ExtVertXPos::ERelativeTo CalcRelToForTextCommand(const VertXPos *vpos);
     void CalculateAreaFromOuterEdge(Canvas &canvas);
 public:
     CommandSymbol(Msc*, const char *symbol, const NamePair *enp,
                   const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2);
-    virtual bool CanBeNoted() const {return true;}
+    CommandSymbol(Msc*msc, const VertXPos *vpos1, const FileLineColRange &at_pos);
+    virtual bool CanBeNoted() const { return true; }
     virtual bool CanBeAlignedTo() const { return true; }
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
