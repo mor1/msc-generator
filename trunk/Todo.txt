@@ -52,10 +52,12 @@ DOCED: New preferences tab.
 DOCED: text at, 'text' style
 DOCED: chart.top and chart.bottom built-in markers.
 FIXED: underspecified symbol crashes
-FIX: text at always center idented
-FIX: allow -- in entityrel
-FIX: no copyright in linux command-line
+FIXED: text at always center idented
+FIXED: allow -- in entityrel
+CANCELLED: no copyright in linux command-line
 FIXED: symbol text not working, due to 'text' being a token.
+FIXED: Anchor shape
+DOC: any shape defined within the file is not drawn at hintsADD: ismaps
 
 In 4.3.5
 ADDED: Hints for text formatting escape parameters
