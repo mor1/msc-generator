@@ -84,9 +84,16 @@ enum ETriState {no=0, yes, invert};
 /** Escape character representing a space
 * Preceeded by backslash */
 #define ESCAPE_CHAR_SPACE ((char)5)
-/** Same as ESCAPE_CHAR_WORD_WRAP, but in string*/
+/** Same as ESCAPE_CHAR_SPACE, but in string*/
 #define ESCAPE_STRING_SPACE "\x05"
-
+/** Escape character representing a link escape
+ * whose format changing effect is now represented
+ * by specific formatting escapes. This one just
+ * marks the link and does not implact formatting.
+ * Preceeded by backslash */
+#define ESCAPE_CHAR_NON_FORMATTING_LINK ((char)6)
+/** Same as ESCAPE_CHAR_NON_FORMATTING_LINK, but in string*/
+#define ESCAPE_STRING_NON_FORMATTING_LINK "\x06"
 bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, Csh &);
 
 /**This class stores string formatting (bold, color, fontsize, etc.)
@@ -122,6 +129,7 @@ class StringFormat {
     std::pair<bool, double>      smallFontSize;     ///<The height of small, superscript and subscript font. Not set if `first` is false.
 
     std::pair<bool, bool>        word_wrap;         ///<If true, this label shall be word wrapped
+    std::pair<bool, std::string> link_format;       ///<What formatting to apply to Links
 
     mutable cairo_font_extents_t smallFontExtents;  ///<Cached extent of small fonts.
     mutable cairo_font_extents_t normalFontExtents; ///<Cached extent of normal-sized fonts.
@@ -131,6 +139,8 @@ class StringFormat {
     /** Describes the type of an escape sequence, see StringFormat::ProcessEscape(). */
     enum EEscapeType {
         FORMATTING_OK, ///<A syntactically correct formatting escape
+        LINK_ESCAPE,   ///<A syntactically correct URL escape "\L"
+        LINK2_ESCAPE,  ///<A translated URL escape - does not modify formatting any more, but marks the hypertext
         INVALID_ESCAPE,///<A non-recognized escape 
         NON_FORMATTING,///<A non-formatting escape, such as "\{" 
         REFERENCE,     ///<A reference to another element "\r(xxx)"

@@ -242,6 +242,7 @@ enum EEscapeHintType
     HINTE_PARAM_FONT,    ///<The cursor is inside the parenthesis of a \\f() escape
     HINTE_PARAM_REF,     ///<The cursor is inside the parenthesis of a \\r() escape
     HINTE_PARAM_NUMBER,  ///<The cursor is inside the parenthesis of a \\mX() escape
+    HINTE_PARAM_LINK,    ///<The cursor is inside the parenthesis of a \\L() escape
 };
 
 /** Merge two values. Error if neither are NONE */

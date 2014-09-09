@@ -8,10 +8,11 @@ Two helpers needed:
  Add a test for metafiles
  Allow new function only for metafiles
 
-
 In future releases
 ADD: shadow to arrows and labels
 ADD: More arrow types --> ==> >>> ..> 
+ADD: more colors
+ADD: diagonal gradients
 ADD: variant #1 double and triple-line joints for emphasis
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
@@ -20,16 +21,10 @@ ADD: mark centerline
 CHANGE: Mesh gradients.
 ADD: Tip of the day
 ADD: Check if file changed on disk
-ADD: URL's to PNG
 CHANGE: Remove note related area calculation from arcs (if not needed)
-ADD: Rectangle in SimpleContour
 CHANGE: Rethink entity positioning and allow freer group definitions....
-ADD: Button to disable tracking rectangles & controls (if much faster)
 ADD: Ability to change page setup during print preview
 ADD: Print preview even without a printer...?
-ADD: diagonal gradients
-ADD: more colors
-ADD: ISMAPs, floating comments, none commets
 ADD: box around grouped entities all along the chart
 ADD: group entities without a label
 FIX: Node hideentitylines, for radius bigger than 70
@@ -39,13 +34,12 @@ FIX: Optimize Tangent functions
 FIX: Re-layouting nested parallel blocks - introduce keep together, take care of overlapped ArcParallels
 ADD: arrows to point to boxes.
 ADD: Allow arrow to a group entity...
-ADD: A right-click context menu to the minieditor & outputview
 ADD: Vertical comment alignment
 
 In 4.4
 FIXED: Print preview export exports in PNG
 ADD: ismaps
-
+CHANGE: parallel layout (incl attributes)
 
 In 4.3.6 
 ADDED: text at
@@ -62,7 +56,7 @@ FIXED: allow -- in entityrel
 CANCELLED: no copyright in linux command-line
 FIXED: symbol text not working, due to 'text' being a token.
 FIXED: Anchor shape
-DOCED: any shape defined within the file is not drawn at hints
+DOCED: any shape defined within the file is not drawn at hints
 In 4.3.5
 ADDED: Hints for text formatting escape parameters
 FIXED: #s in quoted colon labels, also on the last line

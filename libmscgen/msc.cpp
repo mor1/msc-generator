@@ -769,16 +769,16 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         Contexts.back().numberingStyle.pre.first = true;
         Contexts.back().numberingStyle.pre.second = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre.second, this,
-                                          a.linenum_value.start, NULL,
-                                          false, true, StringFormat::LABEL);
+                                       a.linenum_value.start, NULL,
+                                       false, true, StringFormat::LABEL);
         return NULL;
     }
     if (a.Is("numbering.post")) {
         Contexts.back().numberingStyle.post.first = true;
         Contexts.back().numberingStyle.post.second = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.post.second, this,
-                                          a.linenum_value.start, NULL,
-                                          false, true, StringFormat::LABEL);
+                                       a.linenum_value.start, NULL,
+                                       false, true, StringFormat::LABEL);
         return NULL;
     }
     if (a.Is("numbering.append")) {
