@@ -42,7 +42,12 @@ ADD: Allow arrow to a group entity...
 ADD: A right-click context menu to the minieditor & outputview
 ADD: Vertical comment alignment
 
-In 4.4 
+In 4.4
+FIXED: Print preview export exports in PNG
+ADD: ismaps
+
+
+In 4.3.6 
 ADDED: text at
 FIXED: verticals to a future marker
 FIXED: If user wanted no line start hints, but entity ones, we give entity hints at the beginning of a line
@@ -57,8 +62,7 @@ FIXED: allow -- in entityrel
 CANCELLED: no copyright in linux command-line
 FIXED: symbol text not working, due to 'text' being a token.
 FIXED: Anchor shape
-DOC: any shape defined within the file is not drawn at hintsADD: ismaps
-
+DOCED: any shape defined within the file is not drawn at hints
 In 4.3.5
 ADDED: Hints for text formatting escape parameters
 FIXED: #s in quoted colon labels, also on the last line
