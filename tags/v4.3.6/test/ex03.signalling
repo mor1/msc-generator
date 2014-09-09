@@ -1,0 +1,5 @@
+#A more complex procedure
+Client->Server: Request;
+Server->Backend: Query;
+Server<-Backend: Answer;
+Client<-Server: Response; #final
