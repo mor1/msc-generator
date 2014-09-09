@@ -418,12 +418,16 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
             ar << CString(i->first.c_str()) << unsigned(i->second);
         ar << pApp->m_uFallbackResolution;
         ar << pApp->m_bPageBreaks;
-        //List shapes used
+        //List shapes used from the design libraries
         if (m_ChartShown.GetUsedShapes().size()) {
             std::multimap<stringpair, string> shapes;
             for (unsigned u : m_ChartShown.GetUsedShapes())
-                shapes.emplace(stringpair(pApp->m_Shapes[u].GetURL(), pApp->m_Shapes[u].GetURL()),
-                               pApp->m_Shapes[u].name);
+                //Shapes above shapenum are not coming from the design lib,
+                //but from the chart file we save now - do not include them in the
+                //used shape list
+                if (u < pApp->m_Shapes.ShapeNum())
+                    shapes.emplace(stringpair(pApp->m_Shapes[u].GetURL(), pApp->m_Shapes[u].GetURL()),
+                                   pApp->m_Shapes[u].name);
             for (auto i = shapes.begin(); i!=shapes.end(); /*nope*/) {
                 unsigned count = shapes.count(i->first);
                 _ASSERT(count);
@@ -830,15 +834,19 @@ void CMscGenDoc::DoExport(bool pdfOnly)
         //dialog.ApplyOFNToShellDialog();
         if (dialog.DoModal() != IDOK)
             return;
-        pApp->WriteProfileInt(REG_SECTION_SETTINGS, "ExportFileType", dialog.m_pOFN->nFilterIndex);
+        if (!pdfOnly)
+            pApp->WriteProfileInt(REG_SECTION_SETTINGS, "ExportFileType", dialog.m_pOFN->nFilterIndex);
         //dialog.UpdateOFNFromShellDialog();
         name = dialog.GetPathName();
         CString ext = PathFindExtension(name);
         //if we do not recognize the extension typed by the user, we add one from the selected type
-        if (ext.CompareNoCase(".png")!=0 && ext.CompareNoCase(".bmp")!=0 && 
-            ext.CompareNoCase(".emf")!=0 && ext.CompareNoCase(".svg")!=0 && 
-            ext.CompareNoCase(".pdf")!=0 && ext.CompareNoCase(".eps")!=0 &&
-            ext.CompareNoCase(".wmf")!=0) { //undocumented wmf export
+        if (pdfOnly) {
+            if (ext.CompareNoCase(".pdf")!=0)
+                name += ".pdf";
+        } else if (ext.CompareNoCase(".png")!=0 && ext.CompareNoCase(".bmp")!=0 && 
+                   ext.CompareNoCase(".emf")!=0 && ext.CompareNoCase(".svg")!=0 && 
+                   ext.CompareNoCase(".pdf")!=0 && ext.CompareNoCase(".eps")!=0 &&
+                   ext.CompareNoCase(".wmf")!=0) { //undocumented wmf export
             switch(dialog.m_pOFN->nFilterIndex) {
             case 1: name += ".png"; break;
             case 2: name += ".bmp"; break;
