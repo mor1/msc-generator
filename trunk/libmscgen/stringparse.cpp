@@ -72,6 +72,7 @@ void StringFormat::Empty()
     normalFontSize.first = false;
     smallFontSize.first = false;
     word_wrap.first = false;
+    link_format.first = true;
 }
 
 bool StringFormat::IsComplete() const
@@ -92,7 +93,8 @@ bool StringFormat::IsComplete() const
         ident.first &&
         normalFontSize.first &&
         smallFontSize.first &&
-        word_wrap.first;
+        word_wrap.first &&
+        link_format.first;
 }
 
 /** Sets the fully specified default font.
@@ -117,6 +119,7 @@ void StringFormat::Default()
     italics.first = true; italics.second = no; 
     underline.first = true; underline.second =  no;
     word_wrap.first = true; word_wrap.second = false;
+    link_format.first = true; link_format.second = "\\c(0,0,1)\\U";
 }
 
 StringFormat &StringFormat::operator =(const StringFormat &f)
@@ -145,6 +148,8 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 
     word_wrap = f.word_wrap;
 
+    link_format = f.link_format;
+
     return *this;
 }
 
@@ -167,6 +172,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - "\+" - switch to normal font
  * - "\^" - switch to superscript
  * - "\_" - swucth to subscript
+ * - "\b\B\u\U\i\I" - to set bold, underline, italics
  * - "\mX(num)" - set text margings (X=_u_p, _d_own, _l_eft, _r_ight)
  * -             and font size (X=_s_mall, _n_ormal)
  * -             E.g. "\mu(7)" sets upper margin to 7.
@@ -198,6 +204,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  *    + style names are resolved to actual formatting instructions (a lot of "\b\i" and similar escapes);
  *    + empty parenthesis escapes "\c()", "\s()", "\f()", "\mX()" are replaced with the respective 
  *      value in `basic` or if that is NULL, then are left in place.
+ * - for LINK_ESCAPE, we return the parameter, the URL itself
  * - for NON_FORMATTING we return the character represented by the escape (can be zero length for "\|")
  * - for NON_ESCAPE we return the text verbatim
  * - for LINE_BREAK and INVALID_ESCAPE we return empty string
@@ -224,6 +231,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  *                       a bad escape. If false, we say that we keep it verbatim.
  * @returns The code for what is found at the beginning of `input`:
  * - a valid format-changing escape sequence (FORMATTING_OK)
+ * - an URL escape (URL_ESCAPE) - here replaceto contains the parameter (the URL itself)
  * - an escape resulting in no formatting, but also no characters (FORMATTING_OK)
  * - an invalid escape sequence (INVALID_ESCAPE)
  * - a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
@@ -414,7 +422,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return NON_FORMATTING;
     }
 
-    if (!strchr(ESCAPE_STRING_LOCATION "csfmr", input[1])) {
+    if (!strchr(ESCAPE_STRING_LOCATION "csfmrL" ESCAPE_STRING_NON_FORMATTING_LINK, input[1])) {
         //Unrecognized escape comes here
         length = 2;
         if (msc && linenum && !references)
@@ -482,6 +490,14 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             *linenum = l;
         }
         return FORMATTING_OK;
+    case 'L':
+        if (replaceto) replaceto->assign(parameter);
+        if (linenum) linenum->col += length;
+        return LINK_ESCAPE;
+    case ESCAPE_CHAR_NON_FORMATTING_LINK:
+        if (replaceto) replaceto->assign(parameter);
+        if (linenum) linenum->col += length;
+        return LINK2_ESCAPE;
     case 'c':
         if (length==4) { // this is a "\c()"
             if (basic == NULL) {
@@ -792,6 +808,8 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
         case LINE_BREAK:
         case SOFT_LINE_BREAK:
         case FORMATTING_OK:
+        case LINK_ESCAPE:
+        case LINK2_ESCAPE:
         case NON_FORMATTING:
         case REFERENCE:
         case INVALID_ESCAPE:
@@ -819,6 +837,8 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
                         case 's': ret = HINTE_PARAM_STYLE; break;
                         case 'f': ret = HINTE_PARAM_FONT; break;
                         case 'r': ret = HINTE_PARAM_REF; break;
+                        case ESCAPE_CHAR_NON_FORMATTING_LINK: //fallthrough
+                        case 'L': ret = HINTE_PARAM_LINK; break;
                         default: _ASSERT(0); //fallthrough
                         case 'm': ret = HINTE_PARAM_NUMBER; break;
                         }
@@ -834,7 +854,7 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
     return ret;
 }
 
-/** Replaces style, color names to actual definitions.
+/** Replaces style, color names and URL marks to actual definitions.
  * Definitions are pulled from in msc->Contexts.back()
  * and in msc->ReferenceNames.
  * Also performs syntax error checking and generates errors/warnings into msc->Error.
@@ -869,15 +889,56 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
     string::size_type pos=0;
     string replaceto;
     StringFormat sf;
+    if (basic)
+        sf = *basic;
+    FileLineCol beginning_of_URL;
+    beginning_of_URL.MakeInvalid();
     string ignoreText = ignore?" Ignoring it.":"";
     while(text.length()>pos && text[pos]) {
         size_t length;
-        FileLineCol beginning_of_escape = linenum;
+        const FileLineCol beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
                                  basic, msc, references, &linenum, ignore)) {
-        case FORMATTING_OK: //do nothing, just replace as below
+        case FORMATTING_OK: //do nothing, just reflect 
         case REFERENCE:     //a valid \r(xxx) escape. If we "references" is true we have the number
             break;          //if not, we keep the escape as is.
+        case LINK_ESCAPE:
+            //resolve formattin
+            if (beginning_of_URL.IsInvalid()) {
+                if (replaceto.length()) {
+                    //replace \\L to ESCAPE_STRING_NON_FORMATTING_LINK
+                    beginning_of_URL = beginning_of_escape;
+                    replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "(" + replaceto + ")";
+                    //insert the formatting needed for a link, plus a location escape
+                    if (basic && basic->link_format.first)
+                        replaceto.append(basic->link_format.second+linenum.Print());
+                    //sf will not contain the format added by link_format here, so
+                    //we can use sf to restore formatting to at the end of the link.
+                } else {
+                    //problem: an empty first \\L
+                    replaceto.clear();
+                    msc->Error.Error(beginning_of_escape, "Empty link ('\\L') escape - you need to specify a link. Ignoring escape.",
+                        "You can specify a link using an \\L() escape with the link target, followed by the link text, terminated by an empty '\\L()' escape.");
+                }
+            } else {
+                if (replaceto.length()) {
+                    //Error - two non-empty \\L escapes
+                    msc->Error.Error(beginning_of_escape, "Non-empty link ('\\L') escape, use an empty one to terminate the link text. Assuming empty one.",
+                        "You can specify a link using an \\L() escape with the link target, followed by the link text, terminated by an empty '\\L()' escape.");
+                    msc->Error.Error(beginning_of_escape, beginning_of_URL, "Here is the first non-empty '\\L()' escape.");
+                    //fallthrough
+                } 
+                //We are terminating an URL
+                //restore formatting
+                replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "()" + sf.Print()+linenum.Print();
+                beginning_of_URL.MakeInvalid();
+            }
+            break;
+        case LINK2_ESCAPE:
+            //here replaceto contains just the parameter
+            //Add the escape back, but otherwise keep the escape
+            replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "("+replaceto+")";
+            break;
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
@@ -1055,6 +1116,9 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
     if (toadd.word_wrap.first)
         word_wrap = toadd.word_wrap;
 
+    if (toadd.link_format.first)
+        link_format = toadd.link_format;
+
     return *this;
 }
 
@@ -1121,6 +1185,8 @@ string StringFormat::Print() const
 
     if (word_wrap.first)
         ret << "\\" ESCAPE_STRING_WORD_WRAP << (word_wrap.second ? "+" : "-");
+
+    //link format is not written out
 
     return ret;
 }
@@ -1239,6 +1305,35 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         return true;
     }
 
+    if (a.EndsWith("link_format")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                link_format.first = false;
+            return true;
+        }
+        string tmp = a.value;
+        if (tmp.length()==0) return true;
+
+        //completely remove all ambigous escapes, such as empty '\\c()' - use the 
+        //chart default as a fallback.
+        StringFormat::ExpandReferences(tmp, msc, a.linenum_value.start, 
+            &msc->Contexts.back().text, false, true, TEXT_FORMAT);
+        string tmp_2(tmp);
+
+        StringFormat sf(tmp);
+        RemovePosEscapes(tmp);
+        if (tmp.length()) {
+            string s("Found some literal text: '");
+            s.append(tmp).append("' in attribute '").append(a.name).append("'.");
+            s.append(" Ignoring them.");
+            msc->Error.Warning(a, true, s, "Attriute 'text.link_format' can only contain formatting escapes.");
+            return true;
+        }
+        link_format.first = true;
+        link_format.second = tmp_2;
+        return true;
+    }
+
     std::pair<bool, ETriState> *tri = NULL;
     if (a.EndsWith("bold")) tri = &bold;
     else if (a.EndsWith("italic")) tri = &italics;
@@ -1305,6 +1400,7 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     "size.normal", "Set the height of the normal text (i.e., not superscript or small font) in pixels.",
     "size.small", "Set the height of small text (including superscript and subscript) in pixels.",
     "wrap", "Turning this on will make the text word wrapped. This also means that horizontal auto-scaling is off, so caution with 'hscape=auto;'",
+    "link_format", "Specify here what formatting shall be applied to a link (\\L escape).",
     ""};
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, EHintType::ATTR_NAME);
 }
@@ -1539,7 +1635,8 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
             CshHintGraphicCallbackForTextIdent);
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "format")) {
+    if (CaseInsensitiveEndsWith(attr, "format")||
+        CaseInsensitiveEndsWith(attr, "link_format")) {
         if (!csh.hadEscapeHint)
             csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"\"format string\"",
                 "Specify a format string using text escapes, like '\\b'. Do not use plain text (non-formatting characters or escapes).",
@@ -1550,10 +1647,7 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "font.face")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\\f(Arial)Arial", NULL, EHintType::ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Times New Roman)Times New Roman\\f()\"", NULL, EHintType::ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Courier New)Courier New\\f()\"", NULL, EHintType::ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<any Windows font>", NULL, EHintType::ATTR_VALUE, false));
+        csh.AddEscapesToHints(HINTE_PARAM_FONT);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "bold") || 
@@ -1814,13 +1908,21 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
         fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos && line[pos]) {
+            const StringFormat::EEscapeType res = 
+                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
             //we avoid changing format!
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
-            fragment.append(replaceto);
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::FORMATTING_OK == res) break;
+            if (StringFormat::LINK_ESCAPE == res ||
+                StringFormat::LINK2_ESCAPE == res)
+                //in case LINK_ESCAPE and LINK2_ESCAPE replaceto contains just the URL, not the whole escape
+                fragment.append("\\" ESCAPE_STRING_NON_FORMATTING_LINK "(").append(replaceto).append(")");
+            else
+                fragment.append(replaceto);
             pos += length;
         }
         //store fragment data
-        width += format.getFragmentWidth(fragment, canvas);
+        width += format.ge tFragmentWidth(fragment, canvas); //XX solve that fragment width do not contain \L escapes
         heightAboveBaseLine =
             std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
         heightBelowBaseLine =
@@ -1854,8 +1956,15 @@ ParsedLine::operator std::string() const
     while (line.length()>pos && line[pos]) {
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
-            ret.append(replaceto);
+            const StringFormat::EEscapeType res =
+                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
+            //we avoid changing format!
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::FORMATTING_OK == res) break;
+            if (StringFormat::LINK_ESCAPE != res &&
+                StringFormat::LINK2_ESCAPE != res)
+                //do not copy link escapes
+                ret.append(replaceto);
             pos += length;
         }
         //Apply the formatting escapes as they come
@@ -1879,8 +1988,15 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
         fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
-            fragment.append(replaceto);
+            const StringFormat::EEscapeType res = 
+                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
+            //we avoid changing format!
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::FORMATTING_OK == res) break;
+            if (StringFormat::LINK_ESCAPE != res &&
+                StringFormat::LINK2_ESCAPE != res)
+                //do not draw link escapes
+                fragment.append(replaceto);
             pos += length;
         }
         //draw Fragment
@@ -2016,9 +2132,14 @@ double Label::Reflow(Canvas &c, double x)
             case StringFormat::FORMATTING_OK:
                 pos += running_format.Apply(line.c_str()+pos);
                 break;
+            case StringFormat::LINK2_ESCAPE:
+                //keep it, do nothing - it does not impact reflow
+                pos += length;
+                break;
             case StringFormat::INVALID_ESCAPE:
-            case StringFormat::REFERENCE: 
-            case StringFormat::LINE_BREAK: 
+            case StringFormat::REFERENCE:
+            case StringFormat::LINK_ESCAPE:
+            case StringFormat::LINE_BREAK:
             case StringFormat::SOFT_LINE_BREAK: 
             case StringFormat::NUMBERING: 
             case StringFormat::NUMBERING_FORMAT: 

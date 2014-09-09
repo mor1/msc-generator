@@ -764,7 +764,7 @@ void ArcLabelled::AddAttributeList(AttributeList *l)
     //Then convert color and style names in labels
     if (label.length()>0) {
         StringFormat::ExpandReferences(label, chart, label_pos, &style.read().text,
-                                          false, true, StringFormat::LABEL);
+                                       false, true, StringFormat::LABEL);
         //re-insert position, so that FinalizeLabels has one
         label.insert(0, label_pos.Print());
     }
@@ -907,7 +907,7 @@ ArcBase *ArcLabelled::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
         //to expand remaining empty \c(), \s(), etc escapes.
         //We use a dummy linenum, as we should not get ANY errors here...
         StringFormat::ExpandReferences(number_text, chart, FileLineCol(), &basic,
-            false, true, StringFormat::LABEL);
+                                       false, true, StringFormat::LABEL);
         //insert us among the references if we have any name
         if (refname.length()) 
             chart->ReferenceNames[refname].number_text = number_text;
@@ -934,7 +934,7 @@ void ArcLabelled::FinalizeLabels(Canvas &canvas)
     //the call in AddAttributeList()
     StringFormat copy(style.read().text);
     StringFormat::ExpandReferences(label, chart, FileLineCol(), 
-        &copy, true, true, StringFormat::LABEL);
+                                   &copy, true, true, StringFormat::LABEL);
     parsed_label.Set(label, canvas, style.read().text);
 }
 
@@ -3536,7 +3536,7 @@ void ArcBox::AddAttributeList(AttributeList *l)
     //Convert color and style names in labels
     if (tag_label.length()>0) {
         StringFormat::ExpandReferences(tag_label, chart, tag_label_pos, 
-            &style.read().tag_text, false, true, StringFormat::LABEL);
+                                       &style.read().tag_text, false, true, StringFormat::LABEL);
         //re-insert position, so that FinalizeLabels has one
         tag_label.insert(0, tag_label_pos.Print());
     }
@@ -3742,7 +3742,7 @@ void ArcBox::FinalizeLabels(Canvas &canvas)
     //the call in AddAttributeList()
     StringFormat copy(style.read().tag_text);
     StringFormat::ExpandReferences(tag_label, chart, FileLineCol(),
-        &copy, true, true, StringFormat::LABEL);
+                                   &copy, true, true, StringFormat::LABEL);
     parsed_tag_label.Set(tag_label, canvas, style.read().tag_text);
 }
 

@@ -2022,6 +2022,15 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
     case HINTE_PARAM_NUMBER:
         AddToHints(CshHint(HintPrefixNonSelectable()+"<number in pixels>", NULL,
                            EHintType::ATTR_VALUE, false));
+        break;
+    case HINTE_PARAM_LINK:
+        AddToHints(CshHint(HintPrefixNonSelectable()+"http://", 
+            "You can enter a valid URL here.",
+            EHintType::ATTR_VALUE, false));
+        AddToHints(CshHint(HintPrefixNonSelectable()+"\\ref ", 
+            "Use this to refer to documented items, when the chart is a part of Doxygen documentation.",
+            EHintType::ATTR_VALUE, false));
+        break;
     }
 }
 
