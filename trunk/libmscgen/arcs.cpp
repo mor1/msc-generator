@@ -246,6 +246,11 @@
    -  Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
       values in the elements. It can be called several times and should not change state of the elements 
       including the cached values.
+   -  RegisterLabels/CollectIsMapElementsArcList: One or both of these can be called in addition or instead of 
+      Draw(). RegisterLabels traverses the tree and collects information about all labels into Msc::labelData.
+      CollectIsMapElementsArcList also traverses the tree, but extracts only links (\L escape) into
+      Msc::ismapData. They are used with the -T lmap and -T ismap command line options, respectively and
+      are not normally called when we Draw (to save processing) and vice versa.
    -  Destructor.
 
     All the above functions are called from the Msc object. The first three are called from Msc::ParseText, whereas
@@ -747,28 +752,55 @@ const StyleCoW *ArcLabelled::GetRefinementStyle(EArcType t) const
     };
 }
 
-void ArcLabelled::AddAttributeList(AttributeList *l)
+/** Perform first part of attribute list addition.
+ * Thic just copies the list of attributes to 'style' and
+ * records the file position of the label.
+ * It is split from step 2, because it can work on an empty
+ * 'style' member. Later descendants (ArDirArrow) need to have a copy of
+ * just the attributes in style without the default attributes, like
+ * the ones in the 'arrow' style. */
+FileLineCol ArcLabelled::AddAttributeListStep1(AttributeList *l)
 {
-    if (!valid) return;
-    //Find position of label attribute (if any), prepend it via an escape
     FileLineCol label_pos;
+    if (!valid) return label_pos;
+    //Find position of label attribute (if any), prepend it via an escape
     if (l)
         for (auto pAttr : *l)
-            if (pAttr->Is("label")) 
+            if (pAttr->Is("label"))
                 label_pos = pAttr->linenum_value.start;
     //Add attributest 
     ArcBase::AddAttributeList(l);
+    return label_pos;
+}
+
+/** Perform second step of attribute addition.
+ * This one assumes that 'style' is complete and adjusts the label and
+ * copies members stored in 'style' to members.*/
+void ArcLabelled::AddAttributeListStep2(const FileLineCol &label_pos)
+{
+    if (!valid) return;
     //vspacing went to the style, copy it
     if (style.read().vspacing.first)
         vspacing = style.read().vspacing.second;
     //Then convert color and style names in labels
     if (label.length()>0) {
-        StringFormat::ExpandReferences(label, chart, label_pos, &style.read().text,
+        if (url.length()) {
+            if (StringFormat::HasLinkEscapes(label.c_str()))
+                chart->Error.Error(linenum_url_attr, "The label contains '\\L' escapes, ignoring 'url' attribute.",
+                "Use only one of the 'url' attribute and '\\L' escapes.");
+            else
+                label.insert(0, "\\L("+url+")").append("\\L()");
+        }
+        StringFormat basic = style.read().text;
+        basic.Apply(label.c_str()); //do not change 'label'
+        StringFormat::ExpandReferences(label, chart, label_pos, &basic,
                                        false, true, StringFormat::LABEL);
         //re-insert position, so that FinalizeLabels has one
         label.insert(0, label_pos.Print());
-    }
+    } else if (url.length())
+        chart->Error.Error(linenum_url_attr, "No label. Ignoring 'url' attribute.");
 }
+
 
 bool ArcLabelled::AddAttribute(const Attribute &a)
 {
@@ -829,6 +861,13 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
                           "Try '\\^' inside a label for superscript.");
         return true;
     }
+    if (a.Is("url")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        url = a.value;
+        linenum_url_attr = a.linenum_attr.start;
+        return true;
+    }
     if (a.Is("draw_time")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
@@ -848,8 +887,15 @@ void ArcLabelled::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", 
         "Specify the text of the label of this element.", 
         EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", 
-        "Turn auto-numberin on or off. You can also give a specific number to use with auto-numbering of this element.", 
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number",
+        "Turn auto-numberin on or off. You can also give a specific number to use with auto-numbering of this element.",
+        EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname",
+        "Use this attribute to assign a name to this element, which can then be later used in a '\\r' text formatting escape to refer to the number of this element.",
+        EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "url",
+        "Turn the whole label to a link targeting e.g., an URL or an element documented by Doxygen (when using Doxygen integration). "
+        "Use the '\\L' formatting escape if you want to use only part of a label as a link.",
         EHintType::ATTR_NAME));
     Element::AttributeNames(csh); //draw_time
     csh.AddStylesToHints(false, false);
@@ -857,7 +903,7 @@ void ArcLabelled::AttributeNames(Csh &csh)
 
 bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"label") || CaseInsensitiveEqual(attr,"refname")) {
+    if (CaseInsensitiveEqual(attr,"label") || CaseInsensitiveEqual(attr,"refname") || CaseInsensitiveEqual(attr,"url")) {
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
@@ -932,9 +978,10 @@ void ArcLabelled::FinalizeLabels(Canvas &canvas)
     //(references parameter true), ExpandReferences will only emit errors
     //to missing references - all other errors were already emitted in
     //the call in AddAttributeList()
-    StringFormat copy(style.read().text);
-    StringFormat::ExpandReferences(label, chart, FileLineCol(), 
-                                   &copy, true, true, StringFormat::LABEL);
+    StringFormat basic = style.read().text;
+    basic.Apply(label.c_str()); //do not change 'label'
+    StringFormat::ExpandReferences(label, chart, FileLineCol(),
+                                   &basic, true, true, StringFormat::LABEL);
     parsed_label.Set(label, canvas, style.read().text);
 }
 
@@ -1182,7 +1229,16 @@ void ArcSelfArrow::PostPosProcess(Canvas &canvas)
         sss << " activated/deactivated in a parallel block causing conflict here.";
         chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
+}
+
+void ArcSelfArrow::RegisterLabels()
+{
     chart->RegisterLabel(parsed_label, LabelInfo::ARROW, sx, dx-src_act, yPos+chart->arcVGapAbove);
+}
+
+void ArcSelfArrow::CollectIsMapElements(Canvas &canvas)
+{
+    parsed_label.CollectIsMapElements(chart->ismapData, canvas, sx, dx-src_act, yPos+chart->arcVGapAbove);
 }
 
 void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
@@ -1328,13 +1384,13 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
     //This will work even if we are a BigArrow
     StyleCoW save(style);
     style.write().Empty();
-    ArcArrow::AddAttributeList(l);
+    const FileLineCol label_pos = ArcArrow::AddAttributeListStep1(l);
     for (unsigned i=0; i<segment_types.size(); i++) {
         segment_lines.push_back(save.read().line);
         const StyleCoW * const refinement = GetRefinementStyle(segment_types[i]);
         if (refinement) {
             //Add the line type of the refinement style to each segment
-            *segment_lines.rbegin() += refinement->read().line;
+            segment_lines.back() += refinement->read().line;
             //Add all other style elements of the refinement style to us
             save.write() += refinement->read();
         }
@@ -1342,9 +1398,7 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
     }
     save += style;
     style = save;
-    //vspacing went to the style, copy it
-    if (style.read().vspacing.first)
-        vspacing = style.read().vspacing.second;
+    AddAttributeListStep2(label_pos);
 }
 
 bool ArcDirArrow::AddAttribute(const Attribute &a)
@@ -2013,10 +2067,23 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
             chart->HideEntityLines(tmp);
         }
     }
-    chart->RegisterLabel(parsed_label, LabelInfo::ARROW, 
-                         sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, 
-                         XY(sx,yPos+centerline), slant_angle);
 }
+
+void ArcDirArrow::RegisterLabels()
+{
+    chart->RegisterLabel(parsed_label, LabelInfo::ARROW,
+        sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text,
+        XY(sx, yPos+centerline), slant_angle);
+}
+
+void ArcDirArrow::CollectIsMapElements(Canvas &canvas)
+{
+    parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+        sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text,
+        XY(sx, yPos+centerline), slant_angle);
+}
+
+
 
 /** Draws an actual arrow using the parameters passed, not considering message loss. 
  * Used twice to draw a lost arrow. */
@@ -2398,7 +2465,18 @@ void ArcBigArrow::PostPosProcess(Canvas &canvas)
         tmp.RotateAround(c, slant_angle);
         chart->HideEntityLines(tmp);
     }
+}
+
+void ArcBigArrow::RegisterLabels()
+{
     chart->RegisterLabel(parsed_label, LabelInfo::ARROW,
+        sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->boxVGapInside, cx_text,
+        XY(sx, yPos+centerline), slant_angle);
+}
+
+void ArcBigArrow::CollectIsMapElements(Canvas &canvas)
+{
+    parsed_label.CollectIsMapElements(chart->ismapData, canvas, 
         sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->boxVGapInside, cx_text,
         XY(sx, yPos+centerline), slant_angle);
 }
@@ -3295,9 +3373,20 @@ void ArcVerticalArrow::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(canvas);
+}
+
+void ArcVerticalArrow::RegisterLabels()
+{
     chart->RegisterLabel(parsed_label, LabelInfo::VERTICAL, 
                          s_text, d_text, t_text, style.read().side.second);
 }
+
+void ArcVerticalArrow::CollectIsMapElements(Canvas &canvas)
+{
+    parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+        s_text, d_text, t_text, style.read().side.second);
+}
+
 
 /** Draws the line and arrowhead of a brace, pointer or lost_pointer */
 void ArcVerticalArrow::DrawBraceLostPointer(Canvas &canvas, const LineAttr &line, 
@@ -3535,8 +3624,10 @@ void ArcBox::AddAttributeList(AttributeList *l)
     ArcLabelled::AddAttributeList(l);
     //Convert color and style names in labels
     if (tag_label.length()>0) {
-        StringFormat::ExpandReferences(tag_label, chart, tag_label_pos, 
-                                       &style.read().tag_text, false, true, StringFormat::LABEL);
+        StringFormat basic = style.read().tag_text;
+        basic.Apply(tag_label.c_str()); //do not change 'tag_label'
+        StringFormat::ExpandReferences(tag_label, chart, tag_label_pos,
+                                       &basic, false, true, StringFormat::LABEL);
         //re-insert position, so that FinalizeLabels has one
         tag_label.insert(0, tag_label_pos.Print());
     }
@@ -3740,9 +3831,10 @@ void ArcBox::FinalizeLabels(Canvas &canvas)
     //(references parameter true), ExpandReferences will only emit errors
     //to missing references - all other errors were already emitted in
     //the call in AddAttributeList()
-    StringFormat copy(style.read().tag_text);
+    StringFormat basic = style.read().tag_text;
+    basic.Apply(tag_label.c_str()); //do not change 'tag_label'
     StringFormat::ExpandReferences(tag_label, chart, FileLineCol(),
-                                   &copy, true, true, StringFormat::LABEL);
+                                   &basic, true, true, StringFormat::LABEL);
     parsed_tag_label.Set(tag_label, canvas, style.read().tag_text);
 }
 
@@ -4384,11 +4476,35 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
         chart->HideEntityLines(main_style.read().line.CreateRectangle_OuterEdge(b) -
             main_style.read().line.CreateRectangle_InnerEdge(b));
     }
-    const double mid = (chart->XCoord(series.front()->src) + chart->XCoord(series.front()->dst))/2;
-    for (auto pBox : series)
-        chart->RegisterLabel(pBox->parsed_label, pBox->content.size() ? LabelInfo::BOX : LabelInfo::EMPTYBOX,
-                             pBox->sx_text, pBox->dx_text, pBox->y_text, mid);
 }
+
+void ArcBoxSeries::RegisterLabels()
+{
+    //We do not register tag labels on purpose for now.
+    const double mid = (chart->XCoord(series.front()->src) + chart->XCoord(series.front()->dst))/2;
+    for (auto pBox : series) {
+        chart->RegisterLabel(pBox->parsed_label, pBox->content.size() ? LabelInfo::BOX : LabelInfo::EMPTYBOX,
+            pBox->sx_text, pBox->dx_text, pBox->y_text, mid);
+        if (pBox->content.size())
+            chart->RegisterLabelArcList(pBox->content);
+    }
+}
+
+void ArcBoxSeries::CollectIsMapElements(Canvas &canvas)
+{
+    //We also collect links from the tag label
+    const double mid = (chart->XCoord(series.front()->src) + chart->XCoord(series.front()->dst))/2;
+    for (auto pBox : series) {
+        if (pBox->tag_label.length()) 
+            pBox->parsed_tag_label.CollectIsMapElements(chart->ismapData, canvas, 
+                pBox->sx_tag, pBox->dx_tag, pBox->y_tag);
+        pBox->parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            pBox->sx_text, pBox->dx_text, pBox->y_text, mid);
+        if (pBox->content.size())
+            chart->CollectIsMapElementsArcList(pBox->content, canvas);
+    }
+}
+
 
 void ArcBoxSeries::RegisterCover(EDrawPassType pass)
 {
@@ -5295,11 +5411,27 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     for (auto pPipe : series)
         if (pPipe->draw_pass != DRAW_BEFORE_ENTITY_LINES)
             chart->HideEntityLines(pPipe->pipe_shadow);
+}
+
+void ArcPipeSeries::RegisterLabels()
+{
     //Register labels
     for (auto pPipe : series)
         chart->RegisterLabel(pPipe->parsed_label, LabelInfo::PIPE,
                              pPipe->sx_text, pPipe->dx_text, pPipe->y_text);
+    if (content.size())
+        chart->RegisterLabelArcList(content);
 }
+
+void ArcPipeSeries::CollectIsMapElements(Canvas &canvas)
+{
+    for (auto pPipe : series)
+        pPipe->parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+                             pPipe->sx_text, pPipe->dx_text, pPipe->y_text);
+    if (content.size())
+        chart->CollectIsMapElementsArcList(content, canvas);
+}
+
 
 //Draw a pipe, this is called for each segment, bool params dictate which part
 //topside is the bigger part of the pipe
@@ -5659,12 +5791,26 @@ void ArcDivider::PostPosProcess(Canvas &canvas)
     else
         entityLineRange = area.GetBoundingBox().y;
     ArcLabelled::PostPosProcess(canvas);
+}
+
+void ArcDivider::RegisterLabels()
+{
     if (!wide)
         chart->RegisterLabel(parsed_label, LabelInfo::DIVIDER,
-                             chart->GetDrawing().x.from + text_margin, 
-                             chart->GetDrawing().x.till - text_margin,
-                             yPos + chart->arcVGapAbove + extra_space);
+            chart->GetDrawing().x.from + text_margin,
+            chart->GetDrawing().x.till - text_margin,
+            yPos + chart->arcVGapAbove + extra_space);
 }
+
+void ArcDivider::CollectIsMapElements(Canvas &canvas)
+{
+    if (!wide)
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            chart->GetDrawing().x.from + text_margin,
+            chart->GetDrawing().x.till - text_margin,
+            yPos + chart->arcVGapAbove + extra_space);
+}
+
 
 void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
 {
@@ -5905,18 +6051,32 @@ void ArcParallel::PostPosProcess(Canvas &canvas)
         chart->PostPosProcessArcList(canvas, block);
 }
 
+void ArcParallel::RegisterLabels()
+{
+    if (valid) 
+        for (auto &block : blocks)
+            chart->RegisterLabelArcList(block);
+}
+
+void ArcParallel::CollectIsMapElements(Canvas &canvas)
+{
+    if (valid) 
+        for (auto &block : blocks)
+            chart->CollectIsMapElementsArcList(block, canvas);
+}
+
 void ArcParallel::RegisterCover(EDrawPassType pass)
 {
-    if (!valid) return;
-    for (auto &block : blocks)
-        chart->RegisterCoverArcList(block, pass);
+    if (valid) 
+        for (auto &block : blocks)
+            chart->RegisterCoverArcList(block, pass);
 }
 
 
 void ArcParallel::Draw(Canvas &canvas, EDrawPassType pass)
 {
-    if (!valid) return;
-    for (auto &block : blocks)
-        chart->DrawArcList(canvas, block, chart->GetTotal().y, pass);
+    if (valid) 
+        for (auto &block : blocks)
+            chart->DrawArcList(canvas, block, chart->GetTotal().y, pass);
 }
 

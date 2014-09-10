@@ -381,7 +381,8 @@ public:
     AreaList                      AllCovers;       ///<A set of arc contours with a pointer to the arcs. Used to identify the arc covering an XY coordinate.
     Contour                       HideELinesHere;  ///<A complex contour used as a mask when drawing entity lines.
     PBDataVector                  pageBreakData;   ///<Starting y pos and auto-heading info for each page break. pageBreakData[0].y is always 0. 
-    std::list<LabelInfo>          labelData;       ///<Holds a catalogue of all labels with their coordinates. Filled by PostPosProcess().
+    std::list<LabelInfo>          labelData;       ///<Holds a catalogue of all labels with their coordinates. Filled by RegisterLabels().
+    ISMap                         ismapData;       ///<Holds a list of link information from \L escapes. Filled by CollectIsMapElements().
     ArcList                       EndNotes;        ///<We move all endnotes here during PostParseProcessArcList(). We reappend them in PostParseProcess().
     CommandNoteList               Notes;           ///<All notes are moved here after PostParseProcess 
     PtrList<const Element>        NoteBlockers;    ///<Ptr to all elements that may block a floating note and which therefore should not overlap with them
@@ -537,8 +538,9 @@ public:
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void CountLabel(bool overflown) {noLabels++; if (overflown) noOverflownLabels++;}
     void RegisterLabel(const Label &l, LabelInfo::LabelType type, const Block &b);
-    /** Register a horizontally drawn label.
+    /** Register a horizontally drawn label (with slant perhaps).
     * This is used to generate lmaps
+    * if angle is nonzero, sx, dx, cx and y are interpreted in the rotated space.
     * @param [in] l The label to register.
     * @param [in] type The type of element the label belongs to.
     * @param [in] sx The left margin.
@@ -573,6 +575,9 @@ public:
     { if (l.size()) labelData.emplace_back(type, l, l.Cover(s, d, t, side, c).GetBoundingBox());}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
     void RegisterCoverArcList(ArcList &arcs, EDrawPassType pass);
+
+    void RegisterLabelArcList(ArcList &arcs) { for (auto pArc : arcs) pArc->RegisterLabels(); }
+    void CollectIsMapElementsArcList(ArcList &arcs, Canvas &canvas) { for (auto pArc : arcs) pArc->CollectIsMapElements(canvas); }
 
     void CompleteParse(Canvas::EOutputType, bool avoidEmpty,
                        bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);

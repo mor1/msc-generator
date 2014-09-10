@@ -265,10 +265,10 @@ public:
     /** Place verticals. 
      * All height & pos info final by now, except on verticals & notes 
      * See documentation for libmscgen for more info.*/
-    virtual void PlaceWithMarkers(Canvas &/*cover*/) {}
+    virtual void PlaceWithMarkers(Canvas &/*canvas*/) {}
     /** Emit warnings that need final layout. 
      * See documentation for libmscgen for more info.*/
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
     /** Draw the arc.
      * See documentation for libmscgen for more info.*/
     virtual void Draw(Canvas &canvas, EDrawPassType pass) = 0;
@@ -319,6 +319,8 @@ protected:
     string          label;           ///<The label as the user specified it. Empty if none.
     Label           parsed_label;    ///<The label processed and parsed into lines. Set in PostParseProcess()
     int             concrete_number; ///<Negative, if the user specified no specific value for the number (no numbering or automatic). Else the number specified.
+    string          url;             ///<The value of the 'url' attribute, empty if none.
+    FileLineCol     linenum_url_attr;///<The location of the 'url' attribute, if any.
     StyleCoW        style;           ///<The style of the arc. `numbering` and `compress` fields of style are not used. The ArcBase member fields are used instead.
     NumberingStyle  numberingStyle;  ///<The numbering style to use. (This is not part of Styles in general, but is a property of contexts. This is a snapshot at the location of the arc.
     string          number_text;     ///<The formatted number assigned to this arc (used by references and notes/comments). Set in PostParseProcess()
@@ -355,7 +357,9 @@ public:
      * the difference between a '->' arrow and a '=>' arrow, for example.
      * This works for boxes, block arrows, etc.*/
     virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
-    virtual void AddAttributeList(AttributeList *);
+    FileLineCol AddAttributeListStep1(AttributeList *);
+    void AddAttributeListStep2(const FileLineCol &label_pos);
+    virtual void AddAttributeList(AttributeList *l) { AddAttributeListStep2(AddAttributeListStep1(l)); }
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -367,7 +371,7 @@ public:
     /** Return the numbering style of the arc (even if numbering is turned off).*/
     const NumberingStyle &GetNumberingStyle() const {return numberingStyle;}
     virtual void FinalizeLabels(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
 };
 
 /** Holds a horizontal position, as specified by the user.
@@ -445,7 +449,7 @@ public:
     bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
                                      type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR ||
                                      type == MSC_ARC_BIG_BIDIR;}
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
     void DrawLSym(Canvas &canvas, const XY &C, XY size);
 };
 
@@ -476,7 +480,9 @@ public:
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -561,7 +567,9 @@ public:
     virtual void ShiftBy(double y);
     /** Check if the entities in `src` - `middle[]` - `dst` are all left-to-right or right-to-left*/
     void CheckSegmentOrder(double y);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     void DrawArrow(Canvas &canvas, const Label &loc_parsed_label,
                    const std::vector<LineAttr>& loc_segment_lines,
                    const ArrowHead &loc_arrow);
@@ -602,7 +610,9 @@ public:
     virtual Range GetVisualYExtent(bool include_comments) const;
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -670,8 +680,10 @@ public:
     virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -2;}
-    virtual void PlaceWithMarkers(Canvas &cover);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PlaceWithMarkers(Canvas &canvas);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     void DrawBraceLostPointer(Canvas &canvas, const LineAttr &line, const ArrowHead &arrow);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -753,8 +765,10 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PlaceWithMarkers(Canvas &canvas);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -833,8 +847,10 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PlaceWithMarkers(Canvas &canvas);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -867,7 +883,9 @@ public:
     virtual void Layout(Canvas &canvas, AreaList *cover);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -896,8 +914,10 @@ public:
     virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &cover);
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void PlaceWithMarkers(Canvas &canvas);
+    virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };

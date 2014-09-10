@@ -357,8 +357,8 @@ static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
 
-#define YY_NUM_RULES 108
-#define YY_END_OF_BUFFER 109
+#define YY_NUM_RULES 109
+#define YY_END_OF_BUFFER 110
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -368,45 +368,45 @@ struct yy_trans_info
 	};
 static yyconst flex_int16_t yy_accept[372] =
     {   0,
-        0,    0,  109,  108,    5,    2,    3,  101,    4,   80,
-       72,   74,   71,  108,  102,  108,   75,   64,   73,   63,
-      103,  103,    8,  103,    9,  103,  103,   12,    7,    6,
-      103,  103,  103,  103,   10,   11,  103,   78,   79,  103,
-      103,  103,  103,  103,  103,  103,  103,  103,  103,   76,
-       77,    5,    1,  101,  100,  101,    4,   67,  102,   70,
-       66,   54,   68,    0,  102,  102,   99,    0,   98,   99,
-        0,   55,   61,   58,   65,   69,   57,   60,    0,    0,
-        0,  103,  103,   28,  103,  103,  103,  103,  103,  103,
-      103,  103,  103,  103,  103,  103,  103,  103,  103,  103,
+        0,    0,  110,  109,    5,    2,    3,  102,    4,   80,
+       72,   74,   71,  109,  103,  100,   75,   64,   73,   63,
+      104,  104,    8,  104,    9,  104,  104,   12,    7,    6,
+      104,  104,  104,  104,   10,   11,  104,   78,   79,  104,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,   76,
+       77,    5,    1,  102,  101,  102,    4,   67,  103,   70,
+       66,   54,   68,    0,  103,  103,   99,  100,   98,   99,
+      100,   55,   61,   58,   65,   69,   57,   60,    0,    0,
+        0,  104,  104,   28,  104,  104,  104,  104,  104,  104,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,  104,
 
-      103,  103,  103,  103,  103,  103,  103,  103,  103,  103,
-      103,  103,  103,  103,  103,  103,  103,  103,  103,  100,
-      102,  102,   53,   52,    0,  102,   99,   99,    0,   98,
-       97,   98,   99,   99,   99,   99,   56,    0,   59,  105,
-      106,  104,  104,  104,  103,  103,  103,   22,  103,   37,
-      103,  103,  103,  103,  103,  103,  103,  103,  103,  103,
-      103,  103,   13,  103,  103,  103,  103,  103,  103,  103,
-      103,  103,  103,  103,  103,  103,  103,  103,  103,  103,
-      103,  103,  102,    0,    0,   99,   99,   99,   99,   97,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,  104,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,  101,
+      103,  103,   53,   52,    0,  103,   99,   99,   99,   98,
+       97,   98,   99,   99,   99,   99,   56,    0,   59,  106,
+      107,  105,  105,  105,  104,  104,  104,   22,  104,   37,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,  104,
+      104,  104,   13,  104,  104,  104,  104,  104,  104,  104,
+      104,  104,  104,  104,  104,  104,  104,  104,  104,  104,
+      104,  104,  103,    0,    0,   99,   99,   99,   99,   97,
        99,   99,   99,   99,   99,   99,   99,   99,   62,    0,
 
-      105,    0,  106,  103,  103,  103,  103,  103,  103,  103,
-      103,  103,  103,  103,  103,   34,  103,   30,   29,   24,
-      103,   41,  103,  103,  103,   23,  103,  103,  103,   33,
-      103,  103,   47,  103,  103,  103,  103,   23,  103,  107,
-        0,   99,   99,   99,   99,   99,   99,  105,  105,  106,
-      106,  103,   21,   48,  103,  103,  103,  103,  103,  103,
-      103,  103,  103,  103,  103,  103,  103,   15,  103,  103,
-      103,   50,   32,  103,  103,   45,  103,  103,   21,    0,
-        0,    0,    0,  103,    0,  107,  105,  106,  103,  103,
-       31,  103,  103,  103,  103,  103,  103,  103,  103,  103,
+      106,    0,  107,  104,  104,  104,  104,  104,  104,  104,
+      104,  104,  104,  104,  104,   34,  104,   30,   29,   24,
+      104,   41,  104,  104,  104,   23,  104,  104,  104,   33,
+      104,  104,   47,  104,  104,  104,  104,   23,  104,  108,
+        0,   99,   99,   99,   99,   99,   99,  106,  106,  107,
+      107,  104,   21,   48,  104,  104,  104,  104,  104,  104,
+      104,  104,  104,  104,  104,  104,  104,   15,  104,  104,
+      104,   50,   32,  104,  104,   45,  104,  104,   21,    0,
+        0,    0,    0,  104,    0,  108,  106,  107,  104,  104,
+       31,  104,  104,  104,  104,  104,  104,  104,  104,  104,
 
-       39,  103,  103,  103,  103,  103,   40,  103,   38,    0,
-        0,   86,   82,   81,   84,   83,  103,  107,  107,  105,
-      106,  103,   49,   42,  103,  103,  103,  103,  103,   43,
-      103,   14,   20,   26,  103,   51,  103,  103,   85,   88,
-       87,  103,  107,   35,  103,   17,  103,   16,   18,   44,
-       25,   46,   27,   27,  107,  103,   19,    0,    0,    0,
+       39,  104,  104,  104,  104,  104,   40,  104,   38,    0,
+        0,   86,   82,   81,   84,   83,  104,  108,  108,  106,
+      107,  104,   49,   42,  104,  104,  104,  104,  104,   43,
+      104,   14,   20,   26,  104,   51,  104,  104,   85,   88,
+       87,  104,  108,   35,  104,   17,  104,   16,   18,   44,
+       25,   46,   27,   27,  108,  104,   19,    0,    0,    0,
         0,   95,   36,   90,   89,   93,   92,   91,   96,   94,
         0
     } ;
@@ -2132,12 +2132,13 @@ YY_RULE_SETUP
  ** Can contain quotation marks (escaped or unescaped), but can not start with it
  ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
  ** (representing a commented section inside a label)
- *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  
+ *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)
+ * \:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*
  */
 case 99:
 /* rule 99 can match eol */
 YY_RULE_SETUP
-#line 319 "language2.ll"
+#line 320 "language2.ll"
 
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
@@ -2148,10 +2149,26 @@ YY_RULE_SETUP
     return TOK_COLON_STRING;
 
 	YY_BREAK
-/* A simple quoted string, that can have escaped quotation marks inside.*/
+/* This is a degenerate non quoted colon-string
+ ** a colon followed by a solo escape or just a colon
+ */
 case 100:
 YY_RULE_SETUP
-#line 330 "language2.ll"
+#line 333 "language2.ll"
+
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+   #else
+    yylval_param->str = msc_process_colon_string(yytext, yylloc,
+                        yyget_extra(yyscanner)->msc->current_file);
+  #endif
+    return TOK_COLON_STRING;
+
+	YY_BREAK
+/* A simple quoted string, that can have escaped quotation marks inside.*/
+case 101:
+YY_RULE_SETUP
+#line 345 "language2.ll"
 
     yylval_param->str = strdup(yytext+1);
     yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
@@ -2159,9 +2176,9 @@ YY_RULE_SETUP
 
 	YY_BREAK
 /* A simple quoted string, missing a closing quotation mark */
-case 101:
+case 102:
 YY_RULE_SETUP
-#line 337 "language2.ll"
+#line 352 "language2.ll"
 
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext+1);
@@ -2181,32 +2198,32 @@ YY_RULE_SETUP
 
 	YY_BREAK
 /* Numbers */
-case 102:
+case 103:
 YY_RULE_SETUP
-#line 356 "language2.ll"
+#line 371 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_NUMBER;
 
 	YY_BREAK
 /* Strings not ending with a dot */
-case 103:
+case 104:
 YY_RULE_SETUP
-#line 362 "language2.ll"
+#line 377 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_STRING;
 
 	YY_BREAK
-/* Strings ending with a dot, not followed by a second dot 
+/* Strings ending with a dot, not followed by a second dot
   * Two dots one after another shall be parsed a '..' into TOK_EMPH*/
-case 104:
-/* rule 104 can match eol */
+case 105:
+/* rule 105 can match eol */
 *yy_cp = yyg->yy_hold_char; /* undo effects of setting up yytext */
 yyg->yy_c_buf_p = yy_cp -= 1;
 YY_DO_BEFORE_ACTION; /* set up yytext again */
 YY_RULE_SETUP
-#line 369 "language2.ll"
+#line 384 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_STRING;
@@ -2214,42 +2231,42 @@ YY_RULE_SETUP
 	YY_BREAK
 /* Color definitions */
 /* string+-number[,number]*/
-case 105:
+case 106:
 YY_RULE_SETUP
-#line 376 "language2.ll"
+#line 391 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_COLORDEF;
 
 	YY_BREAK
 /* string,number[+-number]*/
-case 106:
+case 107:
 YY_RULE_SETUP
-#line 382 "language2.ll"
+#line 397 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_COLORDEF;
 
 	YY_BREAK
 /* number,number,number[,number] */
-case 107:
+case 108:
 YY_RULE_SETUP
-#line 388 "language2.ll"
+#line 403 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_COLORDEF;
 
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 393 "language2.ll"
+#line 408 "language2.ll"
 return TOK_EOF;
 	YY_BREAK
-case 108:
+case 109:
 YY_RULE_SETUP
-#line 396 "language2.ll"
+#line 411 "language2.ll"
 ECHO;
 	YY_BREAK
-#line 2253 "<stdout>"
+#line 2270 "<stdout>"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -3388,7 +3405,7 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 396 "language2.ll"
+#line 411 "language2.ll"
 
 
 

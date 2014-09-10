@@ -695,6 +695,13 @@ bool EntityApp::AddAttribute(const Attribute& a)
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
+    if (a.Is("url")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        url = a.value;
+        linenum_url_attr = a.linenum_attr.start;
+        return true;
+    }
     if (a.Is("text.wrap")) {
         s << "Word wrapping is not available for entity headings. Ignoring this attribute.";
         chart->Error.Error(a, false, s);
@@ -893,6 +900,14 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
         //Create parsed label
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
+        //Make the label a URL, if user has specified a url attribute.
+        if (url.length()) {
+            if (StringFormat::HasLinkEscapes(orig_label.c_str())) 
+                chart->Error.Error(linenum_url_attr, "The label of the entity contains '\\L' escapes, ignoring 'url' attribute.",
+                    "Use only one of the 'url' attribute and '\\L' escapes.");
+            else
+                proc_label.insert(0, "\\L("+url+")").append("\\L()");
+        }
         StringFormat::ExpandReferences(proc_label, chart, linenum_label_value,
                                        &label_format, false, true, StringFormat::LABEL);
 
@@ -972,6 +987,10 @@ void EntityApp::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", 
         "Turn this on to activate the entity.",
         EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "url",
+        "Turn the whole label to a link targeting e.g., an URL or an element documented by Doxygen (when using Doxygen integration). "
+        "Use the '\\L' formatting escape if you want to use only part of a label as a link.",
+        EHintType::ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").read().AttributeNames(csh);
     Element::AttributeNames(csh);
 }
@@ -983,7 +1002,7 @@ bool EntityApp::AttributeValues(const std::string attr, Csh &csh)
         csh.AddColorValuesToHints(false);
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"label")) {
+    if (CaseInsensitiveEqual(attr, "label") || CaseInsensitiveEqual(attr, "url")) {
         return true;
     }
     if (CaseInsensitiveEqual(attr,"show") || CaseInsensitiveEqual(attr,"collapsed")
@@ -1195,29 +1214,58 @@ void EntityApp::PostPosProcess(Canvas &canvas)
         }
     }
     Element::PostPosProcess(canvas);
+}
 
+void EntityApp::RegisterLabels()
+{
     //Register the label
     if ((*itr)->shape >= 0) {
         const XY twh = parsed_label.getTextWidthHeight();
         const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
         if (b.IsInvalid()) {
             const double x = outer_edge.x.MidPoint();
-            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY, 
-                                 x-twh.x/2, x+twh.x/2, outer_edge.y.till);
+            chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
+                x-twh.x/2, x+twh.x/2, outer_edge.y.till);
         } else {
             const double r = std::min(1., std::min(b.x.Spans()/twh.x, b.y.Spans()/twh.y));
             const double yoff = (b.y.Spans() - twh.y*r)/2;
             chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
-                                 b.x.from, b.x.till, b.y.from + yoff);
+                b.x.from, b.x.till, b.y.from + yoff);
         }
     } else {
         const double lw = style.read().line.LineWidth();
         Block b2(outer_edge);
         b2.Expand(-lw/2);
         chart->RegisterLabel(parsed_label, LabelInfo::ENTITY,
-                             b2.x.from, b2.x.till, b2.y.from + lw/2);
+            b2.x.from, b2.x.till, b2.y.from + lw/2);
     }
 }
+
+void EntityApp::CollectIsMapElements(Canvas &canvas)
+{
+    //Register the label
+    if ((*itr)->shape >= 0) {
+        const XY twh = parsed_label.getTextWidthHeight();
+        const Block b = chart->Shapes[(*itr)->shape].GetLabelPos(outer_edge);
+        if (b.IsInvalid()) {
+            const double x = outer_edge.x.MidPoint();
+            parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+                x-twh.x/2, x+twh.x/2, outer_edge.y.till);
+        } else {
+            const double r = std::min(1., std::min(b.x.Spans()/twh.x, b.y.Spans()/twh.y));
+            const double yoff = (b.y.Spans() - twh.y*r)/2;
+            parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+                b.x.from, b.x.till, b.y.from + yoff);
+        }
+    } else {
+        const double lw = style.read().line.LineWidth();
+        Block b2(outer_edge);
+        b2.Expand(-lw/2);
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            b2.x.from, b2.x.till, b2.y.from + lw/2);
+    }
+}
+
 
 /** Draw an entity heading
  * We use the layout calculated in Height() and affected by ShiftBy()

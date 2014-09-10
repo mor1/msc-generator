@@ -695,26 +695,26 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "parallel", "overlap", "keep_with_next", "keep_together", "auto_heading",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
-"text.font.face", "text.font.type", 
-"text.bold", "text.italic", "text.underline", 
+"text.font.face", "text.font.type", "text.link_format",
+"text.bold", "text.italic", "text.underline",
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap", "text.width",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
-"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul", 
+"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "arrow.line.color", "arrow.line.type", "arrow.line.width",
-"line.color", "line.type", "line.width", "line.corner", "line.radius", 
+"line.color", "line.type", "line.width", "line.corner", "line.radius",
 "vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner",
-"fill.color", "fill.color2", "fill.gradient", 
+"fill.color", "fill.color2", "fill.gradient",
 "vfill.color", "vfill.color2", "vfill.gradient",
-"shadow.color", "shadow.offset", "shadow.blur", 
+"shadow.color", "shadow.offset", "shadow.blur",
 "compressable", "xsize", "ysize", "size", "space", "angle", "slant_depth",
-"note.pointer", "note.pos", "note.width", 
-"lost.line.color", "lost.line.type", "lost.line.width", "lost.line.corner", "lost.line.radius", 
+"note.pointer", "note.pos", "note.width",
+"lost.line.color", "lost.line.type", "lost.line.width", "lost.line.corner", "lost.line.radius",
 "x.line.color", "x.line.type", "x.line.width", "x.line.corner", "x.line.radius", "x.size",
 "lost.arrow.size", "lost.arrow.type", "lost.arrow.starttype", "lost.arrow.midtype",
 "lost.arrow.endtype", "lost.arrow.color", "lost.arrow.xmul", "lost.arrow.ymul",
 "lost.text.color", "lost.text.ident", "ident", "lost.text.format",
-"lost.text.font.face", "lost.text.font.type",
+"lost.text.font.face", "lost.text.font.type", "lost.text.link_format",
 "lost.text.bold", "lost.text.italic", "lost.text.underline",
 "lost.text.gap.up", "lost.text.gap.down", "lost.text.gap.left", "lost.text.gap.right",
 "lost.text.gap.spacing", "lost.text.size.normal", "lost.text.size.small", "lost.text.wrap",
@@ -722,11 +722,11 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "tag", "tag.line.color", "tag.line.type", "tag.line.width", "tag.line.corner", "tag.line.radius",
 "tag.fill.color", "tag.fill.color2", "tag.fill.gradient",
 "tag.text.color", "tag.text.ident", "ident", "tag.text.format",
-"tag.text.font.face", "tag.text.font.type",
+"tag.text.font.face", "tag.text.font.type", "tag.text.link_format",
 "tag.text.bold", "tag.text.italic", "tag.text.underline",
 "tag.text.gap.up", "tag.text.gap.down", "tag.text.gap.left", "tag.text.gap.right",
 "tag.text.gap.spacing", "tag.text.size.normal", "tag.text.size.small", "tag.text.wrap", 
-"tag.text.width", ""};
+"tag.text.width", "url", ""};
 
 /** Names of symbols for coloring
  *
@@ -2024,10 +2024,12 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
                            EHintType::ATTR_VALUE, false));
         break;
     case HINTE_PARAM_LINK:
-        AddToHints(CshHint(HintPrefixNonSelectable()+"http://", 
+        string prefix = hintedStringPos.first_pos==hintedStringPos.last_pos ?
+            HintPrefix(COLOR_ATTRVALUE) : HintPrefixNonSelectable();
+        AddToHints(CshHint(prefix+"http://", 
             "You can enter a valid URL here.",
             EHintType::ATTR_VALUE, false));
-        AddToHints(CshHint(HintPrefixNonSelectable()+"\\ref ", 
+        AddToHints(CshHint(prefix+"\\\\ref ",
             "Use this to refer to documented items, when the chart is a part of Doxygen documentation.",
             EHintType::ATTR_VALUE, false));
         break;
@@ -2160,7 +2162,7 @@ void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &
                 if ((i->plain[1]=='p' || i->plain[1]=='m')) {
                     //if uc holds the same character as this entry, we delete the group version, else 
                     //individual versions
-                    if ((uc[1]==i->plain[1]) == (i->plain[2]=='*')) {
+                    if (uc[0] && (uc[1]==i->plain[1]) == (i->plain[2]=='*')) {
                         Hints.erase(i++);
                         continue;
                     }
