@@ -334,7 +334,9 @@ public:
     const string                     name;                ///<The name of the Entity
     triplet<bool,string,FileLineCol> label;               ///<The label specified at this mention of the entity (if any). `third` contains the position of the attribute (name).
     FileLineCol                      linenum_label_value; ///<Locatin of label text (attribute value) in the input file (if any). Only a minor difference to `label.third`.
-    triplet<bool,double,FileLineCol> pos;                 ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
+    string                           url;                 ///<The value of the url attribute (if any).
+    FileLineCol                      linenum_url_attr;    ///<Locatin of url attribute (if any).
+    triplet<bool, double, FileLineCol> pos;               ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     triplet<bool,string,FileLineCol> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     triplet<bool,bool,FileLineCol>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     std::pair<bool,bool>             show;                ///<The `show=` attribute if specified by the user.
@@ -371,6 +373,8 @@ public:
     void AddAreaImportantWhenNotShowing();
     void ShiftBy(double y) {Element::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     virtual void PostPosProcess(Canvas &);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     void Draw(Canvas &);
 };
 

@@ -72,7 +72,7 @@ public:
         return !operator<(a);
     }
     FileLineCol NextChar() const {return FileLineCol(file, line, col+1);}
-    std::string Print();
+    std::string Print() const;
 };
 
 /** A structure to describe a range within a file.*/

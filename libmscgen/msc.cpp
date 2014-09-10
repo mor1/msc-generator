@@ -2985,16 +2985,42 @@ bool Msc::DrawToFile(Canvas::EOutputType ot, const XY &scale,
     const unsigned till = pageBreakData.size()<=1 || ignore_pagebreaks ? 0 : pageBreakData.size();
     if (pageSize.x<=0 || pageSize.y<0) 
         for (unsigned page=from; page<=till; page++) {
-            Canvas canvas(ot, total, copyrightTextHeight, fn, scale, &pageBreakData, page);
-            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
-            DrawComplete(canvas, bPageBreak, page);
+            if (ot==Canvas::ISMAP) {
+                string fileName = fn;
+                if (page>0) {  //append page number if not all pages written
+                    char num[3] = "00";
+                    num[0] = char('0'+page/10);
+                    num[1] = char('0'+page%10);
+                    fileName.insert(fn.find_last_of('.'), num);
+                }
+                FILE *fout = fopen(fn.c_str(), "wt");
+                if (fout==NULL) {
+                    Error.FatalError(FileLineCol(0, 0), "Could not open output file '" + fn + "'."); 
+                    return false;
+                }
+                Canvas canvas(ot);
+                CollectIsMapElementsArcList(Arcs, canvas);
+                for (auto &e : ismapData) {
+                    if (page>0 && pageBreakData[page-1].y <= e.rect.x.from &&
+                        pageBreakData[page].y > e.rect.x.from) 
+                        e.rect.Shift(XY(0, -pageBreakData[page-1].y));
+                    const string s = e.Print();
+                    fprintf(fout, "%s\n", s.c_str());
+                }
+                fclose(fout);
+            } else {
+                Canvas canvas(ot, total, copyrightTextHeight, fn, scale, &pageBreakData, page);
+                if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
+                DrawComplete(canvas, bPageBreak, page);
+            }
         }
     else {
+        _ASSERT(ot!=Canvas::ISMAP);
         Canvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &pageBreakData);
         if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
-        for (unsigned page=from; page<=till; page++) {
+        for (unsigned page = from; page<=till; page++) {
             DrawComplete(canvas, bPageBreak, page);
-            if (page<till) 
+            if (page<till)
                 if (!canvas.TurnPage(&pageBreakData, page+1, generateErrors ? &Error : NULL))
                     return false;
         }

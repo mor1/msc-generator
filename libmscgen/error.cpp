@@ -23,7 +23,7 @@
 #include <algorithm>
 #include "msc.h"
 
-std::string FileLineCol::Print()
+std::string FileLineCol::Print() const 
 {
     std::string ret("\\" ESCAPE_STRING_LOCATION "(");
     ret << file << "," << line << "," << col << ")";

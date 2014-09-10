@@ -187,15 +187,15 @@ class StringFormat {
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad 
      * formatting one or one that includes style/color name, stop, 
-     * _remove the processed escapes_ and return.
-     * @param [in] text The text to parse.
-     * @return The number of characters processed.*/
-    size_t Apply(string &text);
+     * _remove the processed escapes_ and return. Link escapes are kept.
+     * @param [in] text The text to parse.*/
+    void Apply(string &text);
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
-     * one that includes style/color name, stop and return.
+     * one that includes style/color name, stop and return. Link escapes are consumed
+     * (with no effect) and do not cause processing to stop.
      * @param [in] s The text to parse.
-     * @return The number of characters processed.*/
+     * @return The number of characters processed, incl link escapes.*/
     size_t Apply(const char *s);
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
@@ -222,6 +222,7 @@ class StringFormat {
     /** @name Static text manipulation functions
      * @{ */
     static bool HasEscapes(const char *text);
+    static bool HasLinkEscapes(const char *text);
     static EEscapeHintType ExtractCSH(int startpos, const char *text, const size_t len, Csh &csh);
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
     static void ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
@@ -246,6 +247,16 @@ class StringFormat {
     /** @}*/
 };
 
+/** A structure containing a rect and a link target*/
+struct ISMapElement
+{
+    Block rect;
+    std::string target;
+    string Print() const;
+};
+
+typedef std::list<ISMapElement> ISMap;
+
 /** An object that stores a line of text (no '\n' inside) */
 class ParsedLine {
     friend class Label;
@@ -264,6 +275,15 @@ public:
     ParsedLine(const string&, Canvas &, StringFormat &sf, bool h);
     /** Converts the line to an escape-free string*/
     operator std::string() const;
+    /** Creates one ISMapElement for each link.
+     * @param [in] xy Where the text shall be placed, top left corner of the text.
+     * @param canvas The canvas to draw on.
+     * @param [out] ismap Place generated elements into this collection.
+     * @param target_at_front If the previous line ended with a link open
+     *        (newline in the middle of a link), this is the target of that
+     *        link. If this line (also) ends with a (the same) link open,
+     *        we return the target of that.*/
+    void CollectIsMapElements(XY xy, Canvas &canvas, ISMap &ismap, string &target_at_front) const;
     /** Draws the line to a canvas.
      * @param [in] xy Where the text shall be placed, y is the height of the baseline.
      * @param canvas The canvas to draw on.
@@ -283,7 +303,7 @@ class Label : public std::vector<ParsedLine>
 protected:
     double first_line_extra_spacing; ///<Extra spacing to add after first line (for arrow width). Must survive a reflow.
     /** Helper to determine cover & to draw*/
-    void CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
+    void CoverOrDrawOrISMap(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area, ISMap *ismap) const;
 public:
     using std::vector<ParsedLine>::size;
     /** Creates a Label from a string.
@@ -328,6 +348,31 @@ public:
     double getSpaceRequired(double def = 0, int line = -1) const;
     /** Returns true if word wrapping is enabled for this label */
     bool IsWordWrap() const {if (size()==0) return false; return at(0).startFormat.word_wrap.first && at(0).startFormat.word_wrap.second;} 
+    /** Creates one ISMapElement for each link.
+     * @param [out] ismap Place generated elements into this collection.
+     * @param canvas The canvas to calculate geometry on.
+     * @param [in] sx The left margin.
+     * @param [in] dx The right margin.
+     * @param [in] y The top of the label.
+     * @param [in] cx If also specified, we center around it for centered lines,
+     *                but taking care not to go ouside the margings.
+     *                If the line is wider than `dx-sx` we will go outside
+     *                as little as possible (thus we center around `(sx+dx)/2`.*/
+    void CollectIsMapElements(ISMap &ismap, Canvas &canvas, double sx, double dx, double y, double cx = -CONTOUR_INFINITY) const { CoverOrDrawOrISMap(&canvas, sx, dx, y, cx, false, NULL, &ismap); }
+    /** Creates one ISMapElement for each link for slanted labels.
+     * if angle is nonzero, sx, dx, cx and y are interpreted in the rotated space.
+     * @param [out] ismap Place generated elements into this collection.
+     * @param canvas The canvas to calculate geometry on.
+     * @param [in] sx The left margin.
+     * @param [in] dx The right margin.
+     * @param [in] y The top of the label.
+     * @param [in] cx If also specified, we center around it for centered lines,
+     *                but taking care not to go ouside the margings.
+     *                If the line is wider than `dx-sx` we will go outside
+     *                as little as possible (thus we center around `(sx+dx)/2`.
+     * @param [in] c The center of rotation in case of a slanted arrow label.
+     * @param [in] angle The degrees of rotation in case of a slanted arrow label.*/
+    void CollectIsMapElements(ISMap &ismap, Canvas &canvas, double sx, double dx, double y, double cx, const XY &c, double angle) const;
     /** Return the cover for the label.
      * We lay out the label between `sx` and `dx` according to the ident of each line.
      * Each fragment is modelled as a rectangle.
@@ -339,7 +384,7 @@ public:
      *                If the line is wider than `dx-sx` we will go outside
      *                as little as possible (thus we center around `(sx+dx)/2`.
      * @returns The cover of the label.*/
-    Contour Cover(double sx, double dx, double y, double cx=-CONTOUR_INFINITY) const {Contour a; CoverOrDraw(NULL, sx, dx, y, cx, false, &a); return a;}
+    Contour Cover(double sx, double dx, double y, double cx=-CONTOUR_INFINITY) const {Contour a; CoverOrDrawOrISMap(NULL, sx, dx, y, cx, false, &a, NULL); return a;}
     /** Draw the label onto a canvas 
      * We lay out the label between `sx` and `dx` according to the ident of each line.
      * Each fragment is modelled as a rectangle.
@@ -353,7 +398,26 @@ public:
      *                as little as possible (thus we center around `(sx+dx)/2`.
      * @param [in] isRotated If true then the canvas will fall back to text_path
      *                       for surfaces that do not support rotated text (WMF)*/
-    void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
+    void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDrawOrISMap(&canvas, sx, dx, y, cx, isRotated, NULL, NULL);}
+    /** Creates one ISMapElement for each link for 90 degree rotated labels.
+     * We lay out the label between `s` and `d` according to the ident of each line.
+     * Each fragment is modelled as a rectangle.
+     * If the label is vertical, s, d and c are Y coordinates and t is X coordinate.
+     * If the label is horizontal, vice versa.
+     * @param [out] ismap Place generated elements into this collection.
+     * @param canvas The canvas to calculate geometry on.
+     * @param [in] s The left edge of the text (as the text reads)
+     *               In the result this is the Left/Top/Bottom edge of text for side==END/LEFT/RIGHT.
+     * @param [in] d The right edge of the text (as the text reads)
+     *               In the result this is the Right/Bottom/Top edge of text for side==END/LEFT/RIGHT
+     * @param [in] t The top edge of the text (as the text reads)
+     *               In the result this is the Top/Right/Left edge of text for side==END/LEFT/RIGHT.
+     * @param [in] side from which direction is the text read. For END it will be laid out horizontally.
+     * @param [in] c If also specified, we center around it for centered lines,
+     *                but taking care not to go ouside the margings.
+     *                If the line is wider than `d-s` we will go outside
+     *                as little as possible (thus we center around `(s+d)/2`.*/
+    void CollectIsMapElements(ISMap &ismap, Canvas &canvas, double s, double d, double t, ESide side, double c = -CONTOUR_INFINITY) const;
     /** Return the cover for the a label that can be 90 degree rotated or not.
     * We lay out the label between `s` and `d` according to the ident of each line.
     * Each fragment is modelled as a rectangle.

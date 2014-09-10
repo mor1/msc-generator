@@ -357,6 +357,8 @@ struct Range {
     Range & RoundWider()  {from = floor(from); till=ceil(till); return *this;}         ///< Round ends outward (`from` downward, `till` upward)
     Range & RoundCloser() {from = ceil(from); till=floor(till); return *this;}         ///< Round ends inward (`from` upward, `till` downward)
 
+    Range operator -() const { return Range(-till, -from); }  ///<Unary negation, make both ends negative - but maintain correct ordering from<till
+
     double Distance(double a) const {_ASSERT(!IsInvalid()); return minabs(from-a,a-till);}  ///< Returns the distance between a range and a point. Negative result if point is inside the range.
     EContourRelationType RelationTo(const Range &c) const {
         if (IsInvalid()) return c.IsInvalid() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
@@ -447,6 +449,9 @@ struct Block {
     Block & RoundDown()   {x.RoundDown(); y.RoundDown(); return *this;}      ///< Round all corners downward (towards smaller integers)
     Block & RoundWider()  {x.RoundWider(); y.RoundWider(); return *this;}    ///< Round corners outward.
     Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}  ///< Round corners inward.
+
+    Block &Rotate90CW() { if (IsInvalid()) return *this; Range t = -x; x = y; y = t; return *this; }
+    Block &Rotate90CCW() { if (IsInvalid()) return *this; Range t = -y; y = x; x = t; return *this; }
 
     double Distance(const XY &xy) const;
     double Distance(const Block &b) const;

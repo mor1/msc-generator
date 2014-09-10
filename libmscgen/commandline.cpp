@@ -685,14 +685,7 @@ int do_main(const std::list<std::string> &args,
     }
     if (msc.Error.hasFatal()) goto fatal;
 
-    if (oOutType == Canvas::ISMAP) {
-        //Generate an empty *.map file
-        FILE *out = oOutputFile.length() ? fopen(oOutputFile.c_str(), "w") : stdout;
-        if (out && oOutputFile.length()) {
-            fclose(out);
-        } else if (oOutputFile.length())
-            msc.Error.FatalError(opt_pos, "Failed to open output file '" + oOutputFile +"'.");
-    } else if (oCshize) {
+    if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
         Csh csh(ArcBase::defaultDesign, &msc.Shapes, NULL);
@@ -723,7 +716,7 @@ int do_main(const std::list<std::string> &args,
                 msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
         }
     } else {
-        //Here either we have a valid graphics output format (not ISMAP) or we have oLmap==true
+        //Here either we have a valid graphics output format (or ISMAP) or we have oLmap==true
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
         XY pageSize(0,0);
@@ -781,6 +774,8 @@ int do_main(const std::list<std::string> &args,
             PageSizeInfo::GetPhysicalPageSize(oPageSize), margins,
             msc.GetCopyrightTextHeight(), &msc.pageBreakData);
         if (oLmap) {
+            //Register all the labels
+            msc.RegisterLabelArcList(msc.Arcs);
             FILE *fout = fopen(oOutputFile.c_str(), "wt");
             msc.labelData.sort([](const LabelInfo &a, const LabelInfo &b) {return a.coord.y.from<b.coord.y.from; });
             for (const auto &l : msc.labelData) {

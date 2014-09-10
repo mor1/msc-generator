@@ -727,6 +727,20 @@ void CommandEntity::PostPosProcess(Canvas &canvas)
     }
 }
 
+void CommandEntity::RegisterLabels()
+{
+    if (valid)
+        for (auto pEntity : entities)
+            pEntity->RegisterLabels();
+}
+
+void CommandEntity::CollectIsMapElements(Canvas &canvas)
+{
+    if (valid)
+        for (auto pEntity : entities)
+            pEntity->CollectIsMapElements(canvas);
+}
+
 void CommandEntity::RegisterCover(EDrawPassType pass)
 {
     if (!valid) return;
@@ -1807,10 +1821,25 @@ void CommandSymbol::PostPosProcess(Canvas &canvas)
     ArcLabelled::PostPosProcess(canvas);
     const XY twh = parsed_label.getTextWidthHeight();
     const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
-    chart->RegisterLabel(parsed_label, LabelInfo::SYMBOL,
-        b.x.from, b.x.till, b.y.from);
     chart->HideEntityLines(parsed_label.Cover(b.x.from, b.x.till, b.y.from));
 }
+
+void CommandSymbol::RegisterLabels()
+{
+    const XY twh = parsed_label.getTextWidthHeight();
+    const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
+    chart->RegisterLabel(parsed_label, LabelInfo::SYMBOL,
+        b.x.from, b.x.till, b.y.from);
+}
+
+void CommandSymbol::CollectIsMapElements(Canvas &canvas)
+{
+    const XY twh = parsed_label.getTextWidthHeight();
+    const Block b(outer_edge.Centroid()-twh/2, outer_edge.Centroid()+twh/2);
+    parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+        b.x.from, b.x.till, b.y.from);
+}
+
 
 void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
 {
@@ -2949,7 +2978,7 @@ void CommandNote::ShiftCommentBy(double y)
 }
 
 
-void CommandNote::PostPosProcess(Canvas &)
+void CommandNote::RegisterLabels()
 {
     if (is_float) {
         const double w2 = halfsize.x - style.read().line.LineWidth();
@@ -2972,6 +3001,40 @@ void CommandNote::PostPosProcess(Canvas &)
         break;
     case ESide::END:
         chart->RegisterLabel(parsed_label, LabelInfo::COMMENT,
+            chart->sideNoteGap,
+            chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
+            yPos);
+        break;
+    case ESide::INVALID:
+        _ASSERT(0);
+        break;
+    }
+}
+
+
+void CommandNote::CollectIsMapElements(Canvas &canvas)
+{
+    if (is_float) {
+        const double w2 = halfsize.x - style.read().line.LineWidth();
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            pos_center.x-w2, pos_center.x+w2,
+            pos_center.y-halfsize.y+style.read().line.LineWidth());
+
+    } else switch (style.read().side.second) {
+    case ESide::LEFT:
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            chart->sideNoteGap,
+            chart->XCoord(chart->LNote->pos)-chart->sideNoteGap,
+            yPos);
+        break;
+    case ESide::RIGHT:
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
+            chart->XCoord(chart->RNote->pos) + chart->sideNoteGap,
+            chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
+            yPos);
+        break;
+    case ESide::END:
+        parsed_label.CollectIsMapElements(chart->ismapData, canvas,
             chart->sideNoteGap,
             chart->XCoord(chart->EndEntity->pos) - chart->sideNoteGap,
             yPos);

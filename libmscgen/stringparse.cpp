@@ -72,7 +72,7 @@ void StringFormat::Empty()
     normalFontSize.first = false;
     smallFontSize.first = false;
     word_wrap.first = false;
-    link_format.first = true;
+    link_format.first = false;
 }
 
 bool StringFormat::IsComplete() const
@@ -757,9 +757,25 @@ bool StringFormat::HasEscapes(const char *text)
     size_t pos=0;
     while (pos<len) {
         size_t length;
-        const EEscapeType t = sf.ProcessEscape(text, length);
+        const EEscapeType t = sf.ProcessEscape(text+pos, length);
         if (t!=NON_ESCAPE && t!=SOLO_ESCAPE) return true;
         pos+=length;
+    }
+    return false;
+}
+
+/** Tells if the string has link escape character ('\L') or not*/
+bool StringFormat::HasLinkEscapes(const char *text)
+{
+    if (text==NULL || text[0]==0) return false;
+    StringFormat sf;
+    const size_t len = strlen(text);
+    size_t pos = 0;
+    while (pos<len) {
+        size_t length;
+        const EEscapeType t = sf.ProcessEscape(text+pos, length);
+        if (t==LINK_ESCAPE || t==LINK2_ESCAPE) return true;
+        pos += length;
     }
     return false;
 }
@@ -817,7 +833,7 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
             else
                 csh.AddCSH(loc, COLOR_LABEL_ESCAPE);
-            if (csh.CursorIn(loc)>=CURSOR_AT_BEGINNING) {
+            if (csh.CursorIn(loc)==CURSOR_IN) {
                 //Assume cursor does not stand in a parameter
                 //->we hint the whole escepa
                 ret = HINTE_ESCAPE;
@@ -897,7 +913,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
     while(text.length()>pos && text[pos]) {
         size_t length;
         const FileLineCol beginning_of_escape = linenum;
-        switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
+        switch (sf.ProcessEscape(text.c_str()+pos, length, true, true, &replaceto, 
                                  basic, msc, references, &linenum, ignore)) {
         case FORMATTING_OK: //do nothing, just reflect 
         case REFERENCE:     //a valid \r(xxx) escape. If we "references" is true we have the number
@@ -1043,17 +1059,35 @@ size_t StringFormat::Apply(const char *text)
     const size_t len = strlen(text);
 	StringFormat basic(*this);
     while (pos < len) {
-        if (FORMATTING_OK != ProcessEscape(text+pos, length, true, true, NULL, &basic)) break;
-        pos += length;
+        const EEscapeType t =
+            ProcessEscape(text+pos, length, true, true, NULL, &basic);
+        if (t == FORMATTING_OK || t == LINK_ESCAPE || t== LINK2_ESCAPE)
+            pos += length;
+        else
+            break;
     }
     return pos;
 }
 
-size_t StringFormat::Apply(string &text)
+void StringFormat::Apply(string &text)
 {
-    size_t len = Apply(text.c_str());
-    text.erase(0, len);
-    return len;
+    size_t start = 0;
+    StringFormat basic(*this);
+    while (start < text.length()) {
+        EEscapeType t;
+        size_t pos = 0;
+        size_t length;
+        while (start+pos<text.length()) {
+            t = ProcessEscape(text.c_str()+start+pos, length, true, true, NULL, &basic);
+            if (t!=FORMATTING_OK) break;
+            pos += length;
+        }
+        text.erase(start, pos);
+        if (t != LINK_ESCAPE && t != LINK2_ESCAPE)
+            break;
+        else
+            start += length;
+    }
 }
 
 
@@ -1439,7 +1473,7 @@ bool DrawTextForHint(Canvas *canvas, const std::string &text1, const std::string
     sf.Default();
     string ss("\\pl\\mn(");
     ss << (int)(HINT_GRAPHIC_SIZE_Y*0.8) << ")";
-    sf.Apply(ss);
+    sf.Apply(ss.c_str());
     canvas->Clip(0, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y);
     Label label1(text1, *canvas, sf);
     Label label2(text1+text2, *canvas, sf);
@@ -1528,6 +1562,7 @@ bool CshHintGraphicCallbackForEscapes(Canvas *canvas, CshHintGraphicParam p, Csh
         return DrawLiteral(canvas, ";");
     case 22: // \\"
         return DrawLiteral(canvas, "\"");
+    case 47: // \L()
     case 23: // \r()
         return DrawLiteral(canvas, "Ref");
     case 24: // \f()
@@ -1618,6 +1653,7 @@ void StringFormat::EscapeHints(Csh &csh, const string &prefix)
 /*45*/  "\\\\9", "Create nine pixels of line spacing below this line.",
 /*46*/  "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
                "The escapes before this one will determine the default format of the label, used by empty '\\s()', '\\c()', etc. escapes to restore default style, color and so on.",
+/*47*/  "\\\\L()", "Use this escape to mark the beginning and end of a link. At the beginning, specify the link target (e.g., URL) in between the parentheses.",
     ""};
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_LABEL_ESCAPE)+prefix, EHintType::ESCAPE,
         CshHintGraphicCallbackForEscapes, true);
@@ -1719,8 +1755,10 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
 	StringFormat sf;
 	size_t pos= 0;
 	size_t length;
+    //skip over initial formatting & links
 	while (pos < label.length() && label[pos]) {
-        if (FORMATTING_OK != sf.ProcessEscape(label.c_str()+pos, length)) break;
+        const EEscapeType t = sf.ProcessEscape(label.c_str()+pos, length);
+        if (FORMATTING_OK != t && LINK2_ESCAPE != t && LINK_ESCAPE != t) break;
         pos += length;
     }
     bool number_added = false;
@@ -1892,13 +1930,26 @@ double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool i
 
 //////////////////////////////////////////////////////////////
 
+/** Creates one element of an NCSA formatted ISMAP file */
+string ISMapElement::Print() const
+{
+    string ret("RECT ");
+    ret << target << " ";
+    ret << round(rect.x.from) << "," << round(rect.y.from) << " ";
+    ret << round(rect.x.till) << "," << round(rect.y.till);
+    return ret;
+}
+
+
 ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, bool h) :
     line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0), hard_new_line(h)
 {
     //Remove heading and trailing whitespace.
     while (line.size() && *line.begin() == ' ') line.erase(0,1);
     while (line.size() && *line.rbegin() == ' ') line.erase(line.size()-1,1);
-    format.Apply(line); //eats away initial formatting, ensures we do not start with escape
+    format.Apply(line); //eats away initial formatting, so that we do not process them every time
+    //but we keep link escapes among the initial formatting escapes.
+    //'line' may start with escapes, like a link escape or non-formatting ones.
     startFormat = format;
     size_t pos = 0;
     size_t length;
@@ -1912,17 +1963,16 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
                 format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
             //we avoid changing format!
             _ASSERT(StringFormat::LINK_ESCAPE != res);
-            if (StringFormat::FORMATTING_OK == res) break;
-            if (StringFormat::LINK_ESCAPE == res ||
+            if (StringFormat::FORMATTING_OK == res ||
+                StringFormat::LINK_ESCAPE == res ||
                 StringFormat::LINK2_ESCAPE == res)
-                //in case LINK_ESCAPE and LINK2_ESCAPE replaceto contains just the URL, not the whole escape
-                fragment.append("\\" ESCAPE_STRING_NON_FORMATTING_LINK "(").append(replaceto).append(")");
-            else
-                fragment.append(replaceto);
+                break;
+            fragment.append(replaceto);
             pos += length;
         }
+        //fragment can be empty due to labels beginning with link escapes
         //store fragment data
-        width += format.ge tFragmentWidth(fragment, canvas); //XX solve that fragment width do not contain \L escapes
+        width += format.getFragmentWidth(fragment, canvas); 
         heightAboveBaseLine =
             std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
         heightBelowBaseLine =
@@ -1972,6 +2022,73 @@ ParsedLine::operator std::string() const
             pos += format.Apply(line.c_str()+pos);
     }
     return ret;
+}
+
+void ParsedLine::CollectIsMapElements(XY xy, Canvas &canvas, ISMap &ismap,
+                                      string &target_at_front) const
+{
+    StringFormat format(startFormat);
+    size_t pos = 0;
+    size_t length;
+    string replaceto;
+    string fragment;
+
+    ISMapElement elem;
+    if (target_at_front.length()) {
+        elem.target = target_at_front;
+        elem.rect.x.from = xy.x;
+        elem.rect.y.from = xy.y;
+        target_at_front.clear();
+    }
+
+    xy.y += heightAboveBaseLine;
+
+    while (line.length()>pos && line[pos]) {
+        fragment.clear();
+        //collect characters up until we hit a vaild formatting escape (or string end)
+        while (line.length()>pos) {
+            const StringFormat::EEscapeType res =
+                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
+            //we avoid changing format!
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::FORMATTING_OK == res) break;
+            if (StringFormat::LINK_ESCAPE == res ||
+                StringFormat::LINK2_ESCAPE == res) {
+                if (fragment.length()) {
+                    xy.x += format.getFragmentWidth(fragment, canvas);
+                    fragment.clear();
+                }
+                if (elem.target.length()) {
+                    //If a second \L is non-empty -> we ignore parameter (so here we ignore 'replaceto')
+                    elem.rect.x.till = xy.x;
+                    elem.rect.y.till = xy.y + heightBelowBaseLine;
+                    ismap.push_back(std::move(elem));
+                    elem.target.clear();
+                } else {
+                    if (replaceto.length()) {
+                        elem.target = replaceto;
+                        elem.rect.x.from = xy.x;
+                        elem.rect.y.from = xy.y - heightAboveBaseLine;
+                    }
+                    //just do nothing if we encounter a first empty '\L'. Such escape is to ignore.
+                }
+            } else
+                //do not draw link escapes
+                fragment.append(replaceto);
+            pos += length;
+        }
+        xy.x += format.getFragmentWidth(fragment, canvas);
+        //Apply the formatting escapes as they come
+        if (line.length()>pos)
+            pos += format.Apply(line.c_str()+pos);
+    }
+    //flush any remaining opened links.
+    if (elem.target.length()) {
+        target_at_front = elem.target;
+        elem.rect.x.till = xy.x;
+        elem.rect.y.till = xy.y + heightBelowBaseLine;
+        ismap.push_back(std::move(elem));
+    }
 }
 
 void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
@@ -2222,10 +2339,11 @@ double Label::getSpaceRequired(double def, int line) const
 
 
 
-void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const
+void Label::CoverOrDrawOrISMap(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area, ISMap *ismap) const
 {
     if (size()==0) return;
     XY xy;
+    string target_at_front;
     xy.y = y + at(0).startFormat.textVGapAbove.second;
     for (size_t i = 0; i<size(); i++) {
         const XY wh = at(i).getWidthHeight();
@@ -2254,6 +2372,8 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
         //Draw line of text
         if (area)
             *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
+        else if (ismap && canvas)
+            at(i).CollectIsMapElements(xy, *canvas, *ismap, target_at_front);
         else if (canvas)
             at(i).Draw(xy, *canvas, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
@@ -2263,6 +2383,42 @@ void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double c
     }
 }
 
+void Label::CollectIsMapElements(ISMap &ismap, Canvas &canvas, double sx, double dx, 
+                                 double y, double cx, const XY &c, double angle) const
+{ 
+    ISMap tmp_ismap;
+    CollectIsMapElements(tmp_ismap, canvas, sx, dx, y, cx);
+    for (auto &e: tmp_ismap) {
+        e.rect = Contour(e.rect).RotateAround(c, angle).GetBoundingBox();
+        ismap.push_back(std::move(e));
+    }
+}
+
+
+void Label::CollectIsMapElements(ISMap &ismap, Canvas &canvas, 
+                                 double s, double d, double t, ESide side, double c) const
+{ 
+    if (side==ESide::LEFT)
+        t -= getTextWidthHeight().y;
+    ISMap tmp_ismap;
+    CollectIsMapElements(tmp_ismap, canvas, s, d, t, c);
+    for (auto &e: tmp_ismap) {
+        switch (side) {
+        case ESide::LEFT:
+            e.rect.Rotate90CW();
+            e.rect.Shift(XY(2*t+getTextWidthHeight().y, 0));
+            break;
+        case ESide::RIGHT:
+            e.rect.Rotate90CCW();
+            e.rect.Shift(XY(0, s+d));
+        break;
+        default:
+            break;
+        }
+        ismap.push_back(std::move(e));
+    }
+}
+                         
 Contour Label::Cover(double s, double d, double t, ESide side, double c) const
 {
     if (side==ESide::LEFT)

@@ -85,6 +85,8 @@ public:
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/);
     virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void RegisterCover(EDrawPassType pass);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
@@ -311,6 +313,8 @@ public:
                                        {return outer_edge.y.IsInvalid() ? -2 : -1;}
     virtual void PlaceWithMarkers(Canvas &cover);
     virtual void PostPosProcess(Canvas &canvas);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -404,7 +408,8 @@ public:
     void PlaceSideTo(Canvas &canvas, AreaList *cover, double &y);
     //@}
 
-    virtual void PostPosProcess(Canvas &cover);
+    virtual void RegisterLabels();
+    virtual void CollectIsMapElements(Canvas &canvas);
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
@@ -431,6 +436,8 @@ public:
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/)
                                              {_ASSERT(0); return -1;}
+    virtual void RegisterLabels() { _ASSERT(0); } //should not happen
+    virtual void CollectIsMapElements(Canvas &) { _ASSERT(0); } //should not happen
     virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) { _ASSERT(0); } //should not happen
 };
 

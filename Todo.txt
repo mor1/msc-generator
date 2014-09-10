@@ -38,7 +38,10 @@ ADD: Vertical comment alignment
 
 In 4.4
 FIXED: Print preview export exports in PNG
-ADD: ismaps
+ADDED: ismaps
+DOC: \L escapes, text.link_format attribute, url attribute, -T ismap target
+DOC: tag labels can have links, lmap does not include tag labels
+ADD: Clickable links...
 CHANGE: parallel layout (incl attributes)
 
 In 4.3.6 
