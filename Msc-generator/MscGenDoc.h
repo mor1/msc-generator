@@ -224,7 +224,7 @@ public:
     void StartTrackFallbackImageLocations(const Contour &);
     void StartFadingAll(AnimationElement::ElementType type=AnimationElement::TRACKRECT, const Element *except=NULL); //Start the fading process for all rectangles (even for delay<0, except one)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
-	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
+    const ISMapElement *UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const Element *arc);      //Select in internal editor
     bool OnControlClicked(Element *arc, EGUIControlType t); //Do what is needed if a control is clicked. Ture if chart invalidated.
     void OnChangeRibbonCategory(bool embedded);

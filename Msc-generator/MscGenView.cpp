@@ -50,6 +50,7 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_SIZE()
 	ON_WM_ERASEBKGND()
 	ON_WM_KEYUP()
+    ON_WM_SETCURSOR()
 	// Standard printing commands
 	ON_COMMAND(ID_FILE_PRINT, &CScrollView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CScrollView::OnFilePrint)
@@ -66,6 +67,8 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_LBUTTONDOWN()
     ON_COMMAND(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnViewShowElementControls)
     ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnUpdateViewShowElementControls)
+    ON_NOTIFY_EX_RANGE(TTN_NEEDTEXTW, 0, 0xFFFF, OnToolTipText)
+    ON_NOTIFY_EX_RANGE(TTN_NEEDTEXTA, 0, 0xFFFF, OnToolTipText)
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -726,6 +729,38 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 	CScrollView::OnMouseMove(nFlags, point);
 } 
 
+/**Handeles TTN_NEEDTEXTW and TTN_NEEDTEXTA events and returns the tooltip text.*/
+BOOL CMscGenView::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
+{
+    //Convert to return format
+    TOOLTIPTEXTA* pTTTA = (TOOLTIPTEXTA*)pNMHDR;
+    TOOLTIPTEXTW* pTTTW = (TOOLTIPTEXTW*)pNMHDR;
+#ifndef _UNICODE
+    if (pNMHDR->code == TTN_NEEDTEXTA)
+        lstrcpyn(pTTTA->szText, m_last_link, 80);
+    else
+        _mbstowcsz(pTTTW->szText, m_last_link, 80);
+#else
+    if (pNMHDR->code == TTN_NEEDTEXTA)
+        _wcstombsz(pTTTA->szText, m_last_link, 80);
+    else
+        lstrcpyn(pTTTW->szText, m_last_link, 80);
+#endif
+    *pResult = 0;
+
+    return TRUE;
+}
+
+BOOL CMscGenView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+    if (m_last_target.GetLength()) 
+        SetCursor(LoadCursor(NULL, IDC_HAND));
+    else
+        SetCursor(LoadCursor(NULL, IDC_ARROW));
+    return 0;
+}
+
+
 /** Called by the framework if the mouse hoovered over our client area.
  * We dispatch this to CMscGenDoc::UpdateTrackRects()*/
 void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
@@ -738,15 +773,74 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//take zooming into account.
-	point.x = int(point.x*100./pDoc->m_zoom + m_chartOrigin.x);
-	point.y = int(point.y*100./pDoc->m_zoom + m_chartOrigin.y);
-	pDoc->UpdateTrackRects(point);
+    CPoint chart_point;
+    chart_point.x = int(point.x*100./pDoc->m_zoom + m_chartOrigin.x);
+    chart_point.y = int(point.y*100./pDoc->m_zoom + m_chartOrigin.y);
+    const ISMapElement * e = pDoc->UpdateTrackRects(chart_point);
+    if (e || m_last_target.GetLength()) {
+        //Now adjust text of tool tip
+        if (!m_link_tooltip.m_hWnd) {
+            //Create window if needed (once per view)
+            m_link_tooltip.Create(this);
+            CMFCToolTipInfo* params = new CMFCToolTipInfo();
+            params->m_bBoldLabel = TRUE;
+            params->m_bDrawDescription = TRUE;
+            params->m_bDrawIcon = FALSE;
+            params->m_bRoundedCorners = TRUE;
+            params->m_bDrawSeparator = TRUE;
+            params->m_clrFill = RGB(255, 255, 255);
+            params->m_clrFillGradient = RGB(228, 228, 240);
+            params->m_clrText = RGB(61, 83, 80);
+            params->m_clrBorder = RGB(144, 149, 168);
+            m_link_tooltip.SetParams(params);
+        }
+        TOOLINFO ti;
+        m_link_tooltip.FillInToolInfo(ti, this, 1);
+        ti.uFlags |= TTF_TRACK | TTF_CENTERTIP;
+        ti.lpszText = LPSTR_TEXTCALLBACK;
+        if (e) {
+            const bool doo = m_last_target != e->target.c_str();
+            if (doo) {
+                XXX better test if this is a proper URL(we will pass it to shell !!!)
+                if (e->target[0]=='@' || e->target[0]=='\\')
+                    m_last_link = "Doxygen reference";
+                else
+                    m_last_link = "Ctrl+Click to open in browser.";
+                m_last_target = e->target.c_str();
+                Block rect = e->rect;
+                rect.Shift(-m_chartOrigin);
+                rect.Scale(pDoc->m_zoom/100.);
+                ti.rect.top = int(rect.y.from);
+                ti.rect.left = int(rect.x.from);
+                ti.rect.bottom = int(rect.y.till);
+                ti.rect.right = int(rect.x.till);
+                m_link_tooltip.SendMessage(TTM_ADDTOOL, 0, (LPARAM)&ti);
+                m_link_tooltip.SetToolInfo(&ti);
+                m_link_tooltip.SetDescription(e->target.c_str());
+                m_link_tooltip.SetFixedWidth(150, 250);
+            }
+            ClientToScreen(&point);
+            if (doo) {//|| m_last_link_point != point) {
+                m_last_link_point = point;
+                m_link_tooltip.SendMessage(TTM_TRACKPOSITION, 0, MAKELPARAM(point.x, point.y));
+                m_link_tooltip.SendMessage(TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+                ::SetWindowPos(m_link_tooltip.m_hWnd, HWND_TOPMOST, 0, 0, 0, 0,
+                    SWP_NOACTIVATE|SWP_NOSIZE|SWP_NOMOVE|SWP_NOOWNERZORDER);
+            }
+        } else if (m_last_target) {
+            m_last_target.Empty();
+            m_last_link.Empty();
+            m_link_tooltip.SendMessage(TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+        }
+    }
 }
 
 /** Called by the framework when the left mouse button is released.
  * This is either the end of a panning session and we need to release
  * mouse capture, or just a left click. In the latter case
- * we check if the click is in a control and call CMscGenDoc::OnControlClicked() 
+ * we first check if we hoover over a link and ctrl is pressed
+ * (then we open a browser session) or 
+ * if the click is in a control and call CMscGenDoc::OnControlClicked() 
  * if so. If not, we flash the element we have clicked.*/
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 {
@@ -762,6 +856,14 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
         //if no drag this is effectively just a left click.
 	}
     if (pDoc->m_pCompilingThread) return; //skip if compiling
+
+    //if Ctrl & we are hoovering above a link, open that in a browser
+    if (m_last_target.GetLength() && 
+        m_last_link[0]=='C' &&
+        (MK_CONTROL & nFlags)) {
+        ::ShellExecute(NULL, NULL, m_last_target, NULL, NULL, SW_SHOWNORMAL);
+        return;
+    }
 
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling

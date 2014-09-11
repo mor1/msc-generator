@@ -341,6 +341,8 @@ public:
     Element *GetArcByCoordinate(CPoint point) const;
     /** Return which element is at (line, col) in the chart text.*/
 	Element *GetArcByLine(unsigned line, unsigned col) const;
+    /** Return a link if we hover over it.*/
+    const ISMapElement *GetLinkByCoordinate(CPoint point) const;
     //@}
 };
 

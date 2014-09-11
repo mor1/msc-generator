@@ -382,7 +382,7 @@ public:
     Contour                       HideELinesHere;  ///<A complex contour used as a mask when drawing entity lines.
     PBDataVector                  pageBreakData;   ///<Starting y pos and auto-heading info for each page break. pageBreakData[0].y is always 0. 
     std::list<LabelInfo>          labelData;       ///<Holds a catalogue of all labels with their coordinates. Filled by RegisterLabels().
-    ISMap                         ismapData;       ///<Holds a list of link information from \L escapes. Filled by CollectIsMapElements().
+    ISMap                         ismapData;       ///<Holds a list of link information from \\L escapes. Filled by CollectIsMapElements().
     ArcList                       EndNotes;        ///<We move all endnotes here during PostParseProcessArcList(). We reappend them in PostParseProcess().
     CommandNoteList               Notes;           ///<All notes are moved here after PostParseProcess 
     PtrList<const Element>        NoteBlockers;    ///<Ptr to all elements that may block a floating note and which therefore should not overlap with them
@@ -580,7 +580,9 @@ public:
     void CollectIsMapElementsArcList(ArcList &arcs, Canvas &canvas) { for (auto pArc : arcs) pArc->CollectIsMapElements(canvas); }
 
     void CompleteParse(Canvas::EOutputType, bool avoidEmpty,
-                       bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);
+                       bool autoPaginate=false, bool addHeading=true, 
+                       XY pageSize=XY(0,0), bool fitWidth=true, 
+                       bool collectLinkInfo=false);
 
     void DrawEntityLines(Canvas &canvas, double y, double height, EIterator from, EIterator to);
     /** Draw all entity lines between vertical positions `y` and `y+height`*/

@@ -764,7 +764,7 @@ bool StringFormat::HasEscapes(const char *text)
     return false;
 }
 
-/** Tells if the string has link escape character ('\L') or not*/
+/** Tells if the string has link escape character ('\\L') or not*/
 bool StringFormat::HasLinkEscapes(const char *text)
 {
     if (text==NULL || text[0]==0) return false;
@@ -831,8 +831,23 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
         case INVALID_ESCAPE:
             if (escape == INVALID_ESCAPE)
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
-            else
-                csh.AddCSH(loc, COLOR_LABEL_ESCAPE);
+            else {
+                //check if we have a parameter
+                unsigned p = loc.first_pos;
+                while (p<=loc.last_pos) 
+                    if (text[p-startpos]=='(') break;
+                    else p++;
+                const bool ends_in_par = text[loc.last_pos-startpos]==')';
+                const unsigned end = loc.last_pos - ends_in_par;
+                if (p<=loc.last_pos && end>p) {
+                    //Label has a param
+                    csh.AddCSH(CshPos(loc.first_pos, p), COLOR_LABEL_ESCAPE); 
+                    csh.AddCSH(CshPos(p+1, end), COLOR_ATTRVALUE);
+                    if (ends_in_par)
+                        csh.AddCSH(CshPos(end+1, end+1), COLOR_LABEL_ESCAPE);
+                } else
+                    csh.AddCSH(loc, COLOR_LABEL_ESCAPE); //add label color for all escape
+            }
             if (csh.CursorIn(loc)==CURSOR_IN) {
                 //Assume cursor does not stand in a parameter
                 //->we hint the whole escepa
@@ -1933,7 +1948,7 @@ double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool i
 /** Creates one element of an NCSA formatted ISMAP file */
 string ISMapElement::Print() const
 {
-    string ret("RECT ");
+    string ret("rect ");
     ret << target << " ";
     ret << round(rect.x.from) << "," << round(rect.y.from) << " ";
     ret << round(rect.x.till) << "," << round(rect.y.till);

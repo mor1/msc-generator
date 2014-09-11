@@ -2751,9 +2751,12 @@ void Msc::RegisterCoverArcList(ArcList &arcs, EDrawPassType pass)
  * @param [in] pageSize Determines the page size for automatic pagination
  * @param [in] fitWidth If true and automatic pagination is on, we select a zoom value
  *                      to fit the width of the page and normalize the height of the page
- *                      with it.*/
+ *                      with it.
+ * @param [in] collectLinkInfo If true, we also fill the ismapData member, collecting
+ *                             where are links on the chart.*/
 void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty, 
-                        bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth)
+                        bool autoPaginate, bool addHeading, XY pageSize, 
+                        bool fitWidth, bool collectLinkInfo)
 {
     if (autoPaginate)
         Progress.RegisterBulk(MscProgress::AUTOPAGINATE, 1);
@@ -2819,6 +2822,9 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
         RSide->status.Reset();
 
     Error.Sort();
+
+    if (collectLinkInfo)
+        CollectIsMapElementsArcList(Arcs, canvas);
 }
 
 /** Draw arcs in an arc list 
