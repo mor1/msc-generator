@@ -2300,32 +2300,35 @@ void CMscGenDoc::SetTrackMode(bool on)
  * Called from CMscGenView::HooverMouse(), OnLButtonDblClk(), OnLButtonUp().
  * In tracking mode, we add tracking rectangles/shapes, else we check for
  * element controls.
- * @param [in] mouse The coordinates of the mouse in Msc space (local to the current page)*/
-void CMscGenDoc::UpdateTrackRects(CPoint mouse)
+ * @param [in] mouse The coordinates of the mouse in Msc space (local to the current page)
+ * @returns a pointer to a link, if we hoover over one. NULL if not*/
+const ISMapElement * CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
-    if (m_pCompilingThread) return; //skip if compiling
+    if (m_pCompilingThread) return NULL; //skip if compiling
     //Start fading all controls and track rectangles, except the one under cursor
 	Element *arc = m_ChartShown.GetArcByCoordinate(mouse);
 	StartFadingAll(AnimationElement::TRACKRECT, arc); 
     //re-add those controls which are under mouse
-    for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
-        if (i->first.IsWithinBool(XY(mouse.x, mouse.y)))
-            AddAnimationElement(AnimationElement::CONTROL, i->second);
+    for (auto &c: m_controlsShowing)
+        if (c.first.IsWithinBool(XY(mouse.x, mouse.y)))
+            AddAnimationElement(AnimationElement::CONTROL, c.second);
     if (arc && arc->GetControls().size()) 
         AddAnimationElement(AnimationElement::CONTROL, arc);
+    //check if we are above a link
+    const ISMapElement *e = m_ChartShown.GetLinkByCoordinate(mouse);
     //if we do not display tracking rectangles, exit
-	if (!m_bTrackMode) return;
+	if (!m_bTrackMode) return e;
     //Re-add tracking rectangle under cursor
     if (arc) 
         AddAnimationElement(AnimationElement::TRACKRECT, arc);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
-		return;
+		return e;
 	m_last_arc = arc;
 	//Now update selection in internal editor
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (!pApp->IsInternalEditorRunning()) return;
+	if (!pApp->IsInternalEditorRunning()) return e;
 	CCshRichEditCtrl &editor = pApp->m_pWndEditor->m_ctrlEditor;
 	DWORD eventmask = editor.GetEventMask();
 	//Disable selection change events - we are causing selection change
@@ -2341,6 +2344,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
         m_saved_charrange.cpMin=-1;
 	}
 	editor.SetEventMask(eventmask);
+    return e;
 }
 
 

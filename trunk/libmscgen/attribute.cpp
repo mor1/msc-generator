@@ -448,7 +448,8 @@ void LineAttr::AttributeNames(Csh &csh, const string &prefix)
     "type", "The style of the line, such as dotted, dashed or double",
     "width", "The width of the line", 
     "radius", "How wide the line turns in corners (only for some corner types)",
-    "corner", "The style of tunrning at corners."};
+    "corner", "The style of tunrning at corners.",
+    ""};
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_ATTRNAME)+prefix, EHintType::ATTR_NAME);
 }
 

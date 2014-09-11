@@ -2024,14 +2024,15 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
                            EHintType::ATTR_VALUE, false));
         break;
     case HINTE_PARAM_LINK:
-        string prefix = hintedStringPos.first_pos==hintedStringPos.last_pos ?
-            HintPrefix(COLOR_ATTRVALUE) : HintPrefixNonSelectable();
+        const bool empty = hintedStringPos.first_pos>hintedStringPos.last_pos;
+        const string prefix = empty ? 
+            HintPrefix(COLOR_LABEL_ESCAPE) : HintPrefixNonSelectable();
         AddToHints(CshHint(prefix+"http://", 
             "You can enter a valid URL here.",
-            EHintType::ATTR_VALUE, false));
-        AddToHints(CshHint(prefix+"\\\\ref ",
+            EHintType::ATTR_VALUE, empty));
+        AddToHints(CshHint(prefix+"@ref ",
             "Use this to refer to documented items, when the chart is a part of Doxygen documentation.",
-            EHintType::ATTR_VALUE, false));
+            EHintType::ATTR_VALUE, empty));
         break;
     }
 }

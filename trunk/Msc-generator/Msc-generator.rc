@@ -516,8 +516,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,3,6,0
- PRODUCTVERSION 4,3,6,0
+ FILEVERSION 4,3,7,0
+ PRODUCTVERSION 4,3,7,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -534,12 +534,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "4.3.6.0"
+            VALUE "FileVersion", "4.3.7.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2014.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "4.3.6.0"
+            VALUE "ProductVersion", "4.3.7.0"
         END
     END
     BLOCK "VarFileInfo"

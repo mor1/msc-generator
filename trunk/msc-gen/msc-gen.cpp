@@ -112,7 +112,12 @@ bool progressbar(double percent, void *p)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-    std::list<std::pair<std::string, std::string>> designs, shapes;
+    string s;
+    for (int i = 1; i<argc; i++)
+        s.append(argv[i]).append(" ");
+    MessageBox(NULL, s.c_str(), "mscgen", MB_OK);
+
+    std::list<std::pair<std::string, std::string>> designs;
     bool oLoadDesigns = true;
     std::list<std::string> args;
     for (int i = 1; i<argc; i++) {

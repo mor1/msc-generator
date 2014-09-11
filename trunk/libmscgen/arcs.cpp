@@ -31,7 +31,8 @@
   # Example
 
   \msc
-  a->*b;
+  hscale=auto;
+  a->*b: This is a message label with a \L(\ref ArcBase)link\L().;
   \endmsc
   
   # Terminology
@@ -248,7 +249,7 @@
       including the cached values.
    -  RegisterLabels/CollectIsMapElementsArcList: One or both of these can be called in addition or instead of 
       Draw(). RegisterLabels traverses the tree and collects information about all labels into Msc::labelData.
-      CollectIsMapElementsArcList also traverses the tree, but extracts only links (\L escape) into
+      CollectIsMapElementsArcList also traverses the tree, but extracts only links (\\L escape) into
       Msc::ismapData. They are used with the -T lmap and -T ismap command line options, respectively and
       are not normally called when we Draw (to save processing) and vice versa.
    -  Destructor.
@@ -483,7 +484,8 @@ string ArcBase::PrintType(void) const
         "emph_solid", "emph_dotted", "emph_double", "arc_parallel",
         "arc_disco", "arc_divider", "arc_label",
         "command_heading", "nudge", "command_entity",
-        "hspace", "vspace", "symbol", "note"};
+        "hspace", "vspace", "symbol", "note",
+        "title", "subtitle", "arclist", "endnote_separator", "indicator"};
     return arcnames[int(type)-1];
 }
 

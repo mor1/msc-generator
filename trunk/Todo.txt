@@ -37,12 +37,16 @@ ADD: Allow arrow to a group entity...
 ADD: Vertical comment alignment
 
 In 4.4
-FIXED: Print preview export exports in PNG
-ADDED: ismaps
+FIXED: Now links actually work with Doxygen (small-caps 'rect' token)
+ADDED: Clickable links...
+CHANGE: parallel layout (incl attributes)
 DOC: \L escapes, text.link_format attribute, url attribute, -T ismap target
 DOC: tag labels can have links, lmap does not include tag labels
-ADD: Clickable links...
-CHANGE: parallel layout (incl attributes)
+
+In 4.3.7
+FIXED: Print preview export exports in PNG
+ADDED: ismaps
+FIX: Martijn CSH instability
 
 In 4.3.6 
 ADDED: text at

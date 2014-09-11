@@ -52,6 +52,13 @@ protected:
 public:
 	bool m_DeleteBkg;            ///<Set to true if we need to erase bkg on next draw
     UINT_PTR     m_FadingTimer;  ///<Handle of Fading Timer
+    /** @name Link tooltip related
+    * @{ */
+    CMFCToolTipCtrl m_link_tooltip;    ///<The tooltip to show for links
+    CString         m_last_link;       ///<The last link text 
+    CString         m_last_target;     ///<The last link target 
+    CPoint          m_last_link_point; ///<The last point at which we updated the tooltip.
+    //@}
     /** @name Information on the drawn chart
     * @{ */
     XY           m_chartOrigin;  ///<The upper left corner of the chart in chart coordinate space (e.g., page origin)
@@ -77,7 +84,9 @@ public:
 
 // Overrides
 public:
-	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+    afx_msg BOOL OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult);
+    afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+    afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
             void ClearViewCache(); //Clear the bitmap cache
@@ -110,8 +119,8 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 
 	DECLARE_MESSAGE_MAP()
-public:
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+public:   
+    afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);

@@ -483,7 +483,7 @@ bool CDrawingChartData::CompileIfNeeded() const
         m_msc->copyrightText = m_copyright;
 	    //Do postparse, compile, calculate sizes and sort errors by line
         m_msc->CompleteParse(Canvas::EMF, false, m_page_size.x>0 && m_page_size.y>0, 
-                             m_addHeading, m_page_size, m_fitWidth);
+                             m_addHeading, m_page_size, m_fitWidth, true);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityApp::AddAttributeList
@@ -683,6 +683,23 @@ Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 		if (itr->first.start <= linenum && linenum <= itr->first.end) break;
 	if (itr == m_msc->AllArcs.end()) return NULL;
 	return itr->second;
+}
+
+const ISMapElement *CDrawingChartData::GetLinkByCoordinate(CPoint point) const
+{
+    _ASSERT(m_msc);
+    //Check if point is on currently showing page)
+    if (m_page>0) {
+        const double from = m_msc->pageBreakData[m_page-1].y;
+        if (point.y < from) return NULL;
+        const double till = m_page < m_msc->pageBreakData.size() ? m_msc->pageBreakData[m_page].y : m_msc->GetTotal().y.till;
+        if (point.y > till) return NULL;
+    }
+    XY p(point.x, point.y);
+    for (const auto &e : m_msc->ismapData)
+        if (e.rect.IsWithinBool(p))
+            return &e;
+    return NULL;
 }
 
 
