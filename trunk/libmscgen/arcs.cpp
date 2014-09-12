@@ -32,7 +32,9 @@
 
   \msc
   hscale=auto;
-  a->*b: This is a message label with a \L(\ref ArcBase)link\L().;
+  a: ArcBase [url="\ref ArcBase"];
+  b: Msc [url="\ref Msc"];
+  a->*b: This is a message label with a \L(https://sourceforge.net/projects/msc-generator/)link\L().;
   \endmsc
   
   # Terminology

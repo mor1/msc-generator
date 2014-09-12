@@ -37,16 +37,22 @@ ADD: Allow arrow to a group entity...
 ADD: Vertical comment alignment
 
 In 4.4
-FIXED: Now links actually work with Doxygen (small-caps 'rect' token)
-ADDED: Clickable links...
 CHANGE: parallel layout (incl attributes)
-DOC: \L escapes, text.link_format attribute, url attribute, -T ismap target
-DOC: tag labels can have links, lmap does not include tag labels
+
+In 4.3.8
+FIXED: Tidied up clickable links
+ADDED: link_format to designlib
+DOCED: \L escapes, text.link_format attribute, url attribute, -T ismap target
+DOCED: tag labels can have links, lmap does not include tag labels
+DOCED: clickable links on GUI
+FIXED: Reflow bug with formatting
 
 In 4.3.7
 FIXED: Print preview export exports in PNG
 ADDED: ismaps
-FIX: Martijn CSH instability
+FIXED: Martijn CSH instability
+FIXED: Now links actually work with Doxygen (small-caps 'rect' token)
+ADDED: Clickable links...
 
 In 4.3.6 
 ADDED: text at

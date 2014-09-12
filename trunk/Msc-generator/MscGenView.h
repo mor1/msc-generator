@@ -54,10 +54,9 @@ public:
     UINT_PTR     m_FadingTimer;  ///<Handle of Fading Timer
     /** @name Link tooltip related
     * @{ */
-    CMFCToolTipCtrl m_link_tooltip;    ///<The tooltip to show for links
-    CString         m_last_link;       ///<The last link text 
-    CString         m_last_target;     ///<The last link target 
-    CPoint          m_last_link_point; ///<The last point at which we updated the tooltip.
+    CMFCToolTipCtrl     m_link_tooltip;      ///<The tooltip to show for links
+    CString             m_last_link_message; ///<The message for the last link
+    const ISMapElement* m_last_link;         ///<The last link target 
     //@}
     /** @name Information on the drawn chart
     * @{ */
