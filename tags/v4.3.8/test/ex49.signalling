@@ -1,0 +1,11 @@
+C: Client;
+S: Server;
+B: Backend;
+
+parallel B--B: State;
+C->S: Remove Req;
+S->B: Remove Req;
+S<-B: Ack;
+parallel B--B: No State;
+C<-S: Ack;
+C--C: Now we\nhave it;
