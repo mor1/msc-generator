@@ -203,6 +203,10 @@ class StringFormat {
     StringFormat &operator +=(const char*s) {Apply(s); return *this;}
     /** Merge another StringFormat to us by copying all attributes where `first` is set there.*/
     StringFormat &operator +=(const StringFormat& toadd);
+    /** Determines what do we need to add to 'base' in order to get to us. (We must be complete.)*/
+    StringFormat &operator -=(const StringFormat& base);
+    /** Determines what do we need to add to 'base' in order to get to us. (We must be complete.)*/
+    StringFormat operator -(const StringFormat& base) const { StringFormat a(*this); a -= base; return a; }
     /** Set the color of the format */
     void SetColor(ColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);

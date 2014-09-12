@@ -538,7 +538,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 if (linenum) linenum->col += length;
                 return FORMATTING_OK;
             }
-            if (replaceto) replaceto->assign(basic->Print());
+            if (replaceto) replaceto->assign((*this-*basic).Print());
             if (linenum) linenum->col += length;
             if (apply)
                 *this += *basic;
@@ -559,7 +559,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             if (i->second.read().f_text) {
                 if (apply)
                     *this += i->second.read().text;
-                if (replaceto) replaceto->assign(i->second.read().text.Print());
+                if (replaceto) replaceto->assign((*this-i->second.read().text).Print());
             } else
                 if (replaceto)
                     replaceto->clear();
@@ -833,12 +833,12 @@ EEscapeHintType StringFormat::ExtractCSH(int startpos, const char *text, const s
                 csh.AddCSH_Error(loc, "Invalid escape sequence.");
             else {
                 //check if we have a parameter
-                unsigned p = loc.first_pos;
+                int p = loc.first_pos;
                 while (p<=loc.last_pos) 
                     if (text[p-startpos]=='(') break;
                     else p++;
                 const bool ends_in_par = text[loc.last_pos-startpos]==')';
-                const unsigned end = loc.last_pos - ends_in_par;
+                const int end = loc.last_pos - ends_in_par;
                 if (p<=loc.last_pos && end>p) {
                     //Label has a param
                     csh.AddCSH(CshPos(loc.first_pos, p), COLOR_LABEL_ESCAPE); 
@@ -919,7 +919,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
     linenum.col++;
     string::size_type pos=0;
     string replaceto;
-    StringFormat sf;
+    StringFormat sf, sf_with_links;
     if (basic)
         sf = *basic;
     FileLineCol beginning_of_URL;
@@ -941,10 +941,14 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                     beginning_of_URL = beginning_of_escape;
                     replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "(" + replaceto + ")";
                     //insert the formatting needed for a link, plus a location escape
-                    if (basic && basic->link_format.first)
+                    if (basic && basic->link_format.first) {
+                        sf_with_links = sf;
+                        sf_with_links.Apply(basic->link_format.second.c_str());
                         replaceto.append(basic->link_format.second+linenum.Print());
+                    }
                     //sf will not contain the format added by link_format here, so
                     //we can use sf to restore formatting to at the end of the link.
+                    //but sf_with_links will, so we can take their difference
                 } else {
                     //problem: an empty first \\L
                     replaceto.clear();
@@ -960,8 +964,12 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                     //fallthrough
                 } 
                 //We are terminating an URL
-                //restore formatting
-                replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "()" + sf.Print()+linenum.Print();
+                //restore formatting, if we have changed it prior
+                if (basic && basic->link_format.first)
+                    replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "()" + 
+                        (sf-sf_with_links).Print() + linenum.Print();
+                else 
+                    replaceto = "\\" ESCAPE_STRING_NON_FORMATTING_LINK "()" + linenum.Print();
                 beginning_of_URL.MakeInvalid();
             }
             break;
@@ -1089,7 +1097,7 @@ void StringFormat::Apply(string &text)
     size_t start = 0;
     StringFormat basic(*this);
     while (start < text.length()) {
-        EEscapeType t;
+        EEscapeType t = NON_FORMATTING;
         size_t pos = 0;
         size_t length;
         while (start+pos<text.length()) {
@@ -1168,6 +1176,29 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
     if (toadd.link_format.first)
         link_format = toadd.link_format;
 
+    return *this;
+}
+
+StringFormat &StringFormat::operator -=(const StringFormat& base)
+{
+    _ASSERT(IsComplete());
+    if (base.fontType == fontType) fontType.first = false;
+    if (base.color == color) color.first = false;
+    if (base.face == face) face.first = false;
+    if (base.spacingBelow == spacingBelow) spacingBelow.first = false;
+    if (base.bold == bold) bold.first = false;
+    if (base.italics == italics) italics.first = false;
+    if (base.underline == underline) underline.first = false;
+    if (base.textHGapPre == textHGapPre) textHGapPre.first = false;
+    if (base.textHGapPost == textHGapPost) textHGapPost.first = false;
+    if (base.textVGapAbove == textVGapAbove) textVGapAbove.first = false;
+    if (base.textVGapBelow == textVGapBelow) textVGapBelow.first = false;
+    if (base.textVGapLineSpacing == textVGapLineSpacing) textVGapLineSpacing.first = false;
+    if (base.ident == ident) ident.first = false;
+    if (base.normalFontSize == normalFontSize) normalFontSize.first = false;
+    if (base.smallFontSize == smallFontSize) smallFontSize.first = false;
+    if (base.word_wrap == word_wrap) word_wrap.first = false;
+    if (base.link_format == link_format) link_format.first = false;
     return *this;
 }
 
@@ -1960,8 +1991,8 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
     line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0), hard_new_line(h)
 {
     //Remove heading and trailing whitespace.
-    while (line.size() && *line.begin() == ' ') line.erase(0,1);
-    while (line.size() && *line.rbegin() == ' ') line.erase(line.size()-1,1);
+    while (line.size() && line.front() == ' ') line.erase(0,1);
+    while (line.size() && line.back() == ' ') line.erase(line.size()-1,1);
     format.Apply(line); //eats away initial formatting, so that we do not process them every time
     //but we keep link escapes among the initial formatting escapes.
     //'line' may start with escapes, like a link escape or non-formatting ones.
@@ -1971,31 +2002,30 @@ ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format, b
     string replaceto;
     string fragment;
     while (line.length()>pos) {
-        fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos && line[pos]) {
             const StringFormat::EEscapeType res = 
                 format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
-            //we avoid changing format!
+            if (res==StringFormat::FORMATTING_OK) break;
+            pos += length;
             _ASSERT(StringFormat::LINK_ESCAPE != res);
-            if (StringFormat::FORMATTING_OK == res ||
-                StringFormat::LINK_ESCAPE == res ||
-                StringFormat::LINK2_ESCAPE == res)
-                break;
+            if (StringFormat::LINK_ESCAPE == res || StringFormat::LINK2_ESCAPE == res) continue;
             fragment.append(replaceto);
+        }
+        //fragment can be empty due to labels beginning with link escapes & repeated formatting escapes
+        if (fragment.length()) {
+            //store fragment data
+            width += format.getFragmentWidth(fragment, canvas);
+            heightAboveBaseLine =
+                std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
+            heightBelowBaseLine =
+                std::max(heightBelowBaseLine, format.getFragmentHeightBelowBaseLine(fragment, canvas));
+            fragment.clear();
+        }
+        if (line.length()>pos && line[pos]) {
+            format.ProcessEscape(line.c_str()+pos, length, true, true, NULL, &startFormat);
             pos += length;
         }
-        //fragment can be empty due to labels beginning with link escapes
-        //store fragment data
-        width += format.getFragmentWidth(fragment, canvas); 
-        heightAboveBaseLine =
-            std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
-        heightBelowBaseLine =
-            std::max(heightBelowBaseLine, format.getFragmentHeightBelowBaseLine(fragment, canvas));
-
-        //Apply the formatting escapes as they come
-        if (line.length()>pos)
-            pos += format.Apply(line.c_str()+pos);
     }
     //If an empty line, add standard height
     if (line.length()==0) {
@@ -2019,22 +2049,15 @@ ParsedLine::operator std::string() const
     string ret;
 
     while (line.length()>pos && line[pos]) {
-        //collect characters up until we hit a vaild formatting escape (or string end)
-        while (line.length()>pos) {
-            const StringFormat::EEscapeType res =
-                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
-            //we avoid changing format!
-            _ASSERT(StringFormat::LINK_ESCAPE != res);
-            if (StringFormat::FORMATTING_OK == res) break;
-            if (StringFormat::LINK_ESCAPE != res &&
-                StringFormat::LINK2_ESCAPE != res)
-                //do not copy link escapes
-                ret.append(replaceto);
-            pos += length;
-        }
-        //Apply the formatting escapes as they come
-        if (line.length()>pos)
-            pos += format.Apply(line.c_str()+pos);
+        const StringFormat::EEscapeType res =
+            format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
+        //move pos to after the piece analyzed
+        pos += length;
+        _ASSERT(StringFormat::LINK_ESCAPE != res);
+        if (StringFormat::FORMATTING_OK == res ||
+            StringFormat::LINK_ESCAPE == res || StringFormat::LINK2_ESCAPE == res) continue;
+            //do not copy link escapes - but all else
+        ret.append(replaceto);
     }
     return ret;
 }
@@ -2059,43 +2082,39 @@ void ParsedLine::CollectIsMapElements(XY xy, Canvas &canvas, ISMap &ismap,
     xy.y += heightAboveBaseLine;
 
     while (line.length()>pos && line[pos]) {
-        fragment.clear();
+        StringFormat::EEscapeType res = StringFormat::NON_ESCAPE;
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
-            const StringFormat::EEscapeType res =
-                format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
-            //we avoid changing format!
-            _ASSERT(StringFormat::LINK_ESCAPE != res);
-            if (StringFormat::FORMATTING_OK == res) break;
-            if (StringFormat::LINK_ESCAPE == res ||
-                StringFormat::LINK2_ESCAPE == res) {
-                if (fragment.length()) {
-                    xy.x += format.getFragmentWidth(fragment, canvas);
-                    fragment.clear();
-                }
-                if (elem.target.length()) {
-                    //If a second \L is non-empty -> we ignore parameter (so here we ignore 'replaceto')
-                    elem.rect.x.till = xy.x;
-                    elem.rect.y.till = xy.y + heightBelowBaseLine;
-                    ismap.push_back(std::move(elem));
-                    elem.target.clear();
-                } else {
-                    if (replaceto.length()) {
-                        elem.target = replaceto;
-                        elem.rect.x.from = xy.x;
-                        elem.rect.y.from = xy.y - heightAboveBaseLine;
-                    }
-                    //just do nothing if we encounter a first empty '\L'. Such escape is to ignore.
-                }
-            } else
-                //do not draw link escapes
-                fragment.append(replaceto);
+            res = format.ProcessEscape(line.c_str()+pos, length, true, true, &replaceto, &startFormat);
+            //move pos to after the piece analyzed
             pos += length;
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::FORMATTING_OK == res ||
+                StringFormat::LINK_ESCAPE == res || StringFormat::LINK2_ESCAPE == res)
+                break; // in this case 'format' already contains the effect of this escape
+            //just append whatever we got - verbatim text 
+            fragment.append(replaceto);
         }
-        xy.x += format.getFragmentWidth(fragment, canvas);
-        //Apply the formatting escapes as they come
-        if (line.length()>pos)
-            pos += format.Apply(line.c_str()+pos);
+        if (fragment.length()) {
+            xy.x += format.getFragmentWidth(fragment, canvas);
+            fragment.clear();
+        }
+        if (StringFormat::LINK_ESCAPE == res || StringFormat::LINK2_ESCAPE == res) {
+            if (elem.target.length()) {
+                //If a second \L is non-empty -> we ignore parameter (so here we ignore 'replaceto')
+                elem.rect.x.till = xy.x;
+                elem.rect.y.till = xy.y + heightBelowBaseLine;
+                ismap.push_back(std::move(elem));
+                elem.target.clear();
+            } else {
+                if (replaceto.length()) {
+                    elem.target = replaceto;
+                    elem.rect.x.from = xy.x;
+                    elem.rect.y.from = xy.y - heightAboveBaseLine;
+                }
+                //just do nothing if we encounter a first empty '\L'. Such escape is to ignore.
+            }
+        }
     }
     //flush any remaining opened links.
     if (elem.target.length()) {
@@ -2117,26 +2136,27 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
     xy.y += heightAboveBaseLine;
 
     while (line.length()>pos && line[pos]) {
-        fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             const StringFormat::EEscapeType res = 
                 format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat);
-            //we avoid changing format!
-            _ASSERT(StringFormat::LINK_ESCAPE != res);
             if (StringFormat::FORMATTING_OK == res) break;
-            if (StringFormat::LINK_ESCAPE != res &&
-                StringFormat::LINK2_ESCAPE != res)
-                //do not draw link escapes
-                fragment.append(replaceto);
+            pos += length;
+            _ASSERT(StringFormat::LINK_ESCAPE != res);
+            if (StringFormat::LINK_ESCAPE == res || StringFormat::LINK2_ESCAPE == res) continue;
+            //do not draw link escapes
+            fragment.append(replaceto);
+        }
+        if (fragment.length()) {
+            //draw Fragment
+            xy.x += format.drawFragment(fragment, canvas, xy, isRotated);
+            fragment.clear();
+        }
+        //apply the formatting
+        if (line.length()>pos) {
+            format.ProcessEscape(line.c_str()+pos, length, true, true, NULL, &startFormat);
             pos += length;
         }
-        //draw Fragment
-        xy.x += format.drawFragment(fragment, canvas, xy, isRotated);
-
-        //Apply the formatting escapes as they come
-        if (line.length()>pos)
-            pos += format.Apply(line.c_str()+pos);
     }
 }
 
@@ -2249,6 +2269,7 @@ double Label::Reflow(Canvas &c, double x)
     size_t lnum = 0; //the number of the line we process
     size_t pos = 0;  //the position within at(lnum)
     string line;     //the line we gather in the new flow
+    string keep_with; //elements that shall stick to the next line just before a break
     double width = 0;//width of the text in "line"
     StringFormat start_format = at(0).startFormat;  //format at the beginning of "line"
     StringFormat running_format = start_format;
@@ -2259,13 +2280,18 @@ double Label::Reflow(Canvas &c, double x)
             string replaceto;
             size_t length;
             switch (running_format.ProcessEscape(at(lnum).line.c_str()+pos, length, 
-                                                 true, false, &replaceto, 
+                                                 true, true, &replaceto, 
                                                  &at(0).startFormat)) {
-            case StringFormat::FORMATTING_OK:
-                pos += running_format.Apply(line.c_str()+pos);
+            case StringFormat::FORMATTING_OK: 
+                //running format has already applied this formatting 
+                line.append(at(lnum).line.c_str()+pos, length); //now we copy it to the output.
+                pos += length;
                 break;
             case StringFormat::LINK2_ESCAPE:
-                //keep it, do nothing - it does not impact reflow
+                //keep it, do not change 'width' - it does not impact reflow
+                //escapes with target stick to the word after them, empty ones to the word before
+                (replaceto.length() ? keep_with : line).
+                    append("\\" ESCAPE_STRING_NON_FORMATTING_LINK "(").append(replaceto).append(")");
                 pos += length;
                 break;
             case StringFormat::INVALID_ESCAPE:
@@ -2295,8 +2321,11 @@ double Label::Reflow(Canvas &c, double x)
                         //either the word fits or we are at the beginning of the 
                         //line - add this word to the current line anyway
                         if (replaceto[replaceto_pos] != ' ' || line.length() != 0) {
-                            //add only if "word" is not a space at or 
-                            //not at the beginning of the line
+                            //..but do not insert a space to the beginning of the line
+                            if (keep_with.length()) {
+                                line.append(keep_with);
+                                keep_with.clear();
+                            }
                             line.append(word);
                             width += word_width;
                             overflow = std::max(overflow, width - available);

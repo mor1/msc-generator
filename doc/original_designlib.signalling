@@ -142,6 +142,8 @@ defdesign round_green {
       defstyle emptybox, box_collapsed [tag.line.color=brown, tag.line.corner=round];
       defstyle indicator, symbol [line.corner = round, line.radius=2];
       defstyle note [fill.color="yellow+60", line.color="yellow-50", line.corner=round,  line.radius=4];
+      text.link_format="\u\c(brown-30)";
+
 };
 
 defdesign green_earth {
@@ -283,6 +285,7 @@ defdesign norton_commander {
     comment.line.type = double;
     comment.line.width = 1;
     comment.fill.color = grey;
+    text.link_format = "\b\c(lred)";
 };
 
 defshape def.trapezoid {

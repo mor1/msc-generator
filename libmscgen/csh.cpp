@@ -2030,7 +2030,7 @@ void Csh::AddEscapesToHints(EEscapeHintType hint)
         AddToHints(CshHint(prefix+"http://", 
             "You can enter a valid URL here.",
             EHintType::ATTR_VALUE, empty));
-        AddToHints(CshHint(prefix+"@ref ",
+        AddToHints(CshHint(prefix+"\ref ",
             "Use this to refer to documented items, when the chart is a part of Doxygen documentation.",
             EHintType::ATTR_VALUE, empty));
         break;

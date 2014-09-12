@@ -83,6 +83,7 @@ CMscGenView::CMscGenView()
 	SetScrollSizes(MM_TEXT, CSize(0,0));
 	m_nDropEffect = DROPEFFECT_NONE;
     m_view_pos.SetRectEmpty();
+    m_last_link = NULL;
 }
 
 
@@ -737,9 +738,9 @@ BOOL CMscGenView::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
     TOOLTIPTEXTW* pTTTW = (TOOLTIPTEXTW*)pNMHDR;
 #ifndef _UNICODE
     if (pNMHDR->code == TTN_NEEDTEXTA)
-        lstrcpyn(pTTTA->szText, m_last_link, 80);
+        lstrcpyn(pTTTA->szText, m_last_link_message, 80);
     else
-        _mbstowcsz(pTTTW->szText, m_last_link, 80);
+        _mbstowcsz(pTTTW->szText, m_last_link_message, 80);
 #else
     if (pNMHDR->code == TTN_NEEDTEXTA)
         _wcstombsz(pTTTA->szText, m_last_link, 80);
@@ -753,7 +754,7 @@ BOOL CMscGenView::OnToolTipText(UINT id, NMHDR * pNMHDR, LRESULT * pResult)
 
 BOOL CMscGenView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
-    if (m_last_target.GetLength()) 
+    if (m_last_link)
         SetCursor(LoadCursor(NULL, IDC_HAND));
     else
         SetCursor(LoadCursor(NULL, IDC_ARROW));
@@ -777,7 +778,8 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
     chart_point.x = int(point.x*100./pDoc->m_zoom + m_chartOrigin.x);
     chart_point.y = int(point.y*100./pDoc->m_zoom + m_chartOrigin.y);
     const ISMapElement * e = pDoc->UpdateTrackRects(chart_point);
-    if (e || m_last_target.GetLength()) {
+    if (e != m_last_link) {
+        m_last_link = e;
         //Now adjust text of tool tip
         if (!m_link_tooltip.m_hWnd) {
             //Create window if needed (once per view)
@@ -799,37 +801,34 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
         ti.uFlags |= TTF_TRACK | TTF_CENTERTIP;
         ti.lpszText = LPSTR_TEXTCALLBACK;
         if (e) {
-            const bool doo = m_last_target != e->target.c_str();
-            if (doo) {
-                XXX better test if this is a proper URL(we will pass it to shell !!!)
-                if (e->target[0]=='@' || e->target[0]=='\\')
-                    m_last_link = "Doxygen reference";
-                else
-                    m_last_link = "Ctrl+Click to open in browser.";
-                m_last_target = e->target.c_str();
-                Block rect = e->rect;
-                rect.Shift(-m_chartOrigin);
-                rect.Scale(pDoc->m_zoom/100.);
-                ti.rect.top = int(rect.y.from);
-                ti.rect.left = int(rect.x.from);
-                ti.rect.bottom = int(rect.y.till);
-                ti.rect.right = int(rect.x.till);
-                m_link_tooltip.SendMessage(TTM_ADDTOOL, 0, (LPARAM)&ti);
-                m_link_tooltip.SetToolInfo(&ti);
-                m_link_tooltip.SetDescription(e->target.c_str());
-                m_link_tooltip.SetFixedWidth(150, 250);
-            }
+            //We enter a link area
+            if (CaseInsensitiveBeginsWith(e->target, "\\ref "))
+                m_last_link_message = "Doxygen reference";
+            else if (CaseInsensitiveBeginsWith(e->target, "http://") || 
+                     CaseInsensitiveBeginsWith(e->target, "https://") ||
+                     CaseInsensitiveBeginsWith(e->target, "ftp://"))
+                m_last_link_message = "Ctrl+Click to open in browser";
+            else 
+                m_last_link_message = "Reference";
+            Block rect = e->rect;
+            rect.Shift(-m_chartOrigin);
+            rect.Scale(pDoc->m_zoom/100.);
+            ti.rect.top = int(rect.y.from);
+            ti.rect.left = int(rect.x.from);
+            ti.rect.bottom = int(rect.y.till);
+            ti.rect.right = int(rect.x.till);
+            m_link_tooltip.SendMessage(TTM_ADDTOOL, 0, (LPARAM)&ti);
+            m_link_tooltip.SetToolInfo(&ti);
+            m_link_tooltip.SetDescription(e->target.c_str());
+            m_link_tooltip.SetFixedWidth(150, 250);
             ClientToScreen(&point);
-            if (doo) {//|| m_last_link_point != point) {
-                m_last_link_point = point;
-                m_link_tooltip.SendMessage(TTM_TRACKPOSITION, 0, MAKELPARAM(point.x, point.y));
-                m_link_tooltip.SendMessage(TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-                ::SetWindowPos(m_link_tooltip.m_hWnd, HWND_TOPMOST, 0, 0, 0, 0,
-                    SWP_NOACTIVATE|SWP_NOSIZE|SWP_NOMOVE|SWP_NOOWNERZORDER);
-            }
-        } else if (m_last_target) {
-            m_last_target.Empty();
-            m_last_link.Empty();
+            m_link_tooltip.SendMessage(TTM_TRACKPOSITION, 0, MAKELPARAM(point.x, point.y));
+            m_link_tooltip.SendMessage(TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+            ::SetWindowPos(m_link_tooltip.m_hWnd, HWND_TOPMOST, 0, 0, 0, 0,
+                SWP_NOACTIVATE|SWP_NOSIZE|SWP_NOMOVE|SWP_NOOWNERZORDER);
+        } else {
+            //We leave the link area
+            m_last_link_message.Empty();
             m_link_tooltip.SendMessage(TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
         }
     }
@@ -858,10 +857,9 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
     if (pDoc->m_pCompilingThread) return; //skip if compiling
 
     //if Ctrl & we are hoovering above a link, open that in a browser
-    if (m_last_target.GetLength() && 
-        m_last_link[0]=='C' &&
-        (MK_CONTROL & nFlags)) {
-        ::ShellExecute(NULL, NULL, m_last_target, NULL, NULL, SW_SHOWNORMAL);
+    if (m_last_link && m_last_link_message[0]=='C' && (MK_CONTROL & nFlags)) {
+        if (32<(UINT)::ShellExecute(NULL, NULL, m_last_link->target.c_str(), NULL, NULL, SW_SHOWNORMAL))
+            MessageBeep(MB_ICONERROR);
         return;
     }
 
