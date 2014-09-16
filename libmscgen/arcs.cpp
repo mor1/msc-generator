@@ -359,7 +359,8 @@ void ArcBase::AddAttributeList(AttributeList *l)
     had_add_attr_list = true;
     if (l==NULL || !valid) return;
     for (auto pAttr : *l)
-        AddAttribute(*pAttr);
+        if (!AddAttribute(*pAttr))
+            chart->Error.Error(*pAttr, false, "Attribute '"+pAttr->name+"' is not applicable to this element. Ignoring it.");
     delete l;
 }
 
@@ -5846,29 +5847,120 @@ void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcParallel* ArcParallel::AddArcList(ArcList*l) 
+ArcParallel::ArcParallel(Msc *msc, ArcList*l, AttributeList *al) :
+ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), layout(ONE_BY_ONE_MERGE)
+{
+    if (chart->simple_arc_parallel_layout)
+        layout = OVERLAP;
+    AddArcList(l, al);
+}
+
+
+ArcParallel* ArcParallel::AddArcList(ArcList*l, AttributeList *al)
 {
     if (l) {
         //If the container grows we cannot simply use push_back
         //As ArcList does not support copy of if this array is responsible
         //and not empty (as none of the arcs do)
         //So we work around to prevent destroying ArcLists with content
-        if (blocks.size() == blocks.capacity()) {
-            std::vector<ArcList> tmp;
-            tmp.reserve(blocks.size()*2+1);
-            for (auto &arcList : blocks) {
-                tmp.push_back(ArcList(arcList.responsible));
-                tmp.rbegin()->splice(tmp.rbegin()->begin(), arcList);
-                arcList.clear(); //free the arclist without deleting the arcs
-            }
-            blocks.swap(tmp);
-        }
-        blocks.push_back(ArcList(l->responsible)); 
-        blocks.rbegin()->splice(blocks.rbegin()->begin(), *l);
+        //***Since then we added move constructors to PtrList<>
+        //if (blocks.size() == blocks.capacity()) {
+        //    std::vector<ArcList> tmp;
+        //    tmp.reserve(blocks.size()*2+1);
+        //    for (auto &arcList : blocks) {
+        //        tmp.push_back(ArcList(arcList.responsible));
+        //        tmp.back().splice(tmp.back().begin(), arcList);
+        //        arcList.clear(); //free the arclist without deleting the arcs
+        //    }
+        //    blocks.swap(tmp);
+        //}
+        blocks.emplace_back(l->responsible); 
+        blocks.back().splice(blocks.back().begin(), *l);
+        if (ident.size())
+            ident.push_back(ident.front());
+        else
+            ident.push_back(NOT_SET); 
+        AddAttributeList(al);
         delete l; 
         keep_together = false;
     } 
     return this;
+}
+  
+/** Possible values for parallel layout types*/
+template<> const char EnumEncapsulator<ArcParallel::EParallelLayoutType>::names[][ENUM_STRING_LEN] =
+{"invalid", "overlap", "one_by_one", "one_by_one_merge", ""};
+
+/** Descriptions for parallel layout types*/
+template<> const char * const EnumEncapsulator<ArcParallel::EParallelLayoutType>::descriptions[] =
+{"", "Lay out each block independently even if they end up overlapping.", 
+"Place elements from each block one-by-one avoiding overlap.",
+"Place elements from each block one-by-one avoiding overlap. Merge these blocks with "
+    "surrounding parallel blocks. Same as 'one_by_one' for non-nested parallel blocks.",
+""};
+
+/** Possible values for a vertical ident types*/
+template<> const char EnumEncapsulator<ArcParallel::EVerticalIdent>::names[][ENUM_STRING_LEN] =
+{"invalid", "top", "middle", "bottom", ""};
+
+/** Descriptions for a vertical ident types*/
+template<> const char * const EnumEncapsulator<ArcParallel::EVerticalIdent>::descriptions[] =
+{"", "Align this parallel block to the top of the tallest parallel block.", 
+"Align this parallel block to the middle of the tallest parallel block.",
+"Align this parallel block to the bottom of the tallest parallel block.",
+""};
+
+
+bool ArcParallel::AddAttribute(const Attribute &a)
+{
+    if (a.Is("layout")) {
+        if (blocks.size()==1) {
+            if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+            if (a.type == MSC_ATTR_STRING && Convert(a.value, layout)) return true;
+            a.InvalidValueError(CandidatesFor(layout), chart->Error);
+        } else
+            chart->Error.Error(a, false, 
+                "You can set the layout attribute for a series of parallel blocks only before the first block. Ignoring attribute.");
+        return true;
+    }
+    if (a.Is("vertical_ident")) {
+        ident_pos.push_back(a.linenum_attr.start);
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, ident.back())) return true;
+        a.InvalidValueError(CandidatesFor(ident.back()), chart->Error);
+        return true;
+    }
+    return false; //None of the ArcBase attributes apply
+}
+
+void ArcParallel::AttributeNames(Csh &csh, bool first)
+{
+    if (first)
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "layout",
+            "Specify what algorithm is used to lay out parallel blocks.",
+            EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vertical_ident",
+        "For the 'overlap' layout algorithm specify vertical alignment.",
+        EHintType::ATTR_NAME));
+}
+
+bool ArcParallel::AttributeValues(const std::string attr, Csh &csh, bool first)
+{
+    if (first && CaseInsensitiveEqual(attr, "layout")) {
+        csh.AddToHints(EnumEncapsulator<ArcParallel::EParallelLayoutType>::names,
+                       EnumEncapsulator<ArcParallel::EParallelLayoutType>::descriptions, 
+                       csh.HintPrefix(COLOR_ATTRVALUE),
+                       EHintType::ATTR_VALUE); 
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "vertical_ident")) {
+        csh.AddToHints(EnumEncapsulator<ArcParallel::EVerticalIdent>::names,
+                       EnumEncapsulator<ArcParallel::EVerticalIdent>::descriptions, 
+                       csh.HintPrefix(COLOR_ATTRVALUE),
+                       EHintType::ATTR_VALUE); 
+        return true;
+    }
+    return false;
 }
 
 EDirType ArcParallel::GetToucedEntities(class EntityList &el) const
@@ -5900,6 +5992,19 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
                                        ArcBase * /*vertical_target*/)
 {
     if (!valid) return NULL;
+    //finalize ident
+    if (layout==OVERLAP) {
+        for (auto &i:ident)
+            if (i==NOT_SET) 
+                i = TOP; //top is default
+    } else
+        for (unsigned u = 0; u<ident.size(); u++)
+            if (ident[u]!=NOT_SET) {
+                chart->Error.Warning(ident_pos[u], "Attribute 'vertical_ident' has impact only if layout is set to 'overlap'. Ignoring attribute.",
+                    "Layout is now set to '"+string(EnumEncapsulator<ArcParallel::EParallelLayoutType>::names[layout])+"'.");
+                break;
+            }
+
     for (auto &block : blocks) 
         chart->PostParseProcessArcList(canvas, hide, block, false, 
                                        left, right, number, target);
@@ -5944,16 +6049,42 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
 {
     height = 0;
     if (!valid) return;
-    if (chart->simple_arc_parallel_layout) {
-        for (auto &block : blocks) {
+    switch (layout) {
+    case OVERLAP: {
+        std::vector<double> heights(blocks.size(), 0);
+        for (unsigned u = 0; u<blocks.size(); u++) {
             //Each parallel block is compressed without regard to the others
-            const double h = chart->LayoutArcList(canvas, block, cover);
-            height = std::max(height, h);
+            heights[u] = chart->LayoutArcList(canvas, blocks[u], cover);
+            height = std::max(height, heights[u]);
         }
-    } else {
-        const std::vector<double> heights = chart->LayoutArcLists(canvas, blocks, cover);
-        for (double d: heights)
-            height = std::max(height, d);
+        //Now do vertical alignment
+        for (unsigned u = 0; u<blocks.size(); u++) 
+            switch (ident[u]) {
+            default:
+                _ASSERT(0);
+                //fallthrough
+            case TOP:
+                break;
+            case MIDDLE:
+                chart->ShiftByArcList(blocks[u], floor((height-heights[u])/2));
+                break;
+            case BOTTOM:
+                chart->ShiftByArcList(blocks[u], floor(height-heights[u]));
+                break;
+            }
+        }
+        break;
+    case ONE_BY_ONE: {
+        std::list<TY2> y;
+        for (auto &arcList : blocks)
+            y.emplace_back(&arcList);
+        height = chart->LayoutParallelArcLists(canvas, y, cover);
+        }
+        break;
+    case ONE_BY_ONE_MERGE:
+    default:
+        _ASSERT(0);
+        break;
     }
     //Do not expand cover, it has already been expanded
     LayoutComments(canvas, cover);

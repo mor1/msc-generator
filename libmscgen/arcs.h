@@ -892,14 +892,37 @@ public:
 /** Multiple parallel blocks */
 class ArcParallel : public ArcBase
 {
+public:
+    /** Describes the three layout algoritm for parallel blocks.*/
+    enum EParallelLayoutType
+    {
+        INVALID_LAYOUT = 0,
+        OVERLAP,          ///<Lay out each block independently and allow overlaps
+        ONE_BY_ONE,       ///<Lay out elements from each block one by one and avoid overlap
+        ONE_BY_ONE_MERGE, ///<Lay out elements from each block one by one and avoid overlap, merge with parallel block around us
+    };
+    /** Specify vertical alignmen. */
+    enum EVerticalIdent
+    {
+        NOT_SET = 0,
+        TOP,    ///<Align on top
+        MIDDLE, ///<Align by middle
+        BOTTOM, ///<Align at bottom
+    };
+    std::vector<ArcList> blocks;       ///<Arc lists, one for each block
+    EParallelLayoutType layout;        ///<The layout method
 protected:
-    std::vector<ArcList> blocks; ///<Arc lists, one for each bloxk
+    std::vector<EVerticalIdent> ident; ///<For OVERLAP layout, how to ident these blocks.
+    std::vector<FileLineCol> ident_pos;///<Location of the vertical_ident attributes
 public:
     /** Create a parallel construct from its first block */
-    ArcParallel(Msc *msc, ArcList*l) : ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc) {AddArcList(l);}
-    /** Add one more parallel block */
-    ArcParallel* AddArcList(ArcList*l);
+    ArcParallel(Msc *msc, ArcList*l, AttributeList *al);
     virtual bool CanBeAlignedTo() const { return true; }
+    /** Add one more parallel block */
+    ArcParallel* AddArcList(ArcList*l, AttributeList *al);
+    bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh, bool first);
+    static bool AttributeValues(const std::string attr, Csh &csh, bool first);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int indent=0) const;
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,

@@ -2997,9 +2997,25 @@ parallel:    braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     if ($1)
-        $$ = new ArcParallel(&msc, $1);
+        $$ = new ArcParallel(&msc, $1, NULL);
     else
         $$ = NULL;
+  #endif
+}
+         | full_arcattrlist braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1))
+        ArcParallel::AttributeNames(csh, true);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1))
+        ArcParallel::AttributeValues(csh.hintAttrName, csh, true);
+  #else 
+    if ($2) {
+        $$ = new ArcParallel(&msc, $2, $1);
+    } else {
+        $$ = NULL;
+        if ($1) delete $1;
+    }
   #endif
 }
          | parallel braced_arclist
@@ -3008,9 +3024,42 @@ parallel:    braced_arclist
     if ($2==NULL)
         $$ = $1;
     else if ($1)
-        $$ = ($1)->AddArcList($2);
+        $$ = ($1)->AddArcList($2, NULL);
     else
-        $$ = new ArcParallel(&msc, $2);
+        $$ = new ArcParallel(&msc, $2, NULL);
+  #endif
+}
+         | parallel full_arcattrlist braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+        ArcParallel::AttributeNames(csh, false);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
+        ArcParallel::AttributeValues(csh.hintAttrName, csh, false);
+  #else 
+    if ($3==NULL) {
+        $$ = $1;
+        if ($2) delete $2;
+    } else if ($1)
+        $$ = ($1)->AddArcList($3, $2);
+    else
+        $$ = new ArcParallel(&msc, $3, $2);
+  #endif
+}
+         | parallel full_arcattrlist 
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+        ArcParallel::AttributeNames(csh, false);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
+        ArcParallel::AttributeValues(csh.hintAttrName, csh, false);
+    csh.AddCSH_ErrorAfter(@2, 
+        "Need an additional parallel block enclosed between '{' and '}'.");
+  #else 
+    $$ = $1;
+    if ($2) delete $2;
+    msc.Error.Error(MSC_POS(@2).end.NextChar(),
+        "Missing an additional parallel block enclosed between '{' and '}' after the attributes.");
   #endif
 };
 

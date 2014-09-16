@@ -2133,7 +2133,7 @@ YY_RULE_SETUP
  ** Can contain quotation marks (escaped or unescaped), but can not start with it
  ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
  ** (representing a commented section inside a label)
- *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)
+ *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  
  * \:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*
  */
 case 99:
@@ -2216,7 +2216,7 @@ YY_RULE_SETUP
     return TOK_STRING;
 
 	YY_BREAK
-/* Strings ending with a dot, not followed by a second dot
+/* Strings ending with a dot, not followed by a second dot 
   * Two dots one after another shall be parsed a '..' into TOK_EMPH*/
 case 105:
 /* rule 105 can match eol */
