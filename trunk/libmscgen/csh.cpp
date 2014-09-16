@@ -693,6 +693,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "vspacing", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
 "parallel", "overlap", "keep_with_next", "keep_together", "auto_heading",
+"vertical_ident", "layout",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "text.font.face", "text.font.type", "text.link_format",

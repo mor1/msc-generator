@@ -311,6 +311,60 @@ struct LabelInfo {
         type(t), text(s), coord(b) {}
 };
 
+/**Helper struct to manage multiple list of arcs, sorted by 
+ * a criteria so that always the smallest shall be taken an element from.*/
+struct TY2
+{
+    /**If this list is put in as a nested parallel block, 
+     * this is the parent list*/
+    TY2 * const parent;
+    /**If we have nested parallel blocks under processing 
+     * this is how many are not yet done.*/
+    unsigned number_of_children;
+    /** This is the actual list of arcs we contain.*/
+    ArcList * const list;
+    /** This points to the next arc to process in 'list'.
+     * Equals to list->end() if we are done.*/
+    ArcList::iterator arc;
+    /** This is where the next arc should be placed.*/
+    double y;
+    /**we will never shift elements higher than this runnning value
+     * (due to compress). 
+     * (any element marked with "parallel" will set this to its top)*/
+    double y_upper_limit;
+    /**true if the previous element was marked with parallel */
+    bool previous_was_parallel;
+    /**the lowest element's bottom (largest num value) we have seen in 'list'
+     * so far. The lowest of these will be returned from LayoutParallelArcLists().
+     * This is not always that of the last element so far, if the last 
+     * element has been shifted up due to compress and its bottom is no longer
+     * the lowest.*/
+    double y_bottom_all;
+    /**The bottom of the lowest element except elements marked as
+    //"overlap". We use this when laying out the next element.*/
+    double y_bottom;
+    /**These contain all arc_covers (from all lists), without the mainlines, 
+    //plus the mainlines of the arcs in their own column.*/
+    AreaList covers;
+    TY2(ArcList *a, double Y=0, TY2 *p = NULL) :
+        parent(p), number_of_children(0), list(a), arc(list->begin()), y(Y),
+        y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y)
+    {
+    }
+    ///lists not done sorted earliest,
+    // then the ones with no children are sorted earlier, 
+    //then with lower y, then we tie break on lower pointer value for 'list'
+    bool operator <(const TY2 &o) const
+    {
+        return (list->end()==arc)<(o.list->end()==o.arc) ? true : (list->end()==arc)>(o.list->end()==o.arc) ? false :
+            number_of_children < o.number_of_children ? true : number_of_children > o.number_of_children ? false :
+            y < o.y ? true : y > o.y ? false :
+            list < o.list;
+    }
+};
+
+
+
 /** The main class holding a chart 
   (This is a non movable, non copyable object, once it has arcs in it, due to the 
   cross-references between them.)
@@ -512,7 +566,7 @@ public:
 
     void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover);
-    std::vector<double> LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList *cover);
+    double LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *cover);
     double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
