@@ -24,6 +24,26 @@
 #include "stringparse.h"
 #include "csh.h"
 
+struct HintListBoxItemCacheElement
+{
+    string label;
+    EHintItemSelectionState state;
+    CshHintGraphicCallback callback;
+    CshHintGraphicParam param;
+    HintListBoxItemCacheElement(const string &l, EHintItemSelectionState s,
+                                CshHintGraphicCallback c, CshHintGraphicParam p) :
+                                label(l), state(s), callback(c), param(p) {}
+    bool operator < (const HintListBoxItemCacheElement &o) const {
+        return state < o.state ? true : state  > o.state ? false :
+               callback < o.callback ? true : callback > o.callback ? false :
+               param < o.param ? true : param > o.param ? false :
+               label < o.label;
+    }
+};
+
+typedef std::map<HintListBoxItemCacheElement, std::auto_ptr<CBitmap>> HintListBoxItemCache;
+
+
 /** An owner-drawn list box containing a list of hints.*/
 class CHintListBox : public CListBox 
 {
@@ -35,7 +55,8 @@ public:
     StringFormat      m_format;       ///<Default format for hints
     int               m_cur_sel;      ///<The index of the currently selected item
     Csh               m_csh;          ///<Stores the current set of hints and shapes
-    CMFCToolTipCtrl   m_tooltip;
+    CMFCToolTipCtrl   m_tooltip;      ///<The tooltip showing hint descriptors
+    HintListBoxItemCache m_cache;       ///<We store pre-drawn box items here.
     CHintListBox();
     
     enum EHintProcResult {

@@ -520,6 +520,9 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             //do nothing if no item is selected
             const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();
             if (!item) return CRichEditCtrl::PreTranslateMessage(pMsg);
+            //Do not expand for escape type hints
+            if (item->type==EHintType::ESCAPE)
+                return CRichEditCtrl::PreTranslateMessage(pMsg);
             //Expand hint under cursor, if it is full match or prefix
             if (item->state != HINT_ITEM_SELECTED) return CRichEditCtrl::PreTranslateMessage(pMsg);
             if (pMsg->wParam == '.') {
@@ -531,9 +534,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                     ReplaceHintedString(item);
                     return CRichEditCtrl::PreTranslateMessage(pMsg);
                 }
-            } else if (item->type==EHintType::ESCAPE && (pMsg->wParam=='(' || pMsg->wParam==')'))
-                //Do not expand for ( or ) 
-                return CRichEditCtrl::PreTranslateMessage(pMsg);
+            }
             ReplaceHintedString(item);
             return CRichEditCtrl::PreTranslateMessage(pMsg);
         }
@@ -646,6 +647,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         //have always changed the text and need to update coloring/
         UpdateCSH(CSH);
         RestoreWindowUpdate(state);
+        if (InHintMode())
+            StartHintMode(false); //re-position hint window
         return TRUE;
     }
 

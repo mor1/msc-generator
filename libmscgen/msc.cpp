@@ -1891,7 +1891,7 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distanc
  * @returns the total height of the list*/
 double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
 {
-    std::list<TY2> y;
+    std::list<LayoutColumn> y;
     y.emplace_back(&arcs);
     return LayoutParallelArcLists(canvas, y, cover);
 }
@@ -1910,18 +1910,21 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover)
  * @param y The list of arc lists to place
  * @param cover We add the area covered by each arc to this list, if non NULL.
  * @returns the total combined height of the lists.*/
-double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *cover)
+double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &y, AreaList *cover)
 {
     //Keep the cover of those elements that are marked with 
     //"overlay". These will be prepended afterwards, but will 
     //not be taken into consideration for laying out subsequent elements.
     AreaList deferred_cover;
 
+    //we count arcs we placed, so that we can see which column got treated last
+    unsigned current_action = 1;
+
     //sort the list 
     y.sort();
 
     while (y.size() && y.front().list->end()!=y.front().arc) {
-        TY2 &now = y.front();
+        LayoutColumn &now = y.front();
         _ASSERT(now.number_of_children==0);
         //Zero-height arcs shall be positioned to the same place
         //as the first non-zero height arc below them (so that
@@ -1942,9 +1945,10 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
             if (par && par->IsValid() && par->blocks.size() &&
                 par->layout==ArcParallel::ONE_BY_ONE_MERGE) {
                 now.number_of_children = par->blocks.size();
+                par->SetYPos(now.y);
                 const auto here = y.begin();
                 for (auto &arcList : par->blocks) 
-                    y.emplace(here, &arcList, now.y, &now);
+                    y.emplace(here, &arcList, now.y, &now, now.last_action);
                 Progress.DoneItem(MscProgress::LAYOUT, (*now.arc)->myProgressCategory);
                 break; // this will jump over element processing
                 //now.arc is left pointing to the ArcParallel
@@ -1953,6 +1957,7 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
             (*now.arc)->Layout(canvas, &arc_cover);
             Progress.DoneItem(MscProgress::LAYOUT, (*now.arc)->myProgressCategory);
             double h = (*now.arc)->GetFormalHeight();
+            now.last_action = ++current_action;
 
             //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
             //maintain at least compressGap/2 amount of space between elements even without compress
@@ -2026,12 +2031,14 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
                 now.y_bottom = std::max(now.y_bottom, now.y+h);
                 now.y += h;
             }
-            //Add now.arc's cover (without the mainline) to all other lists 
+            //Add now.arc's cover (without the mainline) to all other active lists 
             //even if it is marked as "overlay". Other columns shall not
             //overlap with "now.arc", just the subsequent elements in this column.
+            //(Active column is which is not done yet and not one of its children are 
+            //being processed.)
             arc_cover.InvalidateMainLine();
             for (auto &other : y)
-                if (&other != &now && other.list->end() != other.arc)
+                if (&other != &now && other.list->end() != other.arc && other.number_of_children==0)
                     other.covers += arc_cover;
             now.previous_was_parallel = (*now.arc)->IsParallel();
             //This was a non-zero height element, we break and pick
@@ -2046,10 +2053,20 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
                 (*first_zero_height++)->ShiftBy(now.y);
             //We are done, see if we have a parent and destroy stuff all the 
             //way up to a non-parented (original) entry
-            TY2* proc = &now;
+            LayoutColumn* proc = &now;
             while (proc->parent) {
+                //update our parent column
                 proc->parent->y_bottom = std::max(proc->parent->y_bottom, proc->y_bottom);
                 proc->parent->y_bottom_all = std::max(proc->parent->y_bottom_all, proc->y_bottom_all);
+                proc->parent->last_action = std::max(proc->parent->last_action, proc->last_action);
+                //copy cour cover to the cover of the parent column
+                //if the ArcParallel of which we are one column is marked 'overlap' copy nothing
+                //if it is marked as 'parallel' omit the mainlines. Else copy whole column cover
+                if ((*proc->parent->arc)->IsOverlap()) 
+                    proc->covers.clear();
+                else if ((*proc->parent->arc)->IsParallel())
+                    proc->covers.InvalidateMainLine();
+                proc->parent->covers += std::move(proc->covers);
                 proc = proc->parent;
                 _ASSERT(proc->number_of_children);
                 _ASSERT(proc->list->end() != proc->arc);
@@ -2060,6 +2077,11 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
                 proc->y = now.y;
                 //this is testing if the parallel block has 'parallel' keyword in front
                 proc->previous_was_parallel = (*proc->arc)->IsParallel();
+                //set the height of the ArcParallel we have just completed
+                //(for verticals if they refer to it)
+                ArcParallel * const pArc = dynamic_cast<ArcParallel*>(*proc->arc);
+                _ASSERT(pArc);
+                pArc->SetBottom(proc->y_bottom_all);
                 //go to next arc - when we added parallel blocks, we left 'arc' pointing to the ArcParallel
                 proc->arc++;
                 if (proc->arc != proc->list->end())
@@ -2073,7 +2095,7 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *
     if (cover)
         *cover += std::move(deferred_cover);
     return std::max_element(y.begin(), y.end(), 
-        [](const TY2&a, const TY2&b) {return a.y_bottom_all < b.y_bottom_all; })
+        [](const LayoutColumn&a, const LayoutColumn&b) {return a.y_bottom_all < b.y_bottom_all; })
             ->y_bottom_all;
 }
 
