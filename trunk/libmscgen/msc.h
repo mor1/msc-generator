@@ -313,11 +313,11 @@ struct LabelInfo {
 
 /**Helper struct to manage multiple list of arcs, sorted by 
  * a criteria so that always the smallest shall be taken an element from.*/
-struct TY2
+struct LayoutColumn
 {
     /**If this list is put in as a nested parallel block, 
      * this is the parent list*/
-    TY2 * const parent;
+    LayoutColumn * const parent;
     /**If we have nested parallel blocks under processing 
      * this is how many are not yet done.*/
     unsigned number_of_children;
@@ -346,19 +346,22 @@ struct TY2
     /**These contain all arc_covers (from all lists), without the mainlines, 
     //plus the mainlines of the arcs in their own column.*/
     AreaList covers;
-    TY2(ArcList *a, double Y=0, TY2 *p = NULL) :
+    unsigned last_action;
+    LayoutColumn(ArcList *a, double Y = 0, LayoutColumn *p = NULL, unsigned action=0) :
         parent(p), number_of_children(0), list(a), arc(list->begin()), y(Y),
-        y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y)
-    {
-    }
+        y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y),
+        last_action(action) {}
     ///lists not done sorted earliest,
     // then the ones with no children are sorted earlier, 
-    //then with lower y, then we tie break on lower pointer value for 'list'
-    bool operator <(const TY2 &o) const
+    //then with lower y, 
+    //then 'last_action' (the one we took an element longest time ago is smaller)
+    //finally we tie break on the pointer value of 'list'
+    bool operator <(const LayoutColumn &o) const
     {
         return (list->end()==arc)<(o.list->end()==o.arc) ? true : (list->end()==arc)>(o.list->end()==o.arc) ? false :
             number_of_children < o.number_of_children ? true : number_of_children > o.number_of_children ? false :
             y < o.y ? true : y > o.y ? false :
+            last_action < o.last_action ? true : last_action > o.last_action ? false :
             list < o.list;
     }
 };
@@ -566,7 +569,7 @@ public:
 
     void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover);
-    double LayoutParallelArcLists(Canvas &canvas, std::list<TY2> &y, AreaList *cover);
+    double LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &y, AreaList *cover);
     double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);

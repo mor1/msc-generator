@@ -6075,7 +6075,7 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
         }
         break;
     case ONE_BY_ONE: {
-        std::list<TY2> y;
+        std::list<LayoutColumn> y;
         for (auto &arcList : blocks)
             y.emplace_back(&arcList);
         height = chart->LayoutParallelArcLists(canvas, y, cover);

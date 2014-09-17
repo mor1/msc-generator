@@ -401,45 +401,50 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     CDC origDC, memDC;
     origDC.Attach(lpItem->hDC);
 	memDC.CreateCompatibleDC(&origDC);
-	CBitmap bitmap;
-	CBitmap *oldBitmap;
-    bitmap.CreateCompatibleBitmap(&origDC, lpItem->rcItem.right-lpItem->rcItem.left,
-                                           lpItem->rcItem.bottom - lpItem->rcItem.top);
-    oldBitmap = memDC.SelectObject(&bitmap);
-    memDC.FillSolidRect(0,0,lpItem->rcItem.right-lpItem->rcItem.left,
-                                           lpItem->rcItem.bottom - lpItem->rcItem.top, origDC.GetBkColor());
-    Canvas canvas(Canvas::WIN, memDC.m_hDC);
-    Label label(item->decorated, canvas, m_format);
-    const ColorType black(0,0,0);
-    const FillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
-    const LineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
-    const Block b(0,lpItem->rcItem.right-lpItem->rcItem.left,
-                  0,lpItem->rcItem.bottom - lpItem->rcItem.top);
-    switch (item->state) {
-    case HINT_ITEM_SELECTED:
-        canvas.Fill(b, line, fill);
-    case HINT_ITEM_SELECTED_HALF:
-        canvas.Line(b, line);
-    default:
-        break;
+    CBitmap *oldBitmap;
+    HintListBoxItemCacheElement elem(item->decorated, item->state, item->callback, item->param);
+    auto i = m_cache.find(elem);
+    if (i==m_cache.end()) {
+        i = m_cache.emplace(elem, std::auto_ptr<CBitmap>(new CBitmap)).first;
+        i->second->CreateCompatibleBitmap(&origDC, lpItem->rcItem.right-lpItem->rcItem.left,
+                                               lpItem->rcItem.bottom - lpItem->rcItem.top);
+        oldBitmap = memDC.SelectObject(&*i->second);
+        memDC.FillSolidRect(0,0,lpItem->rcItem.right-lpItem->rcItem.left,
+                                               lpItem->rcItem.bottom - lpItem->rcItem.top, origDC.GetBkColor());
+        Canvas canvas(Canvas::WIN, memDC.m_hDC);
+        Label label(item->decorated, canvas, m_format);
+        const ColorType black(0,0,0);
+        const FillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
+        const LineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
+        const Block b(0,lpItem->rcItem.right-lpItem->rcItem.left,
+                      0,lpItem->rcItem.bottom - lpItem->rcItem.top);
+        switch (item->state) {
+        case HINT_ITEM_SELECTED:
+            canvas.Fill(b, line, fill);
+        case HINT_ITEM_SELECTED_HALF:
+            canvas.Line(b, line);
+        default:
+            break;
+        }
+        const int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
+        label.Draw(canvas, HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right-lpItem->rcItem.left, y);
+        if (item->callback) {
+            const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
+            cairo_translate(canvas.GetContext(), 0, y2);
+            item->callback(&canvas, item->param, m_csh);
+            //We do not restore the context, we drop it anyway
+        }
+        canvas.CloseOutput();
+    } else {
+        //just copy cache
+        oldBitmap = memDC.SelectObject(&*i->second);
     }
-    const int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
-    label.Draw(canvas, HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right-lpItem->rcItem.left, y);
-    if (item->callback) {
-        const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
-        cairo_translate(canvas.GetContext(), 0, y2);
-        item->callback(&canvas, item->param, m_csh);
-        //We do not restore the context, we drop it anyway
-    }
-
-    canvas.CloseOutput();
-    origDC.BitBlt(lpItem->rcItem.left, lpItem->rcItem.top,  
-                  lpItem->rcItem.right-lpItem->rcItem.left,
-                  lpItem->rcItem.bottom - lpItem->rcItem.top,
-                  &memDC, 0, 0, SRCCOPY);
+    origDC.BitBlt(lpItem->rcItem.left, lpItem->rcItem.top,
+                    lpItem->rcItem.right-lpItem->rcItem.left,
+                    lpItem->rcItem.bottom - lpItem->rcItem.top,
+                    &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(oldBitmap);
     origDC.Detach();
-    
     item->ul_x = lpItem->rcItem.left;
     item->ul_y = lpItem->rcItem.top;
     item->br_x = lpItem->rcItem.right;

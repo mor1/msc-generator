@@ -909,9 +909,12 @@ public:
         MIDDLE, ///<Align by middle
         BOTTOM, ///<Align at bottom
     };
+protected:
+    friend class Msc; //to manage our layout
+    void SetYPos(double y) { yPos = y; }
+    void SetBottom(double y) { height = y-yPos; }
     std::vector<ArcList> blocks;       ///<Arc lists, one for each block
     EParallelLayoutType layout;        ///<The layout method
-protected:
     std::vector<EVerticalIdent> ident; ///<For OVERLAP layout, how to ident these blocks.
     std::vector<FileLineCol> ident_pos;///<Location of the vertical_ident attributes
 public:
