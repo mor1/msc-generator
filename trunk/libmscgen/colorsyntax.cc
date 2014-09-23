@@ -3876,11 +3876,11 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in an "CommandArcList" element used only for this. */
+     * enclose them in an "ArcParallel" element used only for this. */
     if ((yyvsp[0].arclist)) {
-        (yyval.arcbase) = (new CommandArcList(&msc, (yyvsp[0].arclist)));
-        ((yyval.arcbase))->AddAttributeList(NULL);
-		delete ((yyvsp[0].arclist));
+        ArcParallel *p = new ArcParallel(&msc, (yyvsp[0].arclist), NULL);
+        p->layout = ArcParallel::ONE_BY_ONE_MERGE;
+        (yyval.arcbase) = p;
     } else
         (yyval.arcbase) = NULL;
   #endif
@@ -6355,7 +6355,7 @@ yyreduce:
   #else 
     (yyval.arcparallel) = (yyvsp[-1].arcparallel);
     if ((yyvsp[0].attriblist)) delete (yyvsp[0].attriblist);
-    msc.Error.Error(MSC_POS((yylsp[0])).end.nextChar(),
+    msc.Error.Error(MSC_POS((yylsp[0])).end.NextChar(),
         "Missing an additional parallel block enclosed between '{' and '}' after the attributes.");
   #endif
 }

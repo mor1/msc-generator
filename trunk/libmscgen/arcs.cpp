@@ -360,7 +360,7 @@ void ArcBase::AddAttributeList(AttributeList *l)
     if (l==NULL || !valid) return;
     for (auto pAttr : *l)
         if (!AddAttribute(*pAttr))
-            chart->Error.Error(*pAttr, false, "Attribute '"+pAttr->name+"' is not applicable to this element. Ignoring it.");
+            pAttr->InvalidAttrError(chart->Error);
     delete l;
 }
 
@@ -882,7 +882,6 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
     if (style.write().AddAttribute(a, chart))
         return true;
     if (ArcBase::AddAttribute(a)) return true;
-    a.InvalidAttrError(chart->Error);
     return false;
 }
 
@@ -4897,8 +4896,8 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         if (content.size()) {
             ArcList *al = new ArcList;
             al->swap(content);
-            CommandArcList *p = new CommandArcList(chart, al); //this will do a "delete al;"
-            p->AddAttributeList(NULL);
+            ArcParallel *p = new ArcParallel(chart, al, NULL); //this will do a "delete al;"
+            p->layout = ArcParallel::ONE_BY_ONE_MERGE; //as if we written 'content' inline without {}s
             return p;
         }
         //We completely disappear due to entity collapses and have no content
@@ -5855,7 +5854,6 @@ ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), layout(ONE_BY_ONE_MERGE)
     AddArcList(l, al);
 }
 
-
 ArcParallel* ArcParallel::AddArcList(ArcList*l, AttributeList *al)
 {
     if (l) {
@@ -5874,14 +5872,10 @@ ArcParallel* ArcParallel::AddArcList(ArcList*l, AttributeList *al)
         //    }
         //    blocks.swap(tmp);
         //}
-        blocks.emplace_back(l->responsible); 
-        blocks.back().splice(blocks.back().begin(), *l);
-        if (ident.size())
-            ident.push_back(ident.front());
-        else
-            ident.push_back(NOT_SET); 
+        const EVerticalIdent i = blocks.size() ? blocks.front().ident : NOT_SET;
+        blocks.emplace_back(std::move(*l), i);
+        delete l;
         AddAttributeList(al);
-        delete l; 
         keep_together = false;
     } 
     return this;
@@ -5924,10 +5918,10 @@ bool ArcParallel::AddAttribute(const Attribute &a)
         return true;
     }
     if (a.Is("vertical_ident")) {
-        ident_pos.push_back(a.linenum_attr.start);
+        blocks.back().ident_pos = a.linenum_attr.start;
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, ident.back())) return true;
-        a.InvalidValueError(CandidatesFor(ident.back()), chart->Error);
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, blocks.back().ident)) return true;
+        a.InvalidValueError(CandidatesFor(blocks.back().ident), chart->Error);
         return true;
     }
     return false; //None of the ArcBase attributes apply
@@ -5966,8 +5960,8 @@ bool ArcParallel::AttributeValues(const std::string attr, Csh &csh, bool first)
 EDirType ArcParallel::GetToucedEntities(class EntityList &el) const
 {
     EDirType dir = MSC_DIR_INDETERMINATE;
-    for (auto i = blocks.begin(); i!=blocks.end(); i++)
-        dir = chart->GetTouchedEntitiesArcList(*i, el, dir);
+    for (auto &col : blocks)
+        dir = chart->GetTouchedEntitiesArcList(col.arcs, el, dir);
     return dir;
 }
 
@@ -5979,7 +5973,7 @@ string ArcParallel::Print(int indent) const
     for (auto i = blocks.begin(); i!=blocks.end(); i++) {
         if (i!=blocks.begin())
             ss << string(indent*2+2, ' ') << "---\n";
-        ss << i->Print(indent+2);
+        ss << i->arcs.Print(indent+2);
         if (i!=blocks.end())
             ss << "\n";
     }
@@ -5994,34 +5988,35 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
     if (!valid) return NULL;
     //finalize ident
     if (layout==OVERLAP) {
-        for (auto &i:ident)
-            if (i==NOT_SET) 
-                i = TOP; //top is default
+        for (auto &col:blocks)
+            if (col.ident==NOT_SET) 
+                col.ident = TOP; //top is default
     } else
-        for (unsigned u = 0; u<ident.size(); u++)
-            if (ident[u]!=NOT_SET) {
-                chart->Error.Warning(ident_pos[u], "Attribute 'vertical_ident' has impact only if layout is set to 'overlap'. Ignoring attribute.",
+        for (auto &col:blocks)
+            if (col.ident!=NOT_SET) {
+                chart->Error.Warning(col.ident_pos, "Attribute 'vertical_ident' has impact only if layout is set to 'overlap'. Ignoring attribute.",
                     "Layout is now set to '"+string(EnumEncapsulator<ArcParallel::EParallelLayoutType>::names[layout])+"'.");
                 break;
             }
 
-    for (auto &block : blocks) 
-        chart->PostParseProcessArcList(canvas, hide, block, false, 
+    for (auto &col : blocks) 
+        chart->PostParseProcessArcList(canvas, hide, col.arcs, false, 
                                        left, right, number, target);
     if (hide) return NULL;
     //prune empty blocks
-    for (size_t i=0; i < blocks.size(); /*nope*/)
-        if (blocks[i].size())
+    for (auto i=blocks.begin(); i != blocks.end(); /*nope*/)
+        if (i->IsEmpty())
+            blocks.erase(i++);
+        else
             i++;
-        else 
-            blocks.erase(blocks.begin()+i);
+        
     return blocks.size() ? this : NULL;
 }
 
 void ArcParallel::FinalizeLabels(Canvas &canvas)
 {
-    for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->FinalizeLabelsArcList(*i, canvas);
+    for (auto &col : blocks)
+        chart->FinalizeLabelsArcList(col.arcs, canvas);
     ArcBase::FinalizeLabels(canvas);
 }
 
@@ -6033,8 +6028,8 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     //Add activation status right away
     AddEntityLineWidths(vdist);
     EntityDistanceMap d;
-    for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->WidthArcList(canvas, *i, d, vdist);
+    for (auto &col : blocks)
+        chart->WidthArcList(canvas, col.arcs, d, vdist);
     d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
     d.CombineUnPairedLeftRightToPair(chart->hscaleAutoXGap);
     d.CombineBoxSideToPair(chart->hscaleAutoXGap);
@@ -6051,33 +6046,33 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
     if (!valid) return;
     switch (layout) {
     case OVERLAP: {
-        std::vector<double> heights(blocks.size(), 0);
-        for (unsigned u = 0; u<blocks.size(); u++) {
+        for (auto &col : blocks) {
             //Each parallel block is compressed without regard to the others
-            heights[u] = chart->LayoutArcList(canvas, blocks[u], cover);
-            height = std::max(height, heights[u]);
+            col.height = chart->LayoutArcList(canvas, col.arcs, cover);
+            height = std::max(height, col.height);
         }
         //Now do vertical alignment
-        for (unsigned u = 0; u<blocks.size(); u++) 
-            switch (ident[u]) {
+        for (auto &col : blocks)
+            switch (col.ident) {
             default:
                 _ASSERT(0);
                 //fallthrough
             case TOP:
                 break;
             case MIDDLE:
-                chart->ShiftByArcList(blocks[u], floor((height-heights[u])/2));
+                chart->ShiftByArcList(col.arcs, floor((height-col.height)/2));
                 break;
             case BOTTOM:
-                chart->ShiftByArcList(blocks[u], floor(height-heights[u]));
+                chart->ShiftByArcList(col.arcs, floor(height-col.height));
                 break;
             }
         }
         break;
     case ONE_BY_ONE: {
         std::list<LayoutColumn> y;
-        for (auto &arcList : blocks)
-            y.emplace_back(&arcList);
+        unsigned c = 0;
+        for (auto &col : blocks)
+            y.emplace_back(&col.arcs, c++);
         height = chart->LayoutParallelArcLists(canvas, y, cover);
         }
         break;
@@ -6093,8 +6088,8 @@ void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
 Range ArcParallel::GetVisualYExtent(bool include_comments) const
 {
     Range ret(yPos, yPos);
-    for (auto &block : blocks)
-        for (auto &pArc : block)
+    for (auto &col : blocks)
+        for (auto &pArc : col.arcs)
             ret += pArc->GetVisualYExtent(include_comments);
     if (include_comments && valid)
         ret += yPos+comment_height;
@@ -6106,16 +6101,16 @@ Range ArcParallel::GetVisualYExtent(bool include_comments) const
 void ArcParallel::ShiftBy(double y)
 {
     if (!valid) return;
-    for (auto &block : blocks)
-        chart->ShiftByArcList(block, y);
+    for (auto &col : blocks)
+        chart->ShiftByArcList(col.arcs, y);
     ArcBase::ShiftBy(y);
 }
 
 void ArcParallel::CollectPageBreak()
 {
     if (!valid) return;
-    for (auto &block : blocks)
-        chart->CollectPageBreakArcList(block);
+    for (auto &col : blocks)
+        chart->CollectPageBreakArcList(col.arcs);
 }
 
 
@@ -6146,7 +6141,7 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         //of a block, then move them with the non-zero element before them.
         for (auto b=++blocks.begin(); b!=blocks.end(); b++) {
             ArcList result;
-            ArcList *list[2] = {&blocks[0], &*b};
+            ArcList *list[2] = {&blocks.front().arcs, &b->arcs};
             ArcList::iterator e[2] = {list[0]->begin(), list[1]->begin()};
             FindFirstNonZero(e[0], list[0], result);
             FindFirstNonZero(e[1], list[1], result);
@@ -6157,12 +6152,12 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
             }
             if (list[0]->size()) result.splice(result.end(), *list[0]);
             if (list[1]->size()) result.splice(result.end(), *list[1]);
-            blocks[0].swap(result); //move the result to "block[0]"
+            blocks.front().arcs.swap(result); //move the result to "blocks.front()"
         }
-        blocks.resize(1);
+        blocks.erase(++blocks.begin(), blocks.end());
     }
     //We may get -1 if all of us would move to the next page -> we pass that to our caller, too
-    const double incr = chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize,
+    const double incr = chart->PageBreakArcList(canvas, blocks.front().arcs, netPrevPageSize,
                                                 pageBreak, addCommandNewpage, addHeading,
                                                 false, true);
     //if we have increased in size, adjust our height (so that verticals attached to us
@@ -6174,44 +6169,44 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 void ArcParallel::PlaceWithMarkers(Canvas &canvas)
 {
     if (!valid) return;
-    for (auto &block : blocks)
-        chart->PlaceWithMarkersArcList(canvas, block);
+    for (auto &col : blocks)
+        chart->PlaceWithMarkersArcList(canvas, col.arcs);
 }
 
 void ArcParallel::PostPosProcess(Canvas &canvas)
 {
     if (!valid) return;
     ArcBase::PostPosProcess(canvas);
-    for (auto &block : blocks)
-        chart->PostPosProcessArcList(canvas, block);
+    for (auto &col : blocks)
+        chart->PostPosProcessArcList(canvas, col.arcs);
 }
 
 void ArcParallel::RegisterLabels()
 {
     if (valid) 
-        for (auto &block : blocks)
-            chart->RegisterLabelArcList(block);
+        for (auto &col : blocks)
+            chart->RegisterLabelArcList(col.arcs);
 }
 
 void ArcParallel::CollectIsMapElements(Canvas &canvas)
 {
     if (valid) 
-        for (auto &block : blocks)
-            chart->CollectIsMapElementsArcList(block, canvas);
+        for (auto &col : blocks)
+            chart->CollectIsMapElementsArcList(col.arcs, canvas);
 }
 
 void ArcParallel::RegisterCover(EDrawPassType pass)
 {
     if (valid) 
-        for (auto &block : blocks)
-            chart->RegisterCoverArcList(block, pass);
+        for (auto &col : blocks)
+            chart->RegisterCoverArcList(col.arcs, pass);
 }
 
 
 void ArcParallel::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (valid) 
-        for (auto &block : blocks)
-            chart->DrawArcList(canvas, block, chart->GetTotal().y, pass);
+        for (auto &col : blocks)
+            chart->DrawArcList(canvas, col.arcs, chart->GetTotal().y, pass);
 }
 

@@ -40,7 +40,6 @@ In 4.4
 CHANGED: parallel layout (incl attributes)
 FIXED: When we keep hint window open, but cursor moves - move hint window, too
 
-
 In 4.3.8
 FIXED: Tidied up clickable links
 ADDED: link_format to designlib

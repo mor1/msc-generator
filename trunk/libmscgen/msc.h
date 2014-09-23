@@ -326,6 +326,9 @@ struct LayoutColumn
     /** This points to the next arc to process in 'list'.
      * Equals to list->end() if we are done.*/
     ArcList::iterator arc;
+    /** Tie-breaker: in case of everything equal, use the column number
+     * This tells which column we were in our parallel block series.*/
+    const unsigned column;
     /** This is where the next arc should be placed.*/
     double y;
     /**we will never shift elements higher than this runnning value
@@ -347,8 +350,8 @@ struct LayoutColumn
     //plus the mainlines of the arcs in their own column.*/
     AreaList covers;
     unsigned last_action;
-    LayoutColumn(ArcList *a, double Y = 0, LayoutColumn *p = NULL, unsigned action=0) :
-        parent(p), number_of_children(0), list(a), arc(list->begin()), y(Y),
+    LayoutColumn(ArcList *a, unsigned c, double Y = 0, LayoutColumn *p = NULL, unsigned action=0) :
+        parent(p), number_of_children(0), list(a), arc(list->begin()), column(c), y(Y),
         y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y),
         last_action(action) {}
     ///lists not done sorted earliest,
@@ -358,11 +361,11 @@ struct LayoutColumn
     //finally we tie break on the pointer value of 'list'
     bool operator <(const LayoutColumn &o) const
     {
-        return (list->end()==arc)<(o.list->end()==o.arc) ? true : (list->end()==arc)>(o.list->end()==o.arc) ? false :
+        return list->end()!=arc && o.list->end()==o.arc ? true : list->end()==arc && o.list->end()!=o.arc ? false :
             number_of_children < o.number_of_children ? true : number_of_children > o.number_of_children ? false :
             y < o.y ? true : y > o.y ? false :
             last_action < o.last_action ? true : last_action > o.last_action ? false :
-            list < o.list;
+            column < o.column;
     }
 };
 

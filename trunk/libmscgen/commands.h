@@ -413,34 +413,6 @@ public:
     virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
-/** An arc holding a list of arcs for internal use.*/
-class CommandArcList : public ArcCommand
-{
-public:
-    ArcList content; ///<The list of arcs we represent
-    explicit CommandArcList(Msc *m) : 
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {}
-    CommandArcList(Msc *m, ArcBase *p) :  
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {Append(p);}
-    CommandArcList(Msc *m, ArcList *l) :  
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {Append(l);}
-    virtual bool CanBeAlignedTo() const { return true; }
-
-    /** Append a new arc */
-    void Append(ArcBase *p) {content.Append(p);}
-    /** Move a complete list to us */
-    void Append(ArcList *l) {content.splice(content.end(), *l);}
-    /** Move our arc to another ArcList */
-    void MoveContentAfter(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
-    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
-                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
-                                    bool /*addHeading*/, ArcList &/*res*/)
-                                             {_ASSERT(0); return -1;}
-    virtual void RegisterLabels() { _ASSERT(0); } //should not happen
-    virtual void CollectIsMapElements(Canvas &) { _ASSERT(0); } //should not happen
-    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) { _ASSERT(0); } //should not happen
-};
-
 class CommandEndNoteSeparator : public ArcCommand
 {
 public: 

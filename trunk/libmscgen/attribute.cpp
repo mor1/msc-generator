@@ -1149,6 +1149,7 @@ bool WidthAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             str = a.value;
             break;
         }
+        return true;
     }
     return false;
 }

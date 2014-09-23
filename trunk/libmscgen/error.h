@@ -25,9 +25,10 @@
 
 #include<string>
 #include<vector>
+#include<cassert>
 
 #ifndef _ASSERT
-#define  _ASSERT(A)
+#define  _ASSERT(A) assert(A)
 #endif
 
 class Attribute;

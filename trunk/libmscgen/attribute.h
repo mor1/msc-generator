@@ -138,7 +138,7 @@ public:
     /** Copy constructor. 
      * Does not work, if the list is responsible for its content and not empty*/
     PtrList(const PtrList<Object> &o) : std::list<Object*>(o), responsible(o.responsible) {_ASSERT(!responsible || o.size()==0);}
-    PtrList(PtrList<Object> &&o) : std::list<Object*>(std::move(static_cast<std::list<Object*>&>(o))), responsible(o.responsible) {o.clear();}
+    PtrList(PtrList<Object> &&o) : std::list<Object*>(std::move(o)), responsible(o.responsible) {o.clear();}
     PtrList & operator = (const PtrList<Object> &o) {std::list<Object*>::operator=(o); const_cast<bool&>(responsible)=o.responsible; _ASSERT(!responsible); return *this;}
     PtrList & operator = (PtrList<Object> &&o) {std::list<Object*>::operator=(std::move(o)); const_cast<bool&>(responsible)=o.responsible; return *this;}
     PtrList *Append(Object *o)
