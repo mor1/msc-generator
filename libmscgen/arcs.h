@@ -910,14 +910,21 @@ public:
         BOTTOM, ///<Align at bottom
     };
 protected:
+    /** Represents one parallel block */
+    struct Column {
+        ArcList arcs;          ///<The list of arcs in this column
+        EVerticalIdent ident;  ///<For OVERLAP layout, how to ident this block.
+        FileLineCol ident_pos; ///<Location of the vertical_ident attribute
+        double height;         ///column height
+        Column(ArcList &&a, EVerticalIdent i) : arcs(std::move(a)), ident(i), height(0) { ident_pos.MakeInvalid(); }
+        bool IsEmpty() const { return arcs.size()==0; }
+    };
     friend class Msc; //to manage our layout
     void SetYPos(double y) { yPos = y; }
     void SetBottom(double y) { height = y-yPos; }
-    std::vector<ArcList> blocks;       ///<Arc lists, one for each block
-    EParallelLayoutType layout;        ///<The layout method
-    std::vector<EVerticalIdent> ident; ///<For OVERLAP layout, how to ident these blocks.
-    std::vector<FileLineCol> ident_pos;///<Location of the vertical_ident attributes
+    std::list<Column> blocks;       ///<Arc lists, one for each block
 public:
+    EParallelLayoutType layout;        ///<The layout method
     /** Create a parallel construct from its first block */
     ArcParallel(Msc *msc, ArcList*l, AttributeList *al);
     virtual bool CanBeAlignedTo() const { return true; }

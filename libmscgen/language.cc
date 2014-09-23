@@ -3870,11 +3870,11 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in an "CommandArcList" element used only for this. */
+     * enclose them in an "ArcParallel" element used only for this. */
     if ((yyvsp[0].arclist)) {
-        (yyval.arcbase) = (new CommandArcList(&msc, (yyvsp[0].arclist)));
-        ((yyval.arcbase))->AddAttributeList(NULL);
-		delete ((yyvsp[0].arclist));
+        ArcParallel *p = new ArcParallel(&msc, (yyvsp[0].arclist), NULL);
+        p->layout = ArcParallel::ONE_BY_ONE_MERGE;
+        (yyval.arcbase) = p;
     } else
         (yyval.arcbase) = NULL;
   #endif

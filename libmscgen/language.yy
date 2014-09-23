@@ -1016,11 +1016,11 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in an "CommandArcList" element used only for this. */
+     * enclose them in an "ArcParallel" element used only for this. */
     if ($1) {
-        $$ = (new CommandArcList(&msc, $1));
-        ($$)->AddAttributeList(NULL);
-		delete ($1);
+        ArcParallel *p = new ArcParallel(&msc, $1, NULL);
+        p->layout = ArcParallel::ONE_BY_ONE_MERGE;
+        $$ = p;
     } else
         $$ = NULL;
   #endif

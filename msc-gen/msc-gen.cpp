@@ -102,7 +102,10 @@ bool progressbar(double percent, void *p)
     crStart.X = 0;
     crStart.Y = crCurr.Y;
     SetConsoleCursorPosition(hOut, crStart);
-    printf("%3d%%", int(floor(percent+0.5)));
+    if (percent>=0 && percent<=100)
+        printf("%3d%%", int(floor(percent+0.5)));
+    else
+        printf("    ");
     SetConsoleCursorPosition(hOut, crCurr);
     return false;
 }

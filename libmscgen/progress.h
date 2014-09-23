@@ -29,7 +29,10 @@
 class MscProgress
 {
 public:
-    typedef bool (*ProgressCallback)(double percent, void*data); //Callback function to report progress at;
+    /** User provided callback to display progress. 
+     * For 'percent' values outside [0..100], the progressbar shall 
+     * be erased (relevant for commandline).*/
+    typedef bool (*ProgressCallback)(double percent, void*data); 
     enum EBulkSection {
         NO_BULK_SECTION = 0, ///< The invalid value
         STARTUP,
