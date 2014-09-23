@@ -1,0 +1,5 @@
+hscale=1;
+a, b, c, d;
+a->b: A short label;
+c->d: A long label needing space;
+hspace c-d: A long label needing space;
