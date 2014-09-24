@@ -82,7 +82,7 @@ public:
     /** @name Functions for intelligent indentation
     * @{ */
 	int  FirstNonWhitespaceIndent(const char *str, int Max=-1);
-	char LastNonWhitespaceChar(const char *str, long pos) const;
+	const char *LastNonWhitespaceChar(const char *str, long pos) const;
 	int  FindColonLabelIndent(long lStart, int *line=NULL);
     int  FindProperLineIndent(int lStart);
     int  FindCurrentLineIndent(long lStart);
