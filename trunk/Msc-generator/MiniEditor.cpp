@@ -128,7 +128,7 @@ int CCshRichEditCtrl::FirstNonWhitespaceIndent(const char *str, int Max)
 *                 (used to test for quoted strings)
 * @returns 0 if all the line is whitespace or comment, or if the line ends
 *          with a colon string. Else the last non-whitespace character.*/
-char CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
+const char *CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
     ASSERT(pApp != NULL);
@@ -138,29 +138,29 @@ char CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) const
         while (index>=0 && (str[index]==' ' || str[index]=='\t')) index--;
         //see if all the line is whitespace
         if (index<0)
-            return 0;
+            return NULL;
         //See if last char is inside a colon label or in an (unterminated) qouted
         //string.
         if (m_csh.IsInColonLabel(pos+index+1) || m_csh.IsInQuotedString(pos+index+1))
-            return 0;
+            return NULL;
         //find potential # characters
         int index2 = index;
         while (index2>=0 && str[index2]!='#') index2--;
         //if no #-marks, we are not ending in comments - return last char
         if (index2<0)
-            return str[index];
+            return str+index;
         //if # is in quoted string, line-end is not in the comment
         if (m_csh.IsInQuotedString(pos+index2))
-            return str[index];
+            return str+index;
         //# is not in a quoted string, it is a comment.
         //if starts at beginning of line, return 0
         if (index2==0)
-            return 0;
+            return NULL;
         //cycle again and search for #s prior
         index = index2-1;
     };
     _ASSERT(0);
-	return 0;
+	return NULL;
 }
 
 /** Return the ident of a colon-label's applicable indent.
@@ -272,16 +272,24 @@ int  CCshRichEditCtrl::FindProperLineIndent(int line)
         int indent = FirstNonWhitespaceIndent(strLine2);
         if (indent == -1) continue;
 
-        const char last_ch = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
+        const long line_begin = ConvertLineColToPos(line, 0);
+        const char * const local_last_p = LastNonWhitespaceChar(strLine2, line_begin);
+        const char last_ch = local_last_p ? *local_last_p : 0;
         //special case: a line starting with '}' and ending with ';' -> indent to '}'
         if (';' == last_ch && strLine2[indent]=='}')
             return indent;
+        //another special case - if line above us ends in '}' -> ident to the line of its opening { pair
+        if ('}' == last_ch) {
+            const int indent = FindIndentForClosingBrace(line_begin + local_last_p-strLine2);
+            if (indent>=0) return indent;
+        }
         const int offset = ';' == last_ch ? 0 : m_tabsize;
         //OK, we have found the line above the start pos that has a non-whitespace
-        //find the line above that ends in a semicolon
+        //find the line above that ends in a semicolon or {
         while (--line>=0) {
             GetLineString(line, strLine2);
-            const char last_char = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
+            const char * const local_last_pos = LastNonWhitespaceChar(strLine2, ConvertLineColToPos(line, 0));
+            const char last_char = local_last_pos ? *local_last_pos : 0;
             if (last_char == ';')
                 return indent + offset;
             if (last_char == '{')
@@ -291,10 +299,10 @@ int  CCshRichEditCtrl::FindProperLineIndent(int line)
             if (tmp_indent>=0) 
                 indent = tmp_indent;
         }
-        //reached end of line - no command above us
-        return indent+ offset;
+        //reached start of file - just one line above us, ident to that
+        return indent + offset;
     }
-    //reached the beginning of the file, no whitespace above us
+    //reached the beginning of the file, only whitespace above us
     return 0;
 }
 
