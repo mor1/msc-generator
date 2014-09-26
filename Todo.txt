@@ -36,7 +36,12 @@ ADD: arrows to point to boxes.
 ADD: Allow arrow to a group entity...
 ADD: Vertical comment alignment
 
-In 4.4
+In 4.4rc2
+FIXED: vertical brace ee;
+CANCELLED: \_ issue from David
+FIXED: Now parallel block attributes appear when one starts an arc with an attrlist
+
+In 4.4rc1
 CHANGED: parallel layout (incl attributes)
 FIXED: When we keep hint window open, but cursor moves - move hint window, too
 
