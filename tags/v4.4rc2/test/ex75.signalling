@@ -1,0 +1,10 @@
+hscale = auto;
+a, b, c, d;
+a->b:        
+   This far apart;
+hspace a-c:  
+   This faaaaaaaaar apart;
+a--d;
+vspace 40;
+a--d;
+hspace c-d 40;
