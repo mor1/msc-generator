@@ -894,17 +894,85 @@ arc:           arcrel
   #endif
     free($1);
 }
-              | full_arcattrlist_with_label
+              | full_arcattrlist  
 {
+    //Here we have no label and may continue as a parallel block
+    //->offer parallel attributes, as well...
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1))
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1)) {
         ArcDivider::AttributeNames(csh, false, false);
-    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1))
+        ArcParallel::AttributeNames(csh, true);
+    } else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1)) {
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
+        ArcParallel::AttributeValues(csh.hintAttrName, csh, true);
+    }
   #else
-    $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc));
+    //... but due to the lack of curly brace we are a divider
+    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
     ($$)->AddAttributeList($1);
   #endif
+}
+              | colon_string
+{
+    //Here we have a colon label added: this is a divider
+  #ifdef C_S_H_IS_COMPILED
+  #else
+    AttributeList *al = new AttributeList;
+    al->Append(new Attribute("label", $1, MSC_POS(@$), MSC_POS(@$).IncStartCol()));
+    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    ($$)->AddAttributeList(al);
+  #endif
+    free($1);
+}
+              | colon_string full_arcattrlist
+{
+    //Here we have a colon label added: this is a divider
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2)) 
+        ArcDivider::AttributeNames(csh, false, false);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2)) 
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
+  #else
+    ($2)->Prepend(new Attribute("label", $1, MSC_POS(@1), MSC_POS(@1).IncStartCol()));
+    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    ($$)->AddAttributeList($2);
+#endif
+    free($1);
+}
+              | full_arcattrlist colon_string full_arcattrlist
+{
+    //Here we have a colon label added: this is a divider
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1) || 
+        csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @3))
+        ArcDivider::AttributeNames(csh, false, false);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1) || 
+             csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @3)) 
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
+  #else
+    ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol()));
+    //Merge $3 at the end of $1 (after the colon label, so ordering is kept)
+    ($1)->splice(($1)->end(), *($3));
+    delete ($3); //empty list now
+    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    ($$)->AddAttributeList($1);
+#endif
+    free($2);
+}
+              | full_arcattrlist colon_string
+{
+    //Here we have a colon label added: this is a divider
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @1)) 
+        ArcDivider::AttributeNames(csh, false, false);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @1)) 
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
+  #else
+    ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol())); 
+    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    ($$)->AddAttributeList($1);    
+  #endif
+    free($2);
 }
               | first_entity
 {
@@ -3861,8 +3929,11 @@ vertrel: vertrel_no_xpos vertxpos
         csh.hintStatus = HINT_READY;
     }
 #else
-	VertXPos vxp(msc);
-	$$ = ($1)->AddXpos(&vxp);
+    if ($1) {
+        VertXPos vxp(msc);
+        $$ = ($1)->AddXpos(&vxp);
+    } else
+        $$ = NULL;
   #endif
 } 
          | vertxpos
