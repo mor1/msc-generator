@@ -1618,8 +1618,8 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &y, A
                 par->SetYPos(now.y);
                 const auto here = y.begin();
                 unsigned c = 0;
-                for (auto &col : par->blocks) 
-                    y.emplace(here, &col.arcs, c++, now.y, &now, now.last_action);
+                for (auto &col : par->blocks)
+                    y.emplace(here, &col.arcs, c++, now.y, &now, now.last_action, &now.covers);
                 Progress.DoneItem(MscProgress::LAYOUT, (*now.arc)->myProgressCategory);
                 break; // this will jump over element processing
                 //now.arc is left pointing to the ArcParallel
@@ -1702,14 +1702,12 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &y, A
                 now.y_bottom = std::max(now.y_bottom, now.y+h);
                 now.y += h;
             }
-            //Add now.arc's cover (without the mainline) to all other active lists 
+            //Add now.arc's cover (without the mainline) to all other lists not yet completed
             //even if it is marked as "overlay". Other columns shall not
             //overlap with "now.arc", just the subsequent elements in this column.
-            //(Active column is which is not done yet and not one of its children are 
-            //being processed.)
             arc_cover.InvalidateMainLine();
             for (auto &other : y)
-                if (&other != &now && other.list->end() != other.arc && other.number_of_children==0)
+                if (&other != &now && other.list->end() != other.arc)
                     other.covers += arc_cover;
             now.previous_was_parallel = (*now.arc)->IsParallel();
             //This was a non-zero height element, we break and pick
