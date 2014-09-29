@@ -9,32 +9,46 @@ Two helpers needed:
  Allow new function only for metafiles
 
 In future releases
-ADD: shadow to arrows and labels
-ADD: More arrow types --> ==> >>> ..> 
-ADD: more colors
-ADD: diagonal gradients
-ADD: variant #1 double and triple-line joints for emphasis
-ADD: Style and color explorer (show what a style or color contains at any place in the chart)
-ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
-ADD: symbol cross/text [marker] at vertxpos [rotate];
-ADD: mark centerline
-CHANGE: Mesh gradients.
-ADD: Tip of the day
-ADD: Check if file changed on disk
-CHANGE: Remove note related area calculation from arcs (if not needed)
-CHANGE: Rethink entity positioning and allow freer group definitions....
-ADD: Ability to change page setup during print preview
-ADD: Print preview even without a printer...?
-ADD: box around grouped entities all along the chart
-ADD: group entities without a label
-FIX: Node hideentitylines, for radius bigger than 70
-FIX: Add bitmaps to Full screen images toolbar
-FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
-FIX: Optimize Tangent functions
-FIX: Re-layouting nested parallel blocks - introduce keep together, take care of overlapped ArcParallels
-ADD: arrows to point to boxes.
-ADD: Allow arrow to a group entity...
-ADD: Vertical comment alignment
+LOW PRIO
+	Easy extensions for which we have no need
+		ADD: More arrow types --> ==> >>> ..> 
+		ADD: more colors
+		ADD: diagonal gradients
+	Difficult ones that would be good
+		ADD: shadow to arrows and labels
+	Tedious small things to perfect drawing
+		ADD: variant #1 double and triple-line joints for emphasis
+		CHANGE: Mesh gradients.
+	Performance improvements
+		CHANGE: Remove note related area calculation from arcs (if not needed)
+		FIX: Optimize Distance Consider BB - first check loose bezier hull BB then the strict one
+		FIX: Optimize Tangent functions
+	Long standing bug fixes that never surface
+		FIX: Node hideentitylines, for radius bigger than 70
+MEDIUM PRIO
+	GUI improvements
+		ADD: Style and color explorer (show what a style or color contains at any place in the chart)
+		ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
+		ADD: mark centerline
+		ADD: Tip of the day
+		ADD: Check if file changed on disk
+		ADD: Ability to change page setup during print preview
+		ADD: Print preview even without a printer...?
+		FIX: Add bitmaps to Full screen images toolbar
+	Useful language extensions
+		CHANGE: Rethink entity positioning and allow freer group definitions....
+		ADD: box around grouped entities all along the chart
+		ADD: group entities without a label
+		ADD: Allow arrow to a group entity...
+		ADD: arrows to point to boxes.
+		ADD: Vertical comment alignment
+		ADD: symbol cross [marker] at vertxpos [rotate];
+		ADD: rotate to symbols
+
+In 4.4rc3
+FIX: parallel block does not compress upwards
+FIXED: a--a boxes inside parallel boxes somehow do not make enclosing boxes widen.
+FIXED: problem chart
 
 In 4.4rc2
 FIXED: vertical brace ee;
@@ -75,8 +89,7 @@ FIXED: allow -- in entityrel
 CANCELLED: no copyright in linux command-line
 FIXED: symbol text not working, due to 'text' being a token.
 FIXED: Anchor shape
-DOCED: any shape defined within the file is not drawn at hints
-In 4.3.5
+DOCED: any shape defined within the file is not drawn at hintsIn 4.3.5
 ADDED: Hints for text formatting escape parameters
 FIXED: #s in quoted colon labels, also on the last line
 

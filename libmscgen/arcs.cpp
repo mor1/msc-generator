@@ -1721,7 +1721,7 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
             vdist.Insert((*middle[i])->index, DISTANCE_RIGHT, right);
         }
         dmap.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
-        distances += dmap;
+        distances += std::move(dmap);
     }
     //If a lost symbol is generated, do some
     if (lost_pos.valid) {
@@ -4084,7 +4084,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
     distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
     distances.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
     distances.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
-    distances += d;
+    distances += std::move(d);
     vdist.Insert((*src)->index, DISTANCE_LEFT, left_space, last_marker);
     vdist.Insert((*dst)->index, DISTANCE_RIGHT, right_space, last_marker);
 
@@ -5054,12 +5054,12 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
         chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::PIPE);
     }
     d_pipe.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
-    distances += d_pipe;
+    distances += std::move(d_pipe);
 
     //Finally add the requirements of the content
     d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap, chart->activeEntitySize/2);
     d.CombineBoxSideToPair(chart->hscaleAutoXGap);
-    distances += d;
+    distances += std::move(d);
 
     for (auto pPipe : series) {
         //Add a new element to vdist
@@ -6030,10 +6030,7 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     EntityDistanceMap d;
     for (auto &col : blocks)
         chart->WidthArcList(canvas, col.arcs, d, vdist);
-    d.CombinePairedLeftRightToPair_Sum(chart->hscaleAutoXGap);
-    d.CombineUnPairedLeftRightToPair(chart->hscaleAutoXGap);
-    d.CombineBoxSideToPair(chart->hscaleAutoXGap);
-    distances += d;
+    distances += std::move(d);
     //Add a new element to vdist
     vdist.InsertElementBottom(this);
     //Add activation status right away

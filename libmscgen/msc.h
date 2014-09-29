@@ -350,17 +350,16 @@ struct LayoutColumn
     //plus the mainlines of the arcs in their own column.*/
     AreaList covers;
     unsigned last_action;
-    LayoutColumn(ArcList *a, unsigned c, double Y = 0, LayoutColumn *p = NULL, unsigned action=0) :
+    LayoutColumn(ArcList *a, unsigned c, double Y = 0, LayoutColumn *p = NULL, unsigned action=0, const AreaList *initial_cover=NULL) :
         parent(p), number_of_children(0), list(a), arc(list->begin()), column(c), y(Y),
         y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y),
-        last_action(action) {}
+        last_action(action) {if (initial_cover) covers = *initial_cover;}
     ///lists not done sorted earliest,
     // then the ones with no children are sorted earlier, 
     //then with lower y, 
     //then 'last_action' (the one we took an element longest time ago is smaller)
     //finally we tie break on the pointer value of 'list'
-    bool operator <(const LayoutColumn &o) const
-    {
+    bool operator <(const LayoutColumn &o) const {
         return list->end()!=arc && o.list->end()==o.arc ? true : list->end()==arc && o.list->end()!=o.arc ? false :
             number_of_children < o.number_of_children ? true : number_of_children > o.number_of_children ? false :
             y < o.y ? true : y > o.y ? false :
