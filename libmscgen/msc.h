@@ -326,6 +326,12 @@ struct LayoutColumn
     /** This points to the next arc to process in 'list'.
      * Equals to list->end() if we are done.*/
     ArcList::iterator arc;
+    /** In case this entry has children, this points to the last cover 
+     * element in 'covers', that was added before (above) the ArcParallel
+     * that resulted in the children. This will be used to modify subsequent
+     * cover elements if the whole ArcParallel is marked 'parallel' or 'overlap'.
+     * Equals to covers->end() if we have no children.*/
+    std::list<Area>::const_iterator last_cover_before_children;
     /** Tie-breaker: in case of everything equal, use the column number
      * This tells which column we were in our parallel block series.*/
     const unsigned column;
@@ -343,29 +349,16 @@ struct LayoutColumn
      * element has been shifted up due to compress and its bottom is no longer
      * the lowest.*/
     double y_bottom_all;
-    /**The bottom of the lowest element except elements marked as
-    //"overlap". We use this when laying out the next element.*/
-    double y_bottom;
     /**These contain all arc_covers (from all lists), without the mainlines, 
     //plus the mainlines of the arcs in their own column.*/
     AreaList covers;
     unsigned last_action;
-    LayoutColumn(ArcList *a, unsigned c, double Y = 0, LayoutColumn *p = NULL, unsigned action=0, const AreaList *initial_cover=NULL) :
+    LayoutColumn(ArcList *a, unsigned c, double Y = 0, bool par=false, LayoutColumn *p = NULL, unsigned action=0, const AreaList *initial_cover=NULL) :
         parent(p), number_of_children(0), list(a), arc(list->begin()), column(c), y(Y),
-        y_upper_limit(Y), previous_was_parallel(false), y_bottom_all(Y), y_bottom(Y),
-        last_action(action) {if (initial_cover) covers = *initial_cover;}
-    ///lists not done sorted earliest,
-    // then the ones with no children are sorted earlier, 
-    //then with lower y, 
-    //then 'last_action' (the one we took an element longest time ago is smaller)
-    //finally we tie break on the pointer value of 'list'
-    bool operator <(const LayoutColumn &o) const {
-        return list->end()!=arc && o.list->end()==o.arc ? true : list->end()==arc && o.list->end()!=o.arc ? false :
-            number_of_children < o.number_of_children ? true : number_of_children > o.number_of_children ? false :
-            y < o.y ? true : y > o.y ? false :
-            last_action < o.last_action ? true : last_action > o.last_action ? false :
-            column < o.column;
-    }
+        y_upper_limit(Y), previous_was_parallel(par), y_bottom_all(Y), 
+        last_action(action) {if (initial_cover) covers = *initial_cover; last_cover_before_children = covers.end();}
+    bool IsMyParent(const LayoutColumn *col) const 
+        { const LayoutColumn *cand = this;  while (cand && col!=cand) cand = cand->parent; return NULL != cand; }
 };
 
 

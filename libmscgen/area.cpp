@@ -101,3 +101,17 @@ double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double o
             offset = i.OffsetBelow(j, touchpoint, offset, bMainline);
     return offset;
 }
+
+
+void AreaList::InvalidateMainLineAfter(std::list<Area>::const_iterator after)
+{ 
+    if (after != cover.end())
+        for (after++; after != cover.end(); after++)
+            const_cast<Area&>(*after).mainline.clear();
+}
+
+void AreaList::EmptyAfter(std::list<Area>::const_iterator after)
+{
+    if (after != cover.end())
+        cover.erase(++after, cover.end());
+}
