@@ -326,16 +326,14 @@ struct LayoutColumn
     /** This points to the next arc to process in 'list'.
      * Equals to list->end() if we are done.*/
     ArcList::iterator arc;
-    /** In case this entry has children, this points to the last cover 
-     * element in 'covers', that was added before (above) the ArcParallel
-     * that resulted in the children. This will be used to modify subsequent
-     * cover elements if the whole ArcParallel is marked 'parallel' or 'overlap'.
-     * Equals to covers->end() if we have no children.*/
-    std::list<Area>::const_iterator last_cover_before_children;
     /** Tie-breaker: in case of everything equal, use the column number
      * This tells which column we were in our parallel block series.*/
     const unsigned column;
-    /** This is where the next arc should be placed.*/
+    /** This is where the next (uncompressed) arc should be placed, 
+     * the lowest part of any prior element in this column.
+     * This is different from y_bottom_all due to elements
+     * marked by 'overlap'. Those increase y_bottom_all, but keep
+     * y the same.*/
     double y;
     /**we will never shift elements higher than this runnning value
      * (due to compress). 
@@ -349,14 +347,17 @@ struct LayoutColumn
      * element has been shifted up due to compress and its bottom is no longer
      * the lowest.*/
     double y_bottom_all;
-    /**These contain all arc_covers (from all lists), without the mainlines, 
-    //plus the mainlines of the arcs in their own column.*/
+    /**These contain all arc_covers for elements in 'list'.
+     * It does not contain the covers of elements of the parent.*/
     AreaList covers;
+    /** These contain all arc_covers from completed children
+     * As long as not all children are completed.*/
+    AreaList completed_children_covers;
     unsigned last_action;
-    LayoutColumn(ArcList *a, unsigned c, double Y = 0, bool par=false, LayoutColumn *p = NULL, unsigned action=0, const AreaList *initial_cover=NULL) :
+    LayoutColumn(ArcList *a, unsigned c, double Y = 0, double upper=0, bool par=false, LayoutColumn *p = NULL, unsigned action=0) :
         parent(p), number_of_children(0), list(a), arc(list->begin()), column(c), y(Y),
-        y_upper_limit(Y), previous_was_parallel(par), y_bottom_all(Y), 
-        last_action(action) {if (initial_cover) covers = *initial_cover; last_cover_before_children = covers.end();}
+        y_upper_limit(upper), previous_was_parallel(par), y_bottom_all(Y), 
+        last_action(action) {}
     bool IsMyParent(const LayoutColumn *col) const 
         { const LayoutColumn *cand = this;  while (cand && col!=cand) cand = cand->parent; return NULL != cand; }
 };
@@ -564,7 +565,7 @@ public:
 
     void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances, DistanceMapVertical &vdist);
     double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList *cover);
-    double LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &y, AreaList *cover);
+    double LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &columns, AreaList *cover);
     double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);

@@ -3956,7 +3956,7 @@ yyreduce:
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in an "ArcParallel" element used only for this. */
     if ((yyvsp[0].arclist)) {
-        ArcParallel *p = new ArcParallel(&msc, (yyvsp[0].arclist), NULL);
+        ArcParallel *p = new ArcParallel(&msc, (yyvsp[0].arclist));
         p->layout = ArcParallel::ONE_BY_ONE_MERGE;
         (yyval.arcbase) = p;
     } else
