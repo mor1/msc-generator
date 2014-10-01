@@ -159,6 +159,8 @@ protected:
     bool   keep_with_next; ///<If true, do not separate this from following element by automatic pagination 
     string refname;        ///<Value of the "refname" attribute, to reference numbers & others. Empty if none.
     mutable double  height;///<Pixel height of the arc, calculated by Layout()
+    static void AttributeNamesSet1(Csh &csh);
+    static bool AttributeValuesSet1(const std::string attr, Csh &csh);
 public:
     const EArcType type;   ///<Type of the arc
     const MscProgress::ECategory myProgressCategory; ///<The category of the arc for calculating progress.
@@ -191,7 +193,8 @@ public:
     virtual bool CanBeAlignedTo() const { return false; }
     /** Get the Y coordinate of the top of the arc. 
      * The actual visual part may not start here, 
-     * if we have gap proscribed above in 'chart'*/
+     * if we have gap proscribed above in 'chart'
+     * However, VSpacing is above this position.*/
     double GetFormalPos() const {return yPos;}
     /** Return the height of the element with its side comments - 
      * the this may be more than the visual height as the arc may have
@@ -919,12 +922,15 @@ protected:
         Column(ArcList &&a, EVerticalIdent i) : arcs(std::move(a)), ident(i), height(0) { ident_pos.MakeInvalid(); }
         bool IsEmpty() const { return arcs.size()==0; }
     };
-    friend class Msc; //to manage our layout
+    friend class Msc; //to manage our layout in LayoutParallelArcLists()
     void SetYPos(double y) { yPos = y; }
     void SetBottom(double y) { height = y-yPos; }
     std::list<Column> blocks;       ///<Arc lists, one for each block
 public:
+    const bool internally_defined;     ///<True if this is a single-block series defined internally e.g., to return chart options. PostParseProcessArcList() Shall unroll these.
     EParallelLayoutType layout;        ///<The layout method
+    /** Create an internally defined parallel construct */
+    ArcParallel(Msc *msc, ArcList*l);
     /** Create a parallel construct from its first block */
     ArcParallel(Msc *msc, ArcList*l, AttributeList *al);
     virtual bool CanBeAlignedTo() const { return true; }

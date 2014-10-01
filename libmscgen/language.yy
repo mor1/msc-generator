@@ -1084,13 +1084,10 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in an "ArcParallel" element used only for this. */
-    if ($1) {
-        ArcParallel *p = new ArcParallel(&msc, $1, NULL);
-        p->layout = ArcParallel::ONE_BY_ONE_MERGE;
-        $$ = p;
-    } else
-        $$ = NULL;
+     * enclose them in an "ArcParallel" element used only for this. 
+     * This will be an internally defined ArcParallel that will
+     * get unrolled in Msc::PostParseArcList()*/
+    $$ = ($1) ? new ArcParallel(&msc, $1) : NULL;
   #endif
 }
               | box_list

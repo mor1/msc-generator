@@ -426,54 +426,67 @@ bool ArcBase::AddAttribute(const Attribute &a)
     return Element::AddAttribute(a);
 }
 
-void ArcBase::AttributeNames(Csh &csh)
+
+void ArcBase::AttributeNamesSet1(Csh &csh)
 {
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", 
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress",
         "Turn this on to shift this elements upwards until it bumps into the element above (to compress the chart vertically).",
         EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing", 
-        "Specify the vertical spacing above this element.", 
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vspacing",
+        "Specify the vertical spacing above this element.",
         EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", 
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel",
         "Turn this on so to put subsequent elements in parallel with this one and not stricly below (except if they overlap).",
         EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay", 
-        "Turn this on so to put subsequent elements in parallel with this one and not below (even if they overlap).", 
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "overlay",
+        "Turn this on so to put subsequent elements in parallel with this one and not below (even if they overlap).",
         EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together",
+        "Turn this on if you do not want this element to break across pages.",
+        EHintType::ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next",
+        "Turn this on if you want this element on the same page with the subsequent one.",
+        EHintType::ATTR_NAME));
+}
+
+void ArcBase::AttributeNames(Csh &csh)
+{
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", 
         "Name this element so that it can be referred to (e.g., from a label of another element via the '\r(name)' escape sequence).", 
         EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", 
-        "Turn this on if you do not want this element to break across pages.", 
-        EHintType::ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", 
-        "Turn this on if you want this element on the same page with the subsequent one.",
-        EHintType::ATTR_NAME));
+    AttributeNamesSet1(csh);
     Element::AttributeNames(csh);
 }
 
-bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
+bool ArcBase::AttributeValuesSet1(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"compress")||
-        CaseInsensitiveEqual(attr,"parallel") ||
-        CaseInsensitiveEqual(attr,"overlay") ||
-        CaseInsensitiveEqual(attr,"keep_together") ||
-        CaseInsensitiveEqual(attr,"keep_with_next")) {
+    if (CaseInsensitiveEqual(attr, "compress")||
+        CaseInsensitiveEqual(attr, "parallel") ||
+        CaseInsensitiveEqual(attr, "overlay") ||
+        CaseInsensitiveEqual(attr, "keep_together") ||
+        CaseInsensitiveEqual(attr, "keep_with_next")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "vspacing")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", 
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>",
             "Specify extra spading above this element in pixels. 0 means no extra space.",
             EHintType::ATTR_VALUE, false));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress", 
-            "Specifying 'compress' will auto-adjust vertical spacing to be as little as possible by moving the element up until it bumps into the ones above.", 
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"compress",
+            "Specifying 'compress' will auto-adjust vertical spacing to be as little as possible by moving the element up until it bumps into the ones above.",
             EHintType::ATTR_VALUE, true));
         return true;
     }
+    return false;
+}
+
+
+bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
+{
     if (CaseInsensitiveEqual(attr, "refname"))
         return true;
+    if (AttributeValuesSet1(attr, csh)) return true;
     if (Element::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -4896,9 +4909,12 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
         if (content.size()) {
             ArcList *al = new ArcList;
             al->swap(content);
-            ArcParallel *p = new ArcParallel(chart, al, NULL); //this will do a "delete al;"
-            p->layout = ArcParallel::ONE_BY_ONE_MERGE; //as if we written 'content' inline without {}s
-            return p;
+            //Note content is already PostParseProcessed.
+            ArcParallel *par = new ArcParallel(chart, al, NULL); //this will do a "delete al;"
+            //Do not use ONE_BY_ONE merge as we would not have that either
+            //even if we have pipes in 'series'. This also allows
+            //Msc::LayoutParallelArcLists() to avoid taking cover in some cases.
+            par->layout = ArcParallel::ONE_BY_ONE;
         }
         //We completely disappear due to entity collapses and have no content
         if ((*ei_if_disappear)->running_style.read().indicator.second) {
@@ -5846,8 +5862,17 @@ void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+ArcParallel::ArcParallel(Msc *msc, ArcList*l) :
+ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), internally_defined(true),
+layout(ONE_BY_ONE_MERGE)
+{
+    AddArcList(l, NULL);
+}
+
+
 ArcParallel::ArcParallel(Msc *msc, ArcList*l, AttributeList *al) :
-ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), layout(ONE_BY_ONE_MERGE)
+ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), internally_defined(false),
+layout(ONE_BY_ONE_MERGE)
 {
     if (chart->simple_arc_parallel_layout)
         layout = OVERLAP;
@@ -5856,6 +5881,7 @@ ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc), layout(ONE_BY_ONE_MERGE)
 
 ArcParallel* ArcParallel::AddArcList(ArcList*l, AttributeList *al)
 {
+    _ASSERT(!internally_defined || blocks.size()==0);
     if (l) {
         //If the container grows we cannot simply use push_back
         //As ArcList does not support copy of if this array is responsible
@@ -5907,6 +5933,7 @@ template<> const char * const EnumEncapsulator<ArcParallel::EVerticalIdent>::des
 
 bool ArcParallel::AddAttribute(const Attribute &a)
 {
+    _ASSERT(!internally_defined);
     if (a.Is("layout")) {
         if (blocks.size()==1) {
             if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
@@ -5924,15 +5951,21 @@ bool ArcParallel::AddAttribute(const Attribute &a)
         a.InvalidValueError(CandidatesFor(blocks.back().ident), chart->Error);
         return true;
     }
-    return false; //None of the ArcBase attributes apply
+    if (a.Is("compress") || a.Is("vspacing") ||
+        a.Is("parallel") || a.Is("overlap") ||
+        a.Is("keep_together") || a.Is("keep_with_next"))
+        return ArcBase::AddAttribute(a); //Only these of the ArcBase attributes apply
+    return false; 
 }
 
 void ArcParallel::AttributeNames(Csh &csh, bool first)
 {
-    if (first)
+    if (first) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "layout",
             "Specify what algorithm is used to lay out parallel blocks.",
             EHintType::ATTR_NAME));
+        ArcBase::AttributeNamesSet1(csh);
+    }
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "vertical_ident",
         "For the 'overlap' layout algorithm specify vertical alignment.",
         EHintType::ATTR_NAME));
@@ -5940,6 +5973,7 @@ void ArcParallel::AttributeNames(Csh &csh, bool first)
 
 bool ArcParallel::AttributeValues(const std::string attr, Csh &csh, bool first)
 {
+    if (first && ArcBase::AttributeValuesSet1(attr, csh)) return true;
     if (first && CaseInsensitiveEqual(attr, "layout")) {
         csh.AddToHints(EnumEncapsulator<ArcParallel::EParallelLayoutType>::names,
                        EnumEncapsulator<ArcParallel::EParallelLayoutType>::descriptions, 
@@ -5985,6 +6019,7 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
                                        Numbering &number, Element **target,
                                        ArcBase * /*vertical_target*/)
 {
+    _ASSERT(!internally_defined);
     if (!valid) return NULL;
     //finalize ident
     if (layout==OVERLAP) {
@@ -6015,6 +6050,7 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
 
 void ArcParallel::FinalizeLabels(Canvas &canvas)
 {
+    _ASSERT(!internally_defined);
     for (auto &col : blocks)
         chart->FinalizeLabelsArcList(col.arcs, canvas);
     ArcBase::FinalizeLabels(canvas);
@@ -6022,6 +6058,7 @@ void ArcParallel::FinalizeLabels(Canvas &canvas)
 
 void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
+    _ASSERT(!internally_defined);
     if (!valid) return;
     //Add a new element to vdist
     vdist.InsertElementTop(this);
@@ -6039,6 +6076,7 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
 
 void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
 {
+    _ASSERT(!internally_defined);
     height = 0;
     if (!valid) return;
     switch (layout) {
@@ -6172,6 +6210,7 @@ void ArcParallel::PlaceWithMarkers(Canvas &canvas)
 
 void ArcParallel::PostPosProcess(Canvas &canvas)
 {
+    _ASSERT(!internally_defined);
     if (!valid) return;
     ArcBase::PostPosProcess(canvas);
     for (auto &col : blocks)
