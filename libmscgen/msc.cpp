@@ -1651,6 +1651,8 @@ double FindOffset(const std::list<LayoutColumn> &columns, const LayoutColumn *to
  * Attempts to avoid collisions and a balanced progress in each list.
  * If we encounter ArcParallels with layout==one_by_one_merge, we do not
  * call their ArcParallel::Layout(), but merge them among these lists.
+ * This is the main (only) layout function for lists, this one is used
+ * even for non-parallel lists.
  * We always place each element on an integer y coordinate.
  * Automatic pagination is ignored by this function and is applied later instead.
  * Ensures that elements in the list will have non-decreasing yPos order -
@@ -1673,10 +1675,11 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
     AreaList top_completed_children_cover;
 
     //test for fast path
-    //if 1) we do a single column only; 2) have no ArcParallels with ONE_BY_ONE_MERGE;
+    //if 0) caller requested no cover returned; 1) we do a single column only; 
+    //2) have no ArcParallels with ONE_BY_ONE_MERGE;
     //3) have no elements marked as compress and 4) have no elements marked as parallel
     //Then we do not need to maintain covers
-    const bool need_covers = columns.size() != 1 ||
+    const bool need_covers = cover || columns.size() != 1 ||
         columns.front().list->end() != std::find_if(columns.front().list->begin(), columns.front().list->end(),
         [](const ArcBase* const arc) {return arc->IsParallel() || arc->IsCompressed() ||
         (dynamic_cast<const ArcParallel*>(arc) && 
@@ -1694,28 +1697,19 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
         //  an ArcParallel where last action is all equal) we tie break on the 'column' number 
         LayoutColumn &now = *std::min_element(columns.begin(), columns.end(),
             [](const LayoutColumn &a, const LayoutColumn &b) 
-            {return a.number_of_children < b.number_of_children ? true : a.number_of_children > b.number_of_children ? false :
-                    a.y < b.y ? true : a.y > b.y ? false :
-                    a.last_action < b.last_action ? true : a.last_action > b.last_action ? false :
-                    a.column < b.column;});
+            {return std::tie(a.number_of_children, a.y, a.last_action, a.column) < 
+                    std::tie(b.number_of_children, b.y, b.last_action, b.column);});
         _ASSERT(now.number_of_children==0);
         _ASSERT(now.list->end()!=now.arc);
         //Zero-height arcs shall be positioned to the same place
         //as the first non-zero height arc below them (so that
         //if that arc is compressed up, they are not _below_
-        //that following arc. So we store what was the last non-zero
-        //height arc with compress on so we can go back and adjust the 
-        //position of the zero height ones once we have calculated the
-        //compress position of the following non-zero height one.
-        ArcList::iterator first_zero_height = now.list->end();
+        //that following arc. So we store them until we know
+        //where shall we put them.
+        ArcList zero_height(false);
 
         //Start cycle till the last element (arc) in the list, but we 
-        //will exit as soon as we added an element of nonzero height
-        //or an element where compress is off (even if zero height).
-        //(Thus this for cycle will handle only subsequent elements of 
-        //zero height with compress.)
-        //As soon as we hit something non-zero height or non-compress, 
-        //we break at the end
+        //will exit as soon as we added an element of nonzero height.
         for (; now.arc!=now.list->end(); now.arc++) {
             _ASSERT((*now.arc)->IsValid()); //should have been removed by PostParseProcess
             AreaList arc_cover;
@@ -1723,40 +1717,45 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
             ArcParallel *par = dynamic_cast<ArcParallel*>(*now.arc);
             if (par && par->IsValid() && par->blocks.size() &&
                 par->layout==ArcParallel::ONE_BY_ONE_MERGE) {
-                now.number_of_children = par->blocks.size();
-                //we deliberately ignore any vspacing above us - not so for ONE_BY_ONE or OVERLAP layouts
-                //now.y += par->GetVSpacing();
-                par->SetYPos(now.y);
                 //'comp' tells us if the first element can be compressed or not
-                //if not, we set the upper limit to now.y
+                //if not, we set the upper limit to use_y
                 const bool comp = now.previous_was_parallel || par->IsCompressed();
+                const double upper_limit = comp ? now.y_upper_limit : now.y;
+                //Store value for y_upper_limit to be used after all colums of this 
+                //ArcParallel has been completed.
+                now.y_upper_limit = now.y;
+                //do not consider vspacing if at the beginning of a scope.
+                if (now.y) now.y += par->GetVSpacing();
+                par->SetYPos(now.y);
                 for (auto &col : par->blocks)
-                    columns.emplace_back(&col.arcs, counter++, now.y, comp ? now.y_upper_limit : now.y,
+                    columns.emplace_back(&col.arcs, counter++, now.y, upper_limit,
                                          comp, &now, now.last_action);
+                now.number_of_children = par->blocks.size();
                 Progress.DoneItem(MscProgress::LAYOUT, (*now.arc)->myProgressCategory);
                 break; // this will jump over element processing
                 //now.arc is left pointing to the ArcParallel
+                //now.y_upper_limit points to upper limits used if this ArcParallel is 'parallel'
+                //Note: we kept any items potentially in zero_length. They will be 
+                //placed at the top of the first non-zero element in one of the columns now inserted
             }
 
             (*now.arc)->Layout(canvas, need_covers ? &arc_cover : NULL);
             Progress.DoneItem(MscProgress::LAYOUT, (*now.arc)->myProgressCategory);
             double h = (*now.arc)->GetFormalHeight();
-            now.last_action = ++current_action;
-
             //increase h, if arc_cover.Expand() (in "Layout()") pushed outer boundary. This ensures that we
             //maintain at least compressGap/2 amount of space between elements even without compress.
             //Note we fail to do this unless need_cover is true. No problem for now.
             h = std::max(h, arc_cover.GetBoundingBox().y.till);
+            //if arc is of zero height, just collect it.
+            //Its position may depend on the next arc if that is compressed.
+            if (h==0) {
+                zero_height.Append(*now.arc);
+                continue;
+            }
+            now.last_action = ++current_action;
             double touchpoint = now.y;
             double use_y = now.y;
             if ((*now.arc)->IsCompressed() || now.previous_was_parallel) {
-                //if arc is of zero height, just collect it.
-                //Its position may depend on the next arc if that is compressed.
-                if (h==0) {
-                    if (first_zero_height == now.list->end()) 
-                        first_zero_height = now.arc;
-                    continue;
-                }
                 //now try pushing upwards against previous elements in this column,
                 //against the body (no mainline) of previous elements parallel to us
                 //(sibling columns) and all our parents (and their siblings).
@@ -1771,15 +1770,15 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
                     //If we can shift it all the way to the top of the previous element, we place it
                     //there. But if we can shift only halfway, we place it strictly under the previous
                     //element - as we are not compressing.
-                    //Note that "y_upper_limit" contains the top of the preceeding element (marked with "parallel")
+                    //Note that "y_upper_limit" contains the top of the preceeding element (marked with "overlap")
                     if (use_y == now.y_upper_limit)
                         touchpoint = now.y_upper_limit;
                     else
                         //Note: OffsetBelow() may have destroyed touchpoint above
                         touchpoint = use_y; //(which is == now.y). 
                 }
-            } else if (h>0) {
-                //This element is not compressed. But as we lay out parallel blocks
+            } else {
+                //This element is not compressed. But as we may lay out parallel blocks
                 //it may be that we overlap with an element from anothe column, so we want to avoid that.
                 //But we place zero_height elements to just below the previous one nevertheless
                 //We also keep touchpoint==now.y for this very reason.
@@ -1791,44 +1790,42 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
             //Now use_y contains where this element shall be placed, and now.y the
             //bottommost in this column (and its parents).
             //Add extra space (even if above was parallel), move touchpoint by half
-            const double extra = (*now.arc)->GetVSpacing();
+            //But do not add extra space at the beginning of a scope
+            const double extra = now.y ? (*now.arc)->GetVSpacing() : 0;
             touchpoint += extra/2;
             use_y += extra;
             touchpoint = floor(touchpoint+0.5);
             use_y = ceil(use_y);
             //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
-            while (first_zero_height != now.list->end() && first_zero_height != now.arc)
-                (*first_zero_height++)->ShiftBy(touchpoint);
-            first_zero_height = now.list->end();
+            for (auto pArc : zero_height)
+                pArc->ShiftBy(touchpoint);
+            zero_height.clear();
             //Shift the arc in question to its place
             (*now.arc)->ShiftBy(use_y);
             arc_cover.Shift(XY(0, use_y));
-            now.y_bottom_all = std::max(now.y_bottom_all, use_y+h);
-            now.previous_was_parallel = (*now.arc)->IsParallel();
-            //If we are parallel draw the rest of the block in one go
-            if ((*now.arc)->IsOverlap()) {
-                //Do not allow anyone to be placed above us
-                now.y_upper_limit = use_y;
-                //Keep use_y as the top of the current arc
-            } else {
-                if ((*now.arc)->IsParallel()) {
-                    //kill the mainline of the last arc (in "now.arc")
-                    arc_cover.InvalidateMainLine();
-                    //Do not allow anyone to be placed above us
-                    now.y_upper_limit = use_y;
-                }
-                //Update covers and bottommost position
-                now.covers += arc_cover; //arc_cover contains the mainline here (unless parallel)
-                now.y = std::max(now.y, use_y + h);
-            }
             //If the caller wanted to have all covers back, add this one to the list.
             if (cover)
                 *cover += arc_cover;
+            //update column state 
+            now.y_upper_limit = use_y; //Do not allow anyone later in the list to be placed above us
+            now.previous_was_parallel = (*now.arc)->IsParallel();            
+            now.y_bottom_all = std::max(now.y_bottom_all, use_y+h);
+            if ((*now.arc)->IsOverlap()) {
+                //Set the normal (non-compressed pos of the next arc)
+                //as the top of the current arc
+                now.y = use_y;
+            } else {
+                now.y = std::max(now.y, use_y + h);
+                //Update covers 
+                if ((*now.arc)->IsParallel()) 
+                    arc_cover.InvalidateMainLine(); //kill the mainline if we are parallel
+                now.covers += arc_cover; //arc_cover contains the mainline here (unless parallel)
+            }
             //This was a non-zero height element, we break and pick
             //the next arc from the column with the topmost current bottom.
             now.arc++; //for loop increment will not be called, so we increment now.arc here.
             break;
-        }
+        } //for cycling the zero height elements
         //We have changed now.y, now.last_action (or have inserted new columns
         //if we process an ArcParallel of ONE_BY_ONE_MERGE layout), so 
         //the "smallest" element in y has changed.
@@ -1839,8 +1836,9 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
 
         //Ok, we have finished with this column - close it.
         //first, position any remaining zero-heright items at the bottom
-        while (first_zero_height != now.list->end())
-            (*first_zero_height++)->ShiftBy(now.y);
+        for (auto pArc : zero_height)
+            pArc->ShiftBy(now.y);
+        zero_height.clear();
         LayoutColumn* us = &now;
         while (1) {
             //Next, see if we have a parent.
@@ -1867,7 +1865,7 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
             total_bottom = std::max(total_bottom, us->y_bottom_all);
             //erase 'us' from the list
             columns.erase(std::find_if(columns.begin(), columns.end(),
-                [&](const LayoutColumn &a) {return &a==us; }));
+                [us](const LayoutColumn &a) {return &a==us; }));
             //'us' is now invalid
             if (!parent)
                 break; //stop if no parent
@@ -1879,19 +1877,12 @@ double Msc::LayoutParallelArcLists(Canvas &canvas, std::list<LayoutColumn> &colu
                 //this is testing if the parallel block has 'parallel' keyword in front
                 parent->previous_was_parallel = (*parent->arc)->IsParallel();
                 if ((*parent->arc)->IsOverlap()) {
-                    //Do not allow anyone to be placed above this whole parallel block
-                    //(same rule as for individual elements)
-                    parent->y_upper_limit = (*parent->arc)->GetFormalPos(); //-(*parent->arc)->GetVSpacing();
                     //and keep the position of the next element the same
                     parent->y = parent->y_upper_limit;
                 } else {
-                    if (parent->previous_was_parallel) {
-                        //if parallel, remove the mainline of all elements inside the parallel block
+                    if (parent->previous_was_parallel) 
+                        //if ArcParallel was 'parallel', remove the mainline of all elements inside the parallel block
                         parent->completed_children_covers.InvalidateMainLine();
-                        //Do not allow anyone to be placed above this whole parallel block
-                        //(same rule as for individual elements)
-                        parent->y_upper_limit = (*parent->arc)->GetFormalPos(); //-(*parent->arc)->GetVSpacing();
-                    }
                     //copy children's cover to us (does not happen if ArcParallel was 'overlap')
                     parent->covers += std::move(parent->completed_children_covers);
                 }
