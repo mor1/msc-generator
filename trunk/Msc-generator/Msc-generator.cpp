@@ -679,7 +679,7 @@ void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/)
 	}
 	m_DefaultText= GetProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, 
 		"#This is the default signalling chart\r\n"
-		"#Edit and press Ctrl+W to see the result\r\n"
+		"#Edit and press F2 to see the result\r\n"
 		"#You can change the default chart\r\n"
 		"#with the leftmost button on the Preferences pane of the ribbon.\r\n"
 		"\r\n"

@@ -294,7 +294,7 @@ struct CshHint {
     CshHint(const std::string &d, const char *desc, EHintType t, bool s = true, CshHintGraphicCallback c = NULL, CshHintGraphicParam p = 0, unsigned so = 0) :
         sort(so), decorated(d), type(t), selectable(s), description(desc), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
-    bool operator < (const CshHint &o) const { if (type==o.type) { if (sort==o.sort) return decorated<o.decorated; return sort<o.sort; } return type<o.type; }
+    bool operator < (const CshHint &o) const { return std::tie(type, sort, decorated) < std::tie(o.type, o.sort, o.decorated); }
     bool operator ==(const CshHint &o) const {return type == o.type && sort == o.sort && decorated == o.decorated;}
     std::string &GetReplacementString() { return replaceto.size() ? replaceto : plain; }
     const std::string &GetReplacementString() const { return replaceto.size() ? replaceto : plain; }

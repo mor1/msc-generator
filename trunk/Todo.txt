@@ -47,7 +47,7 @@ MEDIUM PRIO
 
 In 4.4rc3
 DOC: parallel block layout with compress, vspace, keep_with_next, keep_together and parallel/overlap
-FIX: After closing a parallel block, why do not we end up normal?
+CANCELLED: After closing a parallel block, why do not we end up normal? (We do)
 FIXED: parallel block does not compress upwards
 FIXED: a--a boxes inside parallel boxes somehow do not make enclosing boxes widen.
 FIXED: problem chart

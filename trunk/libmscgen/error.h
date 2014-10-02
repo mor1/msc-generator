@@ -48,31 +48,11 @@ public:
     void MakeInvalid() {file = -1;}
     bool IsInvalid() const {return file<0;}
     bool operator == (const FileLineCol&a) const {return file==a.file && line==a.line && col==a.col;}
-    bool operator < (const FileLineCol&a) const {
-        if (file==a.file) {
-            if (line==a.line)
-                return col<a.col;
-            else
-                return line<a.line;
-        }
-        else return file < a.file;
-    }
-    bool operator > (const FileLineCol &a) const {
-        if (file==a.file) {
-            if (line==a.line)
-                return col>a.col;
-            else
-                return line>a.line;
-        }
-        else return file>a.file;
-    }
-    bool operator <= (const FileLineCol &a) const {
-        return !operator>(a);
-    }
-    bool operator >= (const FileLineCol &a) const {
-        return !operator<(a);
-    }
-    FileLineCol NextChar() const {return FileLineCol(file, line, col+1);}
+    bool operator < (const FileLineCol&a) const { return std::tie(file, line, col) < std::tie(a.file, a.line, a.col); }
+    bool operator > (const FileLineCol&a) const { return std::tie(a.file, a.line, a.col) < std::tie(file, line, col); }
+    bool operator <= (const FileLineCol &a) const { return !operator>(a); }
+    bool operator >= (const FileLineCol &a) const { return !operator<(a); }
+    FileLineCol NextChar() const { return FileLineCol(file, line, col+1); }
     std::string Print() const;
 };
 
@@ -86,7 +66,7 @@ struct FileLineColRange {
     void MakeInvalid() {start.MakeInvalid(); end.MakeInvalid();}
     bool IsInvalid() const {return start.IsInvalid() || end.IsInvalid();}
     bool operator ==(const FileLineColRange &o) const {return start==o.start && end==o.end;}
-    bool operator <(const FileLineColRange &o) const {return start==o.start ? end<o.end : start<o.start;}
+    bool operator <(const FileLineColRange &o) const { return std::tie(start, end) < std::tie(o.start, o.end); }
 };
 
 /** A plain old data type for ranges */
