@@ -1022,10 +1022,11 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
         "Set the default text attributes.",
         EHintType::ATTR_NAME));
     if (designOnly) return;
-    
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", 
-        "Turn this on to make parallel blocks be laid out allowing overlaps. (Deprecated, will be removed.)", 
-        EHintType::ATTR_NAME));
+
+    //this is DEPRECATED, do not hint
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "classic_parallel_layout", 
+    //    "Turn this on to make parallel blocks be laid out allowing overlaps. (Deprecated, will be removed.)", 
+    //    EHintType::ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", 
         "Turn this on to generate an error for entities that are used without explicit declaration.",
         EHintType::ATTR_NAME));
@@ -1061,7 +1062,7 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"compress") ||
         CaseInsensitiveEqual(attr,"numbering") ||
         CaseInsensitiveEqual(attr,"auto_heading") ||
-        CaseInsensitiveEqual(attr,"classic_parallel_layout") ||
+        /* DEPRECATED CaseInsensitiveEqual(attr,"classic_parallel_layout") ||*/
         CaseInsensitiveEqual(attr,"pednatic")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", NULL, EHintType::ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));

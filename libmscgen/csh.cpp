@@ -683,7 +683,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "comment.text.bold", "comment.text.italic", "comment.text.underline", 
 "comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
 "comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap",
-"angle", "classic_parallel_layout", "file.url", "file.info", ""};
+"angle", /*"classic_parallel_layout", DEPRECATED*/ "file.url", "file.info", ""};
 
 /** Names of attributes for coloring.
  *
