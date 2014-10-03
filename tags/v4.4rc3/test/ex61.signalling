@@ -1,0 +1,2 @@
+defstyle "->" [arrow.size=tiny];
+defstyle -> [arrow.size=tiny];
