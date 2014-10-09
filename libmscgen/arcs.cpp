@@ -709,7 +709,7 @@ void ArcLabelled::OverflowWarning(double overflow, const string &msg, EIterator 
     if (overflow < 1) return;
     string bigger_hscale;
     bigger_hscale << ceil(chart->GetHScale()+0.5);
-    chart->Error.Warning(file_pos.start, "Too little space for label - may look bad.",
+    chart->Error.Warning(linenum_label, "Too little space for label - may look bad.",
         msg.length() ? msg :
         (chart->GetHScale()<=0 ? 
             "Don't use 'hscale=auto'" : 
@@ -831,6 +831,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
         label = a.value;
+        linenum_label = a.linenum_value.start;
         return true;
     }
     if (a.Is("number")) {

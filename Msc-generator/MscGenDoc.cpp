@@ -1338,6 +1338,7 @@ void CMscGenDoc::OnErrorSelected(unsigned line, unsigned col)
 	if (m_ExternalEditor.IsRunning())
 		m_ExternalEditor.JumpToLine(line, col);
     //Show tracking boxes for the error
+    StartFadingAll();
     AddAnimationElement(AnimationElement::TRACKRECT,
         m_ChartShown.GetArcByLine(line, col));
 }
