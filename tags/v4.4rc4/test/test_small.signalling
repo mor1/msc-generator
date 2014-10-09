@@ -1,0 +1,98 @@
+layer64_m;
+layer2_m;
+layer1_m;
+layer32768_m;
+layer16384_m;
+dummy;
+layer16384_s;
+layer32768_s;
+layer1_s;
+layer2_s;
+layer64_s;
+
+hide dummy;
+hide layer16384_m, layer16384_s;
+hide layer32768_m, layer32768_s;
+hide layer1_m, layer1_s;
+hide layer2_m, layer2_s;
+hide layer64_m, layer64_s;
+
+show layer16384_m, layer16384_s;
+
+layer16384_m->layer16384_s: Connection;
+comment: 6.391 402 625;
+
+show layer32768_m, layer32768_s;
+
+layer32768_m..layer32768_s: Features Exchange {
+
+layer32768_m->layer32768_s: Features Request;
+comment: 10.828 963 250;
+
+layer32768_m<-layer32768_s: Features Response;
+comment: 10.833 339 750;
+
+};
+
+layer32768_m..layer32768_s: Version Exchange\n\- (2.1) {
+
+layer32768_m->layer32768_s: Version Request\n\- (2.1);
+comment: 10.835 213 375;
+
+layer32768_m<-layer32768_s: Version Response\n\- (2.1);
+comment: 10.840 839 000;
+
+};
+
+layer32768_m..layer32768_s: Extended Features Exchange {
+
+layer32768_m->layer32768_s: Extended Features Request;
+comment: 10.842 714 625;
+
+layer32768_m<-layer32768_s: Extended Features Response;
+comment: 10.847 089 000;
+
+};
+
+layer32768_m..layer32768_s: Host Connection\n\- (Accepted) {
+
+layer32768_m->layer32768_s: Host Connection Request;
+comment: 10.861 463 750;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Host Connection Request);
+comment: 10.875 840 125;
+
+};
+
+layer32768_m..layer32768_s: Setup Complete {
+
+layer32768_m<-layer32768_s: Setup Complete;
+comment: 10.877 090 125;
+
+layer32768_m->layer32768_s: Setup Complete;
+comment: 11.040 216 250;
+
+};
+
+layer32768_m->layer32768_s: Set AAA;
+comment: 10.890 214 250;
+
+layer32768_m->layer32768_s: Max Len\n\- (5 Lens = 3.125 ms);
+comment: 11.041 466 125;
+
+layer32768_m..layer32768_s: Max Len Request\n\- (Accepted, 5 Lens = 3.125 ms) {
+
+layer32768_m->layer32768_s: Max Len Request\n\- (5 Lens = 3.125 ms);
+comment: 11.042 717 125;
+
+layer32768_m<-layer32768_s: Accepted\n\- (Max Len Request);
+comment: 11.057 092 375;
+
+};
+
+layer32768_m->layer32768_s: Auto Rate;
+comment: 11.043 966 250;
+
+layer32768_m<-layer32768_s: Auto Rate;
+comment: 11.044 591 875;
+
