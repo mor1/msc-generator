@@ -149,8 +149,8 @@ const char *CCshRichEditCtrl::LastNonWhitespaceChar(const char *str, long pos) c
         //if no #-marks, we are not ending in comments - return last char
         if (index2<0)
             return str+index;
-        //if # is in quoted string, line-end is not in the comment
-        if (m_csh.IsInQuotedString(pos+index2))
+        //if # is in quoted string or colon label (means escaped), line-end is not in the comment
+        if (m_csh.IsInQuotedString(pos+index2) || m_csh.IsInColonLabel(pos+index2))
             return str+index;
         //# is not in a quoted string, it is a comment.
         //if starts at beginning of line, return 0

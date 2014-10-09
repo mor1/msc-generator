@@ -320,6 +320,7 @@ class ArcLabelled : public ArcBase
 {
 protected:
     string          label;           ///<The label as the user specified it. Empty if none.
+    FileLineCol     linenum_label;   ///<The position of the label in the input file.
     Label           parsed_label;    ///<The label processed and parsed into lines. Set in PostParseProcess()
     int             concrete_number; ///<Negative, if the user specified no specific value for the number (no numbering or automatic). Else the number specified.
     string          url;             ///<The value of the 'url' attribute, empty if none.
