@@ -606,8 +606,14 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             }
             //substitute parameter to the value from basic
             parameter = basic->face.second;
+        } else if (msc && linenum && !references &&
+                   !Canvas::HasFontFace(parameter.c_str())) {
+            FileLineCol l = *linenum;
+            l.col += 3;
+            msc->Error.Error(l, "Font '" + parameter + "' not found. " + errorAction);
+            goto nok;
         }
-        if (apply) {
+        if (apply && Canvas::HasFontFace(parameter.c_str())) {
             face.first = true;
             face.second = parameter;
         }
@@ -1352,8 +1358,12 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (a.CheckType(MSC_ATTR_STRING, msc->Error)) {
-            face.first = true;
-            face.second = a.value;
+            if (Canvas::HasFontFace(a.value.c_str())) {
+                face.first = true;
+                face.second = a.value;
+            } else {
+                msc->Error.Error(a, true, "Font '" + a.value + "' not found. Ignoring option.");
+            }
         }
         return true;
     }

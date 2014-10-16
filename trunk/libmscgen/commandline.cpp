@@ -385,7 +385,12 @@ int do_main(const std::list<std::string> &args,
                 show_usage = true;
             } else {
                 i++;
-                oFont == *i;
+                if (Canvas::HasFontFace(i->c_str()))
+                    oFont == *i;
+                else 
+                    msc.Error.Error(opt_pos,
+                    "Font '"+*i+"' is not available.",
+                    "Using " + (oFont.length() ? "'"+oFont+"' instead." : "default font."));
             }
         } else if (*i == "-D") {
             if (i==--args.end()) {
