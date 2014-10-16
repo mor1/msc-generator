@@ -29,21 +29,27 @@ MEDIUM PRIO
 	GUI improvements
 		ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 		ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
-		ADD: mark centerline
 		ADD: Tip of the day
 		ADD: Check if file changed on disk
 		ADD: Ability to change page setup during print preview
 		ADD: Print preview even without a printer...?
 		FIX: Add bitmaps to Full screen images toolbar
 	Useful language extensions
-		CHANGE: Rethink entity positioning and allow freer group definitions....
-		ADD: box around grouped entities all along the chart
-		ADD: group entities without a label
-		ADD: Allow arrow to a group entity...
 		ADD: arrows to point to boxes.
 		ADD: Vertical comment alignment
 		ADD: symbol cross [marker] at vertxpos [rotate];
 		ADD: rotate to symbols
+		ADD: mark centerline
+
+In 4.5.0 (experimental)
+CHANGE: Rethink entity positioning and allow freer group definitions....
+ADD: box around grouped entities all along the chart
+ADD: group entities without a label
+ADD: Allow arrow to a group entity...
+
+
+In 4.4rc4
+FIX: Bugfixes, reported by Evgeny.
 
 In 4.4rc3
 DOC: parallel block layout with compress, vspace, keep_with_next, keep_together and parallel/overlap

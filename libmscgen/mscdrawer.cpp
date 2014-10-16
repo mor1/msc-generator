@@ -1373,6 +1373,17 @@ void Canvas::SetDash(const LineAttr &line)
         cairo_set_dash(cr, pattern, num, 0); 
 }
 
+bool Canvas::HasFontFace(const char*face, bool italics, bool bold)
+{
+    cairo_font_face_t *font = cairo_toy_font_face_create(face,
+        italics ? CAIRO_FONT_SLANT_ITALIC : CAIRO_FONT_SLANT_NORMAL,
+        bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+    bool ret = cairo_font_face_status(font) == CAIRO_STATUS_SUCCESS;
+    cairo_font_face_destroy(font);
+    return ret;
+}
+
+
 void Canvas::SetFontFace(const char*face, bool italics, bool bold)
 {
     cairo_select_font_face (cr, face,

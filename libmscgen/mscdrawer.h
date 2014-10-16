@@ -144,6 +144,8 @@ public:
     static XY DetermineScaling(const Block &total, const std::vector<XY> &scale,
         const XY &pageSize, const double margins[4], 
         double ctexth, const PBDataVector *pageBreakData);
+    /** Checks if this font is available */
+    static bool HasFontFace(const char*face, bool italics = false, bool bold = false);
 
 protected:
     /** @name Low-level compatibility options 
