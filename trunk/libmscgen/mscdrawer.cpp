@@ -18,7 +18,7 @@
 */
 
 /** @file mscdrawer.cpp The implementation of drawing in Msc generator.
- * @ingroup libmscgen_files 
+ * @ingroup libmscgen_files
  *
  * Use http://www.flounder.com/metafileexplorer.htm for debugging EMF output.
  */
@@ -31,6 +31,9 @@
 #include <cairo-ps.h>
 #include <cairo-pdf.h>
 #include <cairo-svg.h>
+#ifdef CAIRO_HAS_FC_FONT
+#include <cairo-ft.h>
+#endif
 #include "msc.h"
 
 #ifndef M_PI
@@ -61,10 +64,10 @@
 
 /** Possible values for page size*/
 template<> const char EnumEncapsulator<PageSizeInfo::EPageSize>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", 
-    "A0P", "A0L", "A1P", "A1L", "A2P", "A2L", 
-    "A3P", "A3L", "A4P", "A4L", "A5P", "A5L", 
-    "A6P", "A6L", "LETTER_P", "LETTER_L", 
+    {"invalid", "none",
+    "A0P", "A0L", "A1P", "A1L", "A2P", "A2L",
+    "A3P", "A3L", "A4P", "A4L", "A5P", "A5L",
+    "A6P", "A6L", "LETTER_P", "LETTER_L",
     "LEGAL_P", "LEGAL_L", "LEDGER", "TABLOID", ""};
 
 const char VerbosePageSizeNames[][ENUM_STRING_LEN] =
@@ -1373,22 +1376,145 @@ void Canvas::SetDash(const LineAttr &line)
         cairo_set_dash(cr, pattern, num, 0); 
 }
 
-bool Canvas::HasFontFace(const char*face, bool italics, bool bold)
+#ifdef CAIRO_HAS_WIN32_FONT
+int CALLBACK _FontEnumProc(
+    const LOGFONT *lpelfe,
+    const TEXTMETRIC *lpntme,
+    DWORD FontType,
+    LPARAM lParam)
+{              
+    string &subst_font = *reinterpret_cast<string*>(lParam);
+    subst_font = lpelfe->lfFaceName;
+    return 0; //stop iteration, we have found the first face matching.
+}
+
+#endif
+
+
+/** Checks if 'face' is available, or not.*
+ * If it is not available, either an empty string or a substitute is returned in 'face'
+ * It may take longer than Canvas::SetFontFace(), as this is called only when interpreting
+ * 'text.font.face' attribute/chart option values, the \\f() formatting escape and 
+ * the -F command line option. */
+bool Canvas::HasFontFace(string &face, bool italics, bool bold)
 {
-    cairo_font_face_t *font = cairo_toy_font_face_create(face,
+    bool ret;
+    string subst_face;
+#ifdef CAIRO_HAS_FC_FONT
+    FcPattern *pattern = FcNameParse(reinterpret_cast<const FcChar8*>(face.c_str()));
+    const int fcslant = italics ? FC_SLANT_ITALIC : FC_SLANT_ROMAN;
+    const int fcweight = bold ? FC_WEIGHT_BOLD : FC_WEIGHT_MEDIUM;
+
+    if (!FcPatternAddInteger(pattern, FC_SLANT, fcslant) ||
+        !FcPatternAddInteger(pattern, FC_WEIGHT, fcweight)) {
+        //OW, we have a memory problem, or what
+        FcPatternDestroy(pattern);
+        face.clear();
+        return false;
+    }
+    FcDefaultSubstitute(pattern); //just fills in unspecified parts of the pattern (size to 12, in our case)
+    FcResult result;
+    FcPattern *resolved = FcFontMatch(NULL, pattern, &result);
+    if (result == FcResultMatch && resolved) {
+        FcChar8 * family = FcPatternFormat(resolved,
+            reinterpret_cast<const FcChar8*>("%{family}"));
+        subst_face = reinterpret_cast<char*>(family);
+        free(family);
+        ret = CaseInsensitiveEqual(face, subst_face);
+        face = subst_face;
+    } else
+        ret = false;
+    if (resolved)
+        FcPatternDestroy(resolved);
+    FcPatternDestroy(pattern);
+#elif CAIRO_HAS_WIN32_FONT
+    //Enumerate the font we need
+    LOGFONT logfont;
+    subst_face = face;
+    if (subst_face.length() > LF_FACESIZE - 1)
+        subst_face.erase(LF_FACESIZE - 1);
+
+    memcpy(logfont.lfFaceName, subst_face.c_str(), subst_face.length());
+    logfont.lfFaceName[subst_face.length()] = 0;
+
+    logfont.lfHeight = 0;	/* filled in later */
+    logfont.lfWidth = 0;	/* filled in later */
+    logfont.lfEscapement = 0;	/* filled in later */
+    logfont.lfOrientation = 0;	/* filled in later */
+    logfont.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+    logfont.lfItalic = italics;
+    logfont.lfUnderline = FALSE;
+    logfont.lfStrikeOut = FALSE;
+    /* The docs for LOGFONT discourage using this, since the
+    * interpretation is locale-specific, but it's not clear what
+    * would be a better alternative.
+    */
+    logfont.lfCharSet = DEFAULT_CHARSET;
+    logfont.lfOutPrecision = OUT_DEFAULT_PRECIS;
+    logfont.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+    logfont.lfQuality = DEFAULT_QUALITY; /* filled in later */
+    logfont.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE; 
+
+    //Now enumerate
+    HDC hdc = GetDC(NULL);
+    subst_face.clear();
+    EnumFontFamiliesEx(hdc, &logfont, _FontEnumProc, (LPARAM)&subst_face, 0);
+    ReleaseDC(NULL, hdc);
+    //If there is something in subst_face, we have found a match.
+    if (subst_face.length()) 
+        ret = CaseInsensitiveEqual(face, subst_face);
+    else
+        ret = false;
+    face = subst_face;
+#else
+    cairo_font_face_t *font_face = NULL;
+    font_face = cairo_toy_font_face_create(face.c_str(),
         italics ? CAIRO_FONT_SLANT_ITALIC : CAIRO_FONT_SLANT_NORMAL,
         bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
-    bool ret = cairo_font_face_status(font) == CAIRO_STATUS_SUCCESS;
-    cairo_font_face_destroy(font);
+    //if status is no memory, the face is the special 'nil' font face
+    //we return NULL in that case
+    if (font_face==NULL || cairo_font_face_status(font_face)==CAIRO_STATUS_NO_MEMORY) {
+        face.clear();
+        ret = false;
+    } else
+        ret = true;
+    if (font_face)
+        cairo_font_face_destroy(font_face);
+#endif
     return ret;
 }
 
-
+//This must be fast
 void Canvas::SetFontFace(const char*face, bool italics, bool bold)
 {
-    cairo_select_font_face (cr, face,
-                            italics?CAIRO_FONT_SLANT_ITALIC:CAIRO_FONT_SLANT_NORMAL,
-                            bold?CAIRO_FONT_WEIGHT_BOLD:CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_font_face_t *font_face = NULL;
+#ifdef CAIRO_HAS_FC_FONT
+    FcPattern *pattern = FcNameParse(reinterpret_cast<const FcChar8*>(face));
+    const int fcslant = italics ? FC_SLANT_ITALIC : FC_SLANT_ROMAN;
+    const int fcweight = bold ? FC_WEIGHT_BOLD : FC_WEIGHT_MEDIUM;
+
+    if (FcPatternAddInteger(pattern, FC_SLANT, fcslant) &&
+        FcPatternAddInteger(pattern, FC_WEIGHT, fcweight)) {
+        font_face = cairo_ft_font_face_create_for_pattern(pattern);
+        if (cairo_font_face_status(font_face)==CAIRO_STATUS_NO_MEMORY) 
+            //the special nil font_face is returned
+            font_face = NULL;
+    } else
+        //big problem, we could not add bold and itcalics..
+        font_face = NULL;
+    FcPatternDestroy(pattern);
+#else
+    //This works on windows, too
+    font_face = cairo_toy_font_face_create(face,
+        italics ? CAIRO_FONT_SLANT_ITALIC : CAIRO_FONT_SLANT_NORMAL,
+        bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+#endif
+    //if status is no memory, the face is the special 'nil' font face
+    //we return NULL in that case
+    if (font_face==NULL) return;
+    if (cairo_font_face_status(font_face)!=CAIRO_STATUS_NO_MEMORY) 
+        cairo_set_font_face(cr, font_face);
+    cairo_font_face_destroy(font_face);
 }
 
 void Canvas::Text(XY xy, const string &s, bool isRotated)

@@ -145,7 +145,7 @@ public:
         const XY &pageSize, const double margins[4], 
         double ctexth, const PBDataVector *pageBreakData);
     /** Checks if this font is available */
-    static bool HasFontFace(const char*face, bool italics = false, bool bold = false);
+    static bool HasFontFace(string &face, bool italics = false, bool bold = false);
 
 protected:
     /** @name Low-level compatibility options 
@@ -207,6 +207,8 @@ friend class StringFormat; //for all sorts of text manipulation
 friend class ArcBox;  //for exotic line joints
 friend class ArcPipe;  //for exotic line joints
      /** @name Cairo context attribute handing */
+    /** Checks if this font is available */
+    static cairo_font_face_t* CreateFontFace(const char*face, bool italics, bool bold);
     /** Set dash */
     void SetDash(const LineAttr &);
     /** Set the font face and bold/italics */
