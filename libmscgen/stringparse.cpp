@@ -100,7 +100,7 @@ bool StringFormat::IsComplete() const
 /** Sets the fully specified default font.
  * Font sizes are 16 and 10 point, all margins at 2,
  * no line spacing, centered, black, not bold, not italic,
- * not underlined, face name is "Arial". */
+ * not underlined, face name is empty. */
 void StringFormat::Default() 
 {
     normalFontSize.first = true; normalFontSize.second = 16; 
@@ -114,7 +114,7 @@ void StringFormat::Default()
     color.first = true; color.second =  ColorType(0,0,0); 
     fontType.first = true; fontType.second = MSC_FONT_NORMAL;
     spacingBelow.first = true; spacingBelow.second =  0; 
-    face.first = true; face.second =  "Arial";
+    face.first = true; face.second.clear();
     bold.first = true; bold.second = no;
     italics.first = true; italics.second = no; 
     underline.first = true; underline.second =  no;
@@ -606,16 +606,29 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             }
             //substitute parameter to the value from basic
             parameter = basic->face.second;
-        } else if (msc && linenum && !references &&
-                   !Canvas::HasFontFace(parameter.c_str())) {
+        } else if (msc && linenum && !references) {
             FileLineCol l = *linenum;
             l.col += 3;
-            msc->Error.Error(l, "Font '" + parameter + "' not found. " + errorAction);
-            goto nok;
+            string font_name = parameter;
+            if (!Canvas::HasFontFace(font_name)) {
+                if (font_name.length()) {
+                    msc->Error.Warning(l, "Font '" + parameter + "' not found. "
+                        "Using '"+font_name+"' instead.");
+                    parameter = font_name;
+                } else {
+                    msc->Error.Error(l, "Font '" + parameter + "' not found "
+                        "and no substitute available. Ignoring option.");
+                    goto nok;
+                }
+            }
         }
-        if (apply && Canvas::HasFontFace(parameter.c_str())) {
-            face.first = true;
-            face.second = parameter;
+        if (apply) {
+            string font_name = parameter;
+            Canvas::HasFontFace(font_name);
+            if (font_name.length()) {
+                face.first = true;
+                face.second = font_name;
+            }
         }
         if (replaceto) replaceto->assign("\\f(" + parameter + ")");
         if (linenum) linenum->col += length;
@@ -1358,11 +1371,18 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             return true;
         }
         if (a.CheckType(MSC_ATTR_STRING, msc->Error)) {
-            if (Canvas::HasFontFace(a.value.c_str())) {
+            string font_name = a.value;
+            if (Canvas::HasFontFace(font_name)) {
                 face.first = true;
                 face.second = a.value;
+            } else if (font_name.length()) {
+                face.first = true;
+                face.second = font_name;
+                msc->Error.Warning(a, true, "Font '" + a.value + "' not found. "
+                    "Using '"+font_name+"' instead.");
             } else {
-                msc->Error.Error(a, true, "Font '" + a.value + "' not found. Ignoring option.");
+                msc->Error.Error(a, true, "Font '" + a.value + "' not found "
+                    "and no substitute available. Ignoring option.");
             }
         }
         return true;
@@ -1739,7 +1759,18 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "font.face")) {
-        csh.AddEscapesToHints(HINTE_PARAM_FONT);
+        if (csh.fontnames) {
+            for (const auto &str : *csh.fontnames)
+                if (str.length() && str[0]!='@') {
+                    //Add font names containing space using quotation marks
+                    if (str.find_first_of(' ')==string::npos)
+                        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+str, NULL,
+                            EHintType::ATTR_VALUE));
+                    else
+                        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"\""+str+"\"", NULL,
+                        EHintType::ATTR_VALUE));
+                }
+        }
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "bold") || 

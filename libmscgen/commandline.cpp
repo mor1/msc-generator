@@ -65,7 +65,19 @@ char *ReadFile(FILE *in)
     return buff;
 }
 
+/** Print program version and return.
+*/
+static void version()
+{
+    printf(
+"Msc-generator %s\n"
+"Copyright (C) 2008-2014 Zoltan Turanyi\n"
+"Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
+"This is free software, and you are welcome to redistribute it under certain\n"
+"conditions; type `mscgen -l' for details.\n",
+VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 
+}
 /** Print program usage and return.
  */
 static void usage()
@@ -77,6 +89,8 @@ static void usage()
 "               [--nodesigns] [-D <design_file>]\n"
 "               [--<chart_option>=<value> ...] [--<chart_design>]\n"
 "       msc-gen -l\n"
+"       msc-gen --help\n"
+"       msc-gen --version\n"
 "\n"
 "Where:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
@@ -155,12 +169,9 @@ static void usage()
 "             design specified in the input file.\n"
 " -l          Display program licence and exit.\n"
 " -h          Display this help and exit.\n"
-"\n"
-"Msc-generator version %s, Copyright (C) 2008-2014 Zoltan Turanyi,\n"
-"Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
-"This is free software, and you are welcome to redistribute it under certain\n"
-"conditions; type `mscgen -l' for details.\n",
-VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
+" --help      Display this help and exit.\n"
+" --version   Display version information and exit.\n"
+"\n");
 }
 
 
@@ -261,8 +272,11 @@ int do_main(const std::list<std::string> &args,
         if (*args.begin() == "-l") {
             licence();
             return EXIT_SUCCESS;
-        } else if (*args.begin() == "-h") {
+        } else if (*args.begin() == "-h" || *args.begin() == "--help") {
             usage();
+            return EXIT_SUCCESS;
+        } else if (*args.begin() == "--version") {
+            version();
             return EXIT_SUCCESS;
         }
     }
@@ -279,7 +293,7 @@ int do_main(const std::list<std::string> &args,
     msc.Progress.data = param;
     if (load_data)
         msc.Progress.ReadLoadData(load_data->c_str());
-    msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
+    msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
     msc.copyrightText.append(VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 
@@ -378,19 +392,26 @@ int do_main(const std::list<std::string> &args,
             } else
                 oOutputFile = *(++i);
         } else if (*i == "-F") {
-            if (i==--args.end()) {
+            if (++i==args.end()) {
                 msc.Error.Error(opt_pos,
                     "Missing font name after '-F'.",
                     "Using " + (oFont.length() ? "'"+oFont+"' instead." : "default font."));
                 show_usage = true;
             } else {
-                i++;
-                if (Canvas::HasFontFace(i->c_str()))
-                    oFont == *i;
-                else 
+                //above we have already moved i to the parameter of -F
+                string font_name = *i;
+                if (Canvas::HasFontFace(font_name)) {
+                    oFont = *i;
+                } else if (font_name.length()) {
+                    oFont = font_name;
+                    msc.Error.Warning(opt_pos,
+                        "Font '"+*i+"' is not available.",
+                        "Using '"+oFont+"' instead.");
+                } else {
                     msc.Error.Error(opt_pos,
-                    "Font '"+*i+"' is not available.",
-                    "Using " + (oFont.length() ? "'"+oFont+"' instead." : "default font."));
+                        "Font '"+*i+"' is not available. Ignoring option.",
+                        "Using " + (oFont.length() ? "previously set '"+oFont+"' instead." : "default font."));
+                }
             }
         } else if (*i == "-D") {
             if (i==--args.end()) {
