@@ -47,6 +47,10 @@ ADD: box around grouped entities all along the chart
 ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 
+In 4.4~rc6
+DOC: The font selection on Linux and the use of fontconfig.
+PERHAPS: Do the .deb package
+
 In 4.4~rc5
 FIX: font selection on Unix. Msc-generator now uses (and requires) fontconfig
 
