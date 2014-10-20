@@ -144,8 +144,12 @@ public:
     static XY DetermineScaling(const Block &total, const std::vector<XY> &scale,
         const XY &pageSize, const double margins[4], 
         double ctexth, const PBDataVector *pageBreakData);
-    /** Checks if this font is available */
-    static bool HasFontFace(string &face, bool italics = false, bool bold = false);
+    /** Checks if 'face' is available, or not.*
+    * If it is not available, either an empty string or a substitute is returned in 'face'
+    * It may take longer than Canvas::SetFontFace(), as this is called only when interpreting
+    * 'text.font.face' attribute/chart option values, the \\f() formatting escape and
+    * the -F command line option. FOR NOW WE ALWAYS TRUE.*/
+    static bool HasFontFace(string &face, bool italics = false, bool bold = false) { return true; }
 
 protected:
     /** @name Low-level compatibility options 
@@ -207,8 +211,6 @@ friend class StringFormat; //for all sorts of text manipulation
 friend class ArcBox;  //for exotic line joints
 friend class ArcPipe;  //for exotic line joints
      /** @name Cairo context attribute handing */
-    /** Checks if this font is available */
-    static cairo_font_face_t* CreateFontFace(const char*face, bool italics, bool bold);
     /** Set dash */
     void SetDash(const LineAttr &);
     /** Set the font face and bold/italics */

@@ -23,6 +23,7 @@
 #include <iostream>
 #include <assert.h>
 #include <limits>
+#include "cairo.h"
 #include "commandline.h"
 #include "msc.h"
 
@@ -70,33 +71,32 @@ char *ReadFile(FILE *in)
 static void version()
 {
     printf(
-"Msc-generator %s\n"
+"Msc-generator %s (using cairo %s)\n"
+"\n"
 "Copyright (C) 2008-2014 Zoltan Turanyi\n"
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
-VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
-
+VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR),
+cairo_version_string());
 }
 /** Print program usage and return.
  */
 static void usage()
 {
     printf(
-"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [--pedantic]\n"
-"               [-p[=<page size>] [-m{lrud}=<margin>]] [-a[h]]\n"
-"               [-x=<width>] [-y=<height>] [-s=<scale>] [-F <font>]\n"
-"               [--nodesigns] [-D <design_file>]\n"
-"               [--<chart_option>=<value> ...] [--<chart_design>]\n"
-"       msc-gen -l\n"
-"       msc-gen --help\n"
-"       msc-gen --version\n"
+"Msc-generator draws signalling charts from textual descriptions."
 "\n"
-"Where:\n"
+"Usage: msc-gen [OPTIONS] [infile]"
+"   or: msc-gen -l\n"
+"   or: msc-gen --help\n"
+"   or: msc-gen --version\n"
+"\n"
+"Options:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
 "             'pdf', 'svg' or 'emf' (if supported on your system).\n"
-"             Default is 'png'. The token 'ismap' is accepted, but results in\n"
-"             an empty map file. The token 'lmap' is accepted and results\n"
+"             Default is 'png'. The token 'ismap' produces an NCSA formatted\n"
+"             ismap file. The token 'lmap' is accepted and results\n"
 "             a text file listing (the first line of) all labels and their\n"
 "             page number and coordinates.\n"
 " -o <file>   Write output to the named file.  If omitted, the input filename\n"
@@ -109,7 +109,7 @@ static void usage()
 " -i <infile> To retain compatibility with mscgen, this is an alternate way to\n"
 "             specify the input file.\n"
 " -p[=<page size]\n"
-"             Full-page output. (PDF only now.) In this case the chart is \n"
+"             Full-page output. (PDF only now.) In this case the chart is\n"
 "             drawn on fixed-size pages (following pagination) with one pixel\n"
 "             equalling to 1/72 inches. If a chart page is larger than a physcal\n"
 "             page it is simply cropped with a warning. Setting the scale with\n"
@@ -136,12 +136,12 @@ static void usage()
 " -Wno        No warnings displayed.\n"
 " -Pno        No progress indicator displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
-" -x=<width>  Specifies chart width (in pixels). Only for PNG output.\n"
+" -x=<width>  Specifies chart width (in pixels). Only for bitmap output.\n"
 " -y=<height> Specifies chart height (in pixels). If only one of -x or -y\n"
-"             is specified, the aspect ratio is kept. Only for PNG output.\n"
+"             is specified, the aspect ratio is kept. Only for bitmap output.\n"
 " -s=<scale>  Can be used to scale chart size up or down. Default is 1.0.\n"
 "             Cannot be used together with any of -x or -y.\n"
-"             Only for PNG or full-page output (-p).\n"
+"             Only for bitmap or full-page output (-p).\n"
 "             For full-page output, you can set <scale> to 'width' which\n"
 "             results in the chart width being set to the page width, or\n"
 "             'auto', which scales such that all pages fits. For full-page\n"
@@ -151,7 +151,7 @@ static void usage()
 "             such, the last one will be used and a warning will be given.\n"
 " -F <font>   Use specified font. This must be a font name available in the\n"
 "             local system, and overrides the MSCGEN_FONT environment variable\n"
-"             if that is also set.\n"
+"             if that is also set. (On Linux\\Unix try fontconfig.)\n"
 " --no-designs\n"
 "             If you specify this no design files will be loaded (except the\n"
 "             ones you specify with -D). This is useful to increase performance\n"
