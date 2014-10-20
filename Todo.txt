@@ -48,7 +48,9 @@ ADD: group entities without a label
 ADD: Allow arrow to a group entity...
 
 In 4.4~rc6
-DOC: The font selection on Linux and the use of fontconfig.
+DOCED: The font selection on Linux and the use of fontconfig.
+FIXED: Removed fontconfig dependency.
+FIXED: Better version and help command-line output (so that help2man works better)
 PERHAPS: Do the .deb package
 
 In 4.4~rc5
