@@ -1,0 +1,18 @@
+mark top;
+a, b, c, d;
+symbol rectangle top-bottom left at a-b +10 right at c-d -10
+[fill.color=lgray, line.type=dashed, draw_time=before_entity_lines];
+
+a->b: Message 1;
+b->c: Message 2;
+b->c: Message 3;
+b->c: Message 4;
+symbol ... center at b-c;
+b->c: Message \in;
+mark circletop [offset=-5];
+box c--c: OK: enough;
+mark circlebottom [offset=+5];
+symbol arc circletop-circlebottom center at c
+[fill.color=none, line.width=3, line.color=red, xsize=120];
+c->d: Message \in+1;
+mark bottom;

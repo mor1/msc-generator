@@ -1,0 +1,3 @@
+a->b [label="This is the label", line.width=2];
+a->b: This is the label [line.width=2];
+a->b [line.width=2]: This is the label;

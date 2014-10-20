@@ -1,0 +1,8 @@
+hide a, b, c, d;
+
+b..c: combined entities
+    [fill.color=lgray] {
+    show a, b, c, d;
+
+    a->b->d: some message;
+};
