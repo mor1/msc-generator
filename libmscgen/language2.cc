@@ -1844,92 +1844,92 @@ yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 case 52:
 YY_RULE_SETUP
 #line 209 "language2.ll"
-yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
+yylval_param->dividersymbol = EDividerSymbol::DISCO;   return TOK_SPECIAL_ARC;      // ...
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
 #line 210 "language2.ll"
-yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
+yylval_param->dividersymbol = EDividerSymbol::DIVIDER; return TOK_SPECIAL_ARC;      // ---
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
 #line 211 "language2.ll"
-yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_TO;     // ->
+yylval_param->arrowsymbol = EArrowSymbol::SOLID;       return TOK_REL_SOLID_TO;     // ->
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
 #line 212 "language2.ll"
-yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_FROM;   // <-
+yylval_param->arrowsymbol = EArrowSymbol::SOLID;       return TOK_REL_SOLID_FROM;   // <-
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
 #line 213 "language2.ll"
-yylval_param->arctype=MSC_ARC_SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
+yylval_param->arrowsymbol = EArrowSymbol::SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
 #line 214 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_TO;    // =>
+yylval_param->arrowsymbol = EArrowSymbol::DOUBLE;      return TOK_REL_DOUBLE_TO;    //  = >
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
 #line 215 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_FROM;  // <=
+yylval_param->arrowsymbol = EArrowSymbol::DOUBLE;      return TOK_REL_DOUBLE_FROM;  // < = 
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
 #line 216 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // <=>
+yylval_param->arrowsymbol = EArrowSymbol::DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // < = >
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
 #line 217 "language2.ll"
-yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_TO;    // >>
+yylval_param->arrowsymbol = EArrowSymbol::DASHED;      return TOK_REL_DASHED_TO;    // >>
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
 #line 218 "language2.ll"
-yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_FROM;  // <<
+yylval_param->arrowsymbol = EArrowSymbol::DASHED;      return TOK_REL_DASHED_FROM;  // <<
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
 #line 219 "language2.ll"
-yylval_param->arctype=MSC_ARC_DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
+yylval_param->arrowsymbol = EArrowSymbol::DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
 #line 220 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_TO;    // >
+yylval_param->arrowsymbol = EArrowSymbol::DOTTED;      return TOK_REL_DOTTED_TO;    // >
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
 #line 221 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_FROM;  // <
+yylval_param->arrowsymbol = EArrowSymbol::DOTTED;      return TOK_REL_DOTTED_FROM;  // <
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
 #line 222 "language2.ll"
-yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
+yylval_param->arrowsymbol = EArrowSymbol::DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
 #line 223 "language2.ll"
-yylval_param->arctype=MSC_BOX_SOLID;       return TOK_EMPH;             // --
+yylval_param->boxsymbol = EBoxSymbol::SOLID;           return TOK_EMPH;             // --
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
 #line 224 "language2.ll"
-yylval_param->arctype=MSC_BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;   // ++
+yylval_param->boxsymbol = EBoxSymbol::DASHED;          return TOK_EMPH_PLUS_PLUS;   // ++
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
 #line 225 "language2.ll"
-yylval_param->arctype=MSC_BOX_DOTTED;      return TOK_EMPH;             // ..
+yylval_param->boxsymbol = EBoxSymbol::DOTTED;          return TOK_EMPH;             // ..
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
 #line 226 "language2.ll"
-yylval_param->arctype=MSC_BOX_DOUBLE;      return TOK_EMPH;             // ==
+yylval_param->boxsymbol = EBoxSymbol::DOUBLE;          return TOK_EMPH;             //  =  = 
 	YY_BREAK
 case 70:
 YY_RULE_SETUP

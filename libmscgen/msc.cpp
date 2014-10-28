@@ -634,13 +634,12 @@ double Msc::GetEntityMaxPosExp() const
 ArcArrow *Msc::CreateArcArrow(ArrowSegmentData data, const char*s, const FileLineColRange &sl,
                               const char*d, bool fw, const FileLineColRange &dl)
 {
+    _ASSERT(data.type.is_arrow);
     if (strcmp(s,d))
-        return new ArcDirArrow(data, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
+        return new ArcDirArrow(data, s, sl, d, dl, this, fw);
     if (data.lost != EArrowLost::NOT)
         Error.Error(data.lost_pos.CopyTo().start, "No support for arrows pointing to the same entity in this version. Ignoring asterisk.");
-    StyleCoW style = Contexts.back().styles["arrow"];
-    style.write().text.Apply("\\pr");
-    return new ArcSelfArrow(data.type, s, sl, this, style, selfArrowYSize);
+    return new ArcSelfArrow(data.type.s.arrow, s, sl, this, selfArrowYSize);
 }
 
 ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
@@ -651,7 +650,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
         Error.Error(base->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
-    return new ArcBigArrow(*arrow, Contexts.back().styles["blockarrow"]);
+    return new ArcBigArrow(*arrow);
 }
 
 /** Creates a CommandEntity object for the two comment lines and areas.
@@ -1173,15 +1172,15 @@ EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el,
         EDirType dir2 = i->GetToucedEntities(el2);
         //update combined direction
         switch (dir2) {
-        case MSC_DIR_BIDIR:
-            dir = MSC_DIR_BIDIR; 
+        case EDirType::BIDIR:
+            dir = EDirType::BIDIR; 
             break;
-        case MSC_DIR_LEFT:
-        case MSC_DIR_RIGHT:
-            if (dir == MSC_DIR_INDETERMINATE) dir = dir2;
-            else if (dir != dir2) dir = MSC_DIR_BIDIR;
+        case EDirType::LEFT:
+        case EDirType::RIGHT:
+            if (dir == EDirType::INDETERMINATE) dir = dir2;
+            else if (dir != dir2) dir = EDirType::BIDIR;
             break;
-        case MSC_DIR_INDETERMINATE:
+        case EDirType::INDETERMINATE:
             break;
         }
         //merge the two lists
@@ -1190,13 +1189,6 @@ EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el,
                 el.Append(ei2);
     }
     return dir;
-}
-
-string Msc::Print(int indent) const
-{
-    string s = AllEntities.Print(indent).append("\n");
-    s.append(Arcs.Print(indent)).append("\n");
-    return s;
 }
 
 /** Perform post-parse processing on an ArcList 
@@ -1421,11 +1413,10 @@ void Msc::PostParseProcess(Canvas &canvas)
         //Otherwise, generate a new entity command at that location
         ArcList::iterator i = Arcs.begin();
         //Skip over the titles and chart options
-        while (i!=Arcs.end() && ((*i)->type==MSC_ARC_ARCLIST || (*i)->type==MSC_COMMAND_TITLE ||
-               (*i)->type==MSC_COMMAND_SUBTITLE))
+        while (i!=Arcs.end() && (*i)->BeforeAutoGenEntities())
             i++;
         //Insert a new CommandEntity if we have none
-        if (i==Arcs.end() || (*i)->type != MSC_COMMAND_ENTITY) {
+        if (i==Arcs.end() || dynamic_cast<CommandEntity*>(*i)==NULL) {
             CommandEntity *ce = new CommandEntity(new EntityAppHelper, this, false);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);
@@ -2170,9 +2161,9 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
             //first find if next element is a page break
             auto iii = keep_with_next__from==arcs.end() ? i : keep_with_next__from;
             while (iii != arcs.end() && (*iii)->GetFormalHeight()==0 &&
-                   (*iii)->type!=MSC_COMMAND_NEWPAGE)
+                   dynamic_cast<CommandNewpage*>(*iii)==NULL)
                 iii++;
-            if (iii != arcs.end() && (*iii)->type==MSC_COMMAND_NEWPAGE) {
+            if (iii != arcs.end() && dynamic_cast<CommandNewpage*>(*iii)) {
                 //an upcoming page break. Adjust shift so that that element gets to `pageBreak`
                 shift = ceil(pageBreak - (*iii)->GetVisualYExtent(true).from);
                 keep_with_next__from = arcs.end(); //do not move prior elements

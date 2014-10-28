@@ -32,68 +32,67 @@
 #include "area.h"
 #include "progress.h"
 
-/** Defines type information for arc related classes.
- *
- * Every arc needs a type from this class.
- * This is a bit of a historic artefact and is of mixed use.
- * On one hand it denotes the type of the arc (arrow, box, command, etc.)
- * but it is not so much used in this capacity.
- * On the other hand, for arrows, boxes and dividers it also denotes the
- * symbol used for the definition (->, => or <->). */
-enum EArcType
+/** Enumerates the type of arrow symbols (->, => or <->, etc). */
+enum class EArrowSymbol
 {
-    MSC_ARC_INVALID = 0,         ///<Invalid value
-    MSC_ARC_SOLID,               ///<A solid, unidir arrow: -> or <- (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_SOLID_BIDIR,         ///<A solid, bidirectional arrow: <-> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DOTTED,              ///<A dotted unidir arrow: > or < (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DOTTED_BIDIR,        ///<A dotted bidir arrow: <> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DASHED,              ///<A dashed unidir arrow: >> or << (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DASHED_BIDIR,        ///<A dashed bidir arrow: <<>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DOUBLE,              ///<A double lined unidir arrow: => or <= (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_DOUBLE_BIDIR,        ///<A double lined bidirectional arrow: <=> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    MSC_ARC_UNDETERMINED_SEGMENT,///<An arrow segment of undefined type: - (ArcDirArrow, ArcBigArrow)
+    INVALID = 0,         ///<Invalid value
+    SOLID,               ///<A solid, unidir arrow: -> or <- (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    SOLID_BIDIR,         ///<A solid, bidirectional arrow: <-> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DOTTED,              ///<A dotted unidir arrow: > or < (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DOTTED_BIDIR,        ///<A dotted bidir arrow: <> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DASHED,              ///<A dashed unidir arrow: >> or << (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DASHED_BIDIR,        ///<A dashed bidir arrow: <<>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DOUBLE,              ///<A double lined unidir arrow: => or <= (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    DOUBLE_BIDIR,        ///<A double lined bidirectional arrow: <=> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    BIG,                 ///<A unidir block arrow generated from a collapsed box (ArcBigArrow)
+    BIG_BIDIR,           ///<A bidir block arrow generated from a collapsed box (ArcBigArrow)
+    UNDETERMINED_SEGMENT,///<An arrow segment of undefined type: - (ArcDirArrow, ArcBigArrow)
+};
+inline bool IsArrowSymbolBidir(EArrowSymbol t) { return unsigned(t)&1 == 0; }
 
-    MSC_ARC_BIG,                 ///<A unidir block arrow generated from a collapsed box (ArcBigArrow)
-    MSC_ARC_BIG_BIDIR,           ///<A bidir block arrow generated from a collapsed box (ArcBigArrow)
 
-    MSC_BOX_SOLID,               ///<A solid box: -- (ArcBox, ArcPipe, ArcVertical)
-    MSC_BOX_DOTTED,              ///<A dotted box: .. (ArcBox, ArcPipe, ArcVertical)
-    MSC_BOX_DASHED,              ///<A dashed box: ++ (ArcBox, ArcPipe, ArcVertical)
-    MSC_BOX_DOUBLE,              ///<A double box: == (ArcBox, ArcPipe, ArcVertical)
-    MSC_BOX_UNDETERMINED_FOLLOW, ///<A (subsequent) box in a box segment, without a type specifier (ArcBox)
+/** Enumerates the type of box symbols (->, => or <->, etc). */
+enum class EBoxSymbol
+{
+    INVALID = 0,         ///<Invalid value
+    SOLID,               ///<A solid box: -- (ArcBox, ArcPipe, ArcVertical)
+    DOTTED,              ///<A dotted box: .. (ArcBox, ArcPipe, ArcVertical)
+    DASHED,              ///<A dashed box: ++ (ArcBox, ArcPipe, ArcVertical)
+    DOUBLE,              ///<A double box: == (ArcBox, ArcPipe, ArcVertical)
+    UNDETERMINED_FOLLOW, ///<A (subsequent) box in a box segment, without a type specifier (ArcBox)
+};
 
-    MSC_ARC_PARALLEL,            ///<An ArcParallel
+/** May contain either an EArrowSymbol or an EBoxSymbol */
+struct ArrowOrBoxSymbol
+{
+    bool is_arrow;
+    union {
+        EArrowSymbol arrow;  
+        EBoxSymbol box;      
+    } s;
+    ArrowOrBoxSymbol &operator =(EArrowSymbol a) { s.arrow = a; is_arrow = true; return *this; }
+    ArrowOrBoxSymbol &operator =(EBoxSymbol b) { s.box = b; is_arrow = false; return *this; }
+};
 
-    MSC_ARC_DISCO,               ///<A discontinuity in time line: ... (ArcDivider)
-    MSC_ARC_DIVIDER,             ///<A divider: --- (ArcDivider)
-    MSC_ARC_VSPACE,              ///<No arc, just space (maybe with label) (ArcDivider)
 
-    MSC_COMMAND_HEADING,         ///<A heading command (CommandEntity)
-    MSC_COMMAND_NUDGE,           ///<A nudge command (ArcDivider)
-    MSC_COMMAND_ENTITY,          ///<Some entities (CommandEntity)
-    MSC_COMMAND_NEWPAGE,         ///<The newpage command (CommandNewPage)
-    MSC_COMMAND_NEWBACKGROUND,   ///<A background option (CommandBackground)
-    MSC_COMMAND_NUMBERING,       ///<A number fromat option (CommandNumbering)
-    MSC_COMMAND_MARK,            ///<A marker definition (CommandMark)
-    MSC_COMMAND_EMPTY,           ///<The default fallback for an empty chart (CommandEmpty)
-    MSC_COMMAND_HSPACE,          ///<The hspace command (CommandHSpace)
-    MSC_COMMAND_VSPACE,          ///<The vspace command (CommandVSpace)
-    MSC_COMMAND_SYMBOL,          ///<The symbol command (CommandSymbol)
-    MSC_COMMAND_NOTE,            ///<A note or comment command (CommandNote)
-    MSC_COMMAND_TITLE,           ///<A title command (ArcDivider)
-    MSC_COMMAND_SUBTITLE,        ///<A subtitle command (ArcDivider)
-
-    MSC_ARC_ARCLIST,             ///<A list of arcs for internal use (CommandArcList)
-    MSC_ARC_EN_SEPARATOR,        ///<A list of arcs for internal use (CommandArcList)
-    MSC_ARC_INDICATOR            ///<An indicator element inserted to replace hidden elements (ArcIndicator)
+/** Enumerates the type of box symbols (->, => or <->, etc). */
+enum class EDividerSymbol
+{
+    INVALID = 0,         ///<Invalid value
+    DISCO,               ///<A discontinuity in time line: ... (ArcDivider)
+    DIVIDER,             ///<A divider: --- (ArcDivider)
+    VSPACE,              ///<No arc, just space (maybe with label) (ArcDivider)
+    NUDGE,               ///<The nudge command
+    TITLE,               ///<The title command
+    SUBTITLE,            ///<The subtitle command
 };
 
 /** The direction of an arrow in the text file */
-enum EDirType {
-    MSC_DIR_INDETERMINATE, ///<An arrow segment of unspecified direction
-    MSC_DIR_RIGHT,         ///<An arrow pointing left-to-right. This is the forward direction.
-    MSC_DIR_LEFT,          ///<An arrow pointing right-to-left. This is the reverse direction.
-    MSC_DIR_BIDIR          ///<A bidirectional arrow.
+enum class EDirType {
+    INDETERMINATE, ///<An arrow segment of unspecified direction
+    RIGHT,         ///<An arrow pointing left-to-right. This is the forward direction.
+    LEFT,          ///<An arrow pointing right-to-left. This is the reverse direction.
+    BIDIR          ///<A bidirectional arrow.
 };
 
 /** Indicates if the message was lost and where. */
@@ -106,12 +105,12 @@ enum class EArrowLost {
 /** Collects data about an arrow segments (dashed/solid/dotted/double and 
  * whether it indicates a lost message using an asterisk */
 struct ArrowSegmentData {
-    EArcType   type;              ///<The type of the arrow such as MSC_ARROW_SOLID
+    ArrowOrBoxSymbol type;        ///<The type of the arrow such as EArrowSymbol::SOLID or EBoxSymbol::DASHED
     EArrowLost lost;              ///<Whether there was a loss indication (*) or not.
     PODFileLineColRange lost_pos; ///<The location of the asterisk if any.
 };
 
-/** A structure used to hold an arc type & loss and a direction. Used with ArcVerticalArrow. */
+/** A structure used to hold an arrow type & loss and a direction. Used with ArcVerticalArrow. */
 struct ArcTypePlusDir
 {
     ArrowSegmentData arc;
@@ -162,13 +161,12 @@ protected:
     static void AttributeNamesSet1(Csh &csh);
     static bool AttributeValuesSet1(const std::string attr, Csh &csh);
 public:
-    const EArcType type;   ///<Type of the arc
     const MscProgress::ECategory myProgressCategory; ///<The category of the arc for calculating progress.
 
     /** Basic constructor, taking const members and the reference to Msc we are member of.*/
-    ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc);
+    ArcBase(MscProgress::ECategory c, Msc *msc);
     /** A virtual destructor */
-	virtual ~ArcBase();
+	~ArcBase() override;
     /** Ture if object is valid */
     bool IsValid() const {return valid;}
     /** True if subsequent arcs can be drawn beside this.*/
@@ -191,6 +189,8 @@ public:
     virtual bool CanBeNoted() const {return false;}
     /** True if the entity is likely to produce height and can be the target of a vertical*/
     virtual bool CanBeAlignedTo() const { return false; }
+    /** True if implicitly generated entities (Msc::AutoGenEntities) shall be placed *after* this element (like titles, etc) */
+    virtual bool BeforeAutoGenEntities() const { return false; }
     /** Get the Y coordinate of the top of the arc. 
      * The actual visual part may not start here, 
      * if we have gap proscribed above in 'chart'
@@ -204,11 +204,12 @@ public:
      * This may be wider than the actual visual effect and is used for
      * layout and to gauge associated verticals.*/
     virtual Range GetFormalYExtent() const {return Range(yPos, yPos+GetFormalHeight());}
-    /** Get the Y coordinate range actually occupied by visual elements of the arc. */
+    /** Get the Y coordinate range actually occupied by visual elements of the arc. 
+     * This is used to do automatic pagination. */
     virtual Range GetVisualYExtent(bool include_comments) const;
     /** Get an (ordered) list of entities that this arrow or box touches.
       * @return the direction of the arrows inside (left is all arrows are left; bidir if mixed.*/
-    virtual EDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
+    virtual EDirType GetToucedEntities(EntityList &) const {return EDirType::INDETERMINATE;}
     /** Expands our contour calculated as `a` to a cover used for compress bump checking*/
     Area GetCover4Compress(const Area &a) const;
     /** Allocates and fills in a signature object identifying the arc. NULL if no signature available.*/
@@ -217,16 +218,11 @@ public:
     /** Applies a set of attributes to us.*/
     virtual void AddAttributeList(AttributeList *);
     /** Applies one attribute to us */
-    virtual bool AddAttribute(const Attribute &);
+    bool AddAttribute(const Attribute &) override;
     /** Add attribute names and helpers to csh for hinting */
     static void AttributeNames(Csh &csh);
     /** Add attribute values and helpers to csh for hinting */
     static bool AttributeValues(const std::string attr, Csh &csh);
-
-    /** Converting type to text for debugging*/
-    virtual string PrintType(void) const;
-    /** Converting to text for debugging, indented at specified level*/
-    virtual string Print(int indent = 0) const = 0;
 
     /** Add the current activation status to the last element in 'vdist'. Used by Width().*/
     void AddEntityLineWidths(DistanceMapVertical &vdist);
@@ -254,7 +250,7 @@ public:
      * See documentation for libmscgen for more info.*/
     virtual void Layout(Canvas &canvas, AreaList *cover);
     /** Move the arc up or down. This can be called multiple times. */
-    virtual void ShiftBy(double y) {if (valid) {Element::ShiftBy(y);}}
+    void ShiftBy(double y) override {if (valid) {Element::ShiftBy(y);}}
     /** Collect the y position of page breaks into Msc::pageBreakData. 
      * See documentation for libmscgen for more info.*/
     virtual void CollectPageBreak() {}
@@ -271,7 +267,7 @@ public:
     virtual void PlaceWithMarkers(Canvas &/*canvas*/) {}
     /** Emit warnings that need final layout. 
      * See documentation for libmscgen for more info.*/
-    virtual void PostPosProcess(Canvas &canvas);
+    void PostPosProcess(Canvas &canvas) override;
     /** Draw the arc.
      * See documentation for libmscgen for more info.*/
     virtual void Draw(Canvas &canvas, EDrawPassType pass) = 0;
@@ -297,8 +293,7 @@ public:
     ArcIndicator(Msc *chart, const StyleCoW &st, const FileLineColRange &l);
     /** Creates an indicator object at Entity `s`*/
     ArcIndicator(Msc *chart, EIterator s, const StyleCoW &st, const FileLineColRange &l);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::INDICATOR;}
-    virtual bool CanBeAlignedTo() const { return true; }
+    bool CanBeAlignedTo() const override { return true; }
     /** True if `src` and `dst` are properly set.*/
     bool IsComplete() const;
     void SetEntities(EIterator s, EIterator d) {src=s; dst=d;}
@@ -307,11 +302,10 @@ public:
     bool Combine(const ArcIndicator *o);
     /** Returns the x coordinate in chart space of the middle of the indicator */
     double GetXCoord() const;
-    virtual EDirType GetToucedEntities(class EntityList &el) const;
-    virtual string Print(int indent = 0) const {return string(indent*2, ' ')+"Indicator";}
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    EDirType GetToucedEntities(class EntityList &el) const override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** Root class for all arcs having a label.
@@ -330,15 +324,15 @@ protected:
     string          number_text;     ///<The formatted number assigned to this arc (used by references and notes/comments). Set in PostParseProcess()
     Range           entityLineRange; ///<The y range to apply any vFill or vLine attributes
 public:
-    ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const StyleCoW &);
-    ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al);
+    ArcLabelled(MscProgress::ECategory c, Msc *msc);
+    ArcLabelled(MscProgress::ECategory c, const ArcLabelled &al);
     const StyleCoW &GetStyle() const {return style;}
-    virtual bool CanBeNoted() const {return true;}
-    virtual bool CanBeAlignedTo() const { return true; }
+    bool CanBeNoted() const override { return true; }
+    bool CanBeAlignedTo() const override { return true; }
     /** Set style to this name, but combine it with default text style */
-    void SetStyleWithText(const char *style_name); 
+    void SetStyleWithText(const char *style_name, const StyleCoW *refinement);
     /** Set style to this name, but combine it with default text style. Use existing style if NULL.*/
-    void SetStyleWithText(const StyleCoW *style_to_use=NULL); 
+    void SetStyleWithText(const StyleCoW *style_to_use, const StyleCoW *refinement);
     /** Generate a warning on overflown labels.
      * Shall be called from Layout().
      * @param [in] overflow The amount of overflow.
@@ -355,27 +349,21 @@ public:
      *                   If the label is wider, we mark it as overflown,
      *                   but only if no word_wrapping is used for the labels. */
     void CountOverflow(double space);
-    /** Depending on the arc type return the refinement style.
-     * An example of a refinement style is the style named '->', which (by default)
-     * sets the line type to solid and is applied after the 'arrow' style, to reflect
-     * the difference between a '->' arrow and a '=>' arrow, for example.
-     * This works for boxes, block arrows, etc.*/
-    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
+    virtual void SetStyleBeforeAttributes() = 0;
     FileLineCol AddAttributeListStep1(AttributeList *);
     void AddAttributeListStep2(const FileLineCol &label_pos);
-    virtual void AddAttributeList(AttributeList *l) { AddAttributeListStep2(AddAttributeListStep1(l)); }
-    bool AddAttribute(const Attribute &);
+    void AddAttributeList(AttributeList *l) override {SetStyleBeforeAttributes(); AddAttributeListStep2(AddAttributeListStep1(l)); }
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
     /** Return the formatted number of the arc (empty string if none).*/
     const string &GetNumberText() const {return number_text;}
     /** Return the numbering style of the arc (even if numbering is turned off).*/
     const NumberingStyle &GetNumberingStyle() const {return numberingStyle;}
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &canvas);
+    void FinalizeLabels(Canvas &canvas) override;
+    void PostPosProcess(Canvas &canvas) override;
 };
 
 /** Holds a horizontal position, as specified by the user.
@@ -433,10 +421,14 @@ struct VertXPos
 class ArcArrow : public ArcLabelled
 {
 public:
+    const bool bidir;
     /** This is the typical constructor */
-    ArcArrow(EArcType t, MscProgress::ECategory c, Msc *msc, const StyleCoW &s) : ArcLabelled(t, c, msc, s) {}
+    ArcArrow(bool b, MscProgress::ECategory c, Msc *msc) : ArcLabelled(c, msc), bidir(b) {}
     /** Constructor used only when converting an ArcBox to and ArcBigArrow*/
-    ArcArrow(EArcType t, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(t, c, al) {}
+    ArcArrow(bool b, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(c, al), bidir(b) {}
+    /** Get the refinement style for a given arrow symbol 
+     * The ArcArrow:: version returns the style for self and dir arrows, ArcBigArrow overrides. */
+    virtual const StyleCoW *GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const;
     /** Add a new arrow segment. Called during processing.
      * @param [in] data The type of the new arrow segment, indication of amy 
      *                  potential loss indication and its location.
@@ -446,14 +438,10 @@ public:
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml, 
                                  const FileLineColRange &l) = 0;
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) = 0;
-    bool AddAttribute(const Attribute &);
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    /** True if the arrow is bidirectional */
-    bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
-                                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR ||
-                                     type == MSC_ARC_BIG_BIDIR;}
-    virtual void PostPosProcess(Canvas &canvas);
+    void PostPosProcess(Canvas &canvas) override;
     void DrawLSym(Canvas &canvas, const XY &C, XY size);
 };
 
@@ -472,22 +460,22 @@ protected:
     mutable double dx;     ///<Calculated right side of label
     mutable double src_act;///<Activation offset of entity 'src' at the arrow. 0 if not active.
 public:
-    ArcSelfArrow(EArcType t, const char *s, const FileLineColRange &sl,
-        Msc *msc, const StyleCoW &, double ys);
-    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
-                                 const FileLineColRange &l);
-    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
-    virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    const EArrowSymbol type;
+    ArcSelfArrow(EArrowSymbol t, const char *s, const FileLineColRange &sl,
+                 Msc *msc, double ys);
+    ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                         const FileLineColRange &l) override;
+    ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) override;
+    EDirType GetToucedEntities(EntityList &el) const override;
+    void SetStyleBeforeAttributes() override;
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** A (potentially multi-segmented) arrow.
@@ -501,7 +489,7 @@ protected:
     FileLineCol              linenum_dst;          ///<Location of `dst` in the input file (within the arrow definition)
     std::vector<EIterator>   middle;               ///<An array of mid-stops of the arrow in the order as they appear in the input file
     std::vector<FileLineCol> linenum_middle;       ///<Location of mid-stop entity names in the input file (within this arrow definition)
-    std::vector<EArcType>    segment_types;        ///<Types of segments: one for each segment ([0] is the one from src). Set during AddSegment() calls.
+    std::vector<EArrowSymbol>segment_types;        ///<Types of segments: one for each segment ([0] is the one from src). Set during AddSegment() calls.
     std::vector<LineAttr>    segment_lines;        ///<Line types of segments. Set during AddAttributeList() from `segment_types`.
     const bool               specified_as_forward; ///<True if user specified "a->b", false if "b<-a"
     double                   slant_angle;          ///<The angle of the arrow. Taken from the context, may be modified by style and/or attribute.
@@ -529,35 +517,35 @@ protected:
     mutable double centerline;  ///<y offset of line compared to yPos
     mutable Contour clip_area;  ///<Used to mask out the line at arrowheads - not used by ArcBigArrow.
 public:
-    /** Regular constructor. 
+    /** Regular constructor, does pretty much nothing. We need to add segments.
      * @param data The type of the arrow and the position of any loss indication (*).
      * @param s The name of the source entity.
      * @param sl The location of the name of the source entity in the input file
      * @param d The name of the destination entity
      * @param dl The location of the name of the destination entity in the input file
      * @param msc The char we add the arrow to
-     * @param fw True if declared as a->b and false if b<-a
-     * @param st The style to apply*/
-    ArcDirArrow(ArrowSegmentData data, const char *s, const FileLineColRange &sl,
-                const char *d, const FileLineColRange &dl, Msc *msc, bool fw, 
-                const StyleCoW &st);
+     * @param fw True if declared as a->b and false if b<-a*/
+    ArcDirArrow(ArrowSegmentData data, 
+               const char *s, const FileLineColRange &sl,
+               const char *d, const FileLineColRange &dl, 
+               Msc *msc, bool fw);
     /** Constructor used while converting a collapsed ArcBox to an ArcBigArrow*/
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
-    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
-                                 const FileLineColRange &l);
-    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
-    virtual void AddAttributeList(AttributeList *l);
-    bool AddAttribute(const Attribute &);
+    ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                         const FileLineColRange &l) override;
+    ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) override;
+    void SetStyleBeforeAttributes() override;
+    void AddAttributeList(AttributeList *l) override;
+    bool AddAttribute(const Attribute &) override;
     virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
     /** Update the stored activation status of entities.
      * Called if a centierlined entity command after us has changed active entities.*/
     virtual void UpdateActiveSizes(); 
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
+    void FinalizeLabels(Canvas &canvas) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
     /** Get the Centerline Delta from the top of the arc at horizontal position `x`.
      * A negative return value indicates the object has no centerline. 
      * Shall be called only after Layout()*/
@@ -568,16 +556,16 @@ public:
     /** Is this the start or end of the arrow?
      * From the index of `xPos` and `specified_as_forward` give MSC_ARROW_{START,MIDDLE,END}*/
     EArrowEnd WhichArrow(unsigned i); 
-    virtual void ShiftBy(double y);
+    void ShiftBy(double y) override;
     /** Check if the entities in `src` - `middle[]` - `dst` are all left-to-right or right-to-left*/
     void CheckSegmentOrder(double y);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
     void DrawArrow(Canvas &canvas, const Label &loc_parsed_label,
                    const std::vector<LineAttr>& loc_segment_lines,
                    const ArrowHead &loc_arrow);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** A block arrow */
@@ -597,27 +585,26 @@ protected:
     mutable std::vector<Contour> outer_contours; ///<The outline for each segment
 public:
     /** Upgrade an ArcDirArrow to a block arrow: the regular way of creating one. */
-    ArcBigArrow(const ArcDirArrow &, const StyleCoW &);
+    ArcBigArrow(const ArcDirArrow &);
     /** Used when converting a collapsed ArcBox to an ArcBigArrow */
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
-    ~ArcBigArrow() {if (sig) delete sig;}
-    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
-    virtual const ArcSignature* GetSignature() const {return sig;}
+    ~ArcBigArrow() override { if (sig) delete sig; }
+    void SetStyleBeforeAttributes() override;
+    const StyleCoW *GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const override;
+    const ArcSignature* GetSignature() const override { return sig; }
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual Range GetVisualYExtent(bool include_comments) const;
-
-    virtual void ShiftBy(double y);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void FinalizeLabels(Canvas &canvas) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    Range GetVisualYExtent(bool include_comments) const override;
+    void ShiftBy(double y) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** A vertical */
@@ -626,14 +613,14 @@ class ArcVerticalArrow : public ArcArrow
 public:
     /** Lists Vertical shapes */
     enum EVerticalShape {
-        ARROW_OR_BOX, ///<Either an arrow or a box depending on the 'ArcBase::type' field
-        BOX,          ///<A box, even if ArcBase::type is of MSC_ARC_XXX type.
+        ARROW_OR_BOX, ///<A block arrow or a box
         BRACE,        ///<A curly brace
         BRACKET,      ///<A square bracket (potentially with custom corners)
         RANGE,        ///<A range with potential arrow
         POINTER,      ///<An arrow that looks like a pointer to self
     };
 protected:
+    const ArrowOrBoxSymbol type; ///<Tells us what kind of symbol was used to define us (-> or -- etc)
     string src;              ///<The top marker (if any)
     string dst;              ///<The bottom marker (if any)
     const bool lost;         ///<Whether we had a loss symbol or not
@@ -657,39 +644,38 @@ protected:
     mutable Contour clip_line;  ///<The clip of the line for ranges, brackets and pointers
     mutable std::vector<Contour> outer_contours; ///<Calculated contour (only one element)
 public:
-    /** Regular constructor with two marker names (one can be NULL)*/
+    /** Constructor for arrow or box symbols with two marker names (one can be NULL)*/
     ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc);
-    virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
-                                 const FileLineColRange &l);
-    virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l);
+    ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
+                         const FileLineColRange &l) override;
+    ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) override;
     /** Add the parsed horizontal position (starting with the AT keyword) */
     ArcVerticalArrow* AddXpos(VertXPos *p);
     /** Sets the shape of the vertical. Used only in parsing.*/
     void SetVerticalShape(EVerticalShape sh);
-    virtual bool CanBeNoted() const { return false; }
-    virtual bool CanBeAlignedTo() const { return false; }
-    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
-    bool AddAttribute(const Attribute &);
+    bool CanBeNoted() const override { return false; }
+    bool CanBeAlignedTo() const override { return false; }
+    void SetStyleBeforeAttributes() override;
+    const StyleCoW *GetMyRefinementStyle() const;
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual Element* AttachNote(CommandNote *);
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual Range GetVisualYExtent(bool include_comments) const;
-
-    virtual void ShiftBy(double y);
-    virtual Range YExtent() {return Range(false);}
-    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
-                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
-                                    bool /*addHeading*/, ArcList &/*res*/) {return -2;}
-    virtual void PlaceWithMarkers(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    Range GetVisualYExtent(bool include_comments) const override;
+    void ShiftBy(double y) override;
+    Range GetFormalYExtent() const override { return Range(false); }
+    double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
+                            double /*pageBreak*/, bool &/*addCommandNewpage*/, 
+                            bool /*addHeading*/, ArcList &/*res*/) override {return -2;}
+    void PlaceWithMarkers(Canvas &canvas) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
     void DrawBraceLostPointer(Canvas &canvas, const LineAttr &line, const ArrowHead &arrow);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** One box (potentially in a box series) with or without elements in it */
@@ -719,23 +705,25 @@ protected:
     mutable Block tag_outer_edge;       ///<The outer edge of the tag rectange (must be clipped by the inner edge of the box)
     mutable Contour tag_cover;          ///<Area covered by the tag (not just the label of it) - you can use it to clip
 public:
-    ArcBox(EArcType t, const char *s, const FileLineColRange &sl,
-        const char *d, const FileLineColRange &dl, Msc *msc);
-    virtual bool CanBeNoted() const {return true;}
-    virtual const ArcSignature* GetSignature() const;
+    const EBoxSymbol type;
+    ArcBox(EBoxSymbol t, const char *s, const FileLineColRange &sl,
+           const char *d, const FileLineColRange &dl, Msc *msc);
+    bool CanBeNoted() const override {return true;}
+    const ArcSignature* GetSignature() const override;
+    const StyleCoW *GetRefinementStyle4BoxSymbol(EBoxSymbol t) const;
+    virtual void SetStyleBeforeAttributes() {} //we do it in AddAttributeList() below
     ArcBox* AddArcList(ArcList*l);
-    virtual void AddAttributeList(AttributeList *);
-    bool AddAttribute(const Attribute &);
+    void AddAttributeList(AttributeList *) override;
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
-    virtual void ShiftBy(double y);
-    virtual void RegisterCover(EDrawPassType /*pass*/) {} //will never be called
-    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void FinalizeLabels(Canvas &canvas) override;
+    void Layout(Canvas &/*canvas*/, AreaList * /*cover*/) override { _ASSERT(0); }
+    void ShiftBy(double y) override;
+    void RegisterCover(EDrawPassType /*pass*/) override { _ASSERT(0); } //will never be called
+    void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) override { _ASSERT(0); } //will never be called
 };
 
 /** A box series - used even for a single box.*/
@@ -751,30 +739,29 @@ protected:
 public:
     /** Create a series using a box as a first element */
     ArcBoxSeries(ArcBox *first);
-    virtual bool CanBeAlignedTo() const { return true; }
+    bool CanBeAlignedTo() const override { return true; }
     /** Add the first and append subsequent boxes to the series */
     ArcBoxSeries* AddBox(ArcBox *f);
-    virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
+    EDirType GetToucedEntities(EntityList &el) const override;
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void FinalizeLabels(Canvas &canvas) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
 
-    virtual Range GetVisualYExtent(bool include_comments) const;
+    Range GetVisualYExtent(bool include_comments) const override;
 
-    virtual void ShiftBy(double y);
-    virtual void CollectPageBreak();
-    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                    double pageBreak, bool &addCommandNewpage, 
-                                    bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void RegisterCover(EDrawPassType pass);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    void ShiftBy(double y) override;
+    void CollectPageBreak() override;
+    double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
+                            double pageBreak, bool &addCommandNewpage, 
+                            bool addHeading, ArcList &res) override;
+    void PlaceWithMarkers(Canvas &canvas) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void RegisterCover(EDrawPassType pass) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** One pipe segment */
@@ -804,20 +791,23 @@ protected:
     mutable Contour pipe_hole_line; ///<The line around the hole at the ehnd   
     mutable Contour pipe_hole_curve;///<The curve at the hole end
 public:
-    /** Upgrade a box to a pipe: this is how we create pipes normally */
+    const EBoxSymbol type;
+    /** Upgrade a box to a pipe: this is how we create pipes normally.
+     * Deletes 'box'*/
     ArcPipe(ArcBox *box);
-    virtual bool CanBeNoted() const {return true;}
-    bool AddAttribute(const Attribute &);
+    bool CanBeNoted() const override { return true; }
+    const StyleCoW *GetRefinementStyle4PipeSymbol(EBoxSymbol t) const;
+    void SetStyleBeforeAttributes() override;
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    string Print(int indent=0) const;
-    virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
-    virtual void ShiftBy(double y);
-    virtual void RegisterCover(EDrawPassType /*pass*/) {} //will never be called
+    void Layout(Canvas &/*canvas*/, AreaList * /*cover*/) override { _ASSERT(0); }
+    void ShiftBy(double y) override;
+    void RegisterCover(EDrawPassType /*pass*/) override {_ASSERT(0); } //will never be called
     /** Helper to draw various parts of the pipe */
     void DrawPipe(Canvas &canvas, EDrawPassType pass, bool topSideFill, bool topSideLine,  
                   bool backSide, bool shadow, bool text, double next_lw, int drawing_variant);
-    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
+    void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) override { _ASSERT(0); } //will never be called
 };
 
 /** A pipe series - used even for a pipe with one segment */
@@ -836,27 +826,26 @@ public:
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     /** Add actual content */
     ArcPipeSeries* AddArcList(ArcList*l);
-    virtual bool CanBeAlignedTo() const { return true; }
-    virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    void CalculateContours(Area *pipe_body_cover=NULL);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual Range GetVisualYExtent(bool include_comments) const;
-    virtual void ShiftBy(double y);
-    virtual void CollectPageBreak();
-    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                    double pageBreak, bool &addCommandNewpage, 
-                                    bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void RegisterCover(EDrawPassType pass);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    bool CanBeAlignedTo() const override { return true; }
+    EDirType GetToucedEntities(EntityList &el) const override;
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void FinalizeLabels(Canvas &canvas) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void CalculateContours(Area *pipe_body_cover = NULL);
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    Range GetVisualYExtent(bool include_comments) const override;
+    void ShiftBy(double y) override;
+    void CollectPageBreak() override;
+    double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
+                            double pageBreak, bool &addCommandNewpage, 
+                            bool addHeading, ArcList &res) override;
+    void PlaceWithMarkers(Canvas &canvas) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void RegisterCover(EDrawPassType pass) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 
@@ -864,6 +853,7 @@ public:
 class ArcDivider : public ArcLabelled
 {
 protected:
+    const EDividerSymbol type; ///<What kind of divider symbol was used to define us
     const bool nudge;          ///<True if created from a `nudge` command
     const bool title;          ///<True if created from a `title` or `subtitle` command
     bool wide;                 ///<If true, we keep no margin and add no gap above & below (for copyright text)
@@ -874,23 +864,23 @@ protected:
     mutable double line_margin;///<left and right line margin from chart edge
     mutable Contour text_cover;///<The cover of the label
 public:
-    ArcDivider(EArcType t, Msc *msc);
-    virtual bool CanBeAlignedTo() const { return !nudge; } //nudges cannot be targets of a vertical
-    /** Return default style name for this arc type */
-    static const char *MyStyleName(EArcType t);
-    bool AddAttribute(const Attribute &);
+    ArcDivider(EDividerSymbol t, Msc *msc);
+    bool CanBeAlignedTo() const override { return !nudge; } //nudges cannot be targets of a vertical
+    bool BeforeAutoGenEntities() const override { return title; }
+    void SetStyleBeforeAttributes() override;
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh, bool nudge, bool title);
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
 
-    virtual void ShiftBy(double y);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    void ShiftBy(double y) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 /** Multiple parallel blocks */
@@ -934,32 +924,32 @@ public:
     ArcParallel(Msc *msc, ArcList*l);
     /** Create a parallel construct from its first block */
     ArcParallel(Msc *msc, ArcList*l, AttributeList *al);
-    virtual bool CanBeAlignedTo() const { return true; }
+    bool CanBeAlignedTo() const override { return true; }
+    bool BeforeAutoGenEntities() const override { return internally_defined; }
     /** Add one more parallel block */
     ArcParallel* AddArcList(ArcList*l, AttributeList *al);
-    bool AddAttribute(const Attribute &);
+    bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh, bool first);
     static bool AttributeValues(const std::string attr, Csh &csh, bool first);
-    virtual EDirType GetToucedEntities(EntityList &el) const;
-    string Print(int indent=0) const;
-    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, Element **note_target, ArcBase *vertical_target);
-    virtual void FinalizeLabels(Canvas &canvas);
-    virtual void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist);
-    virtual void Layout(Canvas &canvas, AreaList *cover);
-    virtual Range GetVisualYExtent(bool include_comments) const;
+    EDirType GetToucedEntities(EntityList &el) const override;
+    ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                              Numbering &number, Element **note_target, ArcBase *vertical_target) override;
+    void FinalizeLabels(Canvas &canvas) override;
+    void Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist) override;
+    void Layout(Canvas &canvas, AreaList *cover) override;
+    Range GetVisualYExtent(bool include_comments) const override;
 
-    virtual void ShiftBy(double y);
-    virtual void CollectPageBreak();
-    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                    double pageBreak, bool &addCommandNewpage, 
-                                    bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(Canvas &canvas);
-    virtual void PostPosProcess(Canvas &canvas);
-    virtual void RegisterLabels();
-    virtual void CollectIsMapElements(Canvas &canvas);
-    virtual void RegisterCover(EDrawPassType pass);
-    virtual void Draw(Canvas &canvas, EDrawPassType pass);
+    void ShiftBy(double y) override;
+    void CollectPageBreak() override;
+    double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
+                            double pageBreak, bool &addCommandNewpage, 
+                            bool addHeading, ArcList &res) override;
+    void PlaceWithMarkers(Canvas &canvas) override;
+    void PostPosProcess(Canvas &canvas) override;
+    void RegisterLabels() override;
+    void CollectIsMapElements(Canvas &canvas) override;
+    void RegisterCover(EDrawPassType pass) override;
+    void Draw(Canvas &canvas, EDrawPassType pass) override;
 };
 
 
