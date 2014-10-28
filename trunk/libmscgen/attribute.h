@@ -153,13 +153,6 @@ public:
         {if (responsible) for (auto p : *this) delete(p); clear();} ///<Empty the list, deleting objets if `responsible` is true.
 	~PtrList() 
         {Empty();}
-    string Print(int indent=0) const 
-        {string s;
-            for (auto i = begin(); i!=end(); i++) {
-                if (i!=begin()) s.append("\n");
-                s.append((*i)->Print(indent));
-            }
-            return s;} ///<Prints the list, each element in a new line. Works, if objects have Print() method.
 };
 
 //Enum helper functions////////////////////////////////////////////

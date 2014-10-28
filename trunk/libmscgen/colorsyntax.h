@@ -206,7 +206,9 @@ union YYSTYPE
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    CHAR_IF_CSH(EArcType)          arctype;
+    EArrowSymbol                   arrowsymbol;
+    EBoxSymbol                     boxsymbol;
+    EDividerSymbol                 dividersymbol;
     CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
@@ -222,7 +224,7 @@ union YYSTYPE
 	CHAR_IF_CSH(Shape)            *shape;
 	CHAR_IF_CSH(ShapeElement)     *shapeelement;
 
-#line 226 "colorsyntax.h" /* yacc.c:1909  */
+#line 228 "colorsyntax.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

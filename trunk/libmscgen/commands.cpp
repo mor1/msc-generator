@@ -26,14 +26,6 @@ using namespace std;
 using contour::deg2rad;
 using contour::rad2deg;
 
-string ArcCommand::Print(int indent) const
-{
-    string ss;
-    ss << string(indent*2, ' ');
-    ss << PrintType();
-    return ss;
-}
-
 void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 {
     height = 0;
@@ -49,7 +41,7 @@ void ArcCommand::Layout(Canvas &/*canvas*/, AreaList * /*cover*/)
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandEntity::CommandEntity(EntityAppHelper *e, Msc *msc, bool in)
-    : ArcCommand(MSC_COMMAND_ENTITY, MscProgress::ENTITY, msc), 
+    : ArcCommand(MscProgress::ENTITY, msc), 
     full_heading(e==NULL), 
     tmp_stored_notes(true), internally_defined(in)
     //tmp_stored_notes is responsible for its content - if the CommandEntity is
@@ -148,17 +140,6 @@ void CommandEntity::MoveMyContentAfter(EntityAppHelper &e)
     e.notes.splice(e.notes.end(), tmp_stored_notes);
     e.note_targets.splice(e.note_targets.end(), tmp_stored_note_targets);
 } 
-
-string CommandEntity::Print(int indent) const
-{
-    string ss;
-    ss << string(indent*2, ' ');
-    ss << "Entity Command";
-    if (full_heading) ss<<"(full_heading)";
-    for (auto i = entities.begin();i != entities.end(); i++)
-        ss << "\n" << (*i)->Print(indent+1);
-    return ss;
-}
 
 /** Append a list of EntityApp objects to our list of EntityApps.
  * (This is called only from CommandEntity::Combine() to merge two 
@@ -761,7 +742,7 @@ void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandNewpage::CommandNewpage(Msc *msc, bool m) :
-    ArcCommand(MSC_COMMAND_NEWPAGE, MscProgress::NEWPAGE, msc),
+    ArcCommand(MscProgress::NEWPAGE, msc),
     auto_heading_attr(msc->Contexts.back().auto_heading.second),
     autoHeading(NULL), manual(m)
 {
@@ -907,7 +888,7 @@ ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIter
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
-    ArcCommand(MSC_COMMAND_MARK, MscProgress::TINY_EFFORT, msc), name(m)
+    ArcCommand(MscProgress::TINY_EFFORT, msc), name(m)
 {
     auto i = chart->Markers.find(name);
     if (i == chart->Markers.end()) {
@@ -1041,7 +1022,7 @@ void CommandEmpty::Draw(Canvas &canvas, EDrawPassType pass)
  * 4. LNote and NULL (will result in NoEntity-LNote)
  * 5. RNote and NULL (will result in RNote-EndEntity)*/
 CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
-    ArcCommand(MSC_COMMAND_HSPACE, MscProgress::TINY_EFFORT, msc), 
+    ArcCommand(MscProgress::TINY_EFFORT, msc), 
     format(msc->Contexts.back().text),
     label(false, string()), space(false, 0)
 {
@@ -1154,7 +1135,7 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances, Distance
 //////////////////////////////////////////////////////////////////////////////////
 
 CommandVSpace::CommandVSpace(Msc*msc)  : 
-    ArcCommand(MSC_COMMAND_VSPACE, MscProgress::TINY_EFFORT, msc),
+    ArcCommand(MscProgress::TINY_EFFORT, msc),
     format(msc->Contexts.back().text), label(false, string()),
     space(false, 0), compressable(false)
 {
@@ -1304,14 +1285,14 @@ const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 /** Create symbol as a result of a 'symbol' command. */
 CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
                 const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
-    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc, 
-        msc->Contexts.back().styles["symbol"]),
+    ArcLabelled(MscProgress::SYMBOL, msc),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
     vpos(enp ? *enp : NamePair(NULL, FileLineColRange(), NULL, FileLineColRange())),
     xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL),
     gap1(chart->hscaleAutoXGap), gap2(chart->hscaleAutoXGap)
 {
+    SetStyleWithText("symbol", NULL); //no refinement styles here, we set style in constructor
     if (CaseInsensitiveEqual(symbol, "arc"))
         symbol_type = ARC;
     else if (CaseInsensitiveEqual(symbol, "rectangle"))
@@ -1368,8 +1349,7 @@ ExtVertXPos::ERelativeTo CommandSymbol::CalcRelToForTextCommand(const VertXPos *
 
 /** Create symbol as a result of a 'text at' command. */
 CommandSymbol::CommandSymbol(Msc*msc, const VertXPos *vpos, const FileLineColRange &at_pos) :
-    ArcLabelled(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc,
-    msc->Contexts.back().styles["text"]),
+    ArcLabelled(MscProgress::SYMBOL, msc),
     symbol_type(RECTANGLE),
     hpos1(CalcRelToForTextCommand(vpos), at_pos, vpos),
     hpos2(*msc),
@@ -1377,6 +1357,7 @@ CommandSymbol::CommandSymbol(Msc*msc, const VertXPos *vpos, const FileLineColRan
     xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL),
     gap1(0), gap2(chart->hscaleAutoXGap)
 {
+    SetStyleWithText("text", NULL); //no refinement styles here, we set style in constructor
     switch (hpos1.side) {
     case ExtVertXPos::LEFT: style.write().text.Apply("\\pl"); break;
     case ExtVertXPos::RIGHT: style.write().text.Apply("\\pr"); break; 
@@ -1871,22 +1852,22 @@ void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
 
 /** Construct a floating note */
 CommandNote::CommandNote(Msc*msc, const char *pt, const FileLineColRange &ptm)
-    : ArcLabelled(MSC_COMMAND_NOTE, MscProgress::NOTE, 
-                  msc, msc->Contexts.back().styles["note"]),
+    : ArcLabelled(MscProgress::NOTE, msc),
     is_float(true), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
     draw_pass = DRAW_NOTE;
+    SetStyleWithText("note", NULL);
 }
 
 /** Construct a comment, endnote or footnote */
 CommandNote::CommandNote(Msc*msc, ESide side)
-    : ArcLabelled(MSC_COMMAND_NOTE, MscProgress::COMMENT, msc, 
-        msc->Contexts.back().styles[side==ESide::END ? "endnote" : "comment"]),
+    : ArcLabelled(MscProgress::COMMENT, msc),
     is_float(false), target(NULL), 
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
     draw_pass = DRAW_NOTE;
+    SetStyleWithText(side==ESide::END ? "endnote" : "comment", NULL);
 }
 
 CommandNote::~CommandNote()

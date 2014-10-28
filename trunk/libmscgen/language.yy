@@ -102,7 +102,9 @@
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    CHAR_IF_CSH(EArcType)          arctype;
+    EArrowSymbol                   arrowsymbol;
+    EBoxSymbol                     boxsymbol;
+    EDividerSymbol                 dividersymbol;
     CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
@@ -130,14 +132,15 @@
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
-%type <arctype>    relation_to_no_loss relation_from_no_loss relation_bidir_no_loss 
+%type <arrowsymbol> relation_to_no_loss relation_from_no_loss relation_bidir_no_loss 
                    relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
                    TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
                    TOK_REL_SOLID_FROM TOK_REL_DOUBLE_FROM TOK_REL_DASHED_FROM
                    TOK_REL_DOTTED_FROM
                    TOK_REL_SOLID_BIDIR TOK_REL_DOUBLE_BIDIR TOK_REL_DASHED_BIDIR
                    TOK_REL_DOTTED_BIDIR
-                   TOK_SPECIAL_ARC TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
+%type <boxsymbol>  TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
+%type <dividersymbol> TOK_SPECIAL_ARC
 %type <arcsegdata> relation_to relation_from relation_bidir
                    relation_to_cont relation_from_cont relation_bidir_cont
 %type <eside>      comment_command
@@ -799,9 +802,9 @@ arc:           arcrel
     }
 #else
 	ArcTypePlusDir typeplusdir;
-	typeplusdir.arc.type = MSC_ARC_SOLID;
+	typeplusdir.arc.type = EArrowSymbol::SOLID;
 	typeplusdir.arc.lost = EArrowLost::NOT;
-	typeplusdir.dir = MSC_DIR_RIGHT;
+	typeplusdir.dir = EDirType::RIGHT;
 	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
 	VertXPos vxp(msc);
 	ava->AddXpos(&vxp);
@@ -882,9 +885,9 @@ arc:           arcrel
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
 	ArcTypePlusDir typeplusdir;
-	typeplusdir.arc.type = MSC_ARC_SOLID;
+    typeplusdir.arc.type = EArrowSymbol::SOLID;
 	typeplusdir.arc.lost = EArrowLost::NOT;
-	typeplusdir.dir = MSC_DIR_RIGHT;
+	typeplusdir.dir = EDirType::RIGHT;
 	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
 	VertXPos vxp(msc);
 	ava->AddXpos(&vxp);
@@ -908,7 +911,7 @@ arc:           arcrel
     }
   #else
     //... but due to the lack of curly brace we are a divider
-    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
     ($$)->AddAttributeList($1);
   #endif
 }
@@ -919,7 +922,7 @@ arc:           arcrel
   #else
     AttributeList *al = new AttributeList;
     al->Append(new Attribute("label", $1, MSC_POS(@$), MSC_POS(@$).IncStartCol()));
-    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
     ($$)->AddAttributeList(al);
   #endif
     free($1);
@@ -934,7 +937,7 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     ($2)->Prepend(new Attribute("label", $1, MSC_POS(@1), MSC_POS(@1).IncStartCol()));
-    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
     ($$)->AddAttributeList($2);
 #endif
     free($1);
@@ -954,7 +957,7 @@ arc:           arcrel
     //Merge $3 at the end of $1 (after the colon label, so ordering is kept)
     ($1)->splice(($1)->end(), *($3));
     delete ($3); //empty list now
-    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
     ($$)->AddAttributeList($1);
 #endif
     free($2);
@@ -969,7 +972,7 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol())); 
-    $$ = new ArcDivider(MSC_ARC_VSPACE, &msc);
+    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
     ($$)->AddAttributeList($1);    
   #endif
     free($2);
@@ -1276,7 +1279,7 @@ arc:           arcrel
         csh.hintStatus = HINT_READY;
     } 
   #else
-    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
+    $$ = (new ArcDivider(EDividerSymbol::VSPACE, &msc));
     ($$)->AddAttributeList(NULL);
   #endif
     free($1);
@@ -1293,7 +1296,7 @@ arc:           arcrel
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
   #else
-    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc));
+    $$ = (new ArcDivider(EDividerSymbol::VSPACE, &msc));
     ($$)->AddAttributeList($2);
   #endif
     free($1);
@@ -1310,9 +1313,9 @@ arc:           arcrel
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
   #else
-    const EArcType t = CaseInsensitiveEqual("title", $1) ? MSC_COMMAND_TITLE :
-                         CaseInsensitiveEqual("subtitle", $1) ? MSC_COMMAND_SUBTITLE :
-                         MSC_ARC_INVALID;
+    const EDividerSymbol t = CaseInsensitiveEqual("title", $1) ? EDividerSymbol::TITLE :
+                             CaseInsensitiveEqual("subtitle", $1) ? EDividerSymbol::SUBTITLE :
+                             EDividerSymbol::INVALID;
     $$ = (new ArcDivider(t, &msc));
     ($$)->AddAttributeList($2);
   #endif
@@ -3216,7 +3219,7 @@ box_list: first_box
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     if ($1) {
-        ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        ArcBox *temp = new ArcBox(EBoxSymbol::UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
         temp->AddArcList($2);
         $$ = ($1)->AddBox(temp);
         temp->AddAttributeList(NULL); //should come after AddBox
@@ -3255,7 +3258,7 @@ box_list: first_box
         csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     if ($1) {
-        ArcBox *temp = new ArcBox(MSC_BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        ArcBox *temp = new ArcBox(EBoxSymbol::UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
         temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
         $$ = ($1)->AddBox(temp);
         temp->AddAttributeList($2); //should come after AddBox
@@ -3634,19 +3637,19 @@ vertxpos: TOK_AT entity_string
     switch ($3) {
     default:
         _ASSERT(0);
-    case MSC_BOX_SOLID:
+    case EBoxSymbol::SOLID:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_BY);
         break;
-    case MSC_BOX_DASHED:
+    case EBoxSymbol::DASHED:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_BY);
         break;
-    case MSC_BOX_DOTTED:
+    case EBoxSymbol::DOTTED:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '..', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); 
         $$ = NULL;
         break;
-    case MSC_BOX_DOUBLE:
+    case EBoxSymbol::DOUBLE:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '==', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); 
@@ -3777,7 +3780,7 @@ empharcrel_straight: emphrel
   #else
     ($$).arc.type = $1;
 	($$).arc.lost = EArrowLost::NOT;
-	($$).dir = MSC_DIR_INDETERMINATE;
+	($$).dir = EDirType::INDETERMINATE;
   #endif
 }
         | TOK_ASTERISK emphrel
@@ -3790,7 +3793,7 @@ empharcrel_straight: emphrel
     ($$).arc.type = $2;
 	($$).arc.lost = EArrowLost::AT_SRC;
     ($$).arc.lost_pos.SetFrom(MSC_POS(@1));
-	($$).dir = MSC_DIR_INDETERMINATE;
+	($$).dir = EDirType::INDETERMINATE;
   #endif
 }
         |  emphrel TOK_ASTERISK
@@ -3802,7 +3805,7 @@ empharcrel_straight: emphrel
     ($$).arc.type = $1;
 	($$).arc.lost = EArrowLost::AT_SRC;
     ($$).arc.lost_pos.SetFrom(MSC_POS(@2));
-	($$).dir = MSC_DIR_INDETERMINATE;
+	($$).dir = EDirType::INDETERMINATE;
   #endif
 }
              | TOK_ASTERISK emphrel TOK_ASTERISK
@@ -3817,7 +3820,7 @@ empharcrel_straight: emphrel
     ($$).arc.type = $2;
     ($$).arc.lost = EArrowLost::AT_SRC;
     ($$).arc.lost_pos.SetFrom(MSC_POS(@1));
-	($$).dir = MSC_DIR_INDETERMINATE;
+	($$).dir = EDirType::INDETERMINATE;
   #endif
 }
         | relation_from
@@ -3826,7 +3829,7 @@ empharcrel_straight: emphrel
 	$$ = 0; //dummy to supress warning
   #else
     ($$).arc = $1;
-	($$).dir = MSC_DIR_LEFT;
+	($$).dir = EDirType::LEFT;
   #endif
 }
         | relation_to
@@ -3835,7 +3838,7 @@ empharcrel_straight: emphrel
 	$$ = 0; //dummy to supress warning
   #else
     ($$).arc = $1;
-	($$).dir = MSC_DIR_RIGHT;
+	($$).dir = EDirType::RIGHT;
   #endif
 }
         | relation_bidir
@@ -3844,7 +3847,7 @@ empharcrel_straight: emphrel
 	$$ = 0; //dummy to supress warning
   #else
     ($$).arc = $1;
-	($$).dir = MSC_DIR_BIDIR;
+	($$).dir = EDirType::BIDIR;
   #endif
 };
 
@@ -3939,9 +3942,9 @@ vertrel: vertrel_no_xpos vertxpos
   #else
     if ($1) {
 		ArcTypePlusDir typeplusdir;
-		typeplusdir.arc.type = MSC_ARC_SOLID;
+		typeplusdir.arc.type = EArrowSymbol::SOLID;
 		typeplusdir.arc.lost = EArrowLost::NOT;
-		typeplusdir.dir = MSC_DIR_RIGHT;
+		typeplusdir.dir = EDirType::RIGHT;
 		ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
 		ava->AddXpos($1);
 		$$ = ava;
@@ -4164,9 +4167,9 @@ relation_to_no_loss:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO 
 relation_from_no_loss: TOK_REL_SOLID_FROM | TOK_REL_DOUBLE_FROM | TOK_REL_DASHED_FROM | TOK_REL_DOTTED_FROM;
 relation_bidir_no_loss: TOK_REL_SOLID_BIDIR | TOK_REL_DOUBLE_BIDIR | TOK_REL_DASHED_BIDIR | TOK_REL_DOTTED_BIDIR;
 
-relation_to_cont_no_loss: relation_to_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
-relation_from_cont_no_loss: relation_from_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
-relation_bidir_cont_no_loss: relation_bidir_no_loss | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_to_cont_no_loss: relation_to_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
+relation_from_cont_no_loss: relation_from_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
+relation_bidir_cont_no_loss: relation_bidir_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
 
 relation_to: relation_to_no_loss
 {
@@ -5196,7 +5199,7 @@ vertical_shape: TOK_VERTICAL_SHAPE
                | TOK_COMMAND_BOX
 {
   #ifndef C_S_H_IS_COMPILED
-	$$ = ArcVerticalArrow::BOX;
+	$$ = ArcVerticalArrow::ARROW_OR_BOX;
   #endif
   free($1);
 }
@@ -5243,18 +5246,18 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_SPECIAL_ARC
 {
     switch ($1) {
-    case MSC_ARC_DIVIDER:  $$ = strdup("---"); break;
-    case MSC_ARC_DISCO:    $$ = strdup("..."); break;
+    case EDividerSymbol::DIVIDER:  $$ = strdup("---"); break;
+    case EDividerSymbol::DISCO:    $$ = strdup("..."); break;
     default: _ASSERT(0);
     }
 }
        | TOK_EMPH
 {
     switch ($1) {
-    case MSC_BOX_SOLID:  $$ = strdup("--"); break;
-    case MSC_BOX_DASHED: $$ = strdup("++"); break; //will likely not happen due to special handling in TOK_COLORDEF
-    case MSC_BOX_DOTTED: $$ = strdup(".."); break;
-    case MSC_BOX_DOUBLE: $$ = strdup("=="); break;
+    case EBoxSymbol::SOLID:  $$ = strdup("--"); break;
+    case EBoxSymbol::DASHED: $$ = strdup("++"); break; //will likely not happen due to special handling in TOK_COLORDEF
+    case EBoxSymbol::DOTTED: $$ = strdup(".."); break;
+    case EBoxSymbol::DOUBLE: $$ = strdup("=="); break;
     default: _ASSERT(0);
     }
 };
