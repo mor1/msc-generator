@@ -32,60 +32,42 @@
 #include "area.h"
 #include "progress.h"
 
-/** Enumerates the type of arrow symbols (->, => or <->, etc). */
-enum class EArrowSymbol
+/** Enumerates the type of arrow, box and divider symbols (->, => or <->, etc). */
+enum class EArcSymbol
 {
-    INVALID = 0,         ///<Invalid value
-    SOLID,               ///<A solid, unidir arrow: -> or <- (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    SOLID_BIDIR,         ///<A solid, bidirectional arrow: <-> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DOTTED,              ///<A dotted unidir arrow: > or < (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DOTTED_BIDIR,        ///<A dotted bidir arrow: <> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DASHED,              ///<A dashed unidir arrow: >> or << (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DASHED_BIDIR,        ///<A dashed bidir arrow: <<>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DOUBLE,              ///<A double lined unidir arrow: => or <= (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    DOUBLE_BIDIR,        ///<A double lined bidirectional arrow: <=> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    BIG,                 ///<A unidir block arrow generated from a collapsed box (ArcBigArrow)
-    BIG_BIDIR,           ///<A bidir block arrow generated from a collapsed box (ArcBigArrow)
-    UNDETERMINED_SEGMENT,///<An arrow segment of undefined type: - (ArcDirArrow, ArcBigArrow)
+    INVALID = 0,             ///<Invalid value
+    ARC_SOLID,               ///<A solid, unidir arrow: -> or <- (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_SOLID_BIDIR,         ///<A solid, bidirectional arrow: <-> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DOTTED,              ///<A dotted unidir arrow: > or < (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DOTTED_BIDIR,        ///<A dotted bidir arrow: <> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DASHED,              ///<A dashed unidir arrow: >> or << (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DASHED_BIDIR,        ///<A dashed bidir arrow: <<>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DOUBLE,              ///<A double lined unidir arrow: => or <= (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DOUBLE_BIDIR,        ///<A double lined bidirectional arrow: <=> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DBLDBL,              ///<An mscgen double lined double unidir arrow: =>> or <<= (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_DBLDBL_BIDIR,        ///<An mscgen double lined double bidirectional arrow: <<=>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_COLON,               ///<An mscgen unidir arrow with colon: :> or <: (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_COLON_BIDIR,         ///<An mscgen bidirectional arrow with colon: <:> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_X,                   ///<An mscgen loss arrow: => or <= NO BIDIR FORM!! (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
+    ARC_UNDETERMINED_SEGMENT,///<An arrow segment of undefined type: - (ArcDirArrow, ArcBigArrow)
+    BOX_SOLID,               ///<A solid box: -- (ArcBox, ArcPipe, ArcVertical)
+    BOX_DOTTED,              ///<A dotted box: .. (ArcBox, ArcPipe, ArcVertical)
+    BOX_DASHED,              ///<A dashed box: ++ (ArcBox, ArcPipe, ArcVertical)
+    BOX_DOUBLE,              ///<A double box: == (ArcBox, ArcPipe, ArcVertical)
+    BOX_UNDETERMINED_FOLLOW, ///<A (subsequent) box in a box segment, without a type specifier (ArcBox)
+    DIV_DISCO,               ///<A discontinuity in time line: ... (ArcDivider)
+    DIV_DIVIDER,             ///<A divider: --- (ArcDivider)
+    DIV_VSPACE,              ///<No arc, just space (maybe with label) (ArcDivider)
+    DIV_NUDGE,               ///<The nudge command
+    DIV_TITLE,               ///<The title command
+    DIV_SUBTITLE,            ///<The subtitle command
 };
-inline bool IsArrowSymbolBidir(EArrowSymbol t) { return unsigned(t)&1 == 0; }
-
-
-/** Enumerates the type of box symbols (->, => or <->, etc). */
-enum class EBoxSymbol
-{
-    INVALID = 0,         ///<Invalid value
-    SOLID,               ///<A solid box: -- (ArcBox, ArcPipe, ArcVertical)
-    DOTTED,              ///<A dotted box: .. (ArcBox, ArcPipe, ArcVertical)
-    DASHED,              ///<A dashed box: ++ (ArcBox, ArcPipe, ArcVertical)
-    DOUBLE,              ///<A double box: == (ArcBox, ArcPipe, ArcVertical)
-    UNDETERMINED_FOLLOW, ///<A (subsequent) box in a box segment, without a type specifier (ArcBox)
-};
-
-/** May contain either an EArrowSymbol or an EBoxSymbol */
-struct ArrowOrBoxSymbol
-{
-    bool is_arrow;
-    union {
-        EArrowSymbol arrow;  
-        EBoxSymbol box;      
-    } s;
-    ArrowOrBoxSymbol &operator =(EArrowSymbol a) { s.arrow = a; is_arrow = true; return *this; }
-    ArrowOrBoxSymbol &operator =(EBoxSymbol b) { s.box = b; is_arrow = false; return *this; }
-};
-
-
-/** Enumerates the type of box symbols (->, => or <->, etc). */
-enum class EDividerSymbol
-{
-    INVALID = 0,         ///<Invalid value
-    DISCO,               ///<A discontinuity in time line: ... (ArcDivider)
-    DIVIDER,             ///<A divider: --- (ArcDivider)
-    VSPACE,              ///<No arc, just space (maybe with label) (ArcDivider)
-    NUDGE,               ///<The nudge command
-    TITLE,               ///<The title command
-    SUBTITLE,            ///<The subtitle command
-};
+inline bool IsArcSymbolArrow(EArcSymbol t) { return t<=EArcSymbol::ARC_UNDETERMINED_SEGMENT && t>EArcSymbol::INVALID; }
+inline bool IsArcSymbolBidir(EArcSymbol t) { _ASSERT(IsArcSymbolArrow(t));  return unsigned(t)&1 == 0 && t<EArcSymbol::ARC_UNDETERMINED_SEGMENT && t>EArcSymbol::INVALID; }
+inline bool IsArcSymbolBox(EArcSymbol t) { return t<=EArcSymbol::BOX_UNDETERMINED_FOLLOW && t>=EArcSymbol::BOX_SOLID; }
+inline bool IsArcSymbolDivider(EArcSymbol t) { return t>=EArcSymbol::DIV_DISCO; }
+inline EArcSymbol ConvertBoxSymbol2ArrowSymbol(EArcSymbol t, bool bidir) { _ASSERT(IsArcSymbolBox(t));  return EArcSymbol(((unsigned)t-9)*2 + unsigned(bidir)); }
+inline bool IsArcSymbolMscgenCompatArrow(EArcSymbol t) { return EArcSymbol::ARC_DBLDBL<=t && t<=EArcSymbol::ARC_X; }
 
 /** The direction of an arrow in the text file */
 enum class EDirType {
@@ -105,7 +87,7 @@ enum class EArrowLost {
 /** Collects data about an arrow segments (dashed/solid/dotted/double and 
  * whether it indicates a lost message using an asterisk */
 struct ArrowSegmentData {
-    ArrowOrBoxSymbol type;        ///<The type of the arrow such as EArrowSymbol::SOLID or EBoxSymbol::DASHED
+    EArcSymbol type;              ///<The type of the arrow such as ARC_SOLID or BOX_DASHED
     EArrowLost lost;              ///<Whether there was a loss indication (*) or not.
     PODFileLineColRange lost_pos; ///<The location of the asterisk if any.
 };
@@ -428,7 +410,7 @@ public:
     ArcArrow(bool b, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(c, al), bidir(b) {}
     /** Get the refinement style for a given arrow symbol 
      * The ArcArrow:: version returns the style for self and dir arrows, ArcBigArrow overrides. */
-    virtual const StyleCoW *GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const;
+    virtual const StyleCoW *GetRefinementStyle4ArrowSymbol(EArcSymbol t) const;
     /** Add a new arrow segment. Called during processing.
      * @param [in] data The type of the new arrow segment, indication of amy 
      *                  potential loss indication and its location.
@@ -460,8 +442,8 @@ protected:
     mutable double dx;     ///<Calculated right side of label
     mutable double src_act;///<Activation offset of entity 'src' at the arrow. 0 if not active.
 public:
-    const EArrowSymbol type;
-    ArcSelfArrow(EArrowSymbol t, const char *s, const FileLineColRange &sl,
+    const EArcSymbol type;
+    ArcSelfArrow(EArcSymbol t, const char *s, const FileLineColRange &sl,
                  Msc *msc, double ys);
     ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                          const FileLineColRange &l) override;
@@ -489,7 +471,7 @@ protected:
     FileLineCol              linenum_dst;          ///<Location of `dst` in the input file (within the arrow definition)
     std::vector<EIterator>   middle;               ///<An array of mid-stops of the arrow in the order as they appear in the input file
     std::vector<FileLineCol> linenum_middle;       ///<Location of mid-stop entity names in the input file (within this arrow definition)
-    std::vector<EArrowSymbol>segment_types;        ///<Types of segments: one for each segment ([0] is the one from src). Set during AddSegment() calls.
+    std::vector<EArcSymbol>  segment_types;        ///<Types of segments: one for each segment ([0] is the one from src). Set during AddSegment() calls.
     std::vector<LineAttr>    segment_lines;        ///<Line types of segments. Set during AddAttributeList() from `segment_types`.
     const bool               specified_as_forward; ///<True if user specified "a->b", false if "b<-a"
     double                   slant_angle;          ///<The angle of the arrow. Taken from the context, may be modified by style and/or attribute.
@@ -530,7 +512,7 @@ public:
                const char *d, const FileLineColRange &dl, 
                Msc *msc, bool fw);
     /** Constructor used while converting a collapsed ArcBox to an ArcBigArrow*/
-    ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
+    ArcDirArrow(const EntityList &el, bool bidir, EArcSymbol boxsymbol, const ArcLabelled &al);
     ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                          const FileLineColRange &l) override;
     ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) override;
@@ -587,10 +569,10 @@ public:
     /** Upgrade an ArcDirArrow to a block arrow: the regular way of creating one. */
     ArcBigArrow(const ArcDirArrow &);
     /** Used when converting a collapsed ArcBox to an ArcBigArrow */
-    ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
+    ArcBigArrow(const EntityList &, bool bidir, EArcSymbol boxsymbol, const ArcLabelled &al, const ArcSignature *s);
     ~ArcBigArrow() override { if (sig) delete sig; }
     void SetStyleBeforeAttributes() override;
-    const StyleCoW *GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const override;
+    const StyleCoW *GetRefinementStyle4ArrowSymbol(EArcSymbol t) const override;
     const ArcSignature* GetSignature() const override { return sig; }
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -620,7 +602,7 @@ public:
         POINTER,      ///<An arrow that looks like a pointer to self
     };
 protected:
-    const ArrowOrBoxSymbol type; ///<Tells us what kind of symbol was used to define us (-> or -- etc)
+    const EArcSymbol type;   ///<Tells us what kind of symbol was used to define us (-> or -- etc)
     string src;              ///<The top marker (if any)
     string dst;              ///<The bottom marker (if any)
     const bool lost;         ///<Whether we had a loss symbol or not
@@ -705,12 +687,17 @@ protected:
     mutable Block tag_outer_edge;       ///<The outer edge of the tag rectange (must be clipped by the inner edge of the box)
     mutable Contour tag_cover;          ///<Area covered by the tag (not just the label of it) - you can use it to clip
 public:
-    const EBoxSymbol type;
-    ArcBox(EBoxSymbol t, const char *s, const FileLineColRange &sl,
+    const EArcSymbol type;
+    const enum Emscgen_compat {
+        MSCGEN_COMPAT_NONE, MSCGEN_COMPAT_BOX, MSCGEN_COMPAT_ABOX, MSCGEN_COMPAT_RBOX, MSCGEN_COMPAT_NOTE
+    } mscgen_compat;
+    ArcBox(EArcSymbol t, const char *s, const FileLineColRange &sl,
            const char *d, const FileLineColRange &dl, Msc *msc);
-    bool CanBeNoted() const override {return true;}
+    ArcBox(Emscgen_compat c, const char *s, const FileLineColRange &sl,
+           const char *d, const FileLineColRange &dl, Msc *msc);
+    bool CanBeNoted() const override { return true; }
     const ArcSignature* GetSignature() const override;
-    const StyleCoW *GetRefinementStyle4BoxSymbol(EBoxSymbol t) const;
+    const StyleCoW *GetRefinementStyle4BoxSymbol(EArcSymbol t) const;
     virtual void SetStyleBeforeAttributes() {} //we do it in AddAttributeList() below
     ArcBox* AddArcList(ArcList*l);
     void AddAttributeList(AttributeList *) override;
@@ -791,12 +778,12 @@ protected:
     mutable Contour pipe_hole_line; ///<The line around the hole at the ehnd   
     mutable Contour pipe_hole_curve;///<The curve at the hole end
 public:
-    const EBoxSymbol type;
+    const EArcSymbol type;
     /** Upgrade a box to a pipe: this is how we create pipes normally.
      * Deletes 'box'*/
     ArcPipe(ArcBox *box);
     bool CanBeNoted() const override { return true; }
-    const StyleCoW *GetRefinementStyle4PipeSymbol(EBoxSymbol t) const;
+    const StyleCoW *GetRefinementStyle4PipeSymbol(EArcSymbol t) const;
     void SetStyleBeforeAttributes() override;
     bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
@@ -853,7 +840,7 @@ public:
 class ArcDivider : public ArcLabelled
 {
 protected:
-    const EDividerSymbol type; ///<What kind of divider symbol was used to define us
+    const EArcSymbol type;     ///<What kind of divider symbol was used to define us
     const bool nudge;          ///<True if created from a `nudge` command
     const bool title;          ///<True if created from a `title` or `subtitle` command
     bool wide;                 ///<If true, we keep no margin and add no gap above & below (for copyright text)
@@ -864,7 +851,7 @@ protected:
     mutable double line_margin;///<left and right line margin from chart edge
     mutable Contour text_cover;///<The cover of the label
 public:
-    ArcDivider(EDividerSymbol t, Msc *msc);
+    ArcDivider(EArcSymbol t, Msc *msc);
     bool CanBeAlignedTo() const override { return !nudge; } //nudges cannot be targets of a vertical
     bool BeforeAutoGenEntities() const override { return title; }
     void SetStyleBeforeAttributes() override;

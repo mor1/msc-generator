@@ -57,6 +57,7 @@ void AddTristate(std::pair<bool, ETriState> &a, const std::pair<bool, ETriState>
 void StringFormat::Empty()
 {
     color.first = false;
+    bkcolor.first = false;
     fontType.first = false;
     spacingBelow.first = false;
     bold.first = false;
@@ -79,6 +80,7 @@ bool StringFormat::IsComplete() const
 {
     return 
         color.first &&
+        bkcolor.first &&
         fontType.first &&
         spacingBelow.first &&
         bold.first && bold.second!=invert &&
@@ -112,6 +114,7 @@ void StringFormat::Default()
     textVGapLineSpacing.first = true; textVGapLineSpacing.second = 0; 
     ident.first = true; ident.second = MSC_IDENT_CENTER;
     color.first = true; color.second =  ColorType(0,0,0); 
+    bkcolor.first = true; bkcolor.second = ColorType(0,0,0,0); //fully transparent
     fontType.first = true; fontType.second = MSC_FONT_NORMAL;
     spacingBelow.first = true; spacingBelow.second =  0; 
     face.first = true; face.second.clear();
@@ -125,6 +128,7 @@ void StringFormat::Default()
 StringFormat &StringFormat::operator =(const StringFormat &f)
 {
     color = f.color;
+    bkcolor = f.bkcolor;
     fontType = f.fontType;
     spacingBelow = f.spacingBelow;
     bold = f.bold;
@@ -177,6 +181,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * -             and font size (X=_s_mall, _n_ormal)
  * -             E.g. "\mu(7)" sets upper margin to 7.
  * - "\c(color)" - set color, E.g., "\c(0,0,0)" is black
+ * - "\C(color)" - set bkcolor, E.g., "\C(0,0,0,0)" is transparent
  * - "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
  * - "\0".."\9" - keep this much of line space after the line
  * - "\\" - an escaped "\"
@@ -422,7 +427,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return NON_FORMATTING;
     }
 
-    if (!strchr(ESCAPE_STRING_LOCATION "csfmrL" ESCAPE_STRING_NON_FORMATTING_LINK, input[1])) {
+    if (!strchr(ESCAPE_STRING_LOCATION "cCsfmrL" ESCAPE_STRING_NON_FORMATTING_LINK, input[1])) {
         //Unrecognized escape comes here
         length = 2;
         if (msc && linenum && !references)
@@ -499,14 +504,20 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (linenum) linenum->col += length;
         return LINK2_ESCAPE;
     case 'c':
-        if (length==4) { // this is a "\c()"
+    case 'C':
+        if (length==4) { // this is a "\c()" or a \C()
             if (basic == NULL) {
-                if (replaceto) *replaceto="\\c()";
+                if (replaceto) {
+                    if (input[1]=='c')
+                        *replaceto = "\\c()";
+                    else 
+                        *replaceto = "\\C()";
+                }
                 if (linenum) linenum->col += length;
                 return FORMATTING_OK;
             }
             //substitute parameter to the value from basic
-            parameter = basic->color.second.Print().substr(1);
+            parameter = (input[1]=='c' ? basic->color : basic->bkcolor).second.Print().substr(1);
             parameter.substr(0, parameter.length()-1);
         }
         if (msc)
@@ -517,8 +528,13 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             goto ok;
         if (c.type!=ColorType::INVALID) {
             if (apply) {
-                color.first = true;
-                color.second = c;
+                if (input[1]=='c') {
+                    color.first = true;
+                    color.second = c;
+                } else {
+                    bkcolor.first = true;
+                    bkcolor.second = c;
+                }
             }
             if (replaceto) replaceto->assign("\\c" + c.Print());
             if (linenum) linenum->col += length;
@@ -1151,6 +1167,13 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
             color = toadd.color;
     }
 
+    if (toadd.bkcolor.first) {
+        if (bkcolor.first)
+            bkcolor.second += toadd.bkcolor.second;
+        else
+            bkcolor = toadd.bkcolor;
+    }
+
     if (toadd.face.first)
         face = toadd.face;
 
@@ -1203,6 +1226,7 @@ StringFormat &StringFormat::operator -=(const StringFormat& base)
     _ASSERT(IsComplete());
     if (base.fontType == fontType) fontType.first = false;
     if (base.color == color) color.first = false;
+    if (base.bkcolor == bkcolor) bkcolor.first = false;
     if (base.face == face) face.first = false;
     if (base.spacingBelow == spacingBelow) spacingBelow.first = false;
     if (base.bold == bold) bold.first = false;
@@ -1230,6 +1254,8 @@ string StringFormat::Print() const
 
     if (color.first)
         ret << "\\c" + color.second.Print();
+    if (bkcolor.first)
+        ret << "\\C" + bkcolor.second.Print();
 
     if (face.first)
         ret << "\\f(" + face.second + ")";
@@ -1313,18 +1339,19 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         if (i->second.read().f_text) operator +=(i->second.read().text);
         return true;
     }
-    if (a.EndsWith("color")) {
+    if (a.EndsWith("color") || a.EndsWith("bkcolor")) {
+        std::pair<bool, ColorType> &ref = a.EndsWith("bkcolor") ? bkcolor : color;
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                color.first = false;
+                ref.first = false;
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        if (color.first)
-            color.second += msc->Contexts.back().colors.GetColor(a.value);
+        if (ref.first)
+            ref.second += msc->Contexts.back().colors.GetColor(a.value);
         else {
-            color.first = true;
-            color.second = msc->Contexts.back().colors.GetColor(a.value);
+            ref.first = true;
+            ref.second = msc->Contexts.back().colors.GetColor(a.value);
         }
         return true;
     }
@@ -1493,6 +1520,7 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     static const char * const names_descriptions[] =
     {"", NULL,
     "color", "Set the color of the font",
+    "bkcolor", "Set the color behind the text.",
     "ident", "Select left, right idented or centered text.",
     "format", "Use this attribute to set text format via formatting escapes, like '\\b'.",
     "font.face", "Select font face, such as 'Arial'.",
@@ -1595,13 +1623,13 @@ bool CshHintGraphicCallbackForEscapes(Canvas *canvas, CshHintGraphicParam p, Csh
         canvas->Line(XY(2*X, 7*Y), XY(6*X, 10*Y), line);
         return true;
     case 02: // \b
-    case 33: // \B
+    case 34: // \B
         return DrawFormattingEscape(canvas, "\\b");
     case 03: // \i
-    case 34: // \I
+    case 35: // \I
         return DrawFormattingEscape(canvas, "\\i");
     case 04: // \u
-    case 35: // \U
+    case 36: // \U
         return DrawFormattingEscape(canvas, "\\u");
     case 05: // \+
         return DrawFormattingEscape(canvas, "\\+");
@@ -1618,51 +1646,53 @@ bool CshHintGraphicCallbackForEscapes(Canvas *canvas, CshHintGraphicParam p, Csh
         return CshHintGraphicCallbackForTextIdent(canvas, (CshHintGraphicParam)(int)MSC_IDENT_LEFT, csh);
     case 11: // \pr
         return CshHintGraphicCallbackForTextIdent(canvas, (CshHintGraphicParam)(int)MSC_IDENT_RIGHT, csh);
-    case 13: // \c()
+    case 13: // \c()  
         return DrawFormattingEscape(canvas, "\\c(1,0,0)");
-    case 14: // \s()
+    case 14: // \C()  
+        return DrawFormattingEscape(canvas, "\\c(1,0,0)");
+    case 15: // \s()
         return CshHintGraphicCallbackForStyles(canvas, 0, csh);
-    case 15: // '\\'
+    case 16: // '\\'
         return DrawLiteral(canvas, "\\");
-    case 16: // \#
+    case 17: // \#
         return DrawLiteral(canvas, "#");
-    case 17: // \{
+    case 18: // \{
         return DrawLiteral(canvas, "{");
-    case 18: // \}
+    case 19: // \}
         return DrawLiteral(canvas, "}");
-    case 19: // \[
+    case 20: // \[
         return DrawLiteral(canvas, "[");
-    case 20: // \]
+    case 21: // \]
         return DrawLiteral(canvas, "]");
-    case 21: // \;
+    case 22: // \;
         return DrawLiteral(canvas, ";");
-    case 22: // \\"
+    case 23: // \\"
         return DrawLiteral(canvas, "\"");
-    case 47: // \L()
-    case 23: // \r()
+    case 48: // \L()
+    case 24: // \r()
         return DrawLiteral(canvas, "Ref");
-    case 24: // \f()
+    case 25: // \f()
         return DrawFormattingEscape(canvas, "\\f(Courier New)");
-    case 31: // \m*()
-    case 25: // \mu()
-    case 26: // \md()
-    case 27: // \ml()
-    case 28: // \mr()
-    case 29: // \mn()
-    case 30: // \ms()
+    case 32: // \m*()
+    case 26: // \mu()
+    case 27: // \md()
+    case 28: // \ml()
+    case 29: // \mr()
+    case 30: // \mn()
+    case 31: // \ms()
         return true;
-    case 32: // \N
+    case 33: // \N
         return DrawTextForHint(canvas, "(", "1)");
-    case 36: // \0
-    case 37: // \1
-    case 38: // \2
-    case 39: // \3
-    case 40: // \4
-    case 41: // \5
-    case 42: // \6
-    case 43: // \7
-    case 44: // \8
-    case 45: // \9     
+    case 37: // \0
+    case 38: // \1
+    case 39: // \2
+    case 40: // \3
+    case 41: // \4
+    case 42: // \5
+    case 43: // \6
+    case 44: // \7
+    case 45: // \8
+    case 46: // \9     
         canvas->Line(XY(5*X, 3*Y), XY(5*X, 7*Y), line);
         canvas->Line(XY(5*X, 3*Y), XY(4*X, 4*Y), line);
         canvas->Line(XY(5*X, 3*Y), XY(6*X, 4*Y), line);
@@ -1672,7 +1702,7 @@ bool CshHintGraphicCallbackForEscapes(Canvas *canvas, CshHintGraphicParam p, Csh
         canvas->Line(XY(2*X, 3*Y), XY(8*X, 3*Y), line);
         canvas->Line(XY(2*X, 7*Y), XY(8*X, 7*Y), line);
         return true;
-    case 46: // \|
+    case 47: // \|
         return DrawTextForHint(canvas, "a", "|b");
     };
     return false;
@@ -1695,41 +1725,42 @@ void StringFormat::EscapeHints(Csh &csh, const string &prefix)
 /*11*/  "\\\\pr", "Ident the text right.",
 /*12*/  "\\\\p*", "Set paragraph ident.",
 /*13*/  "\\\\c()", "Set font color. Omitting the color name will restore the default color of the label (in effect at its beginning).",
-/*14*/  "\\\\s()", "Apply a style. Omitting the style name will restore the default formatting of the label (in effect at its beginning).",
-/*15*/  "\\\\\\", "Insert a literal '\\'.",
-/*16*/  "\\\\#", "Insert a literal '#'.",
-/*17*/  "\\\\{", "Insert a literal '{'.",
-/*18*/  "\\\\}", "Insert a literal '}'.",
-/*19*/  "\\\\[", "Insert a literal '['.",
-/*20*/  "\\\\]", "Insert a literal ']'.",
-/*21*/  "\\\\;", "Insert a literal semicolon (';').",
-/*22*/  "\\\\\"", "Insert a literal quotation mark ('\"').",
-/*23*/  "\\\\r()", "Paste the number of another chart element name by its 'refname' attribute.",
-/*24*/  "\\\\f()", "Set the font family of the text. Omitting the font name will restore the default font of the label (in effect at its beginning).",
-/*25*/  "\\\\mu()", "Set the top margin of the label in pixels.",
-/*26*/  "\\\\md()", "Set the bottom margin of the label in pixels.",
-/*27*/  "\\\\ml()", "Set the left margin of the label in pixels.",
-/*28*/  "\\\\mr()", "Set the right margin of the label in pixels.",
-/*29*/  "\\\\mn()", "Set the font height of normal font in pixels.",
-/*30*/  "\\\\ms()", "Set the font height of small font, superscript and subscript in pixels.",
-/*31*/  "\\\\m*()", "Set margins and font height.",
-/*32*/  "\\\\N", "Use this escape to specify the location of the automatic numbering within a label. Useful if you want it somewhere else than the front of the label.",
-/*33*/  "\\\\B", "Make the font bold (no change if already bold).",
-/*34*/  "\\\\I", "Make the font italic (no change if already italic).",
-/*35*/  "\\\\U", "Make the font underlined (no change if already so).",
-/*36*/  "\\\\0", "Remove line spacing from below this line.",
-/*37*/  "\\\\1", "Create one pixel of line spacing below this line.",
-/*38*/  "\\\\2", "Create two pixels of line spacing below this line.",
-/*39*/  "\\\\3", "Create three pixels of line spacing below this line.",
-/*40*/  "\\\\4", "Create four pixels of line spacing below this line.",
-/*41*/  "\\\\5", "Create five pixels of line spacing below this line.",
-/*42*/  "\\\\6", "Create six pixels of line spacing below this line.",
-/*43*/  "\\\\7", "Create seven pixels of line spacing below this line.",
-/*44*/  "\\\\8", "Create eight pixels of line spacing below this line.",
-/*45*/  "\\\\9", "Create nine pixels of line spacing below this line.",
-/*46*/  "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
+/*14*/  "\\\\c()", "Set font color. Omitting the color name will restore the default color of the label (in effect at its beginning).",
+/*15*/  "\\\\s()", "Apply a style. Omitting the style name will restore the default formatting of the label (in effect at its beginning).",
+/*16*/  "\\\\\\", "Insert a literal '\\'.",
+/*17*/  "\\\\#", "Insert a literal '#'.",
+/*18*/  "\\\\{", "Insert a literal '{'.",
+/*19*/  "\\\\}", "Insert a literal '}'.",
+/*20*/  "\\\\[", "Insert a literal '['.",
+/*21*/  "\\\\]", "Insert a literal ']'.",
+/*22*/  "\\\\;", "Insert a literal semicolon (';').",
+/*23*/  "\\\\\"", "Insert a literal quotation mark ('\"').",
+/*24*/  "\\\\r()", "Paste the number of another chart element name by its 'refname' attribute.",
+/*25*/  "\\\\f()", "Set the font family of the text. Omitting the font name will restore the default font of the label (in effect at its beginning).",
+/*26*/  "\\\\mu()", "Set the top margin of the label in pixels.",
+/*27*/  "\\\\md()", "Set the bottom margin of the label in pixels.",
+/*28*/  "\\\\ml()", "Set the left margin of the label in pixels.",
+/*29*/  "\\\\mr()", "Set the right margin of the label in pixels.",
+/*30*/  "\\\\mn()", "Set the font height of normal font in pixels.",
+/*31*/  "\\\\ms()", "Set the font height of small font, superscript and subscript in pixels.",
+/*32*/  "\\\\m*()", "Set margins and font height.",
+/*33*/  "\\\\N", "Use this escape to specify the location of the automatic numbering within a label. Useful if you want it somewhere else than the front of the label.",
+/*34*/  "\\\\B", "Make the font bold (no change if already bold).",
+/*35*/  "\\\\I", "Make the font italic (no change if already italic).",
+/*36*/  "\\\\U", "Make the font underlined (no change if already so).",
+/*37*/  "\\\\0", "Remove line spacing from below this line.",
+/*38*/  "\\\\1", "Create one pixel of line spacing below this line.",
+/*39*/  "\\\\2", "Create two pixels of line spacing below this line.",
+/*40*/  "\\\\3", "Create three pixels of line spacing below this line.",
+/*41*/  "\\\\4", "Create four pixels of line spacing below this line.",
+/*42*/  "\\\\5", "Create five pixels of line spacing below this line.",
+/*43*/  "\\\\6", "Create six pixels of line spacing below this line.",
+/*44*/  "\\\\7", "Create seven pixels of line spacing below this line.",
+/*45*/  "\\\\8", "Create eight pixels of line spacing below this line.",
+/*46*/  "\\\\9", "Create nine pixels of line spacing below this line.",
+/*47*/  "\\\\|", "Use this around the beginning of a label to separate initial formatting escapes into two groups. "
                "The escapes before this one will determine the default format of the label, used by empty '\\s()', '\\c()', etc. escapes to restore default style, color and so on.",
-/*47*/  "\\\\L()", "Use this escape to mark the beginning and end of a link. At the beginning, specify the link target (e.g., URL) in between the parentheses.",
+/*48*/  "\\\\L()", "Use this escape to mark the beginning and end of a link. At the beginning, specify the link target (e.g., URL) in between the parentheses.",
     ""};
     csh.AddToHints(names_descriptions, csh.HintPrefix(COLOR_LABEL_ESCAPE)+prefix, EHintType::ESCAPE,
         CshHintGraphicCallbackForEscapes, true);
@@ -1738,7 +1769,8 @@ void StringFormat::EscapeHints(Csh &csh, const string &prefix)
 /** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 {
-    if (CaseInsensitiveEndsWith(attr, "color")) {
+    if (CaseInsensitiveEndsWith(attr, "color") ||
+        CaseInsensitiveEndsWith(attr, "bkcolor")) {
         csh.AddColorValuesToHints(false);
         return true;
     }
@@ -1981,14 +2013,29 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
  * @param canvas The canvas to draw to. 
  * @param [in] xy The starting point. `y` specifies the baseline of the text, not the
  *                upper left corner. (Baseline is not meant in cairo sense.)
+ * @param [in] Y The y extent to draw for background.
  * @param [in] isRotated If true, and the canvas cannot display rotated text,
  *                       the canvas will use cairo_text_path() as fallback.
  * @returns The y advancement.*/
-double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool isRotated) const
+double StringFormat::drawFragment(const string &s, Canvas &canvas, 
+                                  XY xy, Range Y, bool isRotated) const
 {
     if (s.length()==0) return 0;
     ApplyFontTo(canvas);
-    switch(fontType.second) {
+    cairo_text_extents_t te;
+    cairo_text_extents(canvas.GetContext(), s.c_str(), &te);
+    const double advance = spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
+
+    xy.x += spaceWidth(s, canvas, true);
+
+    if (bkcolor.first && !bkcolor.second.IsFullyTransparent()) {
+        canvas.Fill(Block(Range(xy.x, xy.x+advance), Y),
+            FillAttr(bkcolor.second, GRADIENT_NONE));
+        //reset color to that of the font
+        canvas.SetColor(color.second);
+    }
+
+    switch (fontType.second) {
     case MSC_FONT_NORMAL:  //normal font
     case MSC_FONT_SMALL:  //Small font
         break;
@@ -1999,13 +2046,8 @@ double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool i
         xy.y += normalFontExtents.ascent*0.2;
         break;
     }
-
-    cairo_text_extents_t te;
-    cairo_text_extents (canvas.GetContext(), s.c_str(), &te);
-	xy.x += spaceWidth(s, canvas, true);
+    
 	canvas.Text(xy, s, isRotated);
-
-    double advance = spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
 
     if (underline.first && underline.second) {
         xy.y++;
@@ -2173,6 +2215,7 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
     size_t length;
     string replaceto;
     string fragment;
+    const Range Y(xy.y, xy.y+heightAboveBaseLine+heightBelowBaseLine);
 
     xy.y += heightAboveBaseLine;
 
@@ -2190,7 +2233,7 @@ void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
         }
         if (fragment.length()) {
             //draw Fragment
-            xy.x += format.drawFragment(fragment, canvas, xy, isRotated);
+            xy.x += format.drawFragment(fragment, canvas, xy, Y, isRotated);
             fragment.clear();
         }
         //apply the formatting

@@ -74,10 +74,7 @@
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
        TOK_ASTERISK
        TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME TOK_COLORDEF
-       TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM    TOK_REL_SOLID_BIDIR
-       TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM    TOK_REL_DOUBLE_BIDIR
-       TOK_REL_DASHED_TO   TOK_REL_DASHED_FROM    TOK_REL_DASHED_BIDIR
-       TOK_REL_DOTTED_TO   TOK_REL_DOTTED_FROM    TOK_REL_DOTTED_BIDIR
+       TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -88,6 +85,7 @@
        TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
        TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_COMMAND_TEXT
        TOK_SHAPE_COMMAND
+       TOK_MSCGEN_RBOX TOK_MSCGEN_ABOX
        TOK__NEVER__HAPPENS
        TOK_EOF 0
 %union
@@ -102,9 +100,7 @@
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    EArrowSymbol                   arrowsymbol;
-    EBoxSymbol                     boxsymbol;
-    EDividerSymbol                 dividersymbol;
+    EArcSymbol                     arcsymbol;
     CHAR_IF_CSH(EntityAppHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
@@ -125,22 +121,17 @@
                    symbol_command symbol_command_no_attr note comment
 %type <arcvertarrow> vertrel_no_xpos vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir arcrel_arrow
-%type <arcbox>     boxrel first_box
+%type <arcbox>     boxrel first_box mscgen_boxrel 
 %type <arcpipe>    first_pipe
 %type <arcboxseries> box_list
 %type <arcpipeseries> pipe_list_no_content pipe_list
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
-%type <arrowsymbol> relation_to_no_loss relation_from_no_loss relation_bidir_no_loss 
+%type <arcsymbol>  TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR
                    relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
-                   TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
-                   TOK_REL_SOLID_FROM TOK_REL_DOUBLE_FROM TOK_REL_DASHED_FROM
-                   TOK_REL_DOTTED_FROM
-                   TOK_REL_SOLID_BIDIR TOK_REL_DOUBLE_BIDIR TOK_REL_DASHED_BIDIR
-                   TOK_REL_DOTTED_BIDIR
-%type <boxsymbol>  TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
-%type <dividersymbol> TOK_SPECIAL_ARC
+                   TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
+                   TOK_SPECIAL_ARC
 %type <arcsegdata> relation_to relation_from relation_bidir
                    relation_to_cont relation_from_cont relation_bidir_cont
 %type <eside>      comment_command
@@ -153,7 +144,7 @@
 %type <str>        entity_command_prefixes titlecommandtoken
                    entity_string reserved_word_string string  
                    symbol_string colon_string symbol_type_string alpha_string color_string
-                   overlap_or_parallel
+                   overlap_or_parallel mscgen_emphrel
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_COLORDEF
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_BOX TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -165,6 +156,7 @@
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_COMMAND_TEXT TOK_VERTICAL_SHAPE
+                   TOK_MSCGEN_RBOX TOK_MSCGEN_ABOX
 %type <stringlist> stylenamelist
 %type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
@@ -802,7 +794,7 @@ arc:           arcrel
     }
 #else
 	ArcTypePlusDir typeplusdir;
-	typeplusdir.arc.type = EArrowSymbol::SOLID;
+	typeplusdir.arc.type = EArcSymbol::ARC_SOLID;
 	typeplusdir.arc.lost = EArrowLost::NOT;
 	typeplusdir.dir = EDirType::RIGHT;
 	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
@@ -885,7 +877,7 @@ arc:           arcrel
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
 	ArcTypePlusDir typeplusdir;
-    typeplusdir.arc.type = EArrowSymbol::SOLID;
+    typeplusdir.arc.type = EArcSymbol::ARC_SOLID;
 	typeplusdir.arc.lost = EArrowLost::NOT;
 	typeplusdir.dir = EDirType::RIGHT;
 	ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
@@ -911,7 +903,7 @@ arc:           arcrel
     }
   #else
     //... but due to the lack of curly brace we are a divider
-    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
+    $$ = new ArcDivider(EArcSymbol::DIV_VSPACE, &msc);
     ($$)->AddAttributeList($1);
   #endif
 }
@@ -922,7 +914,7 @@ arc:           arcrel
   #else
     AttributeList *al = new AttributeList;
     al->Append(new Attribute("label", $1, MSC_POS(@$), MSC_POS(@$).IncStartCol()));
-    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
+    $$ = new ArcDivider(EArcSymbol::DIV_VSPACE, &msc);
     ($$)->AddAttributeList(al);
   #endif
     free($1);
@@ -937,7 +929,7 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     ($2)->Prepend(new Attribute("label", $1, MSC_POS(@1), MSC_POS(@1).IncStartCol()));
-    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
+    $$ = new ArcDivider(EArcSymbol::DIV_VSPACE, &msc);
     ($$)->AddAttributeList($2);
 #endif
     free($1);
@@ -957,7 +949,7 @@ arc:           arcrel
     //Merge $3 at the end of $1 (after the colon label, so ordering is kept)
     ($1)->splice(($1)->end(), *($3));
     delete ($3); //empty list now
-    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
+    $$ = new ArcDivider(EArcSymbol::DIV_VSPACE, &msc);
     ($$)->AddAttributeList($1);
 #endif
     free($2);
@@ -972,7 +964,7 @@ arc:           arcrel
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol())); 
-    $$ = new ArcDivider(EDividerSymbol::VSPACE, &msc);
+    $$ = new ArcDivider(EArcSymbol::DIV_VSPACE, &msc);
     ($$)->AddAttributeList($1);    
   #endif
     free($2);
@@ -1279,7 +1271,7 @@ arc:           arcrel
         csh.hintStatus = HINT_READY;
     } 
   #else
-    $$ = (new ArcDivider(EDividerSymbol::VSPACE, &msc));
+    $$ = (new ArcDivider(EArcSymbol::DIV_VSPACE, &msc));
     ($$)->AddAttributeList(NULL);
   #endif
     free($1);
@@ -1296,7 +1288,7 @@ arc:           arcrel
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
   #else
-    $$ = (new ArcDivider(EDividerSymbol::VSPACE, &msc));
+    $$ = (new ArcDivider(EArcSymbol::DIV_VSPACE, &msc));
     ($$)->AddAttributeList($2);
   #endif
     free($1);
@@ -1313,9 +1305,9 @@ arc:           arcrel
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
   #else
-    const EDividerSymbol t = CaseInsensitiveEqual("title", $1) ? EDividerSymbol::TITLE :
-                             CaseInsensitiveEqual("subtitle", $1) ? EDividerSymbol::SUBTITLE :
-                             EDividerSymbol::INVALID;
+    const EArcSymbol t = CaseInsensitiveEqual("title", $1) ? EArcSymbol::DIV_TITLE :
+                         CaseInsensitiveEqual("subtitle", $1) ? EArcSymbol::DIV_SUBTITLE :
+                         EArcSymbol::INVALID;
     $$ = (new ArcDivider(t, &msc));
     ($$)->AddAttributeList($2);
   #endif
@@ -3219,7 +3211,7 @@ box_list: first_box
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     if ($1) {
-        ArcBox *temp = new ArcBox(EBoxSymbol::UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        ArcBox *temp = new ArcBox(EArcSymbol::BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
         temp->AddArcList($2);
         $$ = ($1)->AddBox(temp);
         temp->AddAttributeList(NULL); //should come after AddBox
@@ -3258,7 +3250,7 @@ box_list: first_box
         csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     if ($1) {
-        ArcBox *temp = new ArcBox(EBoxSymbol::UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+        ArcBox *temp = new ArcBox(EArcSymbol::BOX_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
         temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
         $$ = ($1)->AddBox(temp);
         temp->AddAttributeList($2); //should come after AddBox
@@ -3270,9 +3262,35 @@ box_list: first_box
         delete ($2);
         delete ($3);
     }
-
   #endif
-};
+}
+           | mscgen_boxrel 
+{
+#ifndef C_S_H_IS_COMPILED
+    if ($1) {
+        ($1)->AddAttributeList(NULL);
+        ($1)->SetLineEnd(MSC_POS(@$));
+        $$ = new ArcBoxSeries($1);
+    } else
+        $$ = NULL;
+#endif
+}
+           | mscgen_boxrel full_arcattrlist_with_label
+{
+#ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
+        ArcBox::AttributeNames(csh);
+    else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
+#else
+    if ($1) {
+        ($1)->AddAttributeList($2);
+        ($1)->SetLineEnd(MSC_POS(@$));
+        $$ = new ArcBoxSeries($1);
+    } else
+        $$ = NULL;
+#endif
+}
 
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
 first_box:   boxrel
@@ -3501,6 +3519,35 @@ boxrel:   entity_string emphrel entity_string
   #endif
 };
 
+mscgen_emphrel: TOK_MSCGEN_RBOX | TOK_MSCGEN_ABOX | TOK_COMMAND_BOX | TOK_COMMAND_NOTE;
+
+mscgen_boxrel: entity_string mscgen_emphrel entity_string
+{
+    //mscgen compatibility: a box with no content or 
+#ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.mscgen_compat_mode)
+        csh.AddCSH(@2, COLOR_KEYWORD);
+    else
+        csh.AddCSH_Error_Mscgen(@2);
+    csh.CheckEntityHintAtAndBefore(@2, @3);
+    csh.AddCSH_EntityName(@3, $3);
+#else
+    ArcBox::Emscgen_compat c = ArcBox::MSCGEN_COMPAT_NONE;
+    if (CaseInsensitiveEqual($2, "rbox")) c = ArcBox::MSCGEN_COMPAT_RBOX;
+    else if (CaseInsensitiveEqual($2, "abox")) c = ArcBox::MSCGEN_COMPAT_ABOX;
+    else if (CaseInsensitiveEqual($2, "box")) c = ArcBox::MSCGEN_COMPAT_BOX;
+    else if (CaseInsensitiveEqual($2, "note")) c = ArcBox::MSCGEN_COMPAT_NOTE;
+    $$ = new ArcBox(c, $1, MSC_POS(@1), $3, MSC_POS(@3), &msc);
+    if (!msc.mscgen_compat_mode)
+        msc.Error.MscgenCompat(MSC_POS(@2).start, "Unrecognized box symbol.");
+#endif
+    free($1);
+    free($2);
+    free($3);
+};
+
 vertxpos: TOK_AT entity_string
 {
   #ifdef C_S_H_IS_COMPILED
@@ -3637,19 +3684,19 @@ vertxpos: TOK_AT entity_string
     switch ($3) {
     default:
         _ASSERT(0);
-    case EBoxSymbol::SOLID:
+    case EArcSymbol::BOX_SOLID:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_BY);
         break;
-    case EBoxSymbol::DASHED:
+    case EArcSymbol::BOX_DASHED:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_BY);
         break;
-    case EBoxSymbol::DOTTED:
+    case EArcSymbol::BOX_DOTTED:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '..', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); 
         $$ = NULL;
         break;
-    case EBoxSymbol::DOUBLE:
+    case EArcSymbol::BOX_DOUBLE:
         msc.Error.Error(MSC_POS(@3).start,
                         "unexpected '==', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); 
@@ -3942,7 +3989,7 @@ vertrel: vertrel_no_xpos vertxpos
   #else
     if ($1) {
 		ArcTypePlusDir typeplusdir;
-		typeplusdir.arc.type = EArrowSymbol::SOLID;
+		typeplusdir.arc.type = EArcSymbol::ARC_SOLID;
 		typeplusdir.arc.lost = EArrowLost::NOT;
 		typeplusdir.dir = EDirType::RIGHT;
 		ArcVerticalArrow *ava = new ArcVerticalArrow(typeplusdir, MARKER_HERE_STR, MARKER_HERE_STR, &msc);
@@ -4163,15 +4210,11 @@ arcrel_bidir:    entity_string relation_bidir entity_string
   #endif
 };
 
-relation_to_no_loss:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO | TOK_REL_DOTTED_TO;
-relation_from_no_loss: TOK_REL_SOLID_FROM | TOK_REL_DOUBLE_FROM | TOK_REL_DASHED_FROM | TOK_REL_DOTTED_FROM;
-relation_bidir_no_loss: TOK_REL_SOLID_BIDIR | TOK_REL_DOUBLE_BIDIR | TOK_REL_DASHED_BIDIR | TOK_REL_DOTTED_BIDIR;
+relation_to_cont_no_loss: TOK_REL_TO | TOK_DASH {$$=EArcSymbol::ARC_UNDETERMINED_SEGMENT;};
+relation_from_cont_no_loss: TOK_REL_FROM | TOK_DASH {$$=EArcSymbol::ARC_UNDETERMINED_SEGMENT;};
+relation_bidir_cont_no_loss: TOK_REL_BIDIR | TOK_DASH {$$=EArcSymbol::ARC_UNDETERMINED_SEGMENT;};
 
-relation_to_cont_no_loss: relation_to_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
-relation_from_cont_no_loss: relation_from_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
-relation_bidir_cont_no_loss: relation_bidir_no_loss | TOK_DASH {$$=EArrowSymbol::UNDETERMINED_SEGMENT;};
-
-relation_to: relation_to_no_loss
+relation_to: TOK_REL_TO
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4181,7 +4224,7 @@ relation_to: relation_to_no_loss
     ($$).lost = EArrowLost::NOT;
   #endif
 }
-             | TOK_ASTERISK relation_to_no_loss
+             | TOK_ASTERISK TOK_REL_TO
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4192,7 +4235,7 @@ relation_to: relation_to_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
-             | relation_to_no_loss TOK_ASTERISK
+             | TOK_REL_TO TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4203,7 +4246,7 @@ relation_to: relation_to_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
-             | TOK_ASTERISK relation_to_no_loss TOK_ASTERISK
+             | TOK_ASTERISK TOK_REL_TO TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
@@ -4217,7 +4260,7 @@ relation_to: relation_to_no_loss
   #endif
 };
 
-relation_from: relation_from_no_loss
+relation_from: TOK_REL_FROM
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4227,7 +4270,7 @@ relation_from: relation_from_no_loss
     ($$).lost = EArrowLost::NOT;
   #endif
 }
-             | TOK_ASTERISK relation_from_no_loss
+             | TOK_ASTERISK TOK_REL_FROM
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4238,7 +4281,7 @@ relation_from: relation_from_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
-             | relation_from_no_loss TOK_ASTERISK
+             | TOK_REL_FROM TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4249,7 +4292,7 @@ relation_from: relation_from_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
-             | TOK_ASTERISK relation_from_no_loss TOK_ASTERISK
+             | TOK_ASTERISK TOK_REL_FROM TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
@@ -4263,7 +4306,7 @@ relation_from: relation_from_no_loss
   #endif
 };
 
-relation_bidir: relation_bidir_no_loss
+relation_bidir: TOK_REL_BIDIR
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4273,7 +4316,7 @@ relation_bidir: relation_bidir_no_loss
     ($$).lost = EArrowLost::NOT;
   #endif
 }
-             | TOK_ASTERISK relation_bidir_no_loss
+             | TOK_ASTERISK TOK_REL_BIDIR
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4284,7 +4327,7 @@ relation_bidir: relation_bidir_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@1));
   #endif
 }
-             | relation_bidir_no_loss TOK_ASTERISK
+             | TOK_REL_BIDIR TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@$, COLOR_SYMBOL);
@@ -4295,7 +4338,7 @@ relation_bidir: relation_bidir_no_loss
     ($$).lost_pos.SetFrom(MSC_POS(@2));
   #endif
 }
-             | TOK_ASTERISK relation_bidir_no_loss TOK_ASTERISK
+             | TOK_ASTERISK TOK_REL_BIDIR TOK_ASTERISK
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1 + @2, COLOR_SYMBOL);
@@ -5229,35 +5272,55 @@ reserved_word_string: TOK_MSC
     | TOK_SHOW | TOK_HIDE | TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE
     | TOK_COMMAND_VSPACE | TOK_COMMAND_HSPACE | TOK_COMMAND_SYMBOL | TOK_COMMAND_NOTE
     | TOK_COMMAND_COMMENT | TOK_COMMAND_ENDNOTE | TOK_COMMAND_FOOTNOTE
-    | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
+    | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE
+    | TOK_MSCGEN_RBOX | TOK_MSCGEN_ABOX;
 
-symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
-       | TOK_REL_SOLID_FROM      {$$ = strdup("<-");}
-       | TOK_REL_SOLID_BIDIR      {$$ = strdup("<->");}
-       | TOK_REL_DOUBLE_TO        {$$ = strdup("=>");}
-       | TOK_REL_DOUBLE_FROM      {$$ = strdup("<=");}
-       | TOK_REL_DOUBLE_BIDIR     {$$ = strdup("<=>");}
-       | TOK_REL_DASHED_TO        {$$ = strdup(">>");}
-       | TOK_REL_DASHED_FROM      {$$ = strdup("<<");}
-       | TOK_REL_DASHED_BIDIR     {$$ = strdup("<<>>");}
-       | TOK_REL_DOTTED_TO        {$$ = strdup(">");}
-       | TOK_REL_DOTTED_FROM      {$$ = strdup("<");}
-       | TOK_REL_DOTTED_BIDIR     {$$ = strdup("<>");}
+symbol_string : TOK_REL_TO  
+{
+    switch ($1) {
+    case EArcSymbol::ARC_DOTTED: $$ = strdup(">"); break;
+    case EArcSymbol::ARC_DASHED: $$ = strdup(">>"); break;
+    case EArcSymbol::ARC_SOLID:  $$ = strdup("->"); break;
+    case EArcSymbol::ARC_DOUBLE: $$ = strdup("=>"); break;
+    default: _ASSERT(0);
+    }
+}
+       | TOK_REL_FROM      
+{
+    switch ($1) {
+    case EArcSymbol::ARC_DOTTED: $$ = strdup("<"); break;
+    case EArcSymbol::ARC_DASHED: $$ = strdup("<<"); break;
+    case EArcSymbol::ARC_SOLID:  $$ = strdup("<-"); break;
+    case EArcSymbol::ARC_DOUBLE: $$ = strdup("<="); break;
+    default: _ASSERT(0);
+    }
+}
+
+       | TOK_REL_BIDIR      
+{
+    switch ($1) {
+    case EArcSymbol::ARC_DOTTED: $$ = strdup("<>"); break;
+    case EArcSymbol::ARC_DASHED: $$ = strdup("<<>>"); break;
+    case EArcSymbol::ARC_SOLID:  $$ = strdup("<->"); break;
+    case EArcSymbol::ARC_DOUBLE: $$ = strdup("<=>"); break;
+    default: _ASSERT(0);
+    }
+}
        | TOK_SPECIAL_ARC
 {
     switch ($1) {
-    case EDividerSymbol::DIVIDER:  $$ = strdup("---"); break;
-    case EDividerSymbol::DISCO:    $$ = strdup("..."); break;
+    case EArcSymbol::DIV_DIVIDER:  $$ = strdup("---"); break;
+    case EArcSymbol::DIV_DISCO:    $$ = strdup("..."); break;
     default: _ASSERT(0);
     }
 }
        | TOK_EMPH
 {
     switch ($1) {
-    case EBoxSymbol::SOLID:  $$ = strdup("--"); break;
-    case EBoxSymbol::DASHED: $$ = strdup("++"); break; //will likely not happen due to special handling in TOK_COLORDEF
-    case EBoxSymbol::DOTTED: $$ = strdup(".."); break;
-    case EBoxSymbol::DOUBLE: $$ = strdup("=="); break;
+    case EArcSymbol::BOX_SOLID:  $$ = strdup("--"); break;
+    case EArcSymbol::BOX_DASHED: $$ = strdup("++"); break; //will likely not happen due to special handling in TOK_COLORDEF
+    case EArcSymbol::BOX_DOTTED: $$ = strdup(".."); break;
+    case EArcSymbol::BOX_DOUBLE: $$ = strdup("=="); break;
     default: _ASSERT(0);
     }
 };

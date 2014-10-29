@@ -959,25 +959,23 @@ void ArcLabelled::PostPosProcess(Canvas &canvas)
 
 /////////////////////////////////////////////////////
 
-const StyleCoW *ArcArrow::GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const
+const StyleCoW *ArcArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
 {
     //refinement for normal (non-block) arrows
     switch (t) {
-    case EArrowSymbol::SOLID:
-    case EArrowSymbol::SOLID_BIDIR:
+    case EArcSymbol::ARC_SOLID:
+    case EArcSymbol::ARC_SOLID_BIDIR:
         return &chart->Contexts.back().styles["->"];
-    case EArrowSymbol::DOTTED:
-    case EArrowSymbol::DOTTED_BIDIR:
+    case EArcSymbol::ARC_DOTTED:
+    case EArcSymbol::ARC_DOTTED_BIDIR:
         return &chart->Contexts.back().styles[">"];
-    case EArrowSymbol::DASHED:
-    case EArrowSymbol::DASHED_BIDIR:
+    case EArcSymbol::ARC_DASHED:
+    case EArcSymbol::ARC_DASHED_BIDIR:
         return &chart->Contexts.back().styles[">>"];
-    case EArrowSymbol::DOUBLE:
-    case EArrowSymbol::DOUBLE_BIDIR:
+    case EArcSymbol::ARC_DOUBLE:
+    case EArcSymbol::ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["=>"];
-    case EArrowSymbol::UNDETERMINED_SEGMENT:
-    case EArrowSymbol::BIG:
-    case EArrowSymbol::BIG_BIDIR:
+    case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
     default:
         _ASSERT(0);
         return NULL; /*Do nothing */
@@ -1049,11 +1047,12 @@ void ArcArrow::DrawLSym(Canvas &canvas, const XY &C, XY size)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcSelfArrow::ArcSelfArrow(EArrowSymbol t, const char *s, const FileLineColRange &sl,
+ArcSelfArrow::ArcSelfArrow(EArcSymbol t, const char *s, const FileLineColRange &sl,
                            Msc *msc, double ys) :
-    ArcArrow(IsArrowSymbolBidir(t), MscProgress::SELF_ARROW, msc), 
+    ArcArrow(IsArcSymbolBidir(t), MscProgress::SELF_ARROW, msc), 
     YSize(ys), XSizeUnit(0.375), type(t)
 {
+    _ASSERT(IsArcSymbolArrow(t));
     src = chart->FindAllocEntity(s, sl);
 }
 
@@ -1257,15 +1256,15 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data,
                          const char *s, const FileLineColRange &sl,
                          const char *d, const FileLineColRange &dl, 
                          Msc *msc, bool fw) :
-    ArcArrow(IsArrowSymbolBidir(data.type.s.arrow), MscProgress::DIR_ARROW, msc),
+    ArcArrow(IsArcSymbolBidir(data.type), MscProgress::DIR_ARROW, msc),
     linenum_src(sl.start), linenum_dst(dl.start),
     specified_as_forward(fw), slant_angle(0), slant_depth(0),
     lost_at(-2), lost_pos(*msc)
 {
-    _ASSERT(data.type.is_arrow);
+    _ASSERT(IsArcSymbolArrow(data.type));
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
-    segment_types.push_back(data.type.s.arrow);
+    segment_types.push_back(data.type);
     if (chart)
         slant_angle = chart->Contexts.back().slant_angle.second;
     if (data.lost==EArrowLost::AT_SRC) {
@@ -1279,18 +1278,20 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data,
     }
 };
 
-ArcDirArrow::ArcDirArrow(const EntityList &el, bool b, const ArcLabelled &al) :
+ArcDirArrow::ArcDirArrow(const EntityList &el, bool b, EArcSymbol boxsymbol, const ArcLabelled &al) :
     ArcArrow(b, MscProgress::BLOCK_ARROW, al),
     specified_as_forward(false), slant_angle(0), slant_depth(0), 
     lost_at(-2), lost_pos(*ArcArrow::chart)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
-    segment_types.push_back(bidir ? EArrowSymbol::BIG_BIDIR : EArrowSymbol::BIG);
+    _ASSERT(IsArcSymbolBox(boxsymbol));
+    EArcSymbol arrowsymbol = ConvertBoxSymbol2ArrowSymbol(boxsymbol, bidir);
+    segment_types.push_back(arrowsymbol);
     segment_lines.push_back(style.read().line);
     for (auto i = ++el.begin(); i!=--el.end(); i++) {
         middle.push_back(chart->AllEntities.Find_by_Ptr(*i));
-        segment_types.push_back(EArrowSymbol::BIG);
+        segment_types.push_back(arrowsymbol);
         segment_lines.push_back(style.read().line);
     }
     if (chart) 
@@ -1321,7 +1322,7 @@ ArcArrow * ArcDirArrow::AddSegment(ArrowSegmentData data, const char *m, const F
         linenum_middle.push_back(linenum_dst);
         dst = mid;
         linenum_dst = ml.start;
-        segment_types.push_back(data.type.s.arrow);
+        segment_types.push_back(data.type);
     } else {
         //check for this situation: <-b<-a (where a is left of b)
         if (middle.size()==0 && *dst == chart->LSide &&
@@ -1331,7 +1332,7 @@ ArcArrow * ArcDirArrow::AddSegment(ArrowSegmentData data, const char *m, const F
         linenum_middle.insert(linenum_middle.begin(), linenum_src);
         src = mid;
         linenum_src = ml.start;
-        segment_types.insert(segment_types.begin(), data.type.s.arrow);
+        segment_types.insert(segment_types.begin(), data.type);
         //if we have specified a message lost at an entity, 
         //we maintain the correct index
         if (lost_at > -2)
@@ -1371,6 +1372,20 @@ void ArcDirArrow::SetStyleBeforeAttributes()
 
 void ArcDirArrow::AddAttributeList(AttributeList *l)
 {
+    //Handle mscgen compatibility
+    //Handle ->* in compatibility mode
+    if (chart->mscgen_compat_mode && 
+        middle.size()==0 && //single segment
+        lost_at == 0 && //lost at 'dst'
+        segment_types[0] == EArcSymbol::ARC_SOLID &&
+        *dst == chart->NoEntity) {
+        chart->Error.Error(file_pos.start, "Broadcast messages not yet supported. Ignoring arrow.");
+        valid = false;
+        return;
+    }
+    //Generate forced arrowheads and line styles for mscgen compat mode
+    XXX;
+
     //Save the style, empty it, collect all modifications and apply those to segments, too
     //This will work even if we are a BigArrow, as 
     //SetStyleBeforeAttributes() and GetRefinementStyle4ArrowSymbol() is virtual
@@ -2146,9 +2161,9 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow) :
 }
 
 //This invocation is from ArcBoxSeries::PostParseProcess
-ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al,
+ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, EArcSymbol boxsymbol, const ArcLabelled &al,
     const ArcSignature *s)
-    : ArcDirArrow(el, bidir, al), sig(s) //this sets myProgressCategory to BLOCK_ARROW
+    : ArcDirArrow(el, bidir, boxsymbol, al), sig(s) //this sets myProgressCategory to BLOCK_ARROW
 {
     slant_angle = 0;
 }
@@ -2158,20 +2173,20 @@ void ArcBigArrow::SetStyleBeforeAttributes()
     SetStyleWithText("blockarrow", NULL);
 }
 
-const StyleCoW *ArcBigArrow::GetRefinementStyle4ArrowSymbol(EArrowSymbol t) const
+const StyleCoW *ArcBigArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
 {
     switch(t) {
-    case EArrowSymbol::SOLID:
-    case EArrowSymbol::SOLID_BIDIR:
+    case EArcSymbol::ARC_SOLID:
+    case EArcSymbol::ARC_SOLID_BIDIR:
         return &chart->Contexts.back().styles["block->"];
-    case EArrowSymbol::DOTTED:
-    case EArrowSymbol::DOTTED_BIDIR:
+    case EArcSymbol::ARC_DOTTED:
+    case EArcSymbol::ARC_DOTTED_BIDIR:
         return &chart->Contexts.back().styles["block>"];
-    case EArrowSymbol::DASHED:
-    case EArrowSymbol::DASHED_BIDIR:
+    case EArcSymbol::ARC_DASHED:
+    case EArcSymbol::ARC_DASHED_BIDIR:
         return &chart->Contexts.back().styles["block>>"];
-    case EArrowSymbol::DOUBLE:
-    case EArrowSymbol::DOUBLE_BIDIR:
+    case EArcSymbol::ARC_DOUBLE:
+    case EArcSymbol::ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["block=>"];
     default:
         _ASSERT(0);
@@ -2562,12 +2577,13 @@ double VertXPos::CalculatePos(Msc &chart, double width, double gap, double gap2)
 //The 'shape' can be later modified if the parser finds some 
 //vertical type keyword before the symbol, such as 'bracket' or 'pointer'
 ArcVerticalArrow::ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc) :
-    ArcArrow(t.arc.type.is_arrow && IsArrowSymbolBidir(t.arc.type.s.arrow), MscProgress::VERTICAL, msc), 
+    ArcArrow(IsArcSymbolBidir(t.arc.type), MscProgress::VERTICAL, msc), 
     type(t.arc.type), 
     src(s ? s : ""), dst(d ? d : ""), lost(t.arc.lost!=EArrowLost::NOT), 
     lost_pos(t.arc.lost_pos.CopyTo().start), shape(ARROW_OR_BOX),
     pos(*msc), prev_arc(NULL), ypos(2)
 {
+    _ASSERT(IsArcSymbolArrow(type) || IsArcSymbolBox(type));
     //If we are defined via a backwards arrow, swap source and dst
     if (t.dir==EDirType::LEFT)
         src.swap(dst);
@@ -2606,6 +2622,21 @@ ArcArrow *ArcVerticalArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
 void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
 {
     shape = sh;
+}
+
+void ArcVerticalArrow::SetStyleBeforeAttributes()
+{
+    const char *s;
+    switch (shape) {
+    default: _ASSERT(0); //fallthrough
+    case ARROW_OR_BOX: s = "vertical"; break;
+    case BRACE:        s = "vertical_brace"; break;
+    case BRACKET:      s = "vertical_bracket"; break;
+    case RANGE:        s = "vertical_range"; break;
+    case POINTER:      s = "vertical_pointer"; break;
+    }
+    //set our style to the base
+    style = chart->Contexts.back().styles[s];
     //re-do the automatic setting of "side"
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
@@ -2625,56 +2656,37 @@ void ArcVerticalArrow::SetVerticalShape(EVerticalShape sh)
         left = false;
         break;
     }
-}
-
-void ArcVerticalArrow::SetStyleBeforeAttributes()
-{
-    const char *s;
-    switch (shape) {
-    default: _ASSERT(0); //fallthrough
-    case ARROW_OR_BOX: s = "vertical"; break;
-    case BRACE:        s = "vertical_brace"; break;
-    case BRACKET:      s = "vertical_bracket"; break;
-    case RANGE:        s = "vertical_range"; break;
-    case POINTER:      s = "vertical_pointer"; break;
-    }
-    SetStyleWithText(s, GetMyRefinementStyle());
+    //Now add the default text and refinements
+    SetStyleWithText(static_cast<const StyleCoW*>(NULL), GetMyRefinementStyle());
 }
 
 
 const StyleCoW *ArcVerticalArrow::GetMyRefinementStyle() const
 {
-    if (type.is_arrow)
-        switch (type.s.arrow) {
-        case EArrowSymbol::SOLID:
-        case EArrowSymbol::SOLID_BIDIR:
-            return &chart->Contexts.back().styles["vertical->"];
-        case EArrowSymbol::DOTTED:
-        case EArrowSymbol::DOTTED_BIDIR:
-            return &chart->Contexts.back().styles["vertical>"];
-        case EArrowSymbol::DASHED:
-        case EArrowSymbol::DASHED_BIDIR:
-            return &chart->Contexts.back().styles["vertical>>"];
-        case EArrowSymbol::DOUBLE:
-        case EArrowSymbol::DOUBLE_BIDIR:
-            return &chart->Contexts.back().styles["vertical=>"];
-        default:
-            _ASSERT(0);
-            return NULL;
-        }
-    else
-        switch (type.s.box) {
-        case EBoxSymbol::SOLID:
-            return &chart->Contexts.back().styles["vertical--"];
-        case EBoxSymbol::DASHED:
-            return &chart->Contexts.back().styles["vertical++"];
-        case EBoxSymbol::DOTTED:
-            return &chart->Contexts.back().styles["vertical.."];
-        case EBoxSymbol::DOUBLE:
-            return &chart->Contexts.back().styles["vertical=="];
-        default:
-            _ASSERT(0);
-            return NULL;
+    switch (type) {
+    case EArcSymbol::ARC_SOLID:
+    case EArcSymbol::ARC_SOLID_BIDIR:
+        return &chart->Contexts.back().styles["vertical->"];
+    case EArcSymbol::ARC_DOTTED:
+    case EArcSymbol::ARC_DOTTED_BIDIR:
+        return &chart->Contexts.back().styles["vertical>"];
+    case EArcSymbol::ARC_DASHED:
+    case EArcSymbol::ARC_DASHED_BIDIR:
+        return &chart->Contexts.back().styles["vertical>>"];
+    case EArcSymbol::ARC_DOUBLE:
+    case EArcSymbol::ARC_DOUBLE_BIDIR:
+        return &chart->Contexts.back().styles["vertical=>"];
+    default:
+        _ASSERT(0);
+        return NULL;
+    case EArcSymbol::BOX_SOLID:
+        return &chart->Contexts.back().styles["vertical--"];
+    case EArcSymbol::BOX_DASHED:
+        return &chart->Contexts.back().styles["vertical++"];
+    case EArcSymbol::BOX_DOTTED:
+        return &chart->Contexts.back().styles["vertical.."];
+    case EArcSymbol::BOX_DOUBLE:
+        return &chart->Contexts.back().styles["vertical=="];
     }
 }
 
@@ -2734,7 +2746,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     if (lost) {
         const char *s;
         switch (shape) {
-        case ARROW_OR_BOX: s = type.is_arrow ? "Block arrow" : "Box"; break;
+        case ARROW_OR_BOX: s = IsArcSymbolArrow(type) ? "Block arrow" : "Box"; break;
         case BRACE:        s = "Brace"; break;
         case BRACKET:      s = "Bracket"; break;
         case RANGE:        s = "Range"; break;
@@ -2804,7 +2816,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator
     }
 
     //If we do a RANGE, remove arrowheads for box symbols
-    if (shape == RANGE && !type.is_arrow) 
+    if (shape == RANGE && IsArcSymbolBox(type))
         style.write().arrow.startType.second =
             style.write().arrow.endType.second = MSC_ARROW_NONE;
 
@@ -3495,19 +3507,37 @@ bool ArcSignature::operator == (const ArcSignature&o) const
 }
 
 
-ArcBox::ArcBox(EBoxSymbol t, 
+ArcBox::ArcBox(EArcSymbol t, 
                const char *s, const FileLineColRange &sl,
                const char *d, const FileLineColRange &dl, Msc *msc) :
     ArcLabelled(MscProgress::BOX, msc),
     collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true),
-    type(t)
+    type(t), mscgen_compat(MSCGEN_COMPAT_NONE)
 {
+    _ASSERT(IsArcSymbolBox(type));
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
 
     //If both src and dst specified, order them
     if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
         if ((*src)->pos > (*dst)->pos) 
+            std::swap(src, dst);
+    keep_together = true;
+}
+
+ArcBox::ArcBox(Emscgen_compat c, const char *s, const FileLineColRange &sl,
+       const char *d, const FileLineColRange &dl, Msc *msc) :
+    ArcLabelled(MscProgress::BOX, msc),
+    collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true),
+    type(EArcSymbol::BOX_SOLID), mscgen_compat(c)
+{
+    _ASSERT(IsArcSymbolBox(type));
+    src = chart->FindAllocEntity(s, sl);
+    dst = chart->FindAllocEntity(d, dl);
+
+    //If both src and dst specified, order them
+    if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
+        if ((*src)->pos > (*dst)->pos)
             std::swap(src, dst);
     keep_together = true;
 }
@@ -3519,19 +3549,19 @@ const ArcSignature* ArcBox::GetSignature() const
     return s;
 }
 
-const StyleCoW *ArcBox::GetRefinementStyle4BoxSymbol(EBoxSymbol t) const
+const StyleCoW *ArcBox::GetRefinementStyle4BoxSymbol(EArcSymbol t) const
 {
     //refinement for boxes 
     switch (t) {
-    case EBoxSymbol::SOLID:
+    case EArcSymbol::BOX_SOLID:
         return &chart->Contexts.back().styles["--"];
-    case EBoxSymbol::DASHED:
+    case EArcSymbol::BOX_DASHED:
         return &chart->Contexts.back().styles["++"];
-    case EBoxSymbol::DOTTED:
+    case EArcSymbol::BOX_DOTTED:
         return &chart->Contexts.back().styles[".."];
-    case EBoxSymbol::DOUBLE:
+    case EArcSymbol::BOX_DOUBLE:
         return &chart->Contexts.back().styles["=="];
-    case EBoxSymbol::UNDETERMINED_FOLLOW:
+    case EArcSymbol::BOX_UNDETERMINED_FOLLOW:
     default:
         _ASSERT(0);
         return NULL; /*do nothing*/
@@ -3597,7 +3627,31 @@ void ArcBox::AddAttributeList(AttributeList *l)
     case BOX_COLLAPSE_EXPAND:
         st = content.size() ? "box" : "emptybox";
     }
-    SetStyleWithText(st, GetRefinementStyle4BoxSymbol(type));
+    style = chart->Contexts.back().styles[st];
+    switch (mscgen_compat) {
+    default: _ASSERT(0); //fallthrough
+    case MSCGEN_COMPAT_NONE: break;
+    case MSCGEN_COMPAT_BOX: break;
+    case MSCGEN_COMPAT_ABOX:
+        style.write().line.corner.first = true;
+        style.write().line.corner.second = CORNER_BEVEL;
+        style.write().line.radius.first = true;
+        style.write().line.radius.second = 10;
+        break;
+    case MSCGEN_COMPAT_RBOX:
+        style.write().line.corner.first = true;
+        style.write().line.corner.second = CORNER_ROUND;
+        style.write().line.radius.first = true;
+        style.write().line.radius.second = 10;
+        break;
+    case MSCGEN_COMPAT_NOTE:
+        style.write().line.corner.first = true;
+        style.write().line.corner.second = CORNER_NOTE;
+        style.write().line.radius.first = true;
+        style.write().line.radius.second = 10;
+        break;
+    }
+    SetStyleWithText(static_cast<StyleCoW*>(NULL), GetRefinementStyle4BoxSymbol(type));
     
     //Find position of tag label attribute (if any), prepend it via an escape
     FileLineCol tag_label_pos;
@@ -3644,6 +3698,13 @@ bool ArcBox::AddAttribute(const Attribute &a)
         tag_label = a.value;
         return true;
     }
+    if (a.Is("textbgcolour") || a.Is("textbgcolor")) 
+        if (mscgen_compat!=MSCGEN_COMPAT_NONE) {
+            Attribute aa(a);
+            aa.name = "fill.color";
+            return ArcLabelled::AddAttribute(aa);
+        } //else fallthrough
+
     return ArcLabelled::AddAttribute(a);
 }
 
@@ -3705,7 +3766,7 @@ ArcBoxSeries* ArcBoxSeries::AddBox(ArcBox *f)
             //Use the style of the first box in the series as a base
             StyleCoW s = series.front()->style;
             //Override with the line type specified (if any)
-            if (f->type != EBoxSymbol::UNDETERMINED_FOLLOW)
+            if (f->type != EArcSymbol::BOX_UNDETERMINED_FOLLOW)
                 s += *f->GetRefinementStyle4BoxSymbol(f->type);
             f->style = s;
             //AddAttributeList will be called for "f" after this function
@@ -3745,7 +3806,7 @@ ArcBase* ArcBox::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EI
         el.SortByPosExp();
         if (dir == EDirType::LEFT)
             std::reverse(el.begin(), el.end());
-        ArcBigArrow *aba = new ArcBigArrow(el, dir == EDirType::BIDIR, *this, GetSignature());
+        ArcBigArrow *aba = new ArcBigArrow(el, dir == EDirType::BIDIR, type, *this, GetSignature());
         aba->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
         aba->CombineComments(this); //we pass on our notes to the block arrow
         Element *const old_target = *target;
@@ -4480,8 +4541,6 @@ void ArcBoxSeries::RegisterCover(EDrawPassType pass)
             effective_pass = DRAW_BEFORE_ENTITY_LINES;
         if (pass == effective_pass)
             chart->AllCovers += pBox->area;
-        else
-            pBox->RegisterCover(pass);
         chart->RegisterCoverArcList(pBox->content, pass);
     }
 }
@@ -4572,17 +4631,17 @@ ArcPipe::ArcPipe(ArcBox *box) :
     delete box;
 }
 
-const StyleCoW *ArcPipe::GetRefinementStyle4PipeSymbol(EBoxSymbol t) const
+const StyleCoW *ArcPipe::GetRefinementStyle4PipeSymbol(EArcSymbol t) const
 {
     //refinement for boxes 
     switch (t) {
-    case EBoxSymbol::SOLID:
+    case EArcSymbol::BOX_SOLID:
         return &chart->Contexts.back().styles["pipe--"];
-    case EBoxSymbol::DASHED:
+    case EArcSymbol::BOX_DASHED:
         return &chart->Contexts.back().styles["pipe++"];
-    case EBoxSymbol::DOTTED:
+    case EArcSymbol::BOX_DOTTED:
         return &chart->Contexts.back().styles["pipe.."];
-    case EBoxSymbol::DOUBLE:
+    case EArcSymbol::BOX_DOUBLE:
         return &chart->Contexts.back().styles["pipe=="]; 
     default:
         _ASSERT(0);
@@ -4661,7 +4720,7 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
         //Use the style of the first box in the series as a base
         StyleCoW s = series.front()->style;
         //Override with the line type specified (if any)
-        _ASSERT(f->type != EBoxSymbol::UNDETERMINED_FOLLOW);
+        _ASSERT(f->type != EArcSymbol::BOX_UNDETERMINED_FOLLOW);
         s += *f->GetRefinementStyle4PipeSymbol(f->type);
         s += f->style; //add the result of attributes
         f->style = s;
@@ -5542,16 +5601,17 @@ void ArcPipeSeries::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDivider::ArcDivider(EDividerSymbol t, Msc *msc) :
+ArcDivider::ArcDivider(EArcSymbol t, Msc *msc) :
     ArcLabelled(MscProgress::DIVIDER, msc),
-    type(t), nudge(t==EDividerSymbol::NUDGE),
-    title(t==EDividerSymbol::TITLE || t==EDividerSymbol::SUBTITLE),
+    type(t), nudge(t==EArcSymbol::DIV_NUDGE),
+    title(t==EArcSymbol::DIV_TITLE || t==EArcSymbol::DIV_SUBTITLE),
     wide(false),
-    extra_space(t==EDividerSymbol::DISCO ? msc->discoVgap :
-                t==EDividerSymbol::TITLE ? msc->titleVgap :
-                t==EDividerSymbol::SUBTITLE ? msc->subtitleVgap :
+    extra_space(t==EArcSymbol::DIV_DISCO ? msc->discoVgap :
+                t==EArcSymbol::DIV_TITLE ? msc->titleVgap :
+                t==EArcSymbol::DIV_SUBTITLE ? msc->subtitleVgap :
                 0)
 {
+    _ASSERT(IsArcSymbolDivider(type));
 }
 
 
@@ -5561,16 +5621,16 @@ void ArcDivider::SetStyleBeforeAttributes()
     default:
         _ASSERT(0);
         //fallthrough
-    case EDividerSymbol::DISCO:
+    case EArcSymbol::DIV_DISCO:
         SetStyleWithText("divider", &chart->Contexts.back().styles["..."]); break;
-    case EDividerSymbol::DIVIDER:
+    case EArcSymbol::DIV_DIVIDER:
         SetStyleWithText("divider", &chart->Contexts.back().styles["---"]); break;
-    case EDividerSymbol::VSPACE:
-    case EDividerSymbol::NUDGE:
+    case EArcSymbol::DIV_VSPACE:
+    case EArcSymbol::DIV_NUDGE:
         SetStyleWithText("divider", NULL); break;
-    case EDividerSymbol::TITLE:
+    case EArcSymbol::DIV_TITLE:
         SetStyleWithText("title", NULL); break;
-    case EDividerSymbol::SUBTITLE:
+    case EArcSymbol::DIV_SUBTITLE:
         SetStyleWithText("subtitle", NULL); break;
     }
 }
@@ -5606,12 +5666,12 @@ ArcBase* ArcDivider::PostParseProcess(Canvas &canvas, bool hide, EIterator &left
     if (!valid) return NULL;
     string ss;
     switch (type) {
-    case EDividerSymbol::VSPACE:   ss = "This element";  break;
-    case EDividerSymbol::DISCO:    ss = "'...'"; break;
-    case EDividerSymbol::DIVIDER:  ss = "'---'"; break;
-    case EDividerSymbol::TITLE:    ss = "Titles"; break;
-    case EDividerSymbol::SUBTITLE: ss = "Subtitles"; break;
-    case EDividerSymbol::NUDGE:    ss = "Nudges"; break;
+    case EArcSymbol::DIV_VSPACE:   ss = "This element";  break;
+    case EArcSymbol::DIV_DISCO:    ss = "'...'"; break;
+    case EArcSymbol::DIV_DIVIDER:  ss = "'---'"; break;
+    case EArcSymbol::DIV_TITLE:    ss = "Titles"; break;
+    case EArcSymbol::DIV_SUBTITLE: ss = "Subtitles"; break;
+    case EArcSymbol::DIV_NUDGE:    ss = "Nudges"; break;
     default: _ASSERT(0); break;
     }
 
@@ -5711,7 +5771,7 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     else if (title && (style.read().line.type.second != LINE_NONE || style.read().fill.color.second.type!=ColorType::INVALID))
         area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
                       y-lw, y+wh.y+lw);
-    else if (area.IsEmpty() && type!=EDividerSymbol::VSPACE)
+    else if (area.IsEmpty() && type!=EArcSymbol::DIV_VSPACE)
         //for VSPACE with no text and line (and thus empty 'area' so far) we only add a mainline
         area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                      centerline-chart->nudgeSize/2, centerline+chart->nudgeSize/2);
@@ -5721,7 +5781,7 @@ void ArcDivider::Layout(Canvas &canvas, AreaList *cover)
     if (title)
         height += 2*style.read().line.LineWidth() + style.read().shadow.offset.second;
     //Discontinuity lines cannot be compressed much
-    if (type==EDividerSymbol::DISCO || title)
+    if (type==EArcSymbol::DIV_DISCO || title)
         area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                               wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
@@ -5746,7 +5806,7 @@ void ArcDivider::PostPosProcess(Canvas &canvas)
     if (!valid) return;
     if (!nudge)
         chart->HideEntityLines(text_cover);
-    if (type == EDividerSymbol::DISCO)
+    if (type == EArcSymbol::DIV_DISCO)
         entityLineRange = area.mainline.GetBoundingBox().y; //will never be compressed away
     else
         entityLineRange = area.GetBoundingBox().y;

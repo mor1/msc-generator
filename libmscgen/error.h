@@ -170,6 +170,10 @@ public:
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
     void FatalError(FileLineCol linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, true); hadFatal=true;}
+    /** Notifies of an mscgen compatibility feature.
+    * @param [in] linenum The location of the error.
+    * @param [in] s The message to display*/
+    void MscgenCompat(FileLineCol linenum, const std::string &s);
 
     /** Print all the errors (and warnings) onto a string*/
     std::string Print(bool oWarnings) const;

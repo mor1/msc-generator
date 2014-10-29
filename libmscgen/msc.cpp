@@ -380,6 +380,7 @@ Msc::Msc() :
     ignore_designs = false;
     simple_arc_parallel_layout = false;
     prepare_for_tracking = true;
+    mscgen_compat_mode = false;
 
     current_file = Error.AddFile("[config]");
     
@@ -634,12 +635,20 @@ double Msc::GetEntityMaxPosExp() const
 ArcArrow *Msc::CreateArcArrow(ArrowSegmentData data, const char*s, const FileLineColRange &sl,
                               const char*d, bool fw, const FileLineColRange &dl)
 {
-    _ASSERT(data.type.is_arrow);
+    //First check if we need to handle mscgen compatibility
+    if (!mscgen_compat_mode && IsArcSymbolMscgenCompatArrow(data.type)) {
+        Error.MscgenCompat(data.lost_pos.CopyTo().start, "Unrecognized arrow symbol.");
+        return NULL;
+    }
+    if (mscgen_compat_mode) {
+        //translate -X
+    }
+    _ASSERT(IsArcSymbolArrow(data.type));
     if (strcmp(s,d))
         return new ArcDirArrow(data, s, sl, d, dl, this, fw);
     if (data.lost != EArrowLost::NOT)
         Error.Error(data.lost_pos.CopyTo().start, "No support for arrows pointing to the same entity in this version. Ignoring asterisk.");
-    return new ArcSelfArrow(data.type.s.arrow, s, sl, this, selfArrowYSize);
+    return new ArcSelfArrow(data.type, s, sl, this, selfArrowYSize);
 }
 
 ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
@@ -648,6 +657,12 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
     //We can only get ArcSelfArrow or ArcDirArrow here
     if (!arrow) {
         Error.Error(base->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
+        return NULL;
+    }
+    //Do not promote mscgen syntaxed arrows to block arrows.
+    if (IsArcSymbolMscgenCompatArrow()) {
+        _ASSERT(mscgen_compat_mode);
+        Error.Error(base->file_pos.start, "Unrecognized arrow symbol for a block arrow.");
         return NULL;
     }
     return new ArcBigArrow(*arrow);
