@@ -205,25 +205,36 @@ H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND
 (?i:bracket)   yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 (?i:range)     yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
 (?i:pointer)   yylval_param->str = strdup(yytext); return TOK_VERTICAL_SHAPE;
+(?i:rbox)      yylval_param->str = strdup(yytext); return TOK_MSCGEN_RBOX;
+(?i:abox)      yylval_param->str = strdup(yytext); return TOK_MSCGEN_ABOX;
 
-\.\.\.   yylval_param->dividersymbol = EDividerSymbol::DISCO;   return TOK_SPECIAL_ARC;      // ...
----      yylval_param->dividersymbol = EDividerSymbol::DIVIDER; return TOK_SPECIAL_ARC;      // ---
--\>      yylval_param->arrowsymbol = EArrowSymbol::SOLID;       return TOK_REL_SOLID_TO;     // ->
-\<-      yylval_param->arrowsymbol = EArrowSymbol::SOLID;       return TOK_REL_SOLID_FROM;   // <-
-\<-\>    yylval_param->arrowsymbol = EArrowSymbol::SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
-=\>      yylval_param->arrowsymbol = EArrowSymbol::DOUBLE;      return TOK_REL_DOUBLE_TO;    //  = >
-\<=      yylval_param->arrowsymbol = EArrowSymbol::DOUBLE;      return TOK_REL_DOUBLE_FROM;  // < = 
-\<=\>    yylval_param->arrowsymbol = EArrowSymbol::DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // < = >
-\>\>     yylval_param->arrowsymbol = EArrowSymbol::DASHED;      return TOK_REL_DASHED_TO;    // >>
-\<\<     yylval_param->arrowsymbol = EArrowSymbol::DASHED;      return TOK_REL_DASHED_FROM;  // <<
-\<\<\>\> yylval_param->arrowsymbol = EArrowSymbol::DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
-\>       yylval_param->arrowsymbol = EArrowSymbol::DOTTED;      return TOK_REL_DOTTED_TO;    // >
-\<       yylval_param->arrowsymbol = EArrowSymbol::DOTTED;      return TOK_REL_DOTTED_FROM;  // <
-\<\>     yylval_param->arrowsymbol = EArrowSymbol::DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
---       yylval_param->boxsymbol = EBoxSymbol::SOLID;           return TOK_EMPH;             // --
-\+\+     yylval_param->boxsymbol = EBoxSymbol::DASHED;          return TOK_EMPH_PLUS_PLUS;   // ++
-\.\.     yylval_param->boxsymbol = EBoxSymbol::DOTTED;          return TOK_EMPH;             // ..
-==       yylval_param->boxsymbol = EBoxSymbol::DOUBLE;          return TOK_EMPH;             //  =  = 
+\.\.\.   yylval_param->arcsymbol = EArcSymbol::DIV_DISCO;       return TOK_SPECIAL_ARC;// ...
+---      yylval_param->arcsymbol = EArcSymbol::DIV_DIVIDER;     return TOK_SPECIAL_ARC;// ---
+-\>      yylval_param->arcsymbol = EArcSymbol::ARC_SOLID;       return TOK_REL_TO;     // ->
+\<-      yylval_param->arcsymbol = EArcSymbol::ARC_SOLID;       return TOK_REL_FROM;   // <-
+\<-\>    yylval_param->arcsymbol = EArcSymbol::ARC_SOLID_BIDIR; return TOK_REL_BIDIR;  // <->
+=\>      yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE;      return TOK_REL_TO;     // =>
+\<=      yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE;      return TOK_REL_FROM;   // <= 
+\<=\>    yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE_BIDIR;return TOK_REL_BIDIR;  // <=>
+\>\>     yylval_param->arcsymbol = EArcSymbol::ARC_DASHED;      return TOK_REL_TO;     // >>
+\<\<     yylval_param->arcsymbol = EArcSymbol::ARC_DASHED;      return TOK_REL_FROM;   // <<
+\<\<\>\> yylval_param->arcsymbol = EArcSymbol::ARC_DASHED_BIDIR;return TOK_REL_BIDIR;  // <<>>
+\>       yylval_param->arcsymbol = EArcSymbol::ARC_DOTTED;      return TOK_REL_TO;     // >
+\<       yylval_param->arcsymbol = EArcSymbol::ARC_DOTTED;      return TOK_REL_FROM;   // <
+\<\>     yylval_param->arcsymbol = EArcSymbol::ARC_DOTTED_BIDIR;return TOK_REL_BIDIR;  // <>
+=\>\>    yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL;      return TOK_REL_TO;     // =>>
+\<\<=    yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL;      return TOK_REL_FROM;   // <<=
+\<\<=\>\> yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL_BIDIR;return TOK_REL_BIDIR; // <<=>>
+\:\>     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_TO;     // :>
+\<\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_FROM;   // <:
+\<\:\>   yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR; return TOK_REL_BIDIR;  // <:>
+-(?i:x)/[^a-zA-Z0-9\._] yylval_param->arcsymbol = EArcSymbol::ARC_X; return TOK_REL_TO;     // -X not followed by alphanum
+(?i:x)-  yylval_param->arcsymbol = EArcSymbol::ARC_X;           return TOK_REL_FROM;   // X-
+
+--       yylval_param->arcsymbol = EArcSymbol::BOX_SOLID;       return TOK_EMPH;       // --
+\+\+     yylval_param->arcsymbol = EArcSymbol::BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;// ++
+\.\.     yylval_param->arcsymbol = EArcSymbol::BOX_DOTTED;      return TOK_EMPH;       // ..
+==       yylval_param->arcsymbol = EArcSymbol::BOX_DOUBLE;      return TOK_EMPH;       // == 
 \+=      return TOK_PLUS_EQUAL;
 -        return TOK_DASH;
 \+       return TOK_PLUS;

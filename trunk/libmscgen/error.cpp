@@ -127,6 +127,12 @@ void MscError::_sort(std::vector<ErrorElement> &store)
                 }
 }
 
+void MscError::MscgenCompat(FileLineCol linenum, const std::string &s)
+{ 
+    Add(linenum, linenum, s+" (This is an mscgen syntax.)", "", true); 
+}
+
+
 string MscError::Print(bool oWarnings) const
 {
     string a;

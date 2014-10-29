@@ -495,6 +495,7 @@ public:
     bool ignore_designs;             ///<Ignore design changes
     bool simple_arc_parallel_layout; ///<If false, we use Msc::HeightArcLists() to lay out ArcParallel*/
     bool prepare_for_tracking;       ///<If true, all elements shall compute an 'area' member, we fill 'AllCovers' and 'AllArcs'. 
+    bool mscgen_compat_mode;         ///<If true, we treat input as an mscgen .msc file.
        
     EntityCollapseCatalog force_entity_collapse;      ///<These entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;         ///<These boxes must be collapsed/expanded

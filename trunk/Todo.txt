@@ -48,10 +48,16 @@ MEDIUM PRIO
 		ADD: Allow arrow to a group entity...
 
 In 4.5 (experimental)
+ADDED: Color to recognize #010203 rgb spec
+ADDED: mscgen color names (W3C color names indeed)
+ADDED: Text background color
+ADD: alternative forms of attribute names
+ADD: Global attribute for slant_depth
+ADD: Other mscgen global attributes
+ADD: mscgen design
 ADD: style to apply to arrows starting from an entity
 ADD: color and arrowhead attributes to arrow refinement styles
 ADD: Broadcast flag to arrow segments (plus select last entity if no destination specified)
-ADD: Text background color
 ADD: msc-gen compatibility mode
 
 In 4.4~rc6

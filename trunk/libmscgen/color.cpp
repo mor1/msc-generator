@@ -38,10 +38,21 @@ ColorType::ColorType(const string&text)
     }
 
     double fr, fg, fb, fa=0;
-    int db = sscanf(text.c_str()+pos,"%lf,%lf,%lf,%lf", &fr, &fg, &fb, &fa);
+    int db;
+    if (text.c_str()[pos]=='#') {
+        //text is in #010203 format (mscgen)
+        if (text.length()<pos+7) return;
+        int ir, ig, ib;
+        db = sscanf(text.c_str()+pos+1, "%2x%2x%2x", &ir, &ig, &ib);
+        fr = ir;
+        fg = ig;
+        fb = ib;
+    } else {
+        db = sscanf(text.c_str()+pos, "%lf,%lf,%lf,%lf", &fr, &fg, &fb, &fa);
+    }
     if (db<3) return;
-    if (fr<0 || fr>255 || fg<0 || fg>255 || fb<0 || fb>255) return;
     if (db == 4 && (fa<0 || fa>255)) return;
+    if (fr<0 || fr>255 || fg<0 || fg>255 || fb<0 || fb>255) return;
     if (fr<=1.0 && fg<=1.0 && fb<=1.0 && fa<=1.0) {
         fr *= 255;
         fg *= 255;

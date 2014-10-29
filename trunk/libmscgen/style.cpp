@@ -1007,14 +1007,32 @@ void Context::Plain()
 
     colors.clear();
     colors["none"]  = ColorType(  0,   0,   0, 0);
+    //W3C colors
     colors["black"] = ColorType(  0,   0,   0);
     colors["white"] = ColorType(255, 255, 255);
     colors["red"]   = ColorType(255,   0,   0);
     colors["green"] = ColorType(  0, 255,   0);
     colors["blue"]  = ColorType(  0,   0, 255);
     colors["yellow"]= ColorType(255, 255,   0);
-    colors["gray"]  = ColorType(150, 150, 150);
+    colors["gray"] = ColorType(128, 128, 128);
+    colors["silver"] = ColorType(0xc0, 0xc0, 0xc0);
+    colors["maroon"] = ColorType(0x80, 0x00, 0x00);
+    colors["orange"] = ColorType(0xff, 0xb0, 0x00);
+    colors["olive"] = ColorType(0x80, 0x80, 0x00);
+    colors["lime"] = ColorType(0, 255, 0);
+    colors["aqua"] = ColorType(0, 255, 255);
+    colors["teal"] = ColorType(0, 128, 128);
+    colors["navy"] = ColorType(0,   0, 128);
+    colors["indigo"] = ColorType(0x44, 0x00, 0x88);
+    colors["purple"] = ColorType(128, 0, 128);
+    colors["violet"] = ColorType(0xd0, 0x20, 0x90);
+    colors["fuchsia"] = ColorType(0xff, 0x00, 0xff);
+    //Additional colors
     colors["lgray"] = ColorType(200, 200, 200);
+
+
+
+
 
     const std::pair<bool, ColorType> faint(true, ColorType(255, 255, 255, 224, ColorType::OVERLAY));
 
