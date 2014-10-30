@@ -170,10 +170,15 @@ public:
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
     void FatalError(FileLineCol linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, true); hadFatal=true;}
-    /** Notifies of an mscgen compatibility feature.
+    /** Notifies of an mscgen feature (which is otherwise working, but we do not plan to maintain).
     * @param [in] linenum The location of the error.
     * @param [in] s The message to display*/
-    void MscgenCompat(FileLineCol linenum, const std::string &s);
+    void WarnMscgen(FileLineCol linenum, const std::string &s);
+    /** Notifies of an mscgen attr/option (which is otherwise accepted, but we do not plan to maintain).
+    * @param [in] a The faulty attribute.
+    * @param [in] isOption True if this is a chart option, false if an attribute
+    * @param [in] name The name of the attribute to use instead*/
+    void WarnMscgenAttr(const Attribute &a, bool isOption, const char *name);
 
     /** Print all the errors (and warnings) onto a string*/
     std::string Print(bool oWarnings) const;

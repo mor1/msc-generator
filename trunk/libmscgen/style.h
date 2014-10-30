@@ -80,7 +80,7 @@ class MscStyle
 protected:
     friend class Context;
     MscStyle(EStyleType tt, EColorMeaning cm, ArrowHead::EArcArrowType a, 
-             bool t, bool l, bool f, bool s, bool vl,
+             bool alt, bool t, bool l, bool f, bool s, bool vl,
              bool so, bool nu, bool co, ESideType si, bool i, bool vf, bool mr, bool n,
              bool lo, bool lsym, bool shp, bool tag);
 public:
@@ -90,6 +90,8 @@ public:
     FillAttr vfill;    ///<The vfill attributes
     ShadowAttr shadow; ///<The shadow attributes
     ArrowHead arrow;   ///<The arrow attributes
+    LineAttr aline;    ///<The aline attibutes influencing arrows starting from an entity.
+    StringFormat atext;///<The atext attibutes influencing arrows starting from an entity.
     StringFormat text; ///<The text attributes
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
     std::pair<bool, ESide>         side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
@@ -127,6 +129,7 @@ public:
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
     bool f_note;       ///<True if the style contains note attributes.
     ArrowHead::EArcArrowType f_arrow; ///<Shows which type of arrow attributes the style contains.
+    bool f_alt;        ///<True if the style has aline and atext
     bool f_lost;       ///<Governs if the style has lost parts.
     bool f_lsym;       ///<Governs if the style has loss symbol
     bool f_shape;      ///<Governs if the style has entity shape attributes

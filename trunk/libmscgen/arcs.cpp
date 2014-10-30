@@ -748,13 +748,21 @@ void ArcLabelled::AddAttributeListStep2(const FileLineCol &label_pos)
         vspacing = style.read().vspacing.second;
     //Then convert color and style names in labels
     if (label.length()>0) {
+        //Add url, id and idurl
         if (url.length()) {
             if (StringFormat::HasLinkEscapes(label.c_str()))
                 chart->Error.Error(linenum_url_attr, "The label contains '\\L' escapes, ignoring 'url' attribute.",
                 "Use only one of the 'url' attribute and '\\L' escapes.");
-            else
+            else 
                 label.insert(0, "\\L("+url+")").append("\\L()");
         }
+        if (id.length()) {
+            if (idurl.length())
+                label.append("\\^\\L(").append(idurl).append(")").append(id).append("\\L()");
+            else
+                label.append("\\^").append(id);
+        } else if (idurl.length())
+            chart->Error.Error(linenum_idurl_attr, "No 'id' attribute to attach the URL to. Ignoring attribute.");
         StringFormat basic = style.read().text;
         basic.Apply(label.c_str()); //do not change 'label'
         StringFormat::ExpandReferences(label, chart, label_pos, &basic,
@@ -820,17 +828,26 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         style.write().numbering.second = true;
         return true;
     }
-    if (a.Is("id")) {
-        chart->Error.Error(a, false, "Attribute '" + a.name
-                           + "' is no longer supported. Ignoring it.",
-                          "Try '\\^' inside a label for superscript.");
-        return true;
-    }
     if (a.Is("url")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
         url = a.value;
         linenum_url_attr = a.linenum_attr.start;
+        return true;
+    }
+    if (a.Is("id")) {
+        if (chart->warn_mscgen)
+            chart->Error.WarnMscgenAttr(a, false, "\\^ (inside a label)");
+        id = a.value;
+        return true;
+    }
+    if (a.Is("idurl")) {
+        if (chart->warn_mscgen)
+            chart->Error.WarnMscgenAttr(a, false, "\\L() (inside a label)");
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        idurl = a.value;
+        linenum_idurl_attr = a.linenum_attr.start;
         return true;
     }
     if (a.Is("draw_time")) {
@@ -1438,7 +1455,10 @@ bool ArcDirArrow::AddAttribute(const Attribute &a)
             slant_depth = a.number;
         }
         return true;
-
+    }
+    if (a.Is("arcskip")) {
+        chart->Error.Error(a, false, "The 'arcskip' architecture of mscgen is not supported. Ignoring it.");
+        return true;
     }
     return ArcArrow::AddAttribute(a);
 }
@@ -3698,13 +3718,10 @@ bool ArcBox::AddAttribute(const Attribute &a)
         tag_label = a.value;
         return true;
     }
-    if (a.Is("textbgcolour") || a.Is("textbgcolor")) 
-        if (mscgen_compat!=MSCGEN_COMPAT_NONE) {
-            Attribute aa(a);
-            aa.name = "fill.color";
-            return ArcLabelled::AddAttribute(aa);
-        } //else fallthrough
-
+    if (mscgen_compat!=MSCGEN_COMPAT_NONE && 
+        (a.Is("textbgcolour") || a.Is("textbgcolor")))
+        return ArcLabelled::AddAttribute(Attribute("fill.color", a));
+        //else fallthrough
     return ArcLabelled::AddAttribute(a);
 }
 

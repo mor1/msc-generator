@@ -270,6 +270,9 @@ public:
     Attribute(const char*a, const FileLineColRange &l) :
         type(MSC_ATTR_STYLE), name(a),
         linenum_attr(l), linenum_value(l), error(false) {}
+    /** Creates a copy of the attribute under a different name */
+    Attribute(const char *n, const Attribute &a) : 
+        Attribute(a) { name = n; }
 
     string Print(int indent=0) const;
     bool Is(const char *a) const

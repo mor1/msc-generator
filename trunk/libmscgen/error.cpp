@@ -127,9 +127,17 @@ void MscError::_sort(std::vector<ErrorElement> &store)
                 }
 }
 
-void MscError::MscgenCompat(FileLineCol linenum, const std::string &s)
+void MscError::WarnMscgen(FileLineCol linenum, const std::string &s)
 { 
-    Add(linenum, linenum, s+" (This is an mscgen syntax.)", "", true); 
+    Add(linenum, linenum, s+" (This is an mscgen syntax.)", "", false); 
+}
+
+void MscError::WarnMscgenAttr(const Attribute &a, bool isOption, const char *name)
+{
+    const string ao = isOption ? "Option" : "Attribute";
+    Add(a.linenum_attr.start, a.linenum_attr.start, 
+        ao + " is according to mscgen syntax. Use '"+name+"' instead.", 
+        "", false);
 }
 
 
