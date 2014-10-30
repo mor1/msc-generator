@@ -381,6 +381,7 @@ Msc::Msc() :
     simple_arc_parallel_layout = false;
     prepare_for_tracking = true;
     mscgen_compat_mode = false;
+    warn_mscgen = true;
 
     current_file = Error.AddFile("[config]");
     

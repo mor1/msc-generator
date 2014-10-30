@@ -51,14 +51,38 @@ In 4.5 (experimental)
 ADDED: Color to recognize #010203 rgb spec
 ADDED: mscgen color names (W3C color names indeed)
 ADDED: Text background color
-ADD: alternative forms of attribute names
+ADDED: alternative forms of attribute names
+ADDED: style to apply to arrows starting from an entity
+ADD: Arrows to actually take the atext aline and arrow attribute of the src entity
 ADD: Global attribute for slant_depth
 ADD: Other mscgen global attributes
 ADD: mscgen design
-ADD: style to apply to arrows starting from an entity
 ADD: color and arrowhead attributes to arrow refinement styles
 ADD: Broadcast flag to arrow segments (plus select last entity if no destination specified)
 ADD: msc-gen compatibility mode
+
+This is how it works.
+- Three modes: signalling, signalling-warning (for mscgen constructs) and
+  mscgen compat mode 
+- All non conflicting mscgen attributes and arrow symbols and accepted in all modes
+  but they give warning in signalling-warning mode
+	- textbkcolor on empty boxes -> fill.color
+	- wordwraparcs -> arrow.text.word_wrap = yes
+	- arcskip -> slant_depth
+	- arcgradient is translated to a degree -> angle (gives warning with hscale=auto)
+- Conflicting constructs are as follows
+   - -x and ->*: these are interpreted differently in the signalling and mscgen modes
+   - hscale value interpreted differently in mscgen mode
+   - style of arrows is different under mscgen mode
+   - word wrapping is enabled for mscgen defined boxes in mscgen mode
+
+Special features to cater for in both modes
+- text.bkcolor (no warning)
+- ||| (no warning)
+- Tpdf (no warning)
+- aline.*, atext.*, arrow.* on entities to influence arrows starting 
+  from this entity (no warning)
+- width 
 
 In 4.4~rc6
 DOCED: The font selection on Linux and the use of fontconfig.
