@@ -836,14 +836,12 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         return true;
     }
     if (a.Is("id")) {
-        if (chart->warn_mscgen)
-            chart->Error.WarnMscgenAttr(a, false, "\\^ (inside a label)");
+        chart->Error.WarnMscgenAttr(a, false, "\\^ (inside a label)");
         id = a.value;
         return true;
     }
     if (a.Is("idurl")) {
-        if (chart->warn_mscgen)
-            chart->Error.WarnMscgenAttr(a, false, "\\L() (inside a label)");
+        chart->Error.WarnMscgenAttr(a, false, "\\L() (inside a label)");
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
         idurl = a.value;
@@ -992,6 +990,14 @@ const StyleCoW *ArcArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
     case EArcSymbol::ARC_DOUBLE:
     case EArcSymbol::ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["=>"];
+    case EArcSymbol::ARC_DBLDBL:
+    case EArcSymbol::ARC_DBLDBL_BIDIR:
+        return &chart->Contexts.back().styles["=>>"];
+    case EArcSymbol::ARC_COLON:
+    case EArcSymbol::ARC_COLON_BIDIR:
+        return &chart->Contexts.back().styles[":>"];
+    case EArcSymbol::ARC_X:
+        return &chart->Contexts.back().styles["-x"]; //this is an empty style if not mscgen-compat
     case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
     default:
         _ASSERT(0);
@@ -1391,7 +1397,7 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
 {
     //Handle mscgen compatibility
     //Handle ->* in compatibility mode
-    if (chart->mscgen_compat_mode && 
+    if (chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
         middle.size()==0 && //single segment
         lost_at == 0 && //lost at 'dst'
         segment_types[0] == EArcSymbol::ARC_SOLID &&
@@ -1400,8 +1406,7 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
         valid = false;
         return;
     }
-    //Generate forced arrowheads and line styles for mscgen compat mode
-    XXX;
+
 
     //Save the style, empty it, collect all modifications and apply those to segments, too
     //This will work even if we are a BigArrow, as 

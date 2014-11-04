@@ -274,13 +274,11 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         if (a.StartsWith("text") || a.Is("ident"))
             return text.AddAttribute(a, msc, type);
         if (a.Is("textcolor") || a.Is("textcolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "text.color");
+            msc->Error.WarnMscgenAttr(a, false, "text.color");
             text.AddAttribute(Attribute("text.color", a), msc, type);
         }
         if (a.Is("textbgcolor") || a.Is("textbgcolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "text.bgcolor");
+            msc->Error.WarnMscgenAttr(a, false, "text.bgcolor");
             text.AddAttribute(Attribute("text.bgcolor", a), msc, type);
         }
     }
@@ -288,8 +286,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         if (a.StartsWith("line"))
             return line.AddAttribute(a, msc, type);
         if (a.Is("linecolor") || a.Is("linecolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "line.color");
+            msc->Error.WarnMscgenAttr(a, false, "line.color");
             line.AddAttribute(Attribute("line.color", a), msc, type);
         }
     }
@@ -309,18 +306,15 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         if (a.StartsWith("atext"))
             return atext.AddAttribute(a, msc, type);
         if (a.Is("arclinecolor") || a.Is("arclinecolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "aline.color");
+            msc->Error.WarnMscgenAttr(a, false, "aline.color");
             line.AddAttribute(Attribute("aline.color", a), msc, type);
         }
         if (a.Is("arctextcolor") || a.Is("arctextcolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "atext.color");
+            msc->Error.WarnMscgenAttr(a, false, "atext.color");
             text.AddAttribute(Attribute("atext.color", a), msc, type);
         }
         if (a.Is("arctextbgcolor") || a.Is("arctextbgcolour")) {
-            if (msc->warn_mscgen)
-                msc->Error.WarnMscgenAttr(a, false, "atext.bgcolor");
+            msc->Error.WarnMscgenAttr(a, false, "atext.bgcolor");
             text.AddAttribute(Attribute("atext.bgcolor", a), msc, type);
         }
     }

@@ -362,7 +362,7 @@ public:
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
     unsigned             *use_scheme;      ///<A pointer to the color scheme to use or NULL if unknown. Used to ignore CSH entries same as COLOR_NORMAL.                   
     const std::set<std::string> *fontnames;///<A list of font names for hinting (NULL if none).
-    bool mscgen_compat_mode;               ///<True if we accept mscgen syntax
+    EMscgenCompat mscgen_compat;           ///<How shall we approach mscgen compatibility. 
     /** @} */
 
     /** Initializes the Csh Object.
@@ -387,11 +387,11 @@ public:
     void AddCSH_Error(const CshPos&pos, const char *text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
     void AddCSH_Error(const CshPos&pos, const std::string &text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
     void AddCSH_Error(const CshPos&pos, std::string &&text) { CshErrors.Add(pos, std::move(text)); } ///<The basic variant for errors: add error "text" at this location
-    void AddCSH_Error_Mscgen(const CshPos&pos) { if (!mscgen_compat_mode) AddCSH_Error(pos, "This is mscgen syntax."); } ///<Notifies of an mscgen syntax, if not in compatibility mode
+    void AddCSH_Error_Mscgen(const CshPos&pos) { if (mscgen_compat != EMscgenCompat::FORCE_MSCGEN) AddCSH_Error(pos, "This is mscgen syntax."); } ///<Notifies of an mscgen syntax, if not in compatibility mode
     void AddCSH_ErrorAfter(const CshPos&pos, const char *text); ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range
-    void AddCSH_ErrorAfter_Mscgen(const CshPos&pos) { if (!mscgen_compat_mode) AddCSH_ErrorAfter(pos, "This is mscgen syntax."); } ///<Notifies of an mscgen syntax, if not in compatibility mode
+    void AddCSH_ErrorAfter_Mscgen(const CshPos&pos) { if (mscgen_compat != EMscgenCompat::FORCE_MSCGEN) AddCSH_ErrorAfter(pos, "This is mscgen syntax."); } ///<Notifies of an mscgen syntax, if not in compatibility mode
     void AddCSH_KeywordOrEntity(const CshPos&pos, const char *name);
     void AddCSH_ColonString_CheckAndAddEscapeHint(const CshPos& pos, const char *value, bool unquoted);
     void AddCSH_AttrName(const CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
