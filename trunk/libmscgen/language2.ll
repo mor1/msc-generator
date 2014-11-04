@@ -165,6 +165,9 @@ S	yylval_param->shapecommand = ShapeElement::SECTION_BG; return TOK_SHAPE_COMMAN
 T	yylval_param->shapecommand = ShapeElement::TEXT_AREA; return TOK_SHAPE_COMMAND;
 H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND;
 
+ /* This is used for mscgen style loss arrow symbol -x and x-*/
+X|x yylval_param->str = strdup(yytext);  return TOK_REL_X;
+
  /* These keywords are case insensitive */
 (?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;
 (?i:heading)   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
@@ -228,8 +231,6 @@ H	yylval_param->shapecommand = ShapeElement::HINT_AREA; return TOK_SHAPE_COMMAND
 \:\>     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_TO;     // :>
 \<\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_FROM;   // <:
 \<\:\>   yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR; return TOK_REL_BIDIR;  // <:>
--(?i:x)/[^a-zA-Z0-9\._] yylval_param->arcsymbol = EArcSymbol::ARC_X; return TOK_REL_TO;     // -X not followed by alphanum
-(?i:x)-  yylval_param->arcsymbol = EArcSymbol::ARC_X;           return TOK_REL_FROM;   // X-
 
 --       yylval_param->arcsymbol = EArcSymbol::BOX_SOLID;       return TOK_EMPH;       // --
 \+\+     yylval_param->arcsymbol = EArcSymbol::BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;// ++

@@ -1076,7 +1076,7 @@ Csh::Csh(const Context &defaultDesign, const ShapeCollection *shapes,
     cursor_pos(-1),
     use_scheme(NULL), 
     fontnames(fn),
-    mscgen_compat_mode(false)
+    mscgen_compat(EMscgenCompat::AUTODETECT)
 {
     for (auto i=defaultDesign.styles.begin(); i!=defaultDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);

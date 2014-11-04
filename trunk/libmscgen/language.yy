@@ -74,7 +74,7 @@
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
        TOK_ASTERISK
        TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME TOK_COLORDEF
-       TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR
+       TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR TOK_REL_X
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -128,7 +128,7 @@
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
-%type <arcsymbol>  TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR
+%type <arcsymbol>  TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR 
                    relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
                    TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
                    TOK_SPECIAL_ARC
@@ -156,7 +156,7 @@
                    TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
                    TOK_COMMAND_COMMENT TOK_COMMAND_ENDNOTE TOK_COMMAND_FOOTNOTE
                    TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE TOK_COMMAND_TEXT TOK_VERTICAL_SHAPE
-                   TOK_MSCGEN_RBOX TOK_MSCGEN_ABOX
+                   TOK_MSCGEN_RBOX TOK_MSCGEN_ABOX TOK_REL_X
 %type <stringlist> stylenamelist
 %type <vshape>     vertical_shape
 %type<arctypeplusdir> empharcrel_straight
@@ -271,19 +271,6 @@ msc:
     //no action for empty file
   #endif
 }
-              | TOK_MSC braced_arclist
-{
-  #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckLineStartHintBefore(@1) || csh.CheckLineStartHintAt(@1)) {
-        csh.AddLineBeginToHints();
-        csh.hintStatus = HINT_READY;
-    }
-    csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-    msc.AddArcs($2);
-  #endif
-    free($1);
-}
               | msckey braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
@@ -371,7 +358,19 @@ top_level_arclist: arclist_maybe_no_semicolon
 };
 
 
-msckey:       TOK_MSC TOK_EQUAL
+msckey:       TOK_MSC 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.mscgen_compat == EMscgenCompat::AUTODETECT)
+        csh.mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+  #else
+    if (msc.mscgen_compat == EMscgenCompat::AUTODETECT)
+        msc.mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+  #endif
+    free($1);
+}
+               | TOK_MSC TOK_EQUAL
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -636,7 +635,8 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    ($1)->AddAttributeList(NULL);
+    if ($1)
+        ($1)->AddAttributeList(NULL);
     $$=($1);
   #endif
 }
@@ -648,7 +648,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($1)->AddAttributeList($2);
+    if ($1)
+        ($1)->AddAttributeList($2);
     $$ = ($1);
   #endif
 }
@@ -3527,7 +3528,7 @@ mscgen_boxrel: entity_string mscgen_emphrel entity_string
 #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.mscgen_compat_mode)
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
         csh.AddCSH(@2, COLOR_KEYWORD);
     else
         csh.AddCSH_Error_Mscgen(@2);
@@ -3540,8 +3541,8 @@ mscgen_boxrel: entity_string mscgen_emphrel entity_string
     else if (CaseInsensitiveEqual($2, "box")) c = ArcBox::MSCGEN_COMPAT_BOX;
     else if (CaseInsensitiveEqual($2, "note")) c = ArcBox::MSCGEN_COMPAT_NOTE;
     $$ = new ArcBox(c, $1, MSC_POS(@1), $3, MSC_POS(@3), &msc);
-    if (!msc.mscgen_compat_mode)
-        msc.Error.MscgenCompat(MSC_POS(@2).start, "Unrecognized box symbol.");
+    if (msc.mscgen_compat != EMscgenCompat::FORCE_MSCGEN)
+        msc.Error.WarnMscgen(MSC_POS(@2).start, "Unrecognized box symbol.");
 #endif
     free($1);
     free($2);
@@ -4048,7 +4049,141 @@ arcrel:       TOK_SPECIAL_ARC
 
 };
 
-arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir;
+arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
+             | entity_string TOK_DASH TOK_REL_X entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+            csh.AddCSH_EntityName(@4, $4);
+        } else {
+            csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('-').");
+        }
+    } else {
+        csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('-').");
+    }
+  #else
+    if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if (MSC_POS(@2).end.NextChar() == MSC_POS(@3).start) {
+            ArrowSegmentData data;
+            data.type = EArcSymbol::ARC_SOLID;
+            data.lost = EArrowLost::AT_DST;
+            data.lost_pos.SetFrom(MSC_POS(@3));
+            $$ = msc.CreateArcArrow(data, $1, MSC_POS(@1), $4, true, MSC_POS(@4));
+        } else {
+            msc.Error.Error(MSC_POS(@2).start, "Unsupported arrow symbol '-'.",
+                "Perhaps remove the whitespace after?");
+            $$ = NULL;
+        }
+    } else {
+        if (MSC_POS(@2).end.NextChar() == MSC_POS(@3).start) {
+            msc.Error.Error(MSC_POS(@2).start, "This arrow symbol ('-x') is supported only in mscgen compatibility mode.",
+                "Use an asterisk '*' instead to express a lost message (like '-> *').");
+            $$ = NULL;
+        } else {
+            msc.Error.Error(MSC_POS(@2).start, "Unsupported arrow symbol '-'.");
+            $$ = NULL;
+        }
+    }
+  #endif
+    free($1);
+    free($3);
+    free($4);
+}
+             | entity_string TOK_REL_X TOK_DASH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+            csh.AddCSH_EntityName(@4, $4);
+        } else {
+            csh.AddCSH_Error(@2 + @4, "Missing arrow symbol before 'x'.");
+        }
+    } else {
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('x-').");
+        } else {
+            csh.AddCSH_Error(@2 + @4, "Missing arrow symbol before 'x'.");
+        }
+    }
+  #else
+    if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if (MSC_POS(@2).end.NextChar() == MSC_POS(@3).start) {
+            ArrowSegmentData data;
+            data.type = EArcSymbol::ARC_SOLID;
+            data.lost = EArrowLost::AT_DST;
+            data.lost_pos.SetFrom(MSC_POS(@2));
+            $$ = msc.CreateArcArrow(data, $4, MSC_POS(@4), $1, false, MSC_POS(@1));
+        } else {
+            msc.Error.Error(MSC_POS(@2).start, "Missing arrow symbol before 'x'.",
+                "Perhaps remove the whitespace after?");
+            $$ = NULL;
+        }
+    } else {
+        if (MSC_POS(@2).end.NextChar() == MSC_POS(@3).start) {
+            msc.Error.Error(MSC_POS(@2).start, "This arrow symbol ('x-') is supported only in mscgen compatibility mode.",
+                "Use an asterisk '*' instead to express a lost message (like '-> *').");
+            $$ = NULL;
+        } else {
+            msc.Error.Error(MSC_POS(@2).start, "Missing arrow symbol before 'x'.");
+            $$ = NULL;
+        }
+    }
+  #endif
+    free($1);
+    free($2);
+    free($4);
+}
+             | entity_string TOK_DASH TOK_REL_X 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
+        (@2).last_pos+1 == (@3).first_pos) {
+        csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+        csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+    } else {
+        csh.AddCSH_Error(@2, "Not supported arrow symbol '-'.");
+    }
+  #else
+    if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && MSC_POS(@2).end.NextChar() == MSC_POS(@3).start)
+         msc.Error.Error(MSC_POS(@3).end, "Missing an entity name after the loss arrow symbol.");
+    else
+        msc.Error.Error(MSC_POS(@2).start, "Unsupported arrow symbol '-'.");
+    $$ = NULL;
+#endif
+    free($1);
+    free($3);
+}
+             | entity_string TOK_REL_X TOK_DASH 
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && (@2).last_pos+1 == (@3).first_pos) {
+        csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+        csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+    } else {
+        csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'.");
+    }
+  #else
+    if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && MSC_POS(@2).end.NextChar() == MSC_POS(@3).start)
+         msc.Error.Error(MSC_POS(@3).end, "Missing an entity name after the loss arrow symbol.");
+    else
+        msc.Error.Error(MSC_POS(@2).start, "Missing arrow symbol before 'x'.");
+    $$ = NULL;
+#endif
+    free($1);
+    free($2);
+};
+
 
 arcrel_to:    entity_string relation_to entity_string
 {
@@ -5257,6 +5392,7 @@ entity_string: TOK_QSTRING
   $$ = $1;
 }
                | TOK_STRING 
+               | TOK_REL_X
                | TOK_SHAPE_COMMAND
 {
 	$$ = (char*)malloc(2);

@@ -122,6 +122,7 @@ protected:
 
 public:
     std::vector<std::string> Files; ///<The list of files we parsed in
+    bool warn_mscgen;               ///<True if we emit warnings for mscgen features we do not plan to support.
     MscError() : hadFatal(false) {}
     unsigned AddFile(const std::string &filename);  ///<Add another file to the list of files.
     /** Adds a warning.
@@ -199,5 +200,15 @@ public:
     void Clear() {Errors.clear(); ErrorsAndWarnings.clear(); hadFatal=false;}
     MscError &operator+=(const MscError &);
 };
+
+/* Describes how we shall approach mscgen compatibility. 
+ * Used by both Msc and Csh classes.*/
+enum class EMscgenCompat
+{
+    NO_COMPAT,   ///<Never switch to compatibilit mode
+    AUTODETECT,  ///<Switch to compatibility mode if 'msc {...}' detected
+    FORCE_MSCGEN ///<Start in mscgen compatibility mode eve if no 'msc {...}' detected
+};
+
 
 #endif

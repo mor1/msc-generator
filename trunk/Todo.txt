@@ -75,6 +75,7 @@ This is how it works.
    - hscale value interpreted differently in mscgen mode
    - style of arrows is different under mscgen mode
    - word wrapping is enabled for mscgen defined boxes in mscgen mode
+   - -- and == are arrows in mscgen
 
 Special features to cater for in both modes
 - text.bkcolor (no warning)
