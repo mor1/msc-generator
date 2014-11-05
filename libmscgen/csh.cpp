@@ -683,7 +683,12 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "comment.text.bold", "comment.text.italic", "comment.text.underline", 
 "comment.text.gap.up", "comment.text.gap.down", "comment.text.gap.left", "comment.text.gap.right",
 "comment.text.gap.spacing", "comment.text.size.normal", "comment.text.size.small", "comment.text.wrap",
-"angle", /*"classic_parallel_layout", DEPRECATED*/ "file.url", "file.info", ""};
+"angle", /*"classic_parallel_layout", DEPRECATED*/ "file.url", "file.info", "width", ""};
+
+/** Additional option names in mscgen compatibility mode*/
+static const char opt_names_mscgen[][ENUM_STRING_LEN] =
+{"arcgradient", "wordwraparcs", ""};
+
 
 /** Names of attributes for coloring.
  *
@@ -728,6 +733,14 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "tag.text.gap.up", "tag.text.gap.down", "tag.text.gap.left", "tag.text.gap.right",
 "tag.text.gap.spacing", "tag.text.size.normal", "tag.text.size.small", "tag.text.wrap", 
 "tag.text.width", "url", ""};
+
+/** Additional attribute names in mscgen compatibility mode*/
+static const char attr_names_mscgen[][ENUM_STRING_LEN] =
+{"id", "idurl", "arcskip",
+"linecolor", "linecolour", "textcolor", "textcolour", "textbgcolor", "textbgcolour",
+"arclinecolor", "arclinecolour", "arctextcolor", "arctextcolour", "arctextbgcolor", "arctextbgcolour",
+""};
+
 
 /** Names of symbols for coloring
  *
@@ -806,17 +819,26 @@ void Csh::AddCSH_KeywordOrEntity(const CshPos&pos, const char *name)
 void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType color)
 {
     static const char empty_names[][ENUM_STRING_LEN] = {""};
-    const char (*array)[ENUM_STRING_LEN];
+    const char(*array)[ENUM_STRING_LEN];
     if (color == COLOR_OPTIONNAME) array = opt_names;
     else if (color == COLOR_ATTRNAME) array = attr_names;
     else array = empty_names;
     unsigned match_result = find_opt_attr_name(name, array);
+    if (mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        //check mscgen-specific attributes/options
+        if (color == COLOR_OPTIONNAME) array = opt_names_mscgen;
+        else if (color == COLOR_ATTRNAME) array = attr_names_mscgen;
+        else array = empty_names;
+        unsigned match_result2 = find_opt_attr_name(name, array);
+        //take the better of the two matches
+        match_result = std::max(match_result, match_result2);
+    }
     //Honor partial matches only if cursor is right after
     if (pos.last_pos != cursor_pos && match_result == 1)
         match_result = 0;
     switch (match_result) {
     case 2: AddCSH(pos, color); return;
-    case 0: AddCSH_Error(pos, array == opt_names ? "Unkown chart option." : "Unknown attribute."); return;
+    case 0: AddCSH_Error(pos, color == COLOR_OPTIONNAME ? "Unkown chart option." : "Unknown attribute."); return;
     case 1:
         AddCSH(pos, EColorSyntaxType(color+1));
         was_partial = true;
@@ -834,6 +856,13 @@ void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType c
 void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, attr_names);
+    if (mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        //check mscgen-specific attributes
+        unsigned match_result2 = find_opt_attr_name(name, attr_names_mscgen);
+        //take the better of the two matches
+        match_result = std::max(match_result, match_result2);
+    }
+
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_ATTRNAME_PARTIAL);
         was_partial = true;
@@ -1125,6 +1154,14 @@ std::string Csh::SetDesignTo(const std::string&design, bool full)
     if (found_full == full) return "";
     if (found_full) return "Design '" + design + "' is a full design. Use 'msc = ' instead of 'msc += '.";
     return "Design '" + design + "' is a partial design. Use 'msc += ' instead of 'msc = '.";
+}
+
+/** If our compatibility mode is AUTODETECT, we switch to MSCGEN compatibility mode*/
+void Csh::SwitchToMscgenCompatMode()
+{
+    if (mscgen_compat != EMscgenCompat::AUTODETECT) return;
+    mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+    SetDesignTo("mscgen", false);
 }
 
 ECursorRelPosType Csh::CursorIn(int a, int b) const

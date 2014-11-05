@@ -414,6 +414,7 @@ public:
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.
     std::string SetDesignTo(const std::string&design, bool full); 
+    void SwitchToMscgenCompatMode();
     /** Returns the relation of the cursor pos to a range in the input file.*/
     ECursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
     /** Returns the relation of the cursor pos to a range in the input file.*/

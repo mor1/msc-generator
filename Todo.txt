@@ -53,13 +53,23 @@ ADDED: mscgen color names (W3C color names indeed)
 ADDED: Text background color
 ADDED: alternative forms of attribute names
 ADDED: style to apply to arrows starting from an entity
-ADD: Arrows to actually take the atext aline and arrow attribute of the src entity
-ADD: Global attribute for slant_depth
-ADD: Other mscgen global attributes
-ADD: mscgen design
-ADD: color and arrowhead attributes to arrow refinement styles
-ADD: Broadcast flag to arrow segments (plus select last entity if no destination specified)
-ADD: msc-gen compatibility mode
+ADDED: Arrows to actually take the atext aline and arrow attribute of the src entity
+ADDED: Global attribute for arcgradient
+ADDED: Wordwraparcs & word wrapping defaults
+ADDED: hscale different handling and width
+ADDED: mscgen design
+CANCELLED: color and arrowhead attributes to arrow refinement styles
+ADDED: Handling of -x ->* --,==,::,.. arrow symbols in compatibility mode
+ADDED: Broadcast arrows
+ADDED: msc-gen compatibility mode with autodetect
+ADDED: support for line breaks in quoted text in compatibility mode
+ADDED: abox, rbox, hbox, box type mscgen boxes
+ADDED: parallel mscgen boxes via comma separation
+ADDED: ||| special arc
+ADDED: Csh extensions for mscgen compatibility mode
+ADD: -Tpdf 
+ADD: command-line and GUI switches for compatibility mode
+FIX: :> arrow symbol gets confused with colon-label
 
 This is how it works.
 - Three modes: signalling, signalling-warning (for mscgen constructs) and
@@ -70,6 +80,7 @@ This is how it works.
 	- wordwraparcs -> arrow.text.word_wrap = yes
 	- arcskip -> slant_depth
 	- arcgradient is translated to a degree -> angle (gives warning with hscale=auto)
+	- line breaks in quoted text
 - Conflicting constructs are as follows
    - -x and ->*: these are interpreted differently in the signalling and mscgen modes
    - hscale value interpreted differently in mscgen mode
@@ -83,13 +94,15 @@ Special features to cater for in both modes
 - Tpdf (no warning)
 - aline.*, atext.*, arrow.* on entities to influence arrows starting 
   from this entity (no warning)
-- width 
+- width (besides warning, it is used only at file output/export, if command line does not override it
+
+
 
 In 4.4~rc6
 DOCED: The font selection on Linux and the use of fontconfig.
 FIXED: Removed fontconfig dependency.
 FIXED: Better version and help command-line output (so that help2man works better)
-ADD: Do the .deb package
+ADDED: Do things needed for the .deb package
 
 In 4.4~rc5
 FIX: font selection on Unix. Msc-generator now uses (and requires) fontconfig

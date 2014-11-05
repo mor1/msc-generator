@@ -450,6 +450,7 @@ protected:
     double headingSize;          ///<Y size of first heading row (collected during PostPosProcess())
     unsigned noLabels;           ///<The number of labels (except entities)
     unsigned noOverflownLabels;  ///<The number of labels overflown
+    double width_attr;           ///<The value of any width attribute the user specified (-1 if none)
     /** @} */
 
 public:
@@ -507,6 +508,7 @@ public:
 
     int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const FileLineColRange &l = FileLineColRange(FileLineCol(0,0,0), FileLineCol(0,0,0)));
     string GetDesignNames(bool full) const;
+    void SwitchToMscgenCompatMode();
 
     CommandEntity *CEForComments(const MscStyle &s, const FileLineColRange &l);
     ArcBase *AddAttribute(const Attribute&);

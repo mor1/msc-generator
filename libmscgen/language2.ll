@@ -1,25 +1,26 @@
-%option reentrant noyywrap nounput
+%option reentrant noyywrap nounput stack
 %option bison-bridge bison-locations
+%s LEX_STATE_MSCGEN_COMPAT
 
 %{
-/*
-    This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
+    /*
+        This file is part of Msc-generator.
+        Copyright 2008,2009,2010,2011,2012,2013,2014 Zoltan Turanyi
+        Distributed under GNU Affero General Public License.
 
-    Msc-generator is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+        Msc-generator is free software: you can redistribute it and/or modify
+        it under the terms of the GNU Affero General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
 
-    Msc-generator is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+        Msc-generator is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
-*/
+        You should have received a copy of the GNU Affero General Public License
+        along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+        */
 
 #ifdef COLOR_SYNTAX_HIGHLIGHT
 #define C_S_H (1)
@@ -37,8 +38,8 @@
 #define YYMSC_RESULT_TYPE Csh
 #define RESULT csh
 
-//If we scan for color syntax highlight use this location
-//yyerror is defined by bison, the other is defined for flex
+    //If we scan for color syntax highlight use this location
+    //yyerror is defined by bison, the other is defined for flex
 #define YYLTYPE_IS_DECLARED
 #define YYLTYPE CshPos
 #define CHAR_IF_CSH(A) char
@@ -46,7 +47,9 @@
 #include "commands.h" //MSC_* defs and CommandNote and Shapes in entity.h
 #include "colorsyntax.h"
 #include "language_misc.h"
+
 #else
+
 #include "msc.h"
 #define YYMSC_RESULT_TYPE Msc
 #define RESULT msc
@@ -54,6 +57,7 @@
 #define CHAR_IF_CSH(A) A
 #include "language.h"
 #include "language_misc.h"
+
 #endif
 
 #ifdef C_S_H_IS_COMPILED
@@ -63,7 +67,7 @@ do {                                                \
     parse_parm *pp = yyget_extra(yyscanner);        \
     if (pp->pos >= pp->length)                      \
         res = YY_NULL;                              \
-    else                                            \
+        else                                            \
     {                                               \
         res = pp->length - pp->pos;                 \
         res > (int)max_size ? res = max_size : 0;   \
@@ -75,6 +79,9 @@ do {                                                \
 #define YY_USER_ACTION do {                     \
     yylloc->first_pos = yylloc->last_pos+1;     \
     yylloc->last_pos = yylloc->last_pos+yyleng; \
+    /* Set initial condition according to our compatibility mode*/ \
+    /* (usually changes only once after the 'msc {...}' is detected or at the beginning) */ \
+    BEGIN(yyget_extra(yyscanner)->csh->mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? LEX_STATE_MSCGEN_COMPAT : INITIAL); \
     } while(0);
 
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
@@ -118,6 +125,9 @@ do {                                                \
     yylloc->first_line = yylloc->last_line;              \
     yylloc->first_column = yylloc->last_column+1;        \
     yylloc->last_column = yylloc->first_column+yyleng-1; \
+    /* Set initial condition according to our compatibility mode*/ \
+    /* (usually changes only once after the 'msc {...}' is detected or at the beginning) */ \
+    BEGIN(yyget_extra(yyscanner)->msc->mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? LEX_STATE_MSCGEN_COMPAT : INITIAL); \
     } while(0);
 
 #include "parse_tools.h"
@@ -213,6 +223,7 @@ X|x yylval_param->str = strdup(yytext);  return TOK_REL_X;
 
 \.\.\.   yylval_param->arcsymbol = EArcSymbol::DIV_DISCO;       return TOK_SPECIAL_ARC;// ...
 ---      yylval_param->arcsymbol = EArcSymbol::DIV_DIVIDER;     return TOK_SPECIAL_ARC;// ---
+\|\|\|   yylval_param->arcsymbol = EArcSymbol::DIV_VSPACE;      return TOK_SPECIAL_ARC;// |||
 -\>      yylval_param->arcsymbol = EArcSymbol::ARC_SOLID;       return TOK_REL_TO;     // ->
 \<-      yylval_param->arcsymbol = EArcSymbol::ARC_SOLID;       return TOK_REL_FROM;   // <-
 \<-\>    yylval_param->arcsymbol = EArcSymbol::ARC_SOLID_BIDIR; return TOK_REL_BIDIR;  // <->
@@ -232,10 +243,19 @@ X|x yylval_param->str = strdup(yytext);  return TOK_REL_X;
 \<\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_FROM;   // <:
 \<\:\>   yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR; return TOK_REL_BIDIR;  // <:>
 
---       yylval_param->arcsymbol = EArcSymbol::BOX_SOLID;       return TOK_EMPH;       // --
-\+\+     yylval_param->arcsymbol = EArcSymbol::BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;// ++
-\.\.     yylval_param->arcsymbol = EArcSymbol::BOX_DOTTED;      return TOK_EMPH;       // ..
-==       yylval_param->arcsymbol = EArcSymbol::BOX_DOUBLE;      return TOK_EMPH;       // == 
+<INITIAL>{
+    --       yylval_param->arcsymbol = EArcSymbol::BOX_SOLID;       return TOK_EMPH;       // --
+    \+\+     yylval_param->arcsymbol = EArcSymbol::BOX_DASHED;      return TOK_EMPH_PLUS_PLUS;// ++
+    \.\.     yylval_param->arcsymbol = EArcSymbol::BOX_DOTTED;      return TOK_EMPH;       // ..
+    ==       yylval_param->arcsymbol = EArcSymbol::BOX_DOUBLE;      return TOK_EMPH;       // == 
+}
+<LEX_STATE_MSCGEN_COMPAT>{
+    --       yylval_param->arcsymbol = EArcSymbol::ARC_SOLID_BIDIR;  return TOK_REL_MSCGEN; // --
+    \:\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR;  return TOK_REL_MSCGEN; // ::
+    \.\.     yylval_param->arcsymbol = EArcSymbol::ARC_DOTTED_BIDIR; return TOK_REL_MSCGEN; // ..
+    ==       yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE_BIDIR; return TOK_REL_MSCGEN; // == 
+}
+
 \+=      return TOK_PLUS_EQUAL;
 -        return TOK_DASH;
 \+       return TOK_PLUS;
@@ -310,6 +330,7 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     yyget_extra(yyscanner)->msc->Error.Error(pos,
          "This opening quotation mark misses its closing pair. "
          "Assuming string termination at line-end.",
+         yyget_extra(yyscanner)->msc->mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? "" :
          "Quoted strings cannot have line breaks. Use \'\\n\' to insert a line break.");
     /* Advance pos beyond the leading quotation mark */
     pos.col++;
@@ -378,6 +399,20 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
   #endif
     return TOK_QSTRING;
 %}
+
+ /* A simple quoted string with line breaks inside 
+  *  Just for msc-gen compatibility */
+<LEX_STATE_MSCGEN_COMPAT>\"([^\"]|(\\\"))*\" %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext+1);
+    yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
+  #else
+    yylval_param->str = msc_process_multiline_qstring(yytext, yylloc,
+                        yyget_extra(yyscanner)->msc->current_file);
+  #endif
+    return TOK_QSTRING;
+%}
+
 
  /* Numbers */
 [+\-]?[0-9]+\.?[0-9]*  %{

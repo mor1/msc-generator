@@ -225,6 +225,7 @@ public:
     std::pair<bool, double> vspacing;    ///<The 'compress'/'vspacing' chart option, unset if `first` is false.
     std::pair<bool, bool>   indicator;   ///<The 'indicator' chart option, unset if `first` is false.
     std::pair<bool, double> slant_angle; ///<The 'slant_angle' chart option, unset if `first` is false.
+    std::pair<bool, double> slant_depth; ///<The 'arcgradient' chart option, unset if `first` is false.
     std::pair<bool, bool>   auto_heading;///<The 'auto_heading' chart option, unset if `first` is false.
     LineAttr defCommentLine;             ///<The style of the comment line 
     FillAttr defCommentFill;             ///<The fill of the comment area 
@@ -237,6 +238,7 @@ public:
     Context(bool) {Plain();} ///<Create the default context (with 'plain' design)
     void Empty(); ///<Make the context empty
     void Plain(); ///<Set the context to the 'plain' design
+    void MscgenCompat(); ///<Set the context to the 'mscgen' incremental design - used for mscgen compatibility
     /** Merges a context into us by applying members that are set in `o`*/
     Context &operator +=(const Context &o);
 };

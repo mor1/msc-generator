@@ -996,8 +996,6 @@ const StyleCoW *ArcArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
     case EArcSymbol::ARC_COLON:
     case EArcSymbol::ARC_COLON_BIDIR:
         return &chart->Contexts.back().styles[":>"];
-    case EArcSymbol::ARC_X:
-        return &chart->Contexts.back().styles["-x"]; //this is an empty style if not mscgen-compat
     case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
     default:
         _ASSERT(0);
@@ -1107,7 +1105,21 @@ void ArcSelfArrow::SetStyleBeforeAttributes()
     const StyleCoW *refinement = GetRefinementStyle4ArrowSymbol(type);
     StyleCoW ref;
     ref.write().text.Apply("\\pr");
+    if ((*src)->running_style.read().f_alt) {
+        ref.write().line += (*src)->running_style.read().aline;
+        ref.write().text += (*src)->running_style.read().atext;
+    }
+    if ((*src)->running_style.read().f_arrow != ArrowHead::EArcArrowType::NONE)
+        ref.write().arrow += (*src)->running_style.read().arrow;
     if (refinement) ref += *refinement;
+    if (headless_mscgen_arrow) {
+        ref.write().arrow.endType.first = true;
+        ref.write().arrow.endType.second = MSC_ARROW_NONE;
+        ref.write().arrow.startType.first = true;
+        ref.write().arrow.startType.second = MSC_ARROW_NONE;
+        ref.write().arrow.midType.first = true;
+        ref.write().arrow.midType.second = MSC_ARROW_NONE;
+    }
     SetStyleWithText("arrow", &ref);
 }
 
@@ -1288,8 +1300,10 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data,
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
     segment_types.push_back(data.type);
-    if (chart)
+    if (chart) {
         slant_angle = chart->Contexts.back().slant_angle.second;
+        slant_depth = chart->Contexts.back().slant_depth.second;
+    }
     if (data.lost==EArrowLost::AT_SRC) {
         lost_at = -1;
         lost_is_forward = true;
@@ -1317,8 +1331,10 @@ ArcDirArrow::ArcDirArrow(const EntityList &el, bool b, EArcSymbol boxsymbol, con
         segment_types.push_back(arrowsymbol);
         segment_lines.push_back(style.read().line);
     }
-    if (chart) 
+    if (chart) {
         slant_angle = chart->Contexts.back().slant_angle.second;
+        slant_depth= chart->Contexts.back().slant_depth.second;
+    }
 }
 
 ArcArrow * ArcDirArrow::AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
@@ -1390,24 +1406,18 @@ ArcArrow *ArcDirArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
 
 void ArcDirArrow::SetStyleBeforeAttributes()
 {
-    SetStyleWithText("arrow", NULL);
+    StyleCoW ref;
+    if ((*src)->running_style.read().f_alt) {
+        ref.write().line += (*src)->running_style.read().aline;
+        ref.write().text += (*src)->running_style.read().atext;
+    }
+    if ((*src)->running_style.read().f_arrow != ArrowHead::EArcArrowType::NONE)
+        ref.write().arrow += (*src)->running_style.read().arrow;
+    SetStyleWithText("arrow", &ref);
 }
 
 void ArcDirArrow::AddAttributeList(AttributeList *l)
 {
-    //Handle mscgen compatibility
-    //Handle ->* in compatibility mode
-    if (chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
-        middle.size()==0 && //single segment
-        lost_at == 0 && //lost at 'dst'
-        segment_types[0] == EArcSymbol::ARC_SOLID &&
-        *dst == chart->NoEntity) {
-        chart->Error.Error(file_pos.start, "Broadcast messages not yet supported. Ignoring arrow.");
-        valid = false;
-        return;
-    }
-
-
     //Save the style, empty it, collect all modifications and apply those to segments, too
     //This will work even if we are a BigArrow, as 
     //SetStyleBeforeAttributes() and GetRefinementStyle4ArrowSymbol() is virtual
@@ -1425,6 +1435,14 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
             save.write() += refinement->read();
         }
         *segment_lines.rbegin() += style.read().line;
+    }
+    if (headless_mscgen_arrow) {
+        save.write().arrow.endType.first = true;
+        save.write().arrow.endType.second = MSC_ARROW_NONE;
+        save.write().arrow.startType.first = true;
+        save.write().arrow.startType.second = MSC_ARROW_NONE;
+        save.write().arrow.midType.first = true;
+        save.write().arrow.midType.second = MSC_ARROW_NONE;
     }
     save += style;
     style = save;
@@ -1462,7 +1480,22 @@ bool ArcDirArrow::AddAttribute(const Attribute &a)
         return true;
     }
     if (a.Is("arcskip")) {
-        chart->Error.Error(a, false, "The 'arcskip' architecture of mscgen is not supported. Ignoring it.");
+        chart->Error.WarnMscgenAttr(a, true, "slant_depth");
+        int v;
+        if (a.type == MSC_ATTR_STRING) {
+            v = atoi(a.value.c_str());
+            if (v==0 && (a.value.length()==0 || a.value[0]!='0'))
+                v = -1;
+        } else if (a.type == MSC_ATTR_NUMBER)
+            v = int(a.number);
+        else
+            v = -1;
+        if (v<0) {
+            chart->Error.Error(a, true, "Expecting a positive integer.");
+            return NULL;
+        }
+        slant_angle = 0;
+        slant_depth += a.number*20;
         return true;
     }
     return ArcArrow::AddAttribute(a);
@@ -1539,6 +1572,49 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     sub = chart->FindActiveParentEntity(dst);
     dst = chart->ActiveEntities.Find_by_Ptr(*sub);
     _ASSERT(dst != chart->ActiveEntities.end());
+
+
+    //Handle ->* in compatibility mode
+    if (chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
+        middle.size()==0 && //single segment
+        lost_at == 0 && //lost at 'dst'
+        segment_types[0] == EArcSymbol::ARC_SOLID && 
+        (*dst == chart->RSide || *dst == chart->LSide)) { //no dst entity was specifie
+        //Here src points to chart->ActiveEntities
+        //Add subsequent elements
+        if (specified_as_forward) {
+            for (EIterator i = src; i!= chart->ActiveEntities.end(); i++)
+                if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn())
+                    middle.push_back(i);
+            //if no elements added, we become degenerate
+            if (middle.size()==0) {
+                chart->Error.Warning(file_pos.start, "Broadcast arrow at the rightmost visible entity. Ignoring it.");
+                return NULL;
+            }
+        } else {
+            for (EIterator i = chart->ActiveEntities.begin(); i!= src; i++)
+                if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn())
+                    middle.insert(middle.begin(), i);
+            if (middle.size()==0) {
+                chart->Error.Warning(file_pos.start, "Broadcast arrow at the leftmost visible entity. Ignoring it.");
+                return NULL;
+            }
+        }
+
+        //move last element to 'dst'
+        dst = middle.back();
+        middle.pop_back();
+        //fill up linenum_middle & segment_lines & segment_types
+        LineAttr line = segment_lines[0];
+        for (unsigned u = 0; u<middle.size(); u++) {
+            linenum_middle.push_back(linenum_asterisk);
+            segment_types.push_back(EArcSymbol::ARC_SOLID);
+            segment_lines.push_back(line);
+        }
+        //remove loss
+        lost_at = -2;
+    }
+
     if (src == dst && !(*src)->running_style.read().indicator.second) //We became a degenerate arrow, do not show us
         return NULL;
     //Change left and right only if they actually point to a "real entity"
@@ -1573,6 +1649,7 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
             if (*sub == *src || *sub == *dst) {
                 erase:
                 middle.erase(middle.begin()+ii);
+                //XX should we not delete segment_lines and segment_types and linenum_middle, too?
                 continue;
             }
             for (unsigned jj=0; jj<ii; jj++) 
@@ -3676,8 +3753,16 @@ void ArcBox::AddAttributeList(AttributeList *l)
         style.write().line.radius.second = 10;
         break;
     }
-    SetStyleWithText(static_cast<StyleCoW*>(NULL), GetRefinementStyle4BoxSymbol(type));
-    
+    //Add the global text format
+    SetStyleWithText(static_cast<StyleCoW*>(NULL), NULL);
+    //Turn on word wrapping for mscgen-defined boxes
+    if (mscgen_compat!=MSCGEN_COMPAT_NONE) 
+        style.write().text.AddAttribute(Attribute("text.wrap", "yes", FileLineColRange(), FileLineColRange()), chart, STYLE_ARC);
+    //Add refinement style
+    const StyleCoW * pStyle = GetRefinementStyle4BoxSymbol(type);
+    if (pStyle)
+        style += *pStyle;
+
     //Find position of tag label attribute (if any), prepend it via an escape
     FileLineCol tag_label_pos;
     if (l)
@@ -4069,7 +4154,8 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances,
             tag_width = pBox->sx_tag + twh.x + pBox->dx_tag;
         } else 
             tag_width = pBox->sx_tag = pBox->dx_tag = 0;
-        double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(0.95));
+        const double space_needed = chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? 0.80 : 0.95;
+        double width = pBox->parsed_label.getSpaceRequired(chart->XCoord(space_needed));
         //calculated margins (only for first segment) and save them
         if (pBox==series.front()) {
             const Contour tcov = pBox->parsed_label.Cover(0, width, overall_style.read().line.LineWidth()+chart->boxVGapInside);
@@ -4930,7 +5016,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
             ArcList *al = new ArcList;
             al->swap(content);
             //Note content is already PostParseProcessed.
-            ArcParallel *par = new ArcParallel(chart, al, NULL); //this will do a "delete al;"
+            ArcParallel *par = new ArcParallel(chart, al, NULL, false, false); //this will do a "delete al;"
             //Do not use ONE_BY_ONE merge as we would not have that either
             //even if we have pipes in 'series'. This also allows
             //Msc::LayoutParallelArcLists() to avoid taking cover in some cases.
@@ -5884,17 +5970,9 @@ void ArcDivider::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcParallel::ArcParallel(Msc *msc, ArcList*l) :
-    ArcBase(MscProgress::PARALLEL, msc), internally_defined(true),
-    layout(ONE_BY_ONE_MERGE)
-{
-    AddArcList(l, NULL);
-}
-
-
-ArcParallel::ArcParallel(Msc *msc, ArcList*l, AttributeList *al) :
-    ArcBase(MscProgress::PARALLEL, msc), internally_defined(false),
-    layout(ONE_BY_ONE_MERGE)
+ArcParallel::ArcParallel(Msc *msc, ArcList*l, AttributeList *al, bool before, bool u) :
+    ArcBase(MscProgress::PARALLEL, msc), before_autogen_entities(before),
+    unroll(u), layout(ONE_BY_ONE_MERGE)
 {
     if (chart->simple_arc_parallel_layout)
         layout = OVERLAP;
@@ -5903,7 +5981,7 @@ ArcParallel::ArcParallel(Msc *msc, ArcList*l, AttributeList *al) :
 
 ArcParallel* ArcParallel::AddArcList(ArcList*l, AttributeList *al)
 {
-    _ASSERT(!internally_defined || blocks.size()==0);
+    _ASSERT(!unroll|| blocks.size()==0);
     if (l) {
         //If the container grows we cannot simply use push_back
         //As ArcList does not support copy of if this array is responsible
@@ -5955,7 +6033,6 @@ template<> const char * const EnumEncapsulator<ArcParallel::EVerticalIdent>::des
 
 bool ArcParallel::AddAttribute(const Attribute &a)
 {
-    _ASSERT(!internally_defined);
     if (a.Is("layout")) {
         if (blocks.size()==1) {
             if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
@@ -6026,7 +6103,7 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
                                        Numbering &number, Element **target,
                                        ArcBase * /*vertical_target*/)
 {
-    _ASSERT(!internally_defined);
+    _ASSERT(!unroll);
     if (!valid) return NULL;
     //finalize ident
     if (layout==OVERLAP) {
@@ -6057,7 +6134,7 @@ ArcBase* ArcParallel::PostParseProcess(Canvas &canvas, bool hide,
 
 void ArcParallel::FinalizeLabels(Canvas &canvas)
 {
-    _ASSERT(!internally_defined);
+    _ASSERT(!unroll);
     for (auto &col : blocks)
         chart->FinalizeLabelsArcList(col.arcs, canvas);
     ArcBase::FinalizeLabels(canvas);
@@ -6065,7 +6142,7 @@ void ArcParallel::FinalizeLabels(Canvas &canvas)
 
 void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMapVertical &vdist)
 {
-    _ASSERT(!internally_defined);
+    _ASSERT(!unroll);
     if (!valid) return;
     //Add a new element to vdist
     vdist.InsertElementTop(this);
@@ -6083,7 +6160,7 @@ void ArcParallel::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
 
 void ArcParallel::Layout(Canvas &canvas, AreaList *cover)
 {
-    _ASSERT(!internally_defined);
+    _ASSERT(!unroll);
     height = 0;
     if (!valid) return;
     switch (layout) {
@@ -6217,7 +6294,7 @@ void ArcParallel::PlaceWithMarkers(Canvas &canvas)
 
 void ArcParallel::PostPosProcess(Canvas &canvas)
 {
-    _ASSERT(!internally_defined);
+    _ASSERT(!unroll);
     if (!valid) return;
     ArcBase::PostPosProcess(canvas);
     for (auto &col : blocks)

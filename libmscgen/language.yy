@@ -74,7 +74,7 @@
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET
        TOK_ASTERISK
        TOK_MSC TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME TOK_COLORDEF
-       TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR TOK_REL_X
+       TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR TOK_REL_X TOK_REL_MSCGEN
        TOK_SPECIAL_ARC     TOK_EMPH TOK_EMPH_PLUS_PLUS
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFSHAPE TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -123,12 +123,12 @@
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir arcrel_arrow
 %type <arcbox>     boxrel first_box mscgen_boxrel 
 %type <arcpipe>    first_pipe
-%type <arcboxseries> box_list
+%type <arcboxseries> box_list mscgen_box
 %type <arcpipeseries> pipe_list_no_content pipe_list
 %type <arcparallel> parallel
-%type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
+%type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist mscgen_boxlist
 %type <entitylist> entitylist entity first_entity
-%type <arcsymbol>  TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR 
+%type <arcsymbol>  TOK_REL_TO TOK_REL_FROM TOK_REL_BIDIR TOK_REL_MSCGEN
                    relation_to_cont_no_loss relation_from_cont_no_loss relation_bidir_cont_no_loss
                    TOK_EMPH TOK_EMPH_PLUS_PLUS emphrel
                    TOK_SPECIAL_ARC
@@ -362,11 +362,9 @@ msckey:       TOK_MSC
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.mscgen_compat == EMscgenCompat::AUTODETECT)
-        csh.mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+    csh.SwitchToMscgenCompatMode();
   #else
-    if (msc.mscgen_compat == EMscgenCompat::AUTODETECT)
-        msc.mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+    msc.SwitchToMscgenCompatMode();
   #endif
     free($1);
 }
@@ -1083,7 +1081,18 @@ arc:           arcrel
      * enclose them in an "ArcParallel" element used only for this. 
      * This will be an internally defined ArcParallel that will
      * get unrolled in Msc::PostParseArcList()*/
-    $$ = ($1) ? new ArcParallel(&msc, $1) : NULL;
+    $$ = ($1) ? new ArcParallel(&msc, $1, NULL, true, true) : NULL;
+  #endif
+}
+              | mscgen_boxlist
+{
+  #ifdef C_S_H_IS_COMPILED
+  #else
+    /* This may be a list of ArcBoxSeries (each with one emptybox), we
+     * enclose them in an "ArcParallel" element used only for this. 
+     * This will be an internally defined ArcParallel that will
+     * get unrolled in Msc::PostParseArcList()*/
+    $$ = ($1) ? new ArcParallel(&msc, $1, NULL, false, true) : NULL;
   #endif
 }
               | box_list
@@ -3058,7 +3067,7 @@ parallel:    braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     if ($1)
-        $$ = new ArcParallel(&msc, $1, NULL);
+        $$ = new ArcParallel(&msc, $1, NULL, false, false);
     else
         $$ = NULL;
   #endif
@@ -3072,7 +3081,7 @@ parallel:    braced_arclist
         ArcParallel::AttributeValues(csh.hintAttrName, csh, true);
   #else 
     if ($2) {
-        $$ = new ArcParallel(&msc, $2, $1);
+        $$ = new ArcParallel(&msc, $2, $1, false, false);
     } else {
         $$ = NULL;
         if ($1) delete $1;
@@ -3087,7 +3096,7 @@ parallel:    braced_arclist
     else if ($1)
         $$ = ($1)->AddArcList($2, NULL);
     else
-        $$ = new ArcParallel(&msc, $2, NULL);
+        $$ = new ArcParallel(&msc, $2, NULL, false, false);
   #endif
 }
          | parallel full_arcattrlist braced_arclist
@@ -3104,7 +3113,7 @@ parallel:    braced_arclist
     } else if ($1)
         $$ = ($1)->AddArcList($3, $2);
     else
-        $$ = new ArcParallel(&msc, $3, $2);
+        $$ = new ArcParallel(&msc, $3, $2, false, false);
   #endif
 }
          | parallel full_arcattrlist 
@@ -3191,7 +3200,6 @@ box_list: first_box
         csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
   #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
-
     $$ = ($1)->AddBox($2);
     ($2)->AddAttributeList($3); //should come after AddBox
   #endif
@@ -3264,34 +3272,63 @@ box_list: first_box
         delete ($3);
     }
   #endif
-}
-           | mscgen_boxrel 
+};
+
+mscgen_box: mscgen_boxrel 
 {
-#ifndef C_S_H_IS_COMPILED
+  #ifndef C_S_H_IS_COMPILED
     if ($1) {
         ($1)->AddAttributeList(NULL);
         ($1)->SetLineEnd(MSC_POS(@$));
         $$ = new ArcBoxSeries($1);
     } else
         $$ = NULL;
-#endif
+  #endif
 }
-           | mscgen_boxrel full_arcattrlist_with_label
+                | mscgen_boxrel full_arcattrlist_with_label
 {
-#ifdef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(EHintSourceType::ATTR_NAME, @2))
         ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(EHintSourceType::ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
-#else
+  #else
     if ($1) {
         ($1)->AddAttributeList($2);
         ($1)->SetLineEnd(MSC_POS(@$));
         $$ = new ArcBoxSeries($1);
     } else
         $$ = NULL;
-#endif
+  #endif
+};
+
+mscgen_boxlist: mscgen_box
+{
+  #ifndef C_S_H_IS_COMPILED
+    if ($1) {
+        $$ = new ArcList;
+        ($$)->Append($1);
+    } else
+        $$ = NULL;
+  #endif
 }
+                | mscgen_boxlist TOK_COMMA mscgen_box
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+  #else
+    if ($3) {
+        if ($1) {
+            ($1)->back()->SetParallel();
+            $$ = $1;
+        } else 
+            $$ = new ArcList;
+        ($$)->Append($3);
+    } else
+        $$ = $1;
+  #endif
+};
+
 
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
 first_box:   boxrel
@@ -4050,6 +4087,29 @@ arcrel:       TOK_SPECIAL_ARC
 };
 
 arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
+             | entity_string TOK_REL_MSCGEN entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    //This rule can happen only in mscgen compat mode 
+    //(or else the lexer does not return TOK_REL_MSCGEN
+    _ASSERT(csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN);
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.AddCSH_EntityName(@3, $3);
+#else
+    //This rule can happen only in mscgen compat mode 
+    //(or else the lexer does not return TOK_REL_MSCGEN
+    _ASSERT(msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN);
+    ArrowSegmentData data;
+    data.type = $2;
+    data.lost = EArrowLost::NOT;
+    $$ = msc.CreateArcArrow(data, $1, MSC_POS(@1), $3, true, MSC_POS(@3));
+    ($$)->Indicate_Mscgen_Headless();
+  #endif
+    free($1);
+    free($3);
+}
              | entity_string TOK_DASH TOK_REL_X entity_string
 {
   #ifdef C_S_H_IS_COMPILED

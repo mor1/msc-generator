@@ -169,8 +169,8 @@ ColorType ColorSet::GetColor(const std::string &s_original) const
     const_iterator i = find(s);
     //if #1, return the value for the color name
     if (this->end()!=i) return ColorType(i->second, type);
-	string::size_type pos = s.find_first_of(",+-");
-    //if no comma, + or - and not #1, return invalid color
+    string::size_type pos = s.find_first_of(",+-#");
+    //if no comma, +, - or # and not #1, return invalid color
     if (pos == string::npos) return ColorType();
     string name = remove_spaces(s.substr(0, pos));
     i = find(name);

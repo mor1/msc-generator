@@ -111,7 +111,7 @@ bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p, C
 class StringFormat {
   protected:
     std::pair<bool, ColorType>   color;             ///<The color of the font. Not set if `first` is false.
-    std::pair<bool, ColorType>   bkcolor;           ///<The color behind the text. Not set if `first` is false.
+    std::pair<bool, ColorType>   bgcolor;           ///<The color behind the text. Not set if `first` is false.
     std::pair<bool, EFontType>   fontType;          ///<The size/index of the font. Not set if `first` is false.
     std::pair<bool, double>      spacingBelow;      ///<The extra spacing to add below this line. Not set if `first` is false.
     std::pair<bool, ETriState>   bold;              ///<Indicates if the font is thick. Not set if `first` is false.
