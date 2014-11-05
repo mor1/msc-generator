@@ -149,7 +149,7 @@ public:
     * It may take longer than Canvas::SetFontFace(), as this is called only when interpreting
     * 'text.font.face' attribute/chart option values, the \\f() formatting escape and
     * the -F command line option. FOR NOW WE ALWAYS TRUE.*/
-    static bool HasFontFace(string &face, bool italics = false, bool bold = false) { return true; }
+    static bool HasFontFace(string & /*face*/, bool /*italics*/ = false, bool /*bold*/ = false) { return true; }
 
 protected:
     /** @name Low-level compatibility options 

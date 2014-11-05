@@ -275,11 +275,11 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
             return text.AddAttribute(a, msc, type);
         if (a.Is("textcolor") || a.Is("textcolour")) {
             msc->Error.WarnMscgenAttr(a, false, "text.color");
-            text.AddAttribute(Attribute("text.color", a), msc, type);
+            return text.AddAttribute(Attribute("text.color", a), msc, type);
         }
         if (a.Is("textbgcolor") || a.Is("textbgcolour")) {
             msc->Error.WarnMscgenAttr(a, false, "text.bgcolor");
-            text.AddAttribute(Attribute("text.bgcolor", a), msc, type);
+            return text.AddAttribute(Attribute("text.bgcolor", a), msc, type);
         }
     }
     if (f_line) {
@@ -287,7 +287,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
             return line.AddAttribute(a, msc, type);
         if (a.Is("linecolor") || a.Is("linecolour")) {
             msc->Error.WarnMscgenAttr(a, false, "line.color");
-            line.AddAttribute(Attribute("line.color", a), msc, type);
+            return line.AddAttribute(Attribute("line.color", a), msc, type);
         }
     }
     if (f_vline && a.StartsWith("vline"))
@@ -838,6 +838,7 @@ Context &Context::operator +=(const Context &o)
     if (o.vspacing.first) vspacing = o.vspacing;
     if (o.indicator.first) indicator = o.indicator;
     if (o.slant_angle.first) slant_angle = o.slant_angle;
+    if (o.slant_depth.first) slant_depth = o.slant_depth;
     if (o.auto_heading.first) auto_heading = o.auto_heading;
     defCommentLine += o.defCommentLine;
     defCommentFill += o.defCommentFill;
@@ -864,6 +865,7 @@ void Context::Empty()
     vspacing.first = false;
     indicator.first = false;
     slant_angle.first = false;
+    slant_depth.first = false;
     auto_heading.first = false;
     defCommentLine.Empty();
     defCommentFill.Empty();
@@ -1049,6 +1051,8 @@ void Context::Plain()
     indicator.second = true;
     slant_angle.first = true;
     slant_angle.second = 0;
+    slant_depth.first = true;
+    slant_depth.second = 0;
     auto_heading.first = true;
     auto_heading.second = false;
     defCommentLine.MakeComplete();
@@ -1304,5 +1308,57 @@ void Context::Plain()
     style.arrow.line.width = w2;
     style.text.Apply("\\b");
     styles["strong"] = style;
+}
+
+void Context::MscgenCompat()
+{
+    Empty();
+    is_full = false;
+
+    styles["arrow"].write().lost_line.color.first = true;
+    styles["arrow"].write().lost_line.color.second = ColorType(0, 0, 0, 0); //none
+    styles["arrow"].write().lost_arrow.line.color.first = true;
+    styles["arrow"].write().lost_arrow.line.color.second = ColorType(0, 0, 0, 0); //none
+    styles["arrow"].write().lsym_line.width.first = true;
+    styles["arrow"].write().lsym_line.width.second = 1;
+    styles["arrow"].write().lsym_line.color.first = true;
+    styles["arrow"].write().lsym_line.color.second = ColorType(0, 0, 0); //black
+
+    styles["->"].write().line.type.first = true;
+    styles["->"].write().line.type.second = LINE_SOLID;
+    styles["->"].write().arrow.endType.first = true;
+    styles["->"].write().arrow.endType.second = MSC_ARROW_HALF;
+    styles["->"].write().arrow.midType.first = true;
+    styles["->"].write().arrow.midType.second = MSC_ARROW_HALF;
+    styles[">"].write().line.type.first = true;
+    styles[">"].write().line.type.second = LINE_DOTTED;
+    styles[">"].write().arrow.endType.first = true;
+    styles[">"].write().arrow.endType.second = MSC_ARROW_SOLID;
+    styles[">"].write().arrow.midType.first = true;
+    styles[">"].write().arrow.midType.second = MSC_ARROW_SOLID;
+    styles[">>"].write().line.type.first = true;
+    styles[">>"].write().line.type.second = LINE_DOTTED;
+    styles[">>"].write().arrow.endType.first = true;
+    styles[">>"].write().arrow.endType.second = MSC_ARROW_SOLID;
+    styles[">>"].write().arrow.midType.first = true;
+    styles[">>"].write().arrow.midType.second = MSC_ARROW_SOLID;
+    styles["=>"].write().line.type.first = true;
+    styles["=>"].write().line.type.second = LINE_SOLID;
+    styles["=>"].write().arrow.endType.first = true;
+    styles["=>"].write().arrow.endType.second = MSC_ARROW_SOLID;
+    styles["=>"].write().arrow.midType.first = true;
+    styles["=>"].write().arrow.midType.second = MSC_ARROW_SOLID;
+    styles["=>>"].write().line.type.first = true;
+    styles["=>>"].write().line.type.second = LINE_SOLID;
+    styles["=>>"].write().arrow.endType.first = true;
+    styles["=>>"].write().arrow.endType.second = MSC_ARROW_LINE;
+    styles["=>>"].write().arrow.midType.first = true;
+    styles["=>>"].write().arrow.midType.second = MSC_ARROW_LINE;
+    styles[":>"].write().line.type.first = true;
+    styles[":>"].write().line.type.second = LINE_DOUBLE;
+    styles[":>"].write().arrow.endType.first = true;
+    styles[":>"].write().arrow.endType.second = MSC_ARROW_SOLID;
+    styles[":>"].write().arrow.midType.first = true;
+    styles[":>"].write().arrow.midType.second = MSC_ARROW_SOLID;
 }
 

@@ -57,7 +57,7 @@ void AddTristate(std::pair<bool, ETriState> &a, const std::pair<bool, ETriState>
 void StringFormat::Empty()
 {
     color.first = false;
-    bkcolor.first = false;
+    bgcolor.first = false;
     fontType.first = false;
     spacingBelow.first = false;
     bold.first = false;
@@ -80,7 +80,7 @@ bool StringFormat::IsComplete() const
 {
     return 
         color.first &&
-        bkcolor.first &&
+        bgcolor.first &&
         fontType.first &&
         spacingBelow.first &&
         bold.first && bold.second!=invert &&
@@ -114,7 +114,7 @@ void StringFormat::Default()
     textVGapLineSpacing.first = true; textVGapLineSpacing.second = 0; 
     ident.first = true; ident.second = MSC_IDENT_CENTER;
     color.first = true; color.second =  ColorType(0,0,0); 
-    bkcolor.first = true; bkcolor.second = ColorType(0,0,0,0); //fully transparent
+    bgcolor.first = true; bgcolor.second = ColorType(0,0,0,0); //fully transparent
     fontType.first = true; fontType.second = MSC_FONT_NORMAL;
     spacingBelow.first = true; spacingBelow.second =  0; 
     face.first = true; face.second.clear();
@@ -128,7 +128,7 @@ void StringFormat::Default()
 StringFormat &StringFormat::operator =(const StringFormat &f)
 {
     color = f.color;
-    bkcolor = f.bkcolor;
+    bgcolor = f.bgcolor;
     fontType = f.fontType;
     spacingBelow = f.spacingBelow;
     bold = f.bold;
@@ -181,7 +181,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * -             and font size (X=_s_mall, _n_ormal)
  * -             E.g. "\mu(7)" sets upper margin to 7.
  * - "\c(color)" - set color, E.g., "\c(0,0,0)" is black
- * - "\C(color)" - set bkcolor, E.g., "\C(0,0,0,0)" is transparent
+ * - "\C(color)" - set bgcolor, E.g., "\C(0,0,0,0)" is transparent
  * - "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
  * - "\0".."\9" - keep this much of line space after the line
  * - "\\" - an escaped "\"
@@ -517,7 +517,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 return FORMATTING_OK;
             }
             //substitute parameter to the value from basic
-            parameter = (input[1]=='c' ? basic->color : basic->bkcolor).second.Print().substr(1);
+            parameter = (input[1]=='c' ? basic->color : basic->bgcolor).second.Print().substr(1);
             parameter.substr(0, parameter.length()-1);
         }
         if (msc)
@@ -532,8 +532,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                     color.first = true;
                     color.second = c;
                 } else {
-                    bkcolor.first = true;
-                    bkcolor.second = c;
+                    bgcolor.first = true;
+                    bgcolor.second = c;
                 }
             }
             if (replaceto) replaceto->assign("\\c" + c.Print());
@@ -1167,11 +1167,11 @@ StringFormat &StringFormat::operator +=(const StringFormat& toadd)
             color = toadd.color;
     }
 
-    if (toadd.bkcolor.first) {
-        if (bkcolor.first)
-            bkcolor.second += toadd.bkcolor.second;
+    if (toadd.bgcolor.first) {
+        if (bgcolor.first)
+            bgcolor.second += toadd.bgcolor.second;
         else
-            bkcolor = toadd.bkcolor;
+            bgcolor = toadd.bgcolor;
     }
 
     if (toadd.face.first)
@@ -1226,7 +1226,7 @@ StringFormat &StringFormat::operator -=(const StringFormat& base)
     _ASSERT(IsComplete());
     if (base.fontType == fontType) fontType.first = false;
     if (base.color == color) color.first = false;
-    if (base.bkcolor == bkcolor) bkcolor.first = false;
+    if (base.bgcolor == bgcolor) bgcolor.first = false;
     if (base.face == face) face.first = false;
     if (base.spacingBelow == spacingBelow) spacingBelow.first = false;
     if (base.bold == bold) bold.first = false;
@@ -1254,8 +1254,8 @@ string StringFormat::Print() const
 
     if (color.first)
         ret << "\\c" + color.second.Print();
-    if (bkcolor.first)
-        ret << "\\C" + bkcolor.second.Print();
+    if (bgcolor.first)
+        ret << "\\C" + bgcolor.second.Print();
 
     if (face.first)
         ret << "\\f(" + face.second + ")";
@@ -1339,8 +1339,8 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         if (i->second.read().f_text) operator +=(i->second.read().text);
         return true;
     }
-    if (a.EndsWith("color") || a.EndsWith("bkcolor")) {
-        std::pair<bool, ColorType> &ref = a.EndsWith("bkcolor") ? bkcolor : color;
+    if (a.EndsWith("color") || a.EndsWith("bgcolor")) {
+        std::pair<bool, ColorType> &ref = a.EndsWith("bgcolor") ? bgcolor : color;
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
                 ref.first = false;
@@ -1520,7 +1520,7 @@ void StringFormat::AttributeNames(Csh &csh, const string &prefix)
     static const char * const names_descriptions[] =
     {"", NULL,
     "color", "Set the color of the font",
-    "bkcolor", "Set the color behind the text.",
+    "bgcolor", "Set the color behind the text.",
     "ident", "Select left, right idented or centered text.",
     "format", "Use this attribute to set text format via formatting escapes, like '\\b'.",
     "font.face", "Select font face, such as 'Arial'.",
@@ -1770,7 +1770,7 @@ void StringFormat::EscapeHints(Csh &csh, const string &prefix)
 bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color") ||
-        CaseInsensitiveEndsWith(attr, "bkcolor")) {
+        CaseInsensitiveEndsWith(attr, "bgcolor")) {
         csh.AddColorValuesToHints(false);
         return true;
     }
@@ -2028,9 +2028,9 @@ double StringFormat::drawFragment(const string &s, Canvas &canvas,
 
     xy.x += spaceWidth(s, canvas, true);
 
-    if (bkcolor.first && !bkcolor.second.IsFullyTransparent()) {
+    if (bgcolor.first && !bgcolor.second.IsFullyTransparent()) {
         canvas.Fill(Block(Range(xy.x, xy.x+advance), Y),
-            FillAttr(bkcolor.second, GRADIENT_NONE));
+            FillAttr(bgcolor.second, GRADIENT_NONE));
         //reset color to that of the font
         canvas.SetColor(color.second);
     }

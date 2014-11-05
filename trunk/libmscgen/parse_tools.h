@@ -41,8 +41,8 @@
 void msc_jump_line(YYLTYPE *loc);
 char *msc_remove_head_tail_whitespace(char *s);
 char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no);
+char* msc_process_multiline_qstring(const char *s, YYLTYPE *loc, unsigned file_no);
 
 std::string ConvertEmphasisToBox(const std::string &style, const YYLTYPE *loc, Msc &msc);
 
 void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str);
-

@@ -228,6 +228,7 @@ void csh_free (void * ,yyscan_t yyscanner );
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
+#define LEX_STATE_MSCGEN_COMPAT 1
 
 #endif
 
@@ -350,9 +351,9 @@ extern int csh_lex \
 #undef YY_DECL
 #endif
 
-#line 423 "language2.ll"
+#line 458 "language2.ll"
 
 
-#line 357 "colorsyntax2.h"
+#line 358 "colorsyntax2.h"
 #undef csh_IN_HEADER
 #endif /* csh_HEADER_H */

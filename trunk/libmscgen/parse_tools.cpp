@@ -30,6 +30,7 @@
 //plus YYSTYPE is also required by language2.h
 #include "parse_tools.h"
 #include "language_misc.h"
+#define YY_HEADER_EXPORT_START_CONDITIONS
 #include "language2.h"
 #include "attribute.h"  //for case insensitive compares
 
@@ -140,6 +141,78 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
         if (!emptyLine || loc->first_line != loc->last_line) {
             //add a space for empty lines, if line did not contain a comment
             if (emptyLine && !wasComment )
+                ret += ' ';
+            //test for how many \s we have at the end of the line
+            int pp = (int)ret.length()-1;
+            while (pp>=0 && ret[pp]=='\\') pp--;
+            //if odd, we insert an extra '\' to keep lines ending with \s
+            if ((ret.length()-pp)%2==0) ret += '\\';
+            ret += "\\" ESCAPE_STRING_SOFT_NEWLINE;
+        }
+        //Check for a two character CRLF, skip over the LF, too
+        if (ending == 13 && s[end_line+1] == 10) end_line++;
+        old_pos = end_line+1;
+
+        //Now advance loc
+        loc->last_line++;
+        loc->last_column = 1;
+    }
+    return strdup(ret.c_str());
+}
+
+/** Preprocess multiline quoted strings.
+ * We do all the following:
+ * - skip heading and trailing quotation mark and whitespace inside
+ * - Replace any internal CR or CRLF (and surrounding whitespaces) to "\n".
+ * - Update `loc` to point to the end of the token
+ * - Insert \0x2(file,line,col) escapes where needed we changed the length of the
+ *   preceeding string, so that if we generate an error to any escapes thereafter
+ *   those will have the right location in the input file.
+ *
+ * The function copies the result to new memory and the caller shall free().*/
+char* msc_process_multiline_qstring(const char *s, YYLTYPE *loc, unsigned file_no)
+{
+    std::string ret;
+    int old_pos = 1; //actually s begins with the quotation mark, we skip that
+    loc->last_line = loc->first_line;
+    loc->last_column = loc->first_column+1;
+
+    while (1) {
+        //the current line begins at old_pos
+        int end_line = old_pos;
+        int start_line = old_pos;
+        //find the end of the line
+        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13)
+            end_line++;
+        //store the ending char to later see how to proceed
+        char ending = s[end_line];
+        //skip over the heading whitespace at the beginning of the line
+        while (s[start_line]==' ' || s[start_line]=='\t')
+            start_line++;
+        //find the last non-whitespace in the line
+        int term_line = end_line-1;
+        //if we are at the very end, ignore trailing quotation mark
+        if (ending==0) term_line--;
+        //term_line can be smaller than start_line here if line is empty
+        while (term_line>=start_line && (s[term_line]==' ' || s[term_line]=='\t'))
+            term_line--;
+        //Generate a \l(file,line,col) escape and append
+        FileLineCol pos(file_no, loc->last_line,
+            loc->last_column + (start_line-old_pos));
+        ret += pos.Print();
+        //now append the line (without the whitespaces)
+        ret.append(s+start_line, s+term_line+1);
+        //if ending was a null we are done with processing all lines
+        if (!ending) {
+            loc->last_column += (end_line - old_pos) -1;
+            break;
+        }
+        //append ESCAPE_CHAR_SOFT_NEWLINE escape for msc-generator,
+        //but only if not an empty first line
+        //append "\" + ESCAPE_CHAR_SOFT_NEWLINE if line ended with odd number of \s
+        if (start_line<=term_line || loc->first_line != loc->last_line) {
+            //add a space for empty lines, if line did not contain a comment
+            if (start_line>term_line)
                 ret += ' ';
             //test for how many \s we have at the end of the line
             int pp = (int)ret.length()-1;

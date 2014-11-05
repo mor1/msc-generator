@@ -353,7 +353,8 @@ Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
     Arcs(true), EndNotes(true), Notes(false), NoteBlockers(false), 
     total(0,0,0,0), drawing(0,0,0,0), 
-    copyrightTextHeight(0), headingSize(0), noLabels(0), noOverflownLabels(0)
+    copyrightTextHeight(0), headingSize(0), noLabels(0), 
+    noOverflownLabels(0), width_attr(-1)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -385,8 +386,9 @@ Msc::Msc() :
 
     current_file = Error.AddFile("[config]");
     
-    //Add "plain" style 
+    //Add "plain" and "mscgen" styles
     Designs["plain"].Plain();
+    Designs["mscgen"].MscgenCompat();
     //Add global context, with "plain" design
     Contexts.push_back(Designs["plain"]);
 
@@ -464,8 +466,9 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
         s.fill += i->second.defCommentFill;
         list->Append(CEForComments(s, l));
     }
-    //ArcParallel here becomes internally defined
-    *ret = list->size() ? new ArcParallel(this, list) : NULL;
+    //ArcParallel here becomes one to unroll and one that shall come before the auto generated
+    //entities (if at the very beginning of the chart)
+    *ret = list->size() ? new ArcParallel(this, list, NULL, true, true) : NULL;
     if (full == i->second.is_full) return 1;
     return full ? 3 : 2;
 }
@@ -482,6 +485,17 @@ string Msc::GetDesignNames(bool full) const
         }
     return retval;
 }
+
+/** If our compatibility mode is AUTODETECT, we switch to MSCGEN compatibility mode*/
+void Msc::SwitchToMscgenCompatMode()
+{
+    if (mscgen_compat != EMscgenCompat::AUTODETECT) return;
+    mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+    ArcBase *ab;
+    int ret = SetDesign(false, "mscgen", true, &ab);
+    _ASSERT(ret==1 && ab==NULL);
+}
+
 
 //Helper function. If the pos of *value is smaller (or larger) than i
 //if one of the elements is .end() always the other is returned, different
@@ -692,11 +706,11 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
         const FileLineColRange line(a.linenum_attr.start, a.linenum_value.end);
         ArcBase *ret;
-        switch (SetDesign(full, a.value, false, &ret, line)) { 
+        switch (SetDesign(full, a.value, false, &ret, line)) {
         case 0:
             Error.Error(a, true, "Unknown chart design: '" + a.value +
-                        "'. Ignoring design selection.",
-                        "Available designs are: " + GetDesignNames(full) +".");
+                "'. Ignoring design selection.",
+                "Available designs are: " + GetDesignNames(full) +".");
             break;
         case 2:
             Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
@@ -711,17 +725,85 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         }
         return ret;
     }
-    if (a.Is("hscale")) {
-        if (a.type == MSC_ATTR_NUMBER && a.number>=0.01 && a.number <= 100) {
-            Contexts.back().hscale.first = true;
-            Contexts.back().hscale.second = a.number;
+    if (a.Is("arcgradient")) {
+        Error.WarnMscgenAttr(a, true, "angle");
+        double v;
+        if (a.type == MSC_ATTR_STRING) {
+            v = atof(a.value.c_str());
+            if (v==0 && (a.value.length()==0 || a.value[0]!='0')) 
+                v = -1;
+        } else if (a.type == MSC_ATTR_NUMBER)
+            v = a.number;
+        else
+            v = -1;
+        if (v<0) {
+            Error.Error(a, true, "Expecting a number in pixels.");
             return NULL;
-        } else if (a.type == MSC_ATTR_STRING && a.value == "auto") {
+        }
+        Contexts.back().slant_depth.first = true;
+        Contexts.back().slant_depth.second = v;
+        Contexts.back().slant_angle.second = 0;
+        return NULL;
+    }
+    if (a.Is("wordwraparcs")) {
+        Error.WarnMscgenAttr(a, true, "text.wrap");
+        int value = -1;
+        if (a.type == MSC_ATTR_NUMBER)
+            value = a.number ? 1 : 0;
+        else if (a.type == MSC_ATTR_STRING) {
+            if (CaseInsensitiveEqual(a.value, "on") || CaseInsensitiveEqual(a.value, "true"))
+                value = 1;
+            else if (CaseInsensitiveEqual(a.value, "off") || CaseInsensitiveEqual(a.value, "false"))
+                value = 0;
+        } else if (a.type == MSC_ATTR_BOOL)
+            value = a.yes;
+        if (value == -1) {
+            a.InvalidValueError("yes', 'on', 'true' or '1", Error);
+            return NULL;
+        }
+        //treat this as text.wrap
+        return AddAttribute(Attribute("text.wrap", value==1, FileLineColRange(), FileLineColRange()));
+    }
+    if (a.Is("width")) {
+        double v;
+        if (a.type == MSC_ATTR_STRING)
+            v = atof(a.value.c_str());
+        else if (a.type == MSC_ATTR_NUMBER)
+            v = a.number;
+        else
+            v = 0;
+        if (v<10 || v>32000) {
+            a.InvalidValueError("10..32000", Error);
+            return NULL;
+        }
+        width_attr = v;
+        return NULL;
+    }
+    if (a.Is("hscale")) {
+        if (a.type == MSC_ATTR_STRING && a.value == "auto") {
             Contexts.back().hscale.first = true;
             Contexts.back().hscale.second = -1;
             return NULL;
+        } 
+        double v;
+        if (a.type == MSC_ATTR_STRING)
+            v = atof(a.value.c_str());
+        else if (a.type == MSC_ATTR_NUMBER) {
+            v = a.number;
+        } else
+            v = 0;
+        if (v<0.01 || v>100) {
+            a.InvalidValueError("0.01..100' or 'auto", Error);
+            return NULL;
         }
-        a.InvalidValueError("0.01..100' or 'auto", Error);
+        if (mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+            Contexts.back().hscale.first = true;
+            Contexts.back().hscale.second = 1;
+            width_attr = v*600;
+        } else {
+            Contexts.back().hscale.first = true;
+            Contexts.back().hscale.second = v;
+        }
         return NULL;
     }
     if (a.Is("compress")) {
@@ -817,6 +899,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         } else 
             Contexts.back().slant_angle.second = a.number;
         Contexts.back().slant_angle.first = true;
+        Contexts.back().slant_depth.second = 0;
         return NULL;
     }
     if (a.StartsWith("background")) {
@@ -1235,13 +1318,13 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
     //Main loop, PostParseProcess each arc in the list
     ArcBase *prev_arc = NULL;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
-        //Merge in internally defined ArcParallel's
-        //We insert an internally defined ArcParallel at the beginning,
+        //Merge in ArcParallel's defined as "unroll"
+        //(E.g., we normally insert an internally defined ArcParallel at the beginning,
         //which contains entities for the comment lines. These shall be
-        //merged with autogen Entities.
-        //Internally defined ArcParallels sure have just one block.
+        //merged with autogen Entities.)
+        //Unrolldefined ArcParallels sure have just one block.
         ArcParallel *par = dynamic_cast<ArcParallel*>(*i);
-        if (par && par->internally_defined) {
+        if (par && par->unroll) {
             //insert them *after* i
             ArcList::iterator j = i;
             arcs.splice(++j, par->blocks.front().arcs);

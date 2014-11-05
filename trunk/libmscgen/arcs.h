@@ -48,7 +48,6 @@ enum class EArcSymbol
     ARC_DBLDBL_BIDIR,        ///<An mscgen double lined double bidirectional arrow: <<=>> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
     ARC_COLON,               ///<An mscgen unidir arrow with colon: :> or <: (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
     ARC_COLON_BIDIR,         ///<An mscgen bidirectional arrow with colon: <:> (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
-    ARC_X,                   ///<An mscgen loss arrow: => or <= NO BIDIR FORM!! (ArcDirArrow, ArcSelfArrow, ArcBigArrow, ArcVertical)
     ARC_UNDETERMINED_SEGMENT,///<An arrow segment of undefined type: - (ArcDirArrow, ArcBigArrow)
     BOX_SOLID,               ///<A solid box: -- (ArcBox, ArcPipe, ArcVertical)
     BOX_DOTTED,              ///<A dotted box: .. (ArcBox, ArcPipe, ArcVertical)
@@ -63,11 +62,10 @@ enum class EArcSymbol
     DIV_SUBTITLE,            ///<The subtitle command
 };
 inline bool IsArcSymbolArrow(EArcSymbol t) { return t<=EArcSymbol::ARC_UNDETERMINED_SEGMENT && t>EArcSymbol::INVALID; }
-inline bool IsArcSymbolBidir(EArcSymbol t) { _ASSERT(IsArcSymbolArrow(t));  return unsigned(t)&1 == 0 && t<EArcSymbol::ARC_UNDETERMINED_SEGMENT && t>EArcSymbol::INVALID; }
+inline bool IsArcSymbolBidir(EArcSymbol t) { _ASSERT(IsArcSymbolArrow(t));  return (unsigned(t)&1) == 0 && t<EArcSymbol::ARC_UNDETERMINED_SEGMENT && t>EArcSymbol::INVALID; }
 inline bool IsArcSymbolBox(EArcSymbol t) { return t<=EArcSymbol::BOX_UNDETERMINED_FOLLOW && t>=EArcSymbol::BOX_SOLID; }
 inline bool IsArcSymbolDivider(EArcSymbol t) { return t>=EArcSymbol::DIV_DISCO; }
 inline EArcSymbol ConvertBoxSymbol2ArrowSymbol(EArcSymbol t, bool bidir) { _ASSERT(IsArcSymbolBox(t));  return EArcSymbol(((unsigned)t-9)*2 + unsigned(bidir)); }
-inline bool IsArcSymbolMscgenCompatArrow(EArcSymbol t) { return EArcSymbol::ARC_DBLDBL<=t && t<=EArcSymbol::ARC_X; }
 
 /** The direction of an arrow in the text file */
 enum class EDirType {
@@ -405,12 +403,14 @@ struct VertXPos
 /** The base class for all arrows: Self, Dir, Block and Vertical*/
 class ArcArrow : public ArcLabelled
 {
+protected: 
+    bool headless_mscgen_arrow; ///<True if this is an mscgen syntax arc defined without arrowhead via one of (--, ==, .., ::)
 public:
     const bool bidir;
     /** This is the typical constructor */
-    ArcArrow(bool b, MscProgress::ECategory c, Msc *msc) : ArcLabelled(c, msc), bidir(b) {}
+    ArcArrow(bool b, MscProgress::ECategory c, Msc *msc) : ArcLabelled(c, msc), headless_mscgen_arrow(false), bidir(b){}
     /** Constructor used only when converting an ArcBox to and ArcBigArrow*/
-    ArcArrow(bool b, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(c, al), bidir(b) {}
+    ArcArrow(bool b, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(c, al), headless_mscgen_arrow(false), bidir(b) {}
     /** Get the refinement style for a given arrow symbol 
      * The ArcArrow:: version returns the style for self and dir arrows, ArcBigArrow overrides. */
     virtual const StyleCoW *GetRefinementStyle4ArrowSymbol(EArcSymbol t) const;
@@ -423,6 +423,8 @@ public:
     virtual ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml, 
                                  const FileLineColRange &l) = 0;
     virtual ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) = 0;
+    /** Indicate that this arrow was defined via an mscgen headless arrow symbol (--, ==, ., ::)*/
+    void Indicate_Mscgen_Headless() { headless_mscgen_arrow = true; }
     bool AddAttribute(const Attribute &) override;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -908,14 +910,13 @@ protected:
     void SetBottom(double y) { height = y-yPos; }
     std::list<Column> blocks;       ///<Arc lists, one for each block
 public:
-    const bool internally_defined;     ///<True if this is a single-block series defined internally e.g., to return chart options. PostParseProcessArcList() Shall unroll these.
+    const bool before_autogen_entities;///<True if this is a single-block series defined e.g., to return chart options. Auto headings jump over these.
+    const bool unroll;                 ///<True if this is a single-block series defined internally and PostParseProcessArcList() shall unroll these.
     EParallelLayoutType layout;        ///<The layout method
-    /** Create an internally defined parallel construct */
-    ArcParallel(Msc *msc, ArcList*l);
     /** Create a parallel construct from its first block */
-    ArcParallel(Msc *msc, ArcList*l, AttributeList *al);
+    ArcParallel(Msc *msc, ArcList*l, AttributeList *al, bool before, bool u);
     bool CanBeAlignedTo() const override { return true; }
-    bool BeforeAutoGenEntities() const override { return internally_defined; }
+    bool BeforeAutoGenEntities() const override { return before_autogen_entities; }
     /** Add one more parallel block */
     ArcParallel* AddArcList(ArcList*l, AttributeList *al);
     bool AddAttribute(const Attribute &) override;
