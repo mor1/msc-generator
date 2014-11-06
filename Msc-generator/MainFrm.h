@@ -31,6 +31,10 @@ public:
     virtual void DeleteRow(int rowDelete);
 };
 
+/** Number of the mscgen compatibility pane on the statusbar*/
+#define NUM_STATUS_BAR_MSCGEN_COMPAT 1
+/** Number of the tracking mode pane on the statusbar*/
+#define NUM_STATUS_BAR_TACKING 2
 
 /** The main window class.*/
 class CMainFrame : public CFrameWndEx

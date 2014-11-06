@@ -570,6 +570,7 @@ END
 STRINGTABLE
 BEGIN
     IDR_MAINFRAME           "Msc-generator\n\nSignalling Chart\nMsc-generator Signalling Charts (*.signalling)\n.signalling\nMscgen.Chart\nMsc-generator Signalling Chart"
+    ID_STATUS_MSCGEN_COMPAT "mscgen mode"
 END
 
 STRINGTABLE
@@ -845,7 +846,7 @@ BEGIN
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
     ID_EDIT_PAGES           "Select Page\nPage"
     ID_BUTTON_PREVIEW_EXPORT "Exports the Chart in PDF\nExport"
-    ID_CHECK_CSH_TAB        "If you check this option, pressing the TAB key will auto-indent the line as opposed to inserting a tabulator."
+    ID_CHECK_CSH_TAB        "If you check this option, a warning will be emitted for mscgen features not planned to be supported in the long run."
 END
 
 STRINGTABLE
@@ -865,6 +866,7 @@ BEGIN
                             "Automatically suggest hints when a text formatting escape is probable.\nAutomatic Hints for text formatting escape sequences beginning with a backslash ('\\')."
     IDC_CHECK_SMART_HINT_KEYWORD_MARKER 
                             "Automatically suggest hints when a mid-command keyword or marker name is expected.\nAutomatic Hints for Keywords and Markers"
+    ID_COMBO_MSCGEN_COMPAT  "Select how the chart text shall be interpreted. In mscgen compatibility mode the syntax of the mscgen tool is used, instead of the native Msc-generator."
 END
 
 #endif    // English (United States) resources

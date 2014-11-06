@@ -474,8 +474,11 @@ bool CDrawingChartData::CompileIfNeeded() const
         }
 
         //copy forced collapse/expand entities/boxes
+        CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+        ASSERT(pApp != NULL);
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
         m_msc->force_box_collapse = m_ForcedArcCollapse;
+        m_msc->mscgen_compat = pApp->m_mscgen_compat;
         //parse chart text
         m_msc->Progress.StartSection(MscProgress::PARSE);
 	    m_msc->ParseText(m_text, "");

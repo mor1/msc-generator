@@ -20,6 +20,7 @@
 #define IDR_MAINFRAME                   128
 #define IDR_MAINFRAME_256               129
 #define IDR_SigChartTYPE                130
+#define ID_STATUS_MSCGEN_COMPAT         130
 #define IDD_DIALOG_OPTIONS              132
 #define IDD_PROGRESSDIALOG              135
 #define IDD_ABOUTBOX                    136
@@ -186,6 +187,7 @@
 #define ID_BUTTON4                      33069
 #define ID_CHECK2                       33070
 #define ID_CHECK_CSH_TAB                33070
+#define ID_CHECK_MSCGEN_COMPAT_WARN     33070
 #define ID_ZOOMMODE_KEEP100             33073
 #define ID_VIEW_ZOOM100                 33074
 #define ID_EDIT_UPDATE33075             33075
@@ -203,6 +205,8 @@
 #define ID_EDIT_PREVIOUSERROR           33087
 #define IDC_CHECK_SMART_HINT_ESCAPE     33088
 #define IDC_CHECK_SMART_HINT_KEYWORD_MARKER 33089
+#define ID_COMBO2                       33090
+#define ID_COMBO_MSCGEN_COMPAT          33090
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -211,7 +215,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        321
-#define _APS_NEXT_COMMAND_VALUE         33090
+#define _APS_NEXT_COMMAND_VALUE         33091
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

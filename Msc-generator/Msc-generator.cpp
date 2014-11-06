@@ -250,6 +250,10 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_R, &CMscGenApp::OnUpdatePrintPreviewEdits)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_T, &CMscGenApp::OnUpdatePrintPreviewEdits)
     ON_UPDATE_COMMAND_UI(ID_EDIT_MARGIN_B, &CMscGenApp::OnUpdatePrintPreviewEdits)
+    ON_COMMAND(ID_COMBO_MSCGEN_COMPAT, &CMscGenApp::OnComboMscgenCompat)
+    ON_UPDATE_COMMAND_UI(ID_COMBO_MSCGEN_COMPAT, &CMscGenApp::OnUpdateComboMscgenCompat)
+    ON_COMMAND(ID_CHECK_MSCGEN_COMPAT_WARN, &CMscGenApp::OnCheckMscgenCompatWarn)
+    ON_UPDATE_COMMAND_UI(ID_CHECK_MSCGEN_COMPAT_WARN, &CMscGenApp::OnUpdateCheckMscgenCompatWarn)
 END_MESSAGE_MAP()
 
 
@@ -641,6 +645,9 @@ void CMscGenApp::ReadRegistryValues(bool /*reportProblem*/)
     m_bAutoHeading   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_AUTO_HEADING, TRUE);
     m_iScale4Pagination = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SCALE4PAGINATION, -1);
     m_iPageAlignment = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PAGE_ALIGNMENT, -4);
+    m_mscgen_compat = EMscgenCompat(GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_MSCGEN_COMPAT, int(EMscgenCompat::AUTODETECT)));
+    m_bWarnMscgenCompat = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_MSCGEN_COMPAT_WARN, TRUE);
+
     CString val;
     val = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_PAGE_MARGIN_L, "28.3464567"); //so many points per cm
     sscanf(val, "%lf", m_printer_usr_margins+0);
@@ -1043,6 +1050,7 @@ void CMscGenApp::OnCheckCsh()
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh);
     if (IsInternalEditorRunning()) 
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+    UpdateMscgenCompatPane();
 }
 
 /** Enables/disables the button if we have an internal editor.*/
@@ -1089,6 +1097,7 @@ void CMscGenApp::OnCheckSmartIndent()
 	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTINDENT, m_bSmartIndent);
     if (IsInternalEditorRunning() && m_bSmartIndent)
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::HINTS_AND_LABELS);
+    UpdateMscgenCompatPane();
 }
 
 /** Toggles the smart identation button.
@@ -1125,6 +1134,7 @@ void CMscGenApp::OnCheckCshError()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors);
     if (IsInternalEditorRunning()) 
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+    UpdateMscgenCompatPane();
 }
 
 /** Enables the button only if we show csh and the internal editor is running.
@@ -1144,6 +1154,7 @@ void CMscGenApp::OnCheckCshErrorInWindow()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow); 
     if (IsInternalEditorRunning())
         m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+    UpdateMscgenCompatPane();
 }
 
 /** Enables the button only if we show csh and the internal editor is running.
@@ -1260,6 +1271,7 @@ void CMscGenApp::OnCheckHints()
 {
     m_bHints = !m_bHints;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints);
+    UpdateMscgenCompatPane();
 }
 
 /** Check the button if hints are provided*/
@@ -1560,6 +1572,19 @@ void CMscGenApp::OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI)
     pCmdUI->Enable(pWnd ? pWnd->IsPrintPreview() : false);
 }
 
+/** Black out the mscgen compatibility pane on the status bar if no CSH*/
+void CMscGenApp::UpdateMscgenCompatPane()
+{
+    if (m_bShowCsh || m_bShowCshErrors ||
+        m_bShowCshErrorsInWindow ||
+        m_bSmartIndent || m_bHints)
+        return; //do nothing if we will cshparse the text
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd)
+        pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 
+                                              0x00101010); //0x00bbggrr
+}
+
 /** Open the print setup dialog, read the page size after and
  * update our internal values. Recompile if needed.*/
 void CMscGenApp::OnFilePrintSetup()
@@ -1587,3 +1612,49 @@ void CMscGenApp::OnUpdatePrintSetup(CCmdUI *pCmdUI)
     pCmdUI->Enable(pWnd ? !pWnd->IsPrintPreview() : false);
 }
 
+
+
+void CMscGenApp::OnComboMscgenCompat()
+{
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetMainWnd());
+    if (!pWnd) return;
+    pWnd->m_wndRibbonBar.GetElementsByID(ID_COMBO_MSCGEN_COMPAT, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    int sel = c->GetCurSel();
+    _ASSERT(sel>=0 && sel<=2);
+    if (m_mscgen_compat == EMscgenCompat(sel)) return;
+    m_mscgen_compat = EMscgenCompat(sel);
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_MSCGEN_COMPAT, int(m_mscgen_compat));
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc)
+        pDoc->CompileEditingChart(false, false, true);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+}
+
+
+void CMscGenApp::OnUpdateComboMscgenCompat(CCmdUI *pCmdUI)
+{
+    return;
+}
+
+
+void CMscGenApp::OnCheckMscgenCompatWarn()
+{
+    m_bWarnMscgenCompat = !m_bWarnMscgenCompat;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_MSCGEN_COMPAT_WARN, m_bWarnMscgenCompat);
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc)
+        pDoc->CompileEditingChart(false, false, true);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCSH(CCshRichEditCtrl::FORCE_CSH);
+}
+
+
+void CMscGenApp::OnUpdateCheckMscgenCompatWarn(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_bWarnMscgenCompat);
+    pCmdUI->Enable(m_mscgen_compat!=EMscgenCompat::FORCE_MSCGEN);
+}

@@ -2277,6 +2277,9 @@ void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
     if (m_pCompilingThread && on) return;
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd)
+        pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_TACKING, on ? 0x00ffffff : 0x00808080); //0x00bbggrr
 	m_bTrackMode = on;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);

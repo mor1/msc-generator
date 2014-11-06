@@ -109,6 +109,8 @@ public:
     bool m_bAutoHeading;                 ///<True if we add an auto heading for each automatic page break
     int m_iScale4Pagination;             ///<The scale used for auto-pagination. In percentage, -1=Fit Witdth -2=Fit Page
     int m_iPageAlignment;                ///<Alignment of chart in the fix-size page: -1/0/+1 left/center/right + -3/0/+3 bottom/center/top
+    EMscgenCompat m_mscgen_compat;       ///<How we approach mscgen compatibility
+    bool m_bWarnMscgenCompat;            ///<If we report mscgen depreacated features.
 
 	//Editor related
     /** Types of External editor */
@@ -199,8 +201,12 @@ public:
     afx_msg void OnEditMarginB() {DoEditMargin(ID_EDIT_MARGIN_B);}
             void DoEditMargin(UINT id); 
     afx_msg void OnUpdatePrintPreviewEdits(CCmdUI *pCmdUI);
+            void UpdateMscgenCompatPane();
+    afx_msg void OnComboMscgenCompat();
+    afx_msg void OnUpdateComboMscgenCompat(CCmdUI *pCmdUI);
+    afx_msg void OnCheckMscgenCompatWarn();
+    afx_msg void OnUpdateCheckMscgenCompatWarn(CCmdUI *pCmdUI);
     /** @} */
-
 };
 
 extern CMscGenApp theApp;
@@ -255,4 +261,6 @@ extern CMscGenApp theApp;
 #define REG_KEY_PAGE_MARGIN_R "PageMarginR"
 #define REG_KEY_PAGE_MARGIN_T "PageMarginT"
 #define REG_KEY_PAGE_MARGIN_B "PageMarginB"
+#define REG_KEY_MSCGEN_COMPAT "MscgenCompat"
+#define REG_KEY_MSCGEN_COMPAT_WARN "MscgenCompatWarn"
 
