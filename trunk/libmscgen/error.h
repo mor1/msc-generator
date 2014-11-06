@@ -205,9 +205,9 @@ public:
  * Used by both Msc and Csh classes.*/
 enum class EMscgenCompat
 {
-    NO_COMPAT,   ///<Never switch to compatibilit mode
-    AUTODETECT,  ///<Switch to compatibility mode if 'msc {...}' detected
-    FORCE_MSCGEN ///<Start in mscgen compatibility mode eve if no 'msc {...}' detected
+    NO_COMPAT=0,   ///<Never switch to compatibilit mode
+    AUTODETECT=1,  ///<Switch to compatibility mode if 'msc {...}' detected
+    FORCE_MSCGEN=2 ///<Start in mscgen compatibility mode eve if no 'msc {...}' detected
 };
 
 

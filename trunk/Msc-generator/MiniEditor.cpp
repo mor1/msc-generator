@@ -925,6 +925,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         Csh save = std::move(m_csh);
         //Parse the text
         m_csh = pApp->m_designlib_csh;
+        m_csh.mscgen_compat = pApp->m_mscgen_compat;
         m_csh.use_scheme = &pApp->m_nCshScheme;
         CshPos old_uc = m_csh.hintedStringPos;
         m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
@@ -934,6 +935,13 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         //If we consider the hinted string only up to the cursor, trim the returned pos
         if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
             m_csh.hintedStringPos.last_pos = cr.cpMin;
+
+        //Update status bar (compatibility mode pane)
+        CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+        if (pWnd)
+            pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT,  //0x00bbggrr
+                m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? 
+                    0x00ffffff : 0x00808080);
 
         //return true if the past and new m_csh.hintedStringPos overlap
         return m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
@@ -1056,6 +1064,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     old_csh_error_list.swap(m_csh.CshErrors.error_ranges);
     //Take the design, color and style definitions from the designlib
     m_csh = pApp->m_designlib_csh;
+    m_csh.mscgen_compat = pApp->m_mscgen_compat;
     m_csh.use_scheme = &pApp->m_nCshScheme;
     m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
     //If we consider the hinted string only up to the cursor, trim the returned pos
@@ -1179,6 +1188,14 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
             pDoc->OnInternalEditorChange(start, ins, del, m_crSel_before, m_scroll_pos_before);
     }
     RestoreWindowUpdate(state);
+
+    //Update status bar (compatibility mode pane)
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd)
+        pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT,  //0x00bbggrr
+            m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? 
+                0x00ffffff : 0x00808080);
+
     return ret;
 }
 

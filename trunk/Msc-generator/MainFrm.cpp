@@ -95,6 +95,7 @@ END_MESSAGE_MAP()
 static UINT indicators[] =
 {
 	ID_SEPARATOR,           // status line indicator
+    ID_STATUS_MSCGEN_COMPAT,
 	ID_INDICATOR_TRK,
 	ID_INDICATOR_CAPS,
 	ID_INDICATOR_NUM,
@@ -146,9 +147,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		TRACE0("Failed to create status bar\n");
 		return -1;      // fail to create
 	}
-	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
+    m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
 	m_wndStatusBar.EnablePaneDoubleClick();
-	m_wndStatusBar.SetTipText(1, _T("Toggle Tracking Mode")); //index 1 is ID_INDICATOR_TRK
+    m_wndStatusBar.SetTipText(NUM_STATUS_BAR_TACKING, _T("Toggle Tracking Mode")); //index 2 is ID_INDICATOR_TRK
+    m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_TACKING, 0x00808080); //gray: 0x00bbggrr
+    m_wndStatusBar.SetPaneText(NUM_STATUS_BAR_MSCGEN_COMPAT, _T("mscgen mode"));
+    m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00808080); //gray: 0x00bbggrr
+    m_wndStatusBar.SetTipText(NUM_STATUS_BAR_MSCGEN_COMPAT, _T("Shows if the chart in the internal editor is interpreted in mscgen compatibility mode.")); //index 2 is ID_INDICATOR_TRK
 
 	if (!m_wndOutputView.Create(_T("Errors and Warnings"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_OUTPUT, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_BOTTOM | CBRS_FLOAT_MULTI))
@@ -206,6 +211,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     _ASSERT(arButtons.GetSize()==1);
     CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
     if (s) s->SetPos(pApp->m_uFallbackResolution);
+
+    //Set mscgen compatibility stuff
+    arButtons.RemoveAll();
+    m_wndRibbonBar.GetElementsByID(ID_COMBO_MSCGEN_COMPAT, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    if (c)c->SelectItem(int(pApp->m_mscgen_compat));
 
     return 0;
 }
