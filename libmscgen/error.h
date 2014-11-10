@@ -174,7 +174,7 @@ public:
     /** Notifies of an mscgen feature (which is otherwise working, but we do not plan to maintain).
     * @param [in] linenum The location of the error.
     * @param [in] s The message to display*/
-    void WarnMscgen(FileLineCol linenum, const std::string &s);
+    void WarnMscgen(FileLineCol linenum, const std::string &s, const std::string &once = "");
     /** Notifies of an mscgen attr/option (which is otherwise accepted, but we do not plan to maintain).
     * @param [in] a The faulty attribute.
     * @param [in] isOption True if this is a chart option, false if an attribute

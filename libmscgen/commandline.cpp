@@ -76,7 +76,7 @@ static void version()
 "Copyright (C) 2008-2014 Zoltan Turanyi\n"
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
-"conditions; type `mscgen -l' for details.\n",
+"conditions; type `msc-gen -l' for details.\n",
 VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR),
 cairo_version_string());
 }
@@ -108,6 +108,18 @@ static void usage()
 "             '-', input will be read from stdin.\n"
 " -i <infile> To retain compatibility with mscgen, this is an alternate way to\n"
 "             specify the input file.\n"
+" --force-mscgen\n"
+"             Forces the chart to be interpreted in mscgen mode. Note that many\n"
+"             Msc-generator attributes, commands and keywords are still\n"
+"             recognized. This setting makes conflicting syntax be intrepreted\n"
+"             as mscgen would do. Without this switch Msc-generator uses the\n"
+"             mscgen mode only if the chart starts with the text 'msc {'.\n"
+" --prevent-mscgen\n"
+"             Prevents the chart to be interpreted in mscgen mode. Note that some\n"
+"             mscgen attributes and symbols are still recognized. This setting\n"
+"             makes conflicting syntax be intrepreted as Msc-generator would do.\n"
+"             Without this switch Msc-generator uses the mscgen mode if the chart\n"
+"             starts with the text 'msc {'.\n"
 " -p[=<page size]\n"
 "             Full-page output. (PDF only now.) In this case the chart is\n"
 "             drawn on fixed-size pages (following pagination) with one pixel\n"
@@ -134,6 +146,9 @@ static void usage()
 "             specified, scale cannot be 'auto'. Specifying -ah will\n"
 "             insert a heading after automatically inserted page breaks.\n"
 " -Wno        No warnings displayed.\n"
+" -Wno-mscgen Disables warnings for deprecated constructs kept only for\n"
+"             backwards compatibility with mscgen. Has no effect with\n"
+"             --force-mscgen, in that case no such warnings are emitted.\n"
 " -Pno        No progress indicator displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
 " -x=<width>  Specifies chart width (in pixels). Only for bitmap output.\n"
@@ -255,6 +270,7 @@ int do_main(const std::list<std::string> &args,
     bool                    oLmap = false;
     int                     oX = -1;
     int                     oY = -1;
+    bool                    oUseWidthAttr = true;
     std::vector<double>     oScale; //-2=auto, -1=width, other values = given scale
     PageSizeInfo::EPageSize oPageSize = PageSizeInfo::NO_PAGE;
     int                     oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
@@ -315,27 +331,33 @@ int do_main(const std::list<std::string> &args,
             else if (oX<10 || oX>200000) {
                 msc.Error.Error(opt_pos, "Invalid x size, it should be between [10..200000]. Using native size.");
                 oX = -1;
-            }
+            } else
+                oUseWidthAttr = false;
         } else if (i->length()>=3 && i->at(0) == '-' && i->at(1) == 'y') {
             if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oY)!=1)
                 msc.Error.Error(opt_pos, "Missing size after '-y='. Using native size.");
             else if (oY<10 || oY>200000) {
                 msc.Error.Error(opt_pos, "Invalid y size, it should be between [10..200000]. Using native size.");
                 oY = -1;
-            }
+            } else 
+                oUseWidthAttr = false;
         } else if (i->length()>=4 && i->at(0) == '-' && i->at(1) == 's') {
             double os;
             if (i->at(2) != '=' ||
                 (sscanf(i->c_str()+3, "%lf", &os)!=1 && tolower(i->at(3)) != 'a' && tolower(i->at(3)) != 'w'))
                 msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
-            else if (tolower(i->at(3)) == 'a')
+            else if (tolower(i->at(3)) == 'a') {
                 oScale.push_back(-2); //auto
-            else if (tolower(i->at(3)) == 'w')
+                oUseWidthAttr = false;
+            } else if (tolower(i->at(3)) == 'w') {
                 oScale.push_back(-1); //width
-            else if (os<=0.001 || os>100)
+                oUseWidthAttr = false;
+            } else if (os<=0.001 || os>100) {
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
-            else
+            } else {
                 oScale.push_back(os);
+                oUseWidthAttr = false;
+            }
         } else if (i->length()>=2 && i->at(0) == '-' && i->at(1) == 'p') {
             if (i->length()==2)
                 oPageSize = PageSizeInfo::A4P;
@@ -344,7 +366,8 @@ int do_main(const std::list<std::string> &args,
             if (oPageSize == PageSizeInfo::NO_PAGE) {
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
                 oPageSize = PageSizeInfo::A4P;
-            }
+            } else 
+                oUseWidthAttr = false;
         } else if (i->length()>=3 && i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') &&
                    i->at(2) == 'a') {
             if (i->length()<5 || i->at(3) != '=')
@@ -381,6 +404,12 @@ int do_main(const std::list<std::string> &args,
                     margins[at-dirs] = res*mul;
                 }
             }
+        } else if (*i == "--force-mscgen") {
+            msc.mscgen_compat = EMscgenCompat::FORCE_MSCGEN;
+        } else if (*i == "--prevent-mscgen") {
+            msc.mscgen_compat = EMscgenCompat::NO_COMPAT;
+        } else if (*i == "-Wno-mscgen") {
+            msc.Error.warn_mscgen = false;
         } else if (*i == "-a") {
             oA = true; oAH = false;
         } else if (*i == "-ah") {
@@ -435,8 +464,11 @@ int do_main(const std::list<std::string> &args,
                         msc.Error.FatalError(opt_pos, "Failed to open design file '" + oInputFile +"'.");
                 }
             }
-        } else if (*i == "-T") {
-            if (i==--args.end()) {
+        } else if (i->length()>=2 && i->at(0)=='-' && i->at(1)=='T') { //begins with "-T"
+            string format;
+            if (i->length()>2)
+                format = i->substr(2);
+            else if (i==--args.end()) {
                 msc.Error.Error(opt_pos,
                                 "Missing output type after '-T'.",
                                 "Assuming 'png'.");
@@ -444,53 +476,56 @@ int do_main(const std::list<std::string> &args,
                 show_usage = true;
             } else {
                 i++;
-                if (*i == "csh") {
+                format = *i;
+            }
+            if (format.length()) {
+                if (format == "csh") {
                     oCshize = true;
                     oLmap = false;
                 } else
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
-                if (*i == "png") {
+                if (format == "png") {
                     oOutType = Canvas::PNG;
                     oCshize = oLmap = false;
                 } else
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
-                 if (*i == "eps") {
+                 if (format == "eps") {
                      oOutType = Canvas::EPS;
                      oCshize = oLmap = false;
                  } else
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
-                 if (*i == "pdf") {
+                 if (format == "pdf") {
                      oOutType = Canvas::PDF;
                      oCshize = oLmap = false;
                  } else
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
-                 if (*i == "svg") {
+                 if (format == "svg") {
                      oOutType = Canvas::SVG;
                      oCshize = oLmap = false;
                  } else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-                 if (*i == "emf") {
+                 if (format == "emf") {
                      oOutType = Canvas::EMF;
                      oCshize = oLmap = false;
-                 } else if (*i == "wmf")  {//undocumented
+                 } else if (format == "wmf")  {//undocumented
                      oOutType = Canvas::WMF;
                      oCshize = oLmap = false;
                  } else
 #endif
-                 if (*i == "ismap") { //undocumented
+                 if (format == "ismap") { //undocumented
                      oOutType = Canvas::ISMAP;
                      oCshize = oLmap = false;
-                 } else if (*i == "lmap") {
+                 } else if (format == "lmap") {
                      oLmap = true;
                      oCshize = false;
                      oOutType = Canvas::PDF; //use this format for laying out (-p also works with it)
                  } else {
                      msc.Error.Error(opt_pos,
-                                     "Unknown output format '" + *i + "'."
+                                     "Unknown output format '" + format + "'."
                                      "Use one of"
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                      " 'png'"
@@ -759,6 +794,8 @@ int do_main(const std::list<std::string> &args,
 
         //Determine scaling
         std::vector<XY> scale(std::max(std::vector<XY>::size_type(1), oScale.size()), XY(1., 1.));
+        if (oUseWidthAttr)
+            oX = msc.GetWidthAttr(); //nothing happens if equals -1
         if (oX>0 || oY>0) {
             if (oScale.size())
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");

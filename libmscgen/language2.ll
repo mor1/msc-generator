@@ -239,9 +239,9 @@ X|x yylval_param->str = strdup(yytext);  return TOK_REL_X;
 =\>\>    yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL;      return TOK_REL_TO;     // =>>
 \<\<=    yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL;      return TOK_REL_FROM;   // <<=
 \<\<=\>\> yylval_param->arcsymbol = EArcSymbol::ARC_DBLDBL_BIDIR;return TOK_REL_BIDIR; // <<=>>
-\:\>     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_TO;     // :>
-\<\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON;       return TOK_REL_FROM;   // <:
-\<\:\>   yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR; return TOK_REL_BIDIR;  // <:>
+==\>     yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2;      return TOK_REL_TO;    // ==>
+\<==     yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2;      return TOK_REL_FROM;  // <==
+\<==\>   yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2_BIDIR;return TOK_REL_BIDIR; // <==>
 
 <INITIAL>{
     --       yylval_param->arcsymbol = EArcSymbol::BOX_SOLID;       return TOK_EMPH;       // --
@@ -251,9 +251,12 @@ X|x yylval_param->str = strdup(yytext);  return TOK_REL_X;
 }
 <LEX_STATE_MSCGEN_COMPAT>{
     --       yylval_param->arcsymbol = EArcSymbol::ARC_SOLID_BIDIR;  return TOK_REL_MSCGEN; // --
-    \:\:     yylval_param->arcsymbol = EArcSymbol::ARC_COLON_BIDIR;  return TOK_REL_MSCGEN; // ::
+    \:\:     yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2_BIDIR;return TOK_REL_MSCGEN; // ::
     \.\.     yylval_param->arcsymbol = EArcSymbol::ARC_DOTTED_BIDIR; return TOK_REL_MSCGEN; // ..
     ==       yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE_BIDIR; return TOK_REL_MSCGEN; // == 
+    \:\>     yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2;      return TOK_REL_TO;     // :>
+    \<\:     yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2;      return TOK_REL_FROM;   // <:
+    \<\:\>   yylval_param->arcsymbol = EArcSymbol::ARC_DOUBLE2_BIDIR;return TOK_REL_BIDIR;  // <:>
 }
 
 \+=      return TOK_PLUS_EQUAL;
@@ -330,7 +333,6 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
     yyget_extra(yyscanner)->msc->Error.Error(pos,
          "This opening quotation mark misses its closing pair. "
          "Assuming string termination at line-end.",
-         yyget_extra(yyscanner)->msc->mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? "" :
          "Quoted strings cannot have line breaks. Use \'\\n\' to insert a line break.");
     /* Advance pos beyond the leading quotation mark */
     pos.col++;
@@ -347,10 +349,32 @@ vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
  ** Can contain quotation marks (escaped or unescaped), but can not start with it
  ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
  ** (representing a commented section inside a label)
+ ** Not available in mscgen compatibility mode. There we use the one below
  *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  
  * \:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*
  */
-\:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*\\? %{
+<INITIAL>\:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*\\? %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    yylval_param->str = msc_process_colon_string(yytext, yylloc,
+                        yyget_extra(yyscanner)->msc->current_file);
+  #endif
+    return TOK_COLON_STRING;
+%}
+
+ /* This is a non quoted colon-string, where no '>' or ':' follows the initial colon
+ ** : <string>
+ ** terminated by any of: [ { or ;
+ ** Honors escaping of the above via a backslash
+ ** Can contain quotation marks (escaped or unescaped), but can not start with it
+ ** If it contains a hashmark, unescaped [ { or ; is allowed till the end of the line
+ ** (representing a commented section inside a label)
+ ** Used only in mscgen compatibility mode to separate from :> and :: arrow symbols.
+ *  \:[\t]*(((#[^\x0d\x0a]*)|[^\"\;\[\{\\]|(\\.))((#[^\x0d\x0a]*)|[^\;\[\{\\]|(\\.))*(\\)?|\\)  
+ * \:[ \t]*((#[^\0xd\0xa]*|[^\"\;\{\[\\#\ \t]|(\\[^0xd0xa])))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*
+ */
+<LEX_STATE_MSCGEN_COMPAT>\:(([ \t]*#[^\0xd\0xa]*|[ \t]+[^\"\;\{\[\\#\ \t]|[ \t]*(\\[^0xd0xa])|[^\"\;\{\[\\#\ \t\>\:]))((#[^0xd0xa]*|[^\;\{\[\\#]|(\\[^0xd0xa])))*\\? %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
