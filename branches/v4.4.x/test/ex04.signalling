@@ -1,0 +1,6 @@
+->Client: Hit;
+Client->Server: Request;
+Server->Backend: Query;
+Backend->Backend: Lookup;
+Client<-Server<-Backend: Reply;
+Client<->Backend: Direct Query;

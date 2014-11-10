@@ -1,0 +1,9 @@
+C: Client;
+S: Server;
+B: Backend;
+->C: Hit;
+box C--C: Generate\nrequest;
+C=>S: Request;
+box S--B: Server gets info\nfrom Backend;
+C<=S: Reply;
+
