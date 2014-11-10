@@ -939,9 +939,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         //Update status bar (compatibility mode pane)
         CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
         if (pWnd)
-            pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT,  //0x00bbggrr
-                m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? 
-                    0x00ffffff : 0x00808080);
+            pWnd->m_mscgen_mode_ind = m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN;
 
         //return true if the past and new m_csh.hintedStringPos overlap
         return m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
@@ -1035,7 +1033,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
         m_csh.CshErrors.clear();
     }
     //if we had csh entries before, adjust them according to ins/del
-    if (m_csh.CshList.size()) {
+    if (m_csh.CshList.size() || m_csh.CshErrors.error_ranges.size()) {
         //Since start is as if the first char in the file is indexed
         //at zero, we add one (csh entries are indexed from 1).
         CshPos::AdjustList(m_csh.CshList,                start+1, ins-del);
@@ -1192,9 +1190,7 @@ bool CCshRichEditCtrl::UpdateCSH(UpdateCSHType updateCSH)
     //Update status bar (compatibility mode pane)
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
     if (pWnd)
-        pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT,  //0x00bbggrr
-            m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN ? 
-                0x00ffffff : 0x00808080);
+        pWnd->m_mscgen_mode_ind = m_csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN;
 
     return ret;
 }

@@ -36,6 +36,13 @@ public:
 /** Number of the tracking mode pane on the statusbar*/
 #define NUM_STATUS_BAR_TACKING 2
 
+/** The status bar.*/
+class CMscGenStatusBar : public CMFCStatusBar
+{
+
+};
+
+
 /** The main window class.*/
 class CMainFrame : public CFrameWndEx
 {
@@ -64,7 +71,7 @@ public:
     bool m_bAutoSplit;                       ///<True if autosplit mode is on
     bool m_at_embedded_object_category;      ///<True if the Embedded Object ribbon category is currently showing
     bool m_has_fallback_image;               ///<True if the object has a fallback image
-
+    int m_mscgen_mode_ind;                   ///<Status of what the "mscgen mode" statusbar indicator should show. -1: unknown, 0: not in compat mode, 1: compat mode
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -113,6 +120,8 @@ public:
     void TriggerIfRibbonCategoryChange();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
     afx_msg void OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI);
+    afx_msg void OnMscgenCompatStatus();
+    afx_msg void OnUpdateMscgenCompatStatus(CCmdUI *pCmdUI);
 };
 
 

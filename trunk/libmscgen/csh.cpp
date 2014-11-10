@@ -105,7 +105,8 @@ void CshListType::DiffInto(const CshListType &old_list, const CshListType &new_l
             //up to the beginning of 'n'
             done_till = std::min(o->last_pos+1, n->first_pos);
             AddToBack(CshEntry(o_first, done_till-1, neutral));
-            o++;
+            if (done_till > o->last_pos)
+                o++;
         } else {//n->first_pos < o->first_pos
             AddToBack(*n);
             done_till = n->last_pos+1;
@@ -219,16 +220,20 @@ void MscInitializeCshAppearanceList(void)
     //CSH_SCHEME ==0 is the Minimal one
     l[0][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[0][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_KEYWORD_PARTIAL].   SetColor(  0,  0,  0); l[0][COLOR_KEYWORD_PARTIAL].effects = 0;
+    l[0][COLOR_KEYWORD_MSCGEN].SetColor(50, 50, 50); l[0][COLOR_KEYWORD_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[0][COLOR_ATTRNAME].          SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_ATTRNAME_PARTIAL].  SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME_PARTIAL].effects = 0;
+    l[0][COLOR_ATTRNAME_MSCGEN].   SetColor( 50, 50, 50); l[0][COLOR_ATTRNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[0][COLOR_OPTIONNAME].        SetColor(  0,  0,  0); l[0][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_OPTIONNAME_PARTIAL].SetColor(  0,  0,  0); l[0][COLOR_OPTIONNAME_PARTIAL].effects = 0;
+    l[0][COLOR_OPTIONNAME_MSCGEN]. SetColor( 50, 50, 50); l[0][COLOR_OPTIONNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[0][COLOR_EQUAL].             SetColor(  0,  0,  0); l[0][COLOR_EQUAL].effects = 0;
     l[0][COLOR_SEMICOLON].         SetColor(  0,  0,  0); l[0][COLOR_SEMICOLON].effects = 0;
     l[0][COLOR_COLON].             SetColor(  0,  0,  0); l[0][COLOR_COLON].effects = 0;
     l[0][COLOR_BRACE].             SetColor(  0,  0,  0); l[0][COLOR_BRACE].effects = 0;
     l[0][COLOR_BRACKET].           SetColor(  0,  0,  0); l[0][COLOR_BRACKET].effects = 0;
     l[0][COLOR_SYMBOL].            SetColor( 20, 20,  0); l[0][COLOR_SYMBOL].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_SYMBOL_MSCGEN].     SetColor( 80, 80,  0); l[0][COLOR_SYMBOL_MSCGEN].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_DESIGNNAME].        SetColor( 50,  0,  0); l[0][COLOR_DESIGNNAME].effects = 0;
     l[0][COLOR_STYLENAME].         SetColor( 50,  0,  0); l[0][COLOR_STYLENAME].effects = 0;
     l[0][COLOR_COLORNAME].         SetColor( 50,  0,  0); l[0][COLOR_COLORNAME].effects = 0;
@@ -248,16 +253,20 @@ void MscInitializeCshAppearanceList(void)
     //CSH_SCHEME ==1 is the Standard one
     l[1][COLOR_KEYWORD].           SetColor(128,128,  0); l[1][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_KEYWORD_PARTIAL].   SetColor(128,128,  0); l[1][COLOR_KEYWORD_PARTIAL].effects = 0;
+    l[1][COLOR_KEYWORD_MSCGEN].    SetColor(178,178,  0); l[1][COLOR_KEYWORD_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[1][COLOR_ATTRNAME].          SetColor(128,128,  0); l[1][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_ATTRNAME_PARTIAL].  SetColor(128,128,  0); l[1][COLOR_ATTRNAME_PARTIAL].effects = 0;
+    l[1][COLOR_ATTRNAME_MSCGEN].   SetColor(178,178,  0); l[1][COLOR_ATTRNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[1][COLOR_OPTIONNAME].        SetColor(128,128,  0); l[1][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_OPTIONNAME_PARTIAL].SetColor(128,128,  0); l[1][COLOR_OPTIONNAME_PARTIAL].effects = 0;
+    l[1][COLOR_OPTIONNAME_MSCGEN]. SetColor(178,178,  0); l[1][COLOR_OPTIONNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[1][COLOR_EQUAL].             SetColor(  0,  0,  0); l[1][COLOR_EQUAL].effects = 0;
     l[1][COLOR_SEMICOLON].         SetColor(  0,  0,  0); l[1][COLOR_SEMICOLON].effects = 0;
     l[1][COLOR_COLON].             SetColor(  0,  0,  0); l[1][COLOR_COLON].effects = 0;
     l[1][COLOR_BRACE].             SetColor(  0,  0,  0); l[1][COLOR_BRACE].effects = 0;
     l[1][COLOR_BRACKET].           SetColor(  0,  0,  0); l[1][COLOR_BRACKET].effects = 0;
     l[1][COLOR_SYMBOL].            SetColor(255,  0,  0); l[1][COLOR_SYMBOL].effects = COLOR_FLAG_BOLD;
+    l[1][COLOR_SYMBOL_MSCGEN].     SetColor(255, 50, 50); l[1][COLOR_SYMBOL_MSCGEN].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_DESIGNNAME].        SetColor(  0,  0,  0); l[1][COLOR_DESIGNNAME].effects = 0;
     l[1][COLOR_STYLENAME].         SetColor(  0,  0,  0); l[1][COLOR_STYLENAME].effects = 0;
     l[1][COLOR_COLORNAME].         SetColor(  0,  0,  0); l[1][COLOR_COLORNAME].effects = 0;
@@ -277,16 +286,20 @@ void MscInitializeCshAppearanceList(void)
     //CSH_SCHEME ==2 is the Colorful one
     l[2][COLOR_KEYWORD].           SetColor(128,128,  0); l[2][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_KEYWORD_PARTIAL].   SetColor(128,128,  0); l[2][COLOR_KEYWORD_PARTIAL].effects = 0;
+    l[1][COLOR_KEYWORD_MSCGEN].    SetColor(178,178,  0); l[1][COLOR_KEYWORD_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[2][COLOR_ATTRNAME].          SetColor(128,128,  0); l[2][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_ATTRNAME_PARTIAL].  SetColor(128,128,  0); l[2][COLOR_ATTRNAME_PARTIAL].effects = 0;
+    l[1][COLOR_ATTRNAME_MSCGEN].   SetColor(178,178,  0); l[1][COLOR_ATTRNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[2][COLOR_OPTIONNAME].        SetColor(128,128,  0); l[2][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_OPTIONNAME_PARTIAL].SetColor(128,128,  0); l[2][COLOR_OPTIONNAME_PARTIAL].effects = 0;
+    l[1][COLOR_OPTIONNAME_MSCGEN]. SetColor(178,178,  0); l[1][COLOR_OPTIONNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[2][COLOR_EQUAL].             SetColor(  0,  0,  0); l[2][COLOR_EQUAL].effects = 0;
     l[2][COLOR_SEMICOLON].         SetColor(  0,  0,  0); l[2][COLOR_SEMICOLON].effects = 0;
     l[2][COLOR_COLON].             SetColor(  0,  0,  0); l[2][COLOR_COLON].effects = 0;
     l[2][COLOR_BRACE].             SetColor(  0,  0,  0); l[2][COLOR_BRACE].effects = 0;
     l[2][COLOR_BRACKET].           SetColor(  0,  0,  0); l[2][COLOR_BRACKET].effects = 0;
     l[2][COLOR_SYMBOL].            SetColor(  0,128,128); l[2][COLOR_SYMBOL].effects = COLOR_FLAG_BOLD;
+    l[2][COLOR_SYMBOL_MSCGEN].     SetColor(  0,178,178); l[2][COLOR_SYMBOL_MSCGEN].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_DESIGNNAME].        SetColor(128,  0,  0); l[2][COLOR_DESIGNNAME].effects = 0;
     l[2][COLOR_STYLENAME].         SetColor(128,  0,  0); l[2][COLOR_STYLENAME].effects = 0;
     l[2][COLOR_COLORNAME].         SetColor(128,  0,  0); l[2][COLOR_COLORNAME].effects = 0;
@@ -304,18 +317,22 @@ void MscInitializeCshAppearanceList(void)
     l[2][COLOR_NO_ERROR].mask = COLOR_FLAG_UNDERLINE;     l[2][COLOR_NO_ERROR].effects = 0;
 
     //CSH_SCHEME ==3 is the Error oriented one
-    l[3][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[3][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
-    l[3][COLOR_KEYWORD_PARTIAL].   SetColor(  0,  0,  0); l[1][COLOR_KEYWORD_PARTIAL].effects = 0;
-    l[3][COLOR_ATTRNAME].          SetColor(  0,  0,  0); l[3][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
-    l[3][COLOR_ATTRNAME_PARTIAL].  SetColor(  0,  0,  0); l[3][COLOR_ATTRNAME_PARTIAL].effects = 0;
-    l[3][COLOR_OPTIONNAME].        SetColor(  0,  0,  0); l[3][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
-    l[3][COLOR_OPTIONNAME_PARTIAL].SetColor(  0,  0,  0); l[2][COLOR_OPTIONNAME_PARTIAL].effects = 0;
+    l[0][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[0][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_KEYWORD_PARTIAL].   SetColor(  0,  0,  0); l[0][COLOR_KEYWORD_PARTIAL].effects = 0;
+    l[0][COLOR_KEYWORD_MSCGEN].    SetColor( 50, 50, 50); l[0][COLOR_KEYWORD_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
+    l[0][COLOR_ATTRNAME].          SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_ATTRNAME_PARTIAL].  SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME_PARTIAL].effects = 0;
+    l[0][COLOR_ATTRNAME_MSCGEN].   SetColor( 50, 50, 50); l[0][COLOR_ATTRNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
+    l[0][COLOR_OPTIONNAME].        SetColor(  0,  0,  0); l[0][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_OPTIONNAME_PARTIAL].SetColor(  0,  0,  0); l[0][COLOR_OPTIONNAME_PARTIAL].effects = 0;
+    l[0][COLOR_OPTIONNAME_MSCGEN]. SetColor( 50, 50, 50); l[0][COLOR_OPTIONNAME_MSCGEN].effects = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS;
     l[3][COLOR_EQUAL].             SetColor(  0,  0,  0); l[3][COLOR_EQUAL].effects = 0;
     l[3][COLOR_SEMICOLON].         SetColor(  0,  0,  0); l[3][COLOR_SEMICOLON].effects = 0;
     l[3][COLOR_COLON].             SetColor(  0,  0,  0); l[3][COLOR_COLON].effects = 0;
     l[3][COLOR_BRACE].             SetColor(  0,  0,  0); l[3][COLOR_BRACE].effects = 0;
     l[3][COLOR_BRACKET].           SetColor(  0,  0,  0); l[3][COLOR_BRACKET].effects = 0;
     l[3][COLOR_SYMBOL].            SetColor( 20, 20,  0); l[3][COLOR_SYMBOL].effects = COLOR_FLAG_BOLD;
+    l[3][COLOR_SYMBOL].            SetColor( 80, 80,  0); l[3][COLOR_SYMBOL_MSCGEN].effects = COLOR_FLAG_BOLD;
     l[3][COLOR_DESIGNNAME].        SetColor( 50,  0,  0); l[3][COLOR_DESIGNNAME].effects = 0;
     l[3][COLOR_STYLENAME].         SetColor( 50,  0,  0); l[3][COLOR_STYLENAME].effects = 0;
     l[3][COLOR_COLORNAME].         SetColor( 50,  0,  0); l[3][COLOR_COLORNAME].effects = 0;
@@ -824,20 +841,23 @@ void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType c
     else if (color == COLOR_ATTRNAME) array = attr_names;
     else array = empty_names;
     unsigned match_result = find_opt_attr_name(name, array);
-    if (mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
-        //check mscgen-specific attributes/options
-        if (color == COLOR_OPTIONNAME) array = opt_names_mscgen;
-        else if (color == COLOR_ATTRNAME) array = attr_names_mscgen;
-        else array = empty_names;
-        unsigned match_result2 = find_opt_attr_name(name, array);
-        //take the better of the two matches
-        match_result = std::max(match_result, match_result2);
+    bool mscgen_compat_match = false;
+
+    //check mscgen-specific attributes/options
+    if (color == COLOR_OPTIONNAME) array = opt_names_mscgen;
+    else if (color == COLOR_ATTRNAME) array = attr_names_mscgen;
+    else array = empty_names;
+    unsigned match_result2 = find_opt_attr_name(name, array);
+    //take the better of the two matches
+    if (match_result2 > match_result) {
+        match_result = match_result2;
+        mscgen_compat_match = true;
     }
     //Honor partial matches only if cursor is right after
     if (pos.last_pos != cursor_pos && match_result == 1)
         match_result = 0;
     switch (match_result) {
-    case 2: AddCSH(pos, color); return;
+    case 2: AddCSH(pos, mscgen_compat_match ? EColorSyntaxType(color+2) : color); return;
     case 0: AddCSH_Error(pos, color == COLOR_OPTIONNAME ? "Unkown chart option." : "Unknown attribute."); return;
     case 1:
         AddCSH(pos, EColorSyntaxType(color+1));
@@ -856,11 +876,14 @@ void Csh::AddCSH_AttrName(const CshPos&pos, const char *name, EColorSyntaxType c
 void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
 {
     unsigned match_result = find_opt_attr_name(name, attr_names);
-    if (mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
-        //check mscgen-specific attributes
-        unsigned match_result2 = find_opt_attr_name(name, attr_names_mscgen);
-        //take the better of the two matches
-        match_result = std::max(match_result, match_result2);
+    bool mscgen_compat_match = false;
+
+    //check mscgen-specific attributes
+    unsigned match_result2 = find_opt_attr_name(name, attr_names_mscgen);
+    //take the better of the two matches
+    if (match_result2 > match_result) {
+        match_result = match_result2;
+        mscgen_compat_match = true;
     }
 
     if (pos.last_pos == cursor_pos && match_result == 1) {
@@ -869,7 +892,7 @@ void Csh::AddCSH_StyleOrAttrName(const CshPos&pos, const char *name)
         return;
     }
     if (match_result == 2) {
-        AddCSH(pos, COLOR_ATTRNAME);
+        AddCSH(pos, mscgen_compat_match ? COLOR_ATTRNAME_MSCGEN : COLOR_ATTRNAME);
         return;
     }
     //if no keyword match, we assume a style name

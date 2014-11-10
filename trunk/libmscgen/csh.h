@@ -55,11 +55,13 @@ enum EColorSyntaxType {
     COLOR_NORMAL = 0,      ///<Regular text
     COLOR_KEYWORD,         ///<A keyword, like commands or 'parallel'
     COLOR_KEYWORD_PARTIAL, ///<A partially typed keyword
+    COLOR_KEYWORD_MSCGEN,  ///<An msc-gen only keyword
     COLOR_EQUAL,           ///<The equal sign
     COLOR_SEMICOLON,       ///<The semicolon sign
     COLOR_COLON,           ///<The colon character
     COLOR_COMMA,           ///<The comma character
     COLOR_SYMBOL,          ///<A symbol, e.g., arrows, box symbols, etc.
+    COLOR_SYMBOL_MSCGEN,   ///<A symbol, e.g., arrows, box symbols, etc.
     COLOR_BRACE,           ///<An opening or closing brace {}
     COLOR_BRACKET,         ///<An opening or closing bracket []
     COLOR_DESIGNNAME,      ///<The name of a design
@@ -72,8 +74,10 @@ enum EColorSyntaxType {
     COLOR_MARKERNAME_PARTIAL,///<The name of a marker partially written
     COLOR_OPTIONNAME,      ///<The name of a chart option
     COLOR_OPTIONNAME_PARTIAL,///<The name of a chart option partially written
+    COLOR_OPTIONNAME_MSCGEN,///<The name of an mscgen-only chart option 
     COLOR_ATTRNAME,        ///<The name of an attribute
     COLOR_ATTRNAME_PARTIAL,///<The name of a attribute partially written
+    COLOR_ATTRNAME_MSCGEN, ///<The name of an mscgen-only attribute 
     COLOR_ATTRVALUE,       ///<The value of an attribute
     COLOR_LABEL_TEXT,      ///<The text of a label, either after a colon or between quotation marks
     COLOR_LABEL_ESCAPE,    ///<The text of a lanel escape, such as '\n'
@@ -387,7 +391,6 @@ public:
     void AddCSH_Error(const CshPos&pos, const char *text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
     void AddCSH_Error(const CshPos&pos, const std::string &text) { CshErrors.Add(pos, text); } ///<The basic variant for errors: add error "text" at this location
     void AddCSH_Error(const CshPos&pos, std::string &&text) { CshErrors.Add(pos, std::move(text)); } ///<The basic variant for errors: add error "text" at this location
-    void AddCSH_Error_Mscgen(const CshPos&pos) { if (mscgen_compat != EMscgenCompat::FORCE_MSCGEN) AddCSH_Error(pos, "This is mscgen syntax."); } ///<Notifies of an mscgen syntax, if not in compatibility mode
     void AddCSH_ErrorAfter(const CshPos&pos, const char *text); ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, const std::string &text) { AddCSH_ErrorAfter(pos, text.c_str()); } ///<Add an error just after this range
     void AddCSH_ErrorAfter(const CshPos&pos, std::string &&text); ///<Add an error just after this range

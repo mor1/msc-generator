@@ -210,7 +210,7 @@ public:
     /** Initialize from a ChartData - but no compilation yet.*/
     CDrawingChartData & operator = (const CChartData& o) { Invalidate(); CChartData::operator =(o); return *this; }
     /** Empty all content */
-	virtual void Delete(void);
+    void Delete(void) override;
     /** Swap with another CDrawingCahrtData */
     void swap(CDrawingChartData &o);
     /** Set the progress callback */
@@ -218,13 +218,13 @@ public:
     /** @name Set properties - these require recompile, which we do not do
     * @{ */
     /** Set the forced design */
-	virtual void SetDesign (const char *design);
+    void SetDesign(const char *design) override;
     /** Set if we want auto heading for auto page breaks.*/
-    virtual void SetAddHeading(bool b);
+    void SetAddHeading(bool b) override;
     /** Set if we fit to width. */
-    virtual void SetFitWidth(bool b);
+    void SetFitWidth(bool b) override;
     /** Set if we compuile pedantic*/
-    virtual void SetPedantic(bool b);
+    void SetPedantic(bool b);
     bool ForceEntityCollapse(const std::string &s, bool b);
     bool ForceEntityCollapse(const EntityCollapseCatalog &);
     bool ForceArcCollapse(const ArcSignature &, EBoxCollapseType t);
@@ -283,6 +283,8 @@ public:
     Block GetNetPageBlock() const; 
     /** Get the height of the heading on the current page (for autoheading)*/
     double GetHeadingSize() const;
+    /** Return the resulting mscgen compatibility mode after compiling*/
+    EMscgenCompat GetMscgenCompat() const;
     /** Draws the chart to one or more files. 
      * @param [in] fileName The name of the file. If empty "Untitled" is used.
      *                      The extension is used to determine type, if not recognized

@@ -462,6 +462,8 @@ public:
     double GetCopyrightTextHeight() const {return copyrightTextHeight;}
     /** Returns the Y coordinate of the bottom of the top entity headings (for AutoSplit)*/
     double GetHeadingSize() {return headingSize;}
+    /** Returns the width attribute specified by the user. Can also be from a hscale in mscgen mode.*/
+    double GetWidthAttr() { return width_attr; }
 
     /** @name Members defining various spacing values.
      * These should have an integer value for nice drawing on bitmaps.

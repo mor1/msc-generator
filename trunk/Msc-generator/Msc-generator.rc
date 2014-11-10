@@ -516,8 +516,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,4,0,4
- PRODUCTVERSION 4,4,0,4
+ FILEVERSION 4,5,0,1
+ PRODUCTVERSION 4,5,0,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -534,12 +534,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "4.4.0.4"
+            VALUE "FileVersion", "4.5.0.1"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-2014.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "4.4.0.4"
+            VALUE "ProductVersion", "4.5.0.1"
         END
     END
     BLOCK "VarFileInfo"
@@ -570,7 +570,6 @@ END
 STRINGTABLE
 BEGIN
     IDR_MAINFRAME           "Msc-generator\n\nSignalling Chart\nMsc-generator Signalling Charts (*.signalling)\n.signalling\nMscgen.Chart\nMsc-generator Signalling Chart"
-    ID_STATUS_MSCGEN_COMPAT "mscgen mode"
 END
 
 STRINGTABLE
@@ -792,6 +791,7 @@ END
 STRINGTABLE
 BEGIN
     ID_INDICATOR_TRK        "Track"
+    ID_STATUS_MSCGEN_COMPAT "mscgen mode"
 END
 
 STRINGTABLE
@@ -846,7 +846,9 @@ BEGIN
     ID_FULL_SCREEN_PAGE     "Select Page\nPage"
     ID_EDIT_PAGES           "Select Page\nPage"
     ID_BUTTON_PREVIEW_EXPORT "Exports the Chart in PDF\nExport"
-    ID_CHECK_CSH_TAB        "If you check this option, a warning will be emitted for mscgen features not planned to be supported in the long run."
+    ID_CHECK_CSH_TAB        "When checked, the tab key auto-indents the line instead of insering a tabulator."
+    ID_CHECK_MSCGEN_COMPAT_WARN 
+                            "If you check this option, a warning will be emitted for mscgen features not planned to be supported in the long run."
 END
 
 STRINGTABLE
@@ -867,6 +869,7 @@ BEGIN
     IDC_CHECK_SMART_HINT_KEYWORD_MARKER 
                             "Automatically suggest hints when a mid-command keyword or marker name is expected.\nAutomatic Hints for Keywords and Markers"
     ID_COMBO_MSCGEN_COMPAT  "Select how the chart text shall be interpreted. In mscgen compatibility mode the syntax of the mscgen tool is used, instead of the native Msc-generator."
+    IDC_CHECK_PAGEBREAKS    "Show page breaks when all pages are viewed."
 END
 
 #endif    // English (United States) resources

@@ -60,6 +60,8 @@ ADDED: hscale different handling and width
 ADDED: mscgen design
 CANCELLED: color and arrowhead attributes to arrow refinement styles
 ADDED: Handling of -x ->* --,==,::,.. arrow symbols in compatibility mode
+ADDED: ==> arrow symbol as a replacement for mscgen's :>.
+FIXED: :> arrow symbol gets confused with colon-label. Now colon labels cannot start with :> or :: in mscgen compat mode
 ADDED: Broadcast arrows
 ADDED: msc-gen compatibility mode with autodetect
 ADDED: support for line breaks in quoted text in compatibility mode
@@ -67,9 +69,14 @@ ADDED: abox, rbox, hbox, box type mscgen boxes
 ADDED: parallel mscgen boxes via comma separation
 ADDED: ||| special arc
 ADDED: Csh extensions for mscgen compatibility mode
-ADD: -Tpdf 
-ADD: command-line and GUI switches for compatibility mode
-FIX: :> arrow symbol gets confused with colon-label
+ADDED: -Tpdf 
+ADDED: command-line and GUI switches for compatibility mode
+FIXED: Warn for abox rbox, textbgcolour in non mscgen mode 
+ADDED: Different coloring for abox, rbox, textgbcolor in non-mscgen mode
+FIXED: CSH error indication badly updated.
+DOC: Mscgen backwards compatibility
+DOC: new arrow symbols
+FIX: Undetermined follow with =>> and ==>
 
 This is how it works.
 - Three modes: signalling, signalling-warning (for mscgen constructs) and
@@ -80,14 +87,14 @@ This is how it works.
 	- wordwraparcs -> arrow.text.word_wrap = yes
 	- arcskip -> slant_depth
 	- arcgradient is translated to a degree -> angle (gives warning with hscale=auto)
-	- line breaks in quoted text
+	- line breaks in quoted text (not accepted in Msc-generator)
 - Conflicting constructs are as follows
    - -x and ->*: these are interpreted differently in the signalling and mscgen modes
+   - :> and :: exist only in mscgen mode
    - hscale value interpreted differently in mscgen mode
    - style of arrows is different under mscgen mode
    - word wrapping is enabled for mscgen defined boxes in mscgen mode
    - -- and == are arrows in mscgen
-
 Special features to cater for in both modes
 - text.bkcolor (no warning)
 - ||| (no warning)
@@ -98,7 +105,7 @@ Special features to cater for in both modes
 
 
 
-In 4.4~rc6
+In 4.4~rc6 THIS became 4.4 released
 DOCED: The font selection on Linux and the use of fontconfig.
 FIXED: Removed fontconfig dependency.
 FIXED: Better version and help command-line output (so that help2man works better)

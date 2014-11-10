@@ -479,6 +479,7 @@ bool CDrawingChartData::CompileIfNeeded() const
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
         m_msc->force_box_collapse = m_ForcedArcCollapse;
         m_msc->mscgen_compat = pApp->m_mscgen_compat;
+        m_msc->Error.warn_mscgen = pApp->m_bWarnMscgenCompat;
         //parse chart text
         m_msc->Progress.StartSection(MscProgress::PARSE);
 	    m_msc->ParseText(m_text, "");
@@ -632,6 +633,12 @@ double CDrawingChartData::GetHeadingSize() const
         return GetMsc()->GetHeadingSize() - GetMsc()->GetTotal().x.from;
     return GetMsc()->pageBreakData[m_page-1].autoHeadingSize;
 }
+
+EMscgenCompat CDrawingChartData::GetMscgenCompat() const
+{
+    return GetMsc()->mscgen_compat;
+}
+
 
 void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, bool ignore_pagebreaks, 
                                    XY scale, const XY &pageSize, 

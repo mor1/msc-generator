@@ -888,6 +888,8 @@ void Context::Empty()
     styles[">"]  = styles["->"];
     styles[">>"] = styles["->"];
     styles["=>"] = styles["->"];
+    styles["=>>"] = styles["->"];
+    styles["==>"] = styles["->"];
 
     styles["blockarrow"] =
         MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::BIGARROW,
@@ -901,6 +903,8 @@ void Context::Empty()
     styles["block>"] = styles["block->"];
     styles["block>>"] = styles["block->"];
     styles["block=>"] = styles["block->"];
+    styles["block=>>"] = styles["block->"];
+    styles["block==>"] = styles["block->"];
 
     styles["vertical"] = 
         MscStyle(STYLE_DEFAULT, EColorMeaning::FILL, ArrowHead::BIGARROW, 
@@ -937,6 +941,8 @@ void Context::Empty()
     styles["vertical>"] = styles["vertical->"];
     styles["vertical>>"] = styles["vertical->"];
     styles["vertical=>"] = styles["vertical->"];
+    styles["vertical=>>"] = styles["vertical->"];
+    styles["vertical==>"] = styles["vertical->"];
     styles["vertical--"] = styles["vertical->"];
     styles["vertical++"] = styles["vertical->"];
     styles["vertical.."] = styles["vertical->"];
@@ -1111,6 +1117,14 @@ void Context::Plain()
     styles[">>"].write().line.type.second = LINE_DASHED;
     styles["=>"].write().line.type.first = true;
     styles["=>"].write().line.type.second = LINE_DOUBLE;
+    styles["=>>"].write().line.type.first = true;
+    styles["=>>"].write().line.type.second = LINE_DOUBLE;
+    styles["=>>"].write().arrow.endType.first = true;
+    styles["=>>"].write().arrow.endType.second = MSC_ARROW_SHARP;
+    styles["=>>"].write().arrow.midType.first = true;
+    styles["=>>"].write().arrow.midType.second = MSC_ARROW_SHARP;
+    styles["==>"].write().line.type.first = true;
+    styles["==>"].write().line.type.second = LINE_DOUBLE;
 
     styles["blockarrow"].write().MakeCompleteButText();
     styles["blockarrow"].write().vspacing.first = false;
@@ -1127,6 +1141,14 @@ void Context::Plain()
     styles["block>>"].write().line.type.second = LINE_DASHED;
     styles["block=>"].write().line.type.first = true;
     styles["block=>"].write().line.type.second = LINE_DOUBLE;
+    styles["block=>>"].write().line.type.first = true;
+    styles["block=>>"].write().line.type.second = LINE_DOUBLE;
+    styles["block=>>"].write().arrow.endType.first = true;
+    styles["block=>>"].write().arrow.endType.second = MSC_ARROW_SHARP;
+    styles["block=>>"].write().arrow.midType.first = true;
+    styles["block=>>"].write().arrow.midType.second = MSC_ARROW_SHARP;
+    styles["block==>"].write().line.type.first = true;
+    styles["block==>"].write().line.type.second = LINE_DOUBLE;
 
     styles["vertical"].write().MakeCompleteButText();
     styles["vertical"].write().vspacing.first = false;
@@ -1185,6 +1207,14 @@ void Context::Plain()
     styles["vertical>>"].write().line.type.second = LINE_DASHED;
     styles["vertical=>"].write().line.type.first = true;
     styles["vertical=>"].write().line.type.second = LINE_DOUBLE;
+    styles["vertical=>>"].write().line.type.first = true;
+    styles["vertical=>>"].write().line.type.second = LINE_DOUBLE;
+    styles["vertical=>>"].write().arrow.endType.first = true;
+    styles["vertical=>>"].write().arrow.endType.second = MSC_ARROW_SHARP;
+    styles["vertical=>>"].write().arrow.midType.first = true;
+    styles["vertical=>>"].write().arrow.midType.second = MSC_ARROW_SHARP;
+    styles["vertical==>"].write().line.type.first = true;
+    styles["vertical==>"].write().line.type.second = LINE_DOUBLE;
 
     styles["vertical--"].write().arrow.startType.first = true;
     styles["vertical--"].write().arrow.startType.second = MSC_ARROW_NONE;
@@ -1354,6 +1384,7 @@ void Context::MscgenCompat()
     styles["=>>"].write().arrow.endType.second = MSC_ARROW_LINE;
     styles["=>>"].write().arrow.midType.first = true;
     styles["=>>"].write().arrow.midType.second = MSC_ARROW_LINE;
+    //==> is the same as in plain: double line, solid arrow
     styles[":>"].write().line.type.first = true;
     styles[":>"].write().line.type.second = LINE_DOUBLE;
     styles[":>"].write().arrow.endType.first = true;

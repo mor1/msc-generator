@@ -765,6 +765,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         return AddAttribute(Attribute("text.wrap", value==1, FileLineColRange(), FileLineColRange()));
     }
     if (a.Is("width")) {
+        Error.WarnMscgen(a.linenum_attr.start, "Deprecated mscgen attribute.","Use the -x command-line option or bitmap export options instead.");
         double v;
         if (a.type == MSC_ATTR_STRING)
             v = atof(a.value.c_str());

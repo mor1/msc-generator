@@ -127,10 +127,10 @@ void MscError::_sort(std::vector<ErrorElement> &store)
                 }
 }
 
-void MscError::WarnMscgen(FileLineCol linenum, const std::string &s)
+void MscError::WarnMscgen(FileLineCol linenum, const std::string &s, const std::string &once)
 { 
     if (warn_mscgen)
-        Add(linenum, linenum, s+" (This is an mscgen syntax.)", "", false);
+        Add(linenum, linenum, s+" (This is an mscgen syntax.)", once, false);
 }
 
 void MscError::WarnMscgenAttr(const Attribute &a, bool isOption, const char *name)

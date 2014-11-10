@@ -90,6 +90,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
     ON_MESSAGE(WM_APP+293, OnCompilationDone)
+    ON_COMMAND(ID_STATUS_MSCGEN_COMPAT, OnMscgenCompatStatus)  //Track button handled by CMscGenDoc
+    ON_UPDATE_COMMAND_UI(ID_STATUS_MSCGEN_COMPAT, OnUpdateMscgenCompatStatus)  
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -110,6 +112,7 @@ CMainFrame::CMainFrame()
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
     m_has_fallback_image = false;
+    m_mscgen_mode_ind = -1;
 }
 
 /** Create the associated window object, ribbons, status bars, panels, etc.*/
@@ -151,8 +154,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndStatusBar.EnablePaneDoubleClick();
     m_wndStatusBar.SetTipText(NUM_STATUS_BAR_TACKING, _T("Toggle Tracking Mode")); //index 2 is ID_INDICATOR_TRK
     m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_TACKING, 0x00808080); //gray: 0x00bbggrr
-    m_wndStatusBar.SetPaneText(NUM_STATUS_BAR_MSCGEN_COMPAT, _T("mscgen mode"));
-    m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00808080); //gray: 0x00bbggrr
+    m_wndStatusBar.SetPaneText(NUM_STATUS_BAR_MSCGEN_COMPAT, _T("mscgen_mode"));
+    m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00ffffff); //gray: 0x00bbggrr
     m_wndStatusBar.SetTipText(NUM_STATUS_BAR_MSCGEN_COMPAT, _T("Shows if the chart in the internal editor is interpreted in mscgen compatibility mode.")); //index 2 is ID_INDICATOR_TRK
 
 	if (!m_wndOutputView.Create(_T("Errors and Warnings"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_OUTPUT, 
@@ -218,6 +221,11 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     _ASSERT(arButtons.GetSize()==1);
     c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
     if (c)c->SelectItem(int(pApp->m_mscgen_compat));
+
+#if (NTDDI_VERSION >= NTDDI_WIN7)
+    SetProgressBarState(TBPF_NOPROGRESS);
+    SetProgressBarRange(0, 1000);
+#endif
 
     return 0;
 }
@@ -1190,4 +1198,33 @@ void CMainFrame::OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI)
     //This is just used to test if we have switched to "Embedded Object" category
     //This is only called if this category is visible
     TriggerIfRibbonCategoryChange();
+}
+
+/** Called by the framework when the user dbl clicks the mscgen compat status bar panel.*/
+void CMainFrame::OnMscgenCompatStatus()
+{
+    return; //we do nothing
+}
+
+
+/** Called by the framework to see the status of the mscgen compat status bar panel.*/
+void CMainFrame::OnUpdateMscgenCompatStatus(CCmdUI *pCmdUI)
+{
+    switch (m_mscgen_mode_ind) {
+    default:
+        _ASSERT(0);
+        //fallthrough
+    case -1: 
+        m_wndStatusBar.SetPaneBackgroundColor(NUM_STATUS_BAR_MSCGEN_COMPAT); // black
+        m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00101010); //almost black: 0x00bbggrr
+        break;
+    case 0:
+        m_wndStatusBar.SetPaneBackgroundColor(NUM_STATUS_BAR_MSCGEN_COMPAT); // black
+        m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00808080); //gray: 0x00bbggrr
+        break;
+    case 1:
+        m_wndStatusBar.SetPaneBackgroundColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00000080); //darker red
+        m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_MSCGEN_COMPAT, 0x00ffffff); //white: 0x00bbggrr
+        break;
+    }
 }

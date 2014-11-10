@@ -20,7 +20,6 @@
 #define IDR_MAINFRAME                   128
 #define IDR_MAINFRAME_256               129
 #define IDR_SigChartTYPE                130
-#define ID_STATUS_MSCGEN_COMPAT         130
 #define IDD_DIALOG_OPTIONS              132
 #define IDD_PROGRESSDIALOG              135
 #define IDD_ABOUTBOX                    136
@@ -41,13 +40,10 @@
 #define IDD_POPUPLIST                   311
 #define IDR_SRVR_INPLACE_257            311
 #define IDD_DIALOG_VERSION              313
-#define IDR_HTML1                       314
-#define IDD_DIALOG1                     315
 #define IDD_SCALE                       315
 #define IDB_PREFLARGE                   317
 #define IDB_PREFSMALL                   318
 #define IDD_MULTI_PAGE                  320
-#define IDC_RADIO1                      1000
 #define IDC_RADIO_MP1                   1000
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON_URL                  1001
@@ -56,17 +52,12 @@
 #define IDC_BUTTON_LATEST_URL           1002
 #define IDC_RADIO_MP2                   1002
 #define IDC_CHECK_PEDANTIC              1003
-#define IDC_EDIT3                       1003
 #define IDC_CHECK_WARNINGS              1004
-#define IDC_RADIO2                      1005
-#define IDC_RADIO3                      1006
 #define IDC_EDIT_DEFAULT_TEXT           1007
 #define IDC_RADIO_SCALING_Y             1007
 #define IDC_OUTPUT_LIST                 1008
 #define IDC_CHECK_ALWAYSOPEN            1008
-#define IDC_CHECK_PB_EDITING            1009
 #define IDC_INTERNAL_EDITOR             1009
-#define IDC_CHECK_PAGEBREAKS            1009
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_CSH                   1011
 #define IDC_CHECK_SMART_IDENT           1012
@@ -84,9 +75,7 @@
 #define IDC_LIST1                       1019
 #define IDC_CHECK_SMART_HINT_COMPACT    1019
 #define IDC_LIST2                       1020
-#define IDC_CHECK_SMART_HINT_COMPACT2   1020
 #define IDC_CHECK_SMART_HINT_FILTER     1020
-#define IDC_CHECK_CSH_ERRORS            1021
 #define IDC_CHECK_CSH_ERROR             1021
 #define IDC_RADIO_SCALING_NO            1021
 #define IDC_CHECK_CSH_ERROR_IN_WINDOW   1022
@@ -102,7 +91,6 @@
 #define IDC_STATIC_ORIGINAL_SIZE        1028
 #define IDC_RADIO_SCALING_SCALE         1029
 #define IDC_RADIO_SCALING_X             1030
-#define IDC_STATIC_LATEST               1031
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
 #define ID_EDIT_PREFERENCES             32773
@@ -132,7 +120,6 @@
 #define ID_VIEW_PREVERROR               32856
 #define ID_VIEW_GOTOPREVIOUSERROR       32859
 #define ID_BUTTON_AUTO_SPLIT            32860
-#define ID_BUTTON_AUT                   32861
 #define ID_VIEW_SHOWELEMENTCONTROLS     32864
 #define ID_BUTTON_DEFAULT_TEXT          32898
 #define ID_EXTERNAL_EDITOR_COMBO        32924
@@ -184,19 +171,12 @@
 #define ID_FULL_SCREEN_PAGE             33065
 #define ID_EDIT_PAGES                   33066
 #define ID_BUTTON_PREVIEW_EXPORT        33067
-#define ID_BUTTON4                      33069
-#define ID_CHECK2                       33070
 #define ID_CHECK_CSH_TAB                33070
-#define ID_CHECK_MSCGEN_COMPAT_WARN     33070
+#define ID_CHECK_MSCGEN_COMPAT_WARN     33071
 #define ID_ZOOMMODE_KEEP100             33073
 #define ID_VIEW_ZOOM100                 33074
-#define ID_EDIT_UPDATE33075             33075
-#define ID_EDIT_FIND33076               33076
-#define ID_EDIT_REPLACE33077            33077
 #define ID_EDIT_EXPORT                  33078
 #define ID_EDIT_SAVE                    33079
-#define ID_EDIT_EXPORT33080             33080
-#define ID_EDIT_EXPORT33081             33081
 #define ID_EDIT_ZOOMTOFITWIDTH          33082
 #define ID_EDIT_ZOOMTOFITPAGE           33083
 #define ID_EDIT_ZOOMTOORIGINALSIZE      33084
@@ -205,9 +185,10 @@
 #define ID_EDIT_PREVIOUSERROR           33087
 #define IDC_CHECK_SMART_HINT_ESCAPE     33088
 #define IDC_CHECK_SMART_HINT_KEYWORD_MARKER 33089
-#define ID_COMBO2                       33090
 #define ID_COMBO_MSCGEN_COMPAT          33090
+#define IDC_CHECK_PAGEBREAKS            33091
 #define ID_INDICATOR_TRK                59200
+#define ID_STATUS_MSCGEN_COMPAT         59201
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -215,7 +196,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        321
-#define _APS_NEXT_COMMAND_VALUE         33091
+#define _APS_NEXT_COMMAND_VALUE         33092
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

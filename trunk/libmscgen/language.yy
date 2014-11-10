@@ -3568,7 +3568,7 @@ mscgen_boxrel: entity_string mscgen_emphrel entity_string
     if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
         csh.AddCSH(@2, COLOR_KEYWORD);
     else
-        csh.AddCSH_Error_Mscgen(@2);
+        csh.AddCSH(@2, COLOR_KEYWORD_MSCGEN);
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
 #else
@@ -3579,7 +3579,7 @@ mscgen_boxrel: entity_string mscgen_emphrel entity_string
     else if (CaseInsensitiveEqual($2, "note")) c = ArcBox::MSCGEN_COMPAT_NOTE;
     $$ = new ArcBox(c, $1, MSC_POS(@1), $3, MSC_POS(@3), &msc);
     if (msc.mscgen_compat != EMscgenCompat::FORCE_MSCGEN)
-        msc.Error.WarnMscgen(MSC_POS(@2).start, "Unrecognized box symbol.");
+        msc.Error.WarnMscgen(MSC_POS(@2).start, "Deprecated box symbol.", "Use '--' and attribute 'line.corner' instead.");
 #endif
     free($1);
     free($2);
@@ -4120,10 +4120,12 @@ arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
             csh.AddCSH(@2 + @3, COLOR_SYMBOL);
             csh.AddCSH_EntityName(@4, $4);
         } else {
-            csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('-').");
+            csh.AddCSH_Error(@2, "Not supported arrow symbol ('-').");
         }
+    } else if ((@2).last_pos+1 == (@3).first_pos) {
+        csh.AddCSH_Error(@2 + @3, "Unsupported mscgen arrow symbol ('-x'), use '-> *' for indicating loss instead.");
     } else {
-        csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('-').");
+        csh.AddCSH_Error(@2, "Not supported arrow symbol ('-').");
     }
   #else
     if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
@@ -4163,13 +4165,13 @@ arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
             csh.AddCSH(@2 + @3, COLOR_SYMBOL);
             csh.AddCSH_EntityName(@4, $4);
         } else {
-            csh.AddCSH_Error(@2 + @4, "Missing arrow symbol before 'x'.");
+            csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'. (Perhaps remove space after?)");
         }
     } else {
         if ((@2).last_pos+1 == (@3).first_pos) {
-            csh.AddCSH_Error(@2 + @4, "Not supported arrow symbol ('x-').");
+            csh.AddCSH_Error(@2 + @3, "Unsupported arrow symbol ('x-'), use '* <-' for indicating loss instead.");
         } else {
-            csh.AddCSH_Error(@2 + @4, "Missing arrow symbol before 'x'.");
+            csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'.");
         }
     }
   #else
@@ -4205,12 +4207,17 @@ arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
-        (@2).last_pos+1 == (@3).first_pos) {
-        csh.AddCSH(@2 + @3, COLOR_SYMBOL);
-        csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+            csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+        } else {
+            csh.AddCSH_Error(@2, "Not supported arrow symbol ('-').");
+        }
+    } else if ((@2).last_pos+1 == (@3).first_pos) {
+        csh.AddCSH_Error(@2 + @3, "Unsupported mscgen arrow symbol ('-x'), use '-> *' for indicating loss instead.");
     } else {
-        csh.AddCSH_Error(@2, "Not supported arrow symbol '-'.");
+        csh.AddCSH_Error(@2, "Not supported arrow symbol ('-').");
     }
   #else
     if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && MSC_POS(@2).end.NextChar() == MSC_POS(@3).start)
@@ -4227,11 +4234,19 @@ arcrel_arrow: arcrel_to | arcrel_from | arcrel_bidir
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && (@2).last_pos+1 == (@3).first_pos) {
-        csh.AddCSH(@2 + @3, COLOR_SYMBOL);
-        csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+    if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN) {
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH(@2 + @3, COLOR_SYMBOL);
+            csh.AddCSH_ErrorAfter(@2, "Missing an entity name.");
+        } else {
+            csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'. (Perhaps remove space after?)");
+        }
     } else {
-        csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'.");
+        if ((@2).last_pos+1 == (@3).first_pos) {
+            csh.AddCSH_Error(@2 + @3, "Unsupported arrow symbol ('x-'), use '* <-' for indicating loss instead.");
+        } else {
+            csh.AddCSH_Error(@2, "Missing arrow symbol before 'x'.");
+        }
     }
   #else
     if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN && MSC_POS(@2).end.NextChar() == MSC_POS(@3).start)

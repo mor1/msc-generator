@@ -993,12 +993,16 @@ const StyleCoW *ArcArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
     case EArcSymbol::ARC_DBLDBL:
     case EArcSymbol::ARC_DBLDBL_BIDIR:
         return &chart->Contexts.back().styles["=>>"];
-    case EArcSymbol::ARC_COLON:
-    case EArcSymbol::ARC_COLON_BIDIR:
-        return &chart->Contexts.back().styles[":>"];
-    case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
+    case EArcSymbol::ARC_DOUBLE2:
+    case EArcSymbol::ARC_DOUBLE2_BIDIR:
+        if (chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+            return &chart->Contexts.back().styles[":>"];
+        else 
+            return &chart->Contexts.back().styles["==>"];
     default:
         _ASSERT(0);
+        //fallthrough
+    case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
         return NULL; /*Do nothing */
     };
 }
@@ -1434,7 +1438,7 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
             //Add all other style elements of the refinement style to us
             save.write() += refinement->read();
         }
-        *segment_lines.rbegin() += style.read().line;
+        segment_lines.back() += style.read().line;
     }
     if (headless_mscgen_arrow) {
         save.write().arrow.endType.first = true;
@@ -2290,8 +2294,16 @@ const StyleCoW *ArcBigArrow::GetRefinementStyle4ArrowSymbol(EArcSymbol t) const
     case EArcSymbol::ARC_DOUBLE:
     case EArcSymbol::ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["block=>"];
+    case EArcSymbol::ARC_DBLDBL:
+    case EArcSymbol::ARC_DBLDBL_BIDIR:
+        return &chart->Contexts.back().styles["block=>>"];
+    case EArcSymbol::ARC_DOUBLE2:
+    case EArcSymbol::ARC_DOUBLE2_BIDIR:
+        return &chart->Contexts.back().styles["block==>"];
     default:
         _ASSERT(0);
+        //fallthrough
+    case EArcSymbol::ARC_UNDETERMINED_SEGMENT:
         return NULL;
     }
 }
@@ -2778,6 +2790,12 @@ const StyleCoW *ArcVerticalArrow::GetMyRefinementStyle() const
     case EArcSymbol::ARC_DOUBLE:
     case EArcSymbol::ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["vertical=>"];
+    case EArcSymbol::ARC_DBLDBL:
+    case EArcSymbol::ARC_DBLDBL_BIDIR:
+        return &chart->Contexts.back().styles["vertical=>>"];
+    case EArcSymbol::ARC_DOUBLE2:
+    case EArcSymbol::ARC_DOUBLE2_BIDIR:
+        return &chart->Contexts.back().styles["vertical==>"];
     default:
         _ASSERT(0);
         return NULL;
@@ -3808,10 +3826,11 @@ bool ArcBox::AddAttribute(const Attribute &a)
         tag_label = a.value;
         return true;
     }
-    if (mscgen_compat!=MSCGEN_COMPAT_NONE && 
-        (a.Is("textbgcolour") || a.Is("textbgcolor")))
+    if (mscgen_compat!=MSCGEN_COMPAT_NONE &&
+        (a.Is("textbgcolour") || a.Is("textbgcolor"))) {
+        chart->Error.WarnMscgenAttr(a, false, "fill.color");
         return ArcLabelled::AddAttribute(Attribute("fill.color", a));
-        //else fallthrough
+    }   //else fallthrough
     return ArcLabelled::AddAttribute(a);
 }
 
@@ -4313,7 +4332,9 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
         if (pBox->tag_label.length() && y < pBox->tag_outer_edge.y.till)
             y = pBox->tag_outer_edge.y.till + chart->compressGap;
 
-        if (pBox==series.back() && main_style.read().line.corner.second != CORNER_NONE && main_style.read().line.radius.second>0) {
+        if (pBox==series.back() && !content_cover.IsEmpty() &&
+            main_style.read().line.corner.second != CORNER_NONE && 
+            main_style.read().line.radius.second>0) {
             //Funnily shaped box, prevent it content from hitting the bottom of the content
             LineAttr limiter_line(main_style.read().line);
             limiter_line.radius.second += chart->compressGap;
@@ -4322,8 +4343,10 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList *cover)
                                    limiter_line.CreateRectangle_InnerEdge(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
-            if (off>0 && IsCompressed()) y-=off;
-            if (off<0) y-=off;
+            if (off != CONTOUR_INFINITY) {
+                if (off>0 && IsCompressed()) y -= off;
+                if (off<0) y -= off;
+            }
         }
         y += chart->boxVGapInside;
         //increase the size of the box by the side notes, except for the last box
@@ -4807,7 +4830,7 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
     if (f==NULL) return this;
     if (f->valid) {
         f->style.write().Empty();
-        f->AddAttributeList(l);
+        const FileLineCol line = f->AddAttributeListStep1(l);
         if (f->style.read().side.first) {
             f->style.write().side.first = false;
             chart->Error.Error(f->file_pos.start,
@@ -4829,9 +4852,12 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
         StyleCoW s = series.front()->style;
         //Override with the line type specified (if any)
         _ASSERT(f->type != EArcSymbol::BOX_UNDETERMINED_FOLLOW);
-        s += *f->GetRefinementStyle4PipeSymbol(f->type);
+        const StyleCoW * const ref = f->GetRefinementStyle4PipeSymbol(f->type);
+        if (ref)
+            s += *ref;
         s += f->style; //add the result of attributes
         f->style = s;
+        f->AddAttributeListStep2(line);
         //AddAttributeList will NOT be called for "f" after this function
     } else
         valid = false;
@@ -5654,8 +5680,6 @@ void ArcPipeSeries::RegisterCover(EDrawPassType pass)
                 effective_pass = DRAW_BEFORE_ENTITY_LINES;
             if (pass == effective_pass)
                 chart->AllCovers += pPipe->area;
-            else
-                pPipe->RegisterCover(pass);
         }
     //then the content
     chart->RegisterCoverArcList(content, pass);
@@ -5667,8 +5691,6 @@ void ArcPipeSeries::RegisterCover(EDrawPassType pass)
                 effective_pass = DRAW_BEFORE_ENTITY_LINES;
             if (pass == effective_pass)
                 chart->AllCovers += pPipe->area;
-            else
-                pPipe->RegisterCover(pass);
         }
 }
 

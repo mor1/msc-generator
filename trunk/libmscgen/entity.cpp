@@ -927,23 +927,40 @@ EntityAppHelper* EntityApp::AddAttributeList(AttributeList *al, ArcList *ch, Fil
     } else {
         FileLineCol p;
         // An existing entity. Disallow attributes that change drawing positions
-        if (label.first && label.second != (*i)->label)
-            chart->Error.Error(p = label.third,
-                             "Cannot change the label of an entity after declaration. Keeping old label :'"
-                             + (*i)->orig_label + "'.");
+        if (label.first && label.second != (*i)->label) {
+            p = label.third;
+            string mscgen_msg;
+            string plain_label = label.second;
+            StringFormat::ConvertToPlainText(plain_label);
+            if (chart->mscgen_compat != EMscgenCompat::FORCE_MSCGEN && plain_label.length() &&
+                (plain_label[0]=='>' || plain_label[0]==':')) {
+                mscgen_msg = "This may be an mscgen arrow symbol (':";
+                mscgen_msg.push_back(plain_label[0]);
+                mscgen_msg.append("'). Use '");
+                if (plain_label[0]==':')
+                    mscgen_msg.append("==>' and the attribute [arrow.type=none] instead.");
+                else 
+                    mscgen_msg.append("=>' or '==>' instead.");
+            }
+            chart->Error.Error(p, "Cannot change the label of an entity after declaration. Keeping old label: '"
+                             + (*i)->orig_label + "'.", mscgen_msg);
+        }
 
-        if (pos.first)
-            chart->Error.Error(p = pos.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
-        if (rel.first)
-            chart->Error.Error(p = rel.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
-        if (collapsed.first)
-            chart->Error.Error(p = collapsed.third,
-                               "You can only declare an entity collapsed at its definition. Ignoring attribute 'collapsed'.");
+        if (pos.first) {
+            p = pos.third;
+            chart->Error.Error(p, "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
+        }
+        if (rel.first) {
+            p = rel.third;
+            chart->Error.Error(p, "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
+        }
+        if (collapsed.first) {
+            p = collapsed.third;
+            chart->Error.Error(p, "You can only declare an entity collapsed at its definition. Ignoring attribute 'collapsed'.");
+        }
         //if any of the above errors, add extra info
         if (p.file!=-1)
-            chart->Error.Error(file_pos.start, p, "Entity '" + name + "' was defined here.");
+            chart->Error.Error((*i)->file_pos, p, "Entity '" + name + "' was defined here.");
         label.first = pos.first = rel.first = collapsed.first = false;
 
         //Also indicate an error at any attempt to add children (even if "ch" did not

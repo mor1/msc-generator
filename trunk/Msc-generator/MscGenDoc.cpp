@@ -1279,7 +1279,8 @@ void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 	pCmdUI->SetCheck(m_bTrackMode);
 	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
 	if (pWnd) 
-		pWnd->m_wndStatusBar.SetPaneTextColor(1, m_bTrackMode?RGB(0,0,0):RGB(100,100,100));
+		pWnd->m_wndStatusBar.SetPaneTextColor(NUM_STATUS_BAR_TACKING, 
+                                 m_bTrackMode?RGB(0,0,0):RGB(100,100,100));
     pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
@@ -1847,6 +1848,11 @@ bool ProgressCallbackBlocking(double percent, void *data) throw(...)
             pView->ForceRepaint();
         }
 	}
+#if (NTDDI_VERSION >= NTDDI_WIN7)
+    CFrameWnd *pWnd = dynamic_cast<CFrameWnd *>(AfxGetMainWnd());
+    if (pWnd)
+        pWnd->SetProgressBarPosition(int(percent*10));
+#endif
     return true;
 }
 
@@ -1863,6 +1869,11 @@ bool ProgressCallbackNonBlocking(double percent, void *data) throw(AbortCompilin
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
     pDoc->m_Progress = percent/100;
+#if (NTDDI_VERSION >= NTDDI_WIN7)
+    CFrameWnd *pWnd = dynamic_cast<CFrameWnd *>(AfxGetMainWnd());
+    if (pWnd) 
+        pWnd->SetProgressBarPosition(int(percent*10));
+#endif
     if (pDoc->m_killCompilation) 
         throw (AbortCompilingException());
     return true;
@@ -1982,6 +1993,12 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool force_block, bool forc
         }
 	}
 
+#if (NTDDI_VERSION >= NTDDI_WIN7)
+    if (pWnd) {
+        pWnd->SetProgressBarPosition(0);
+        pWnd->SetProgressBarState(TBPF_NORMAL);
+    }
+#endif
     if (!block) {
         //Fire up compilation thread
         m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)this);
@@ -2050,6 +2067,10 @@ void CMscGenDoc::CompleteCompilingEditingChart()
             StartTrackFallbackImageLocations(m_ChartShown.GetWMFFallbackImagePos());
             m_highlight_fallback_images = false;
         }
+        pWnd->m_mscgen_mode_ind = m_ChartShown.GetMscgenCompat() == EMscgenCompat::FORCE_MSCGEN;
+#if (NTDDI_VERSION >= NTDDI_WIN7)
+        pWnd->SetProgressBarState(TBPF_NOPROGRESS);
+#endif
     }
 	//SetZoom(); //reset toolbar
     if (m_hadArrangeViews)
