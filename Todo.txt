@@ -1,7 +1,7 @@
 In cairo
 Alt #1: Add win32_printing_surface_create_with_size
 Alt #2: Add a cairo_pdf_surface_set_size like function to the win32_printing backend
-Two helpers needed:
+Two helpers needed: 
   - _extract_pdf_surface - like
   - _cairo_pdf_surface_set_size_internal - like
 
