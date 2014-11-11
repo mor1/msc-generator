@@ -1298,8 +1298,11 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data,
     ArcArrow(IsArcSymbolBidir(data.type), MscProgress::DIR_ARROW, msc),
     linenum_src(sl.start), linenum_dst(dl.start),
     specified_as_forward(fw), slant_angle(0), slant_depth(0),
-    lost_at(-2), lost_pos(*msc)
+    lost_at(-2), lost_pos(*msc), has_skip(false)
 {
+    //We assume 'a->' type arrows arrive here with d==RSIDE_ENT_STR, etc.
+    //so s & d is not NULL or empty
+    _ASSERT(s && d && s[0] && d[0]);
     _ASSERT(IsArcSymbolArrow(data.type));
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
@@ -1322,7 +1325,7 @@ ArcDirArrow::ArcDirArrow(ArrowSegmentData data,
 ArcDirArrow::ArcDirArrow(const EntityList &el, bool b, EArcSymbol boxsymbol, const ArcLabelled &al) :
     ArcArrow(b, MscProgress::BLOCK_ARROW, al),
     specified_as_forward(false), slant_angle(0), slant_depth(0), 
-    lost_at(-2), lost_pos(*ArcArrow::chart)
+    lost_at(-2), lost_pos(*ArcArrow::chart), has_skip(false)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -1408,6 +1411,18 @@ ArcArrow *ArcDirArrow::AddLostPos(VertXPos *pos, const FileLineColRange &l)
     return this;
 }
 
+/** Returns true if this is an mscgen broadcast arrow '->*'.
+ * Valid only at and before PostParseProcess().*/
+bool ArcDirArrow::IsMscgenBroadcastArrow() const
+{
+    return chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN && //we are in compat mode
+           middle.size()==0 && //single segment
+           lost_at == 0 && //lost at 'dst'
+           segment_types[0] == EArcSymbol::ARC_SOLID && //uses ->
+           (*dst == chart->RSide || *dst == chart->LSide); //no dst entity was specifie
+}
+
+
 void ArcDirArrow::SetStyleBeforeAttributes()
 {
     StyleCoW ref;
@@ -1429,7 +1444,28 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
     StyleCoW save(style);
     style.write().Empty();
     const FileLineCol label_pos = ArcArrow::AddAttributeListStep1(l);
-    for (unsigned i=0; i<segment_types.size(); i++) {
+    //For broadcast arrows of mscgen change skip type to what is in 
+    // a) the attribute for end-type; or that is not set
+    // b) what is in the refinement style for ARC_SOLID. 
+    if (IsMscgenBroadcastArrow()) { 
+        if (style.read().arrow.skipType.first == false) {
+            //if the user has not set skiptype attr, but has set endtype, use that as skiptype
+            if (style.read().arrow.endType.first)
+                save.write().arrow.skipType = style.read().arrow.endType;
+            else {
+                //if the user set neither skiptype nor endtype...
+                const StyleCoW * const refinement = GetRefinementStyle4ArrowSymbol(segment_types[0]);
+                //...use the refinement style's endstyle (overwriting any skipstyle, since this is a broadcast arrow)
+                if (refinement && refinement->read().arrow.endType.second) {
+                    save.write().arrow.skipType = refinement->read().arrow.endType;
+                } else {
+                    //...or if no refinement style, use simply the default arrow endtype
+                    save.write().arrow.skipType = save.read().arrow.endType;
+                }
+            }
+        }
+    }
+    for (unsigned i = 0; i<segment_types.size(); i++) {
         segment_lines.push_back(save.read().line);
         const StyleCoW * const refinement = GetRefinementStyle4ArrowSymbol(segment_types[i]);
         if (refinement) {
@@ -1447,6 +1483,8 @@ void ArcDirArrow::AddAttributeList(AttributeList *l)
         save.write().arrow.startType.second = MSC_ARROW_NONE;
         save.write().arrow.midType.first = true;
         save.write().arrow.midType.second = MSC_ARROW_NONE;
+        save.write().arrow.skipType.first = true;
+        save.write().arrow.skipType.second = MSC_ARROW_NONE;
     }
     save += style;
     style = save;
@@ -1577,43 +1615,19 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     dst = chart->ActiveEntities.Find_by_Ptr(*sub);
     _ASSERT(dst != chart->ActiveEntities.end());
 
-
-    //Handle ->* in compatibility mode
-    if (chart->mscgen_compat == EMscgenCompat::FORCE_MSCGEN &&
-        middle.size()==0 && //single segment
-        lost_at == 0 && //lost at 'dst'
-        segment_types[0] == EArcSymbol::ARC_SOLID && 
-        (*dst == chart->RSide || *dst == chart->LSide)) { //no dst entity was specifie
-        //Here src points to chart->ActiveEntities
-        //Add subsequent elements
+    //Change dst for mscgen broadcast arrows
+    if (IsMscgenBroadcastArrow()) {
+        //find leftmost/rightmost active non-virtual entity
+        //note that src already points to ActiveEntities, so its iterators 
+        //are directly comparable
         if (specified_as_forward) {
-            for (EIterator i = src; i!= chart->ActiveEntities.end(); i++)
-                if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn())
-                    middle.push_back(i);
-            //if no elements added, we become degenerate
-            if (middle.size()==0) {
-                chart->Error.Warning(file_pos.start, "Broadcast arrow at the rightmost visible entity. Ignoring it.");
-                return NULL;
-            }
+            dst = --chart->ActiveEntities.end();
+            while (dst!=src && (chart->IsVirtualEntity(*dst) || !(*dst)->running_shown.IsOn()))
+                dst--;
         } else {
-            for (EIterator i = chart->ActiveEntities.begin(); i!= src; i++)
-                if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn())
-                    middle.insert(middle.begin(), i);
-            if (middle.size()==0) {
-                chart->Error.Warning(file_pos.start, "Broadcast arrow at the leftmost visible entity. Ignoring it.");
-                return NULL;
-            }
-        }
-
-        //move last element to 'dst'
-        dst = middle.back();
-        middle.pop_back();
-        //fill up linenum_middle & segment_lines & segment_types
-        LineAttr line = segment_lines[0];
-        for (unsigned u = 0; u<middle.size(); u++) {
-            linenum_middle.push_back(linenum_asterisk);
-            segment_types.push_back(EArcSymbol::ARC_SOLID);
-            segment_lines.push_back(line);
+            dst = chart->ActiveEntities.begin();
+            while (*dst!=*src && (chart->IsVirtualEntity(*dst) || !(*dst)->running_shown.IsOn()))
+                dst++;
         }
         //remove loss
         lost_at = -2;
@@ -1685,6 +1699,37 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     //from slant_depth.
     sin_slant = slant_angle ? sin(slant_angle*M_PI/180.) : 0.;
     cos_slant = slant_angle ? cos(slant_angle*M_PI/180.) : 1.;
+
+    //Add skip entities
+    //temporarily add src and dst
+    //Here src, dst and all middle[] (if any) points to chart->ActiveEntities
+    middle.insert(middle.begin(), src);
+    middle.push_back(dst);
+    skip.resize(middle.size(), false);
+    for (unsigned u = 0; u<middle.size()-1; /* nope */) {
+        const EIterator till = middle[u+1];
+        unsigned before = u+1;
+        for (EIterator i = middle[u]; i!=till; specified_as_forward ? i++ : i--)
+            if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn()) {
+                middle.insert(middle.begin()+before, i);
+                skip.insert(skip.begin()+before, true);
+                has_skip = true;
+                //we use before-1 as index, because these arrays do not temporarily include 'src' at index 0
+                linenum_middle.insert(linenum_middle.begin()+(before-1), FileLineCol());
+                segment_types.insert(segment_types.begin()+(before-1), EArcSymbol::BOX_UNDETERMINED_FOLLOW);
+                segment_lines.insert(segment_lines.begin()+(before-1), segment_lines[u]);
+                before++;
+            }
+        u = before;
+    }
+    //remover temporarily added src and dst from middle
+    middle.pop_back();
+    middle.erase(middle.begin());
+    //This is, how it shall look like:
+    _ASSERT(linenum_middle.size()==middle.size()  );  //one for each middle entity
+    _ASSERT(segment_types.size() ==middle.size()+1);  //one for each line segment
+    _ASSERT(segment_lines.size() ==middle.size()+1);  //one for each line segment
+    _ASSERT(skip.size()          ==middle.size()+2);  //one for each entity including src and dst
 
     //record what entities are active at the arrow (already consider slant)
     act_size.clear();
@@ -1808,7 +1853,8 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     if (middle.size()) {
         EntityDistanceMap dmap;
         for (unsigned i = 0; i<middle.size(); i++) {
-            DoublePair mid = style.read().arrow.getWidths(fw, bidir, MSC_ARROW_MIDDLE, style.read().line);
+            DoublePair mid = style.read().arrow.getWidths(fw, bidir, 
+                skip[i+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, style.read().line);
             const double left = (mid.first  + act_size[i+1])*cos_slant;
             const double right = (mid.second + act_size[i+1])*cos_slant;
             distances.Insert((*middle[i])->index, DISTANCE_LEFT, left);
@@ -1879,7 +1925,7 @@ EArrowEnd ArcDirArrow::WhichArrow(unsigned i)
     //in xPos (may not be filled up yet, index 0 will be the src and indes xpos.size()-1 will be dest
     //in between there will be middle.size() number of middle arrows.
     //"i" here is an index that will be used for xPos.
-    if (i>0 && i<middle.size()+1) return MSC_ARROW_MIDDLE;
+    if (i>0 && i<middle.size()+1) return skip[i] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE;
     if ((i==0) == ((*src)->index  <  (*dst)->index)) return MSC_ARROW_START;
     return MSC_ARROW_END;
 }
@@ -1930,8 +1976,11 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     //aH.y is _half_ the height of the arrowhead (the height above/below the centerline)
     //aH.x is the width on one side on the entity line only.
     double aH = std::max(std::max(y_e, y_s), lsym_size.y/2);
-    if (middle.size()>0)
+    if (middle.size()>0) {
         aH = max(aH, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_MIDDLE).y);
+        if (has_skip)
+            aH = max(aH, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_SKIP).y);
+    }
 
     double y = chart->arcVGapAbove;
     XY text_wh = parsed_label.getTextWidthHeight();
@@ -1969,9 +2018,10 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     margins.clear(); margins.reserve(2+middle.size());
     xPos.push_back(sx);
     margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_START, style.read().line));
-    for (auto i : middle) {
-        xPos.push_back(sx + (chart->XCoord(i)-sx)/cos_slant);
-        margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_MIDDLE, style.read().line));
+    for (unsigned u = 0; u<middle.size(); u++) {
+        xPos.push_back(sx + (chart->XCoord(middle[u])-sx)/cos_slant);
+        margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, 
+            skip[u+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, style.read().line));
     }
     xPos.push_back(dx);
     margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_END, style.read().line));
@@ -1991,7 +2041,8 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     clip_area *= style.read().arrow.ClipForLine(XY(dx, y), d_act, sx<dx, bidir, MSC_ARROW_END,
                                          total, *segment_lines.rbegin(), *segment_lines.rbegin());
     for (unsigned i=1; i<xPos.size()-1; i++)
-        clip_area *= style.read().arrow.ClipForLine(XY(xPos[i], y), act_size[i], sx<dx, bidir, MSC_ARROW_MIDDLE, 
+        clip_area *= style.read().arrow.ClipForLine(XY(xPos[i], y), act_size[i], sx<dx, bidir, 
+                                             skip[i] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, 
                                              total, segment_lines[i-1], segment_lines[i]);
 
     //Add arrowheads and line segments to cover
@@ -2161,7 +2212,8 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
     }
     //for multi-segment arrows
     for (unsigned i=1; i<xPos.size()-1; i++) {
-        tmp = style.read().arrow.EntityLineCover(XY(xPos[i], yPos+centerline), sx<dx, bidir, MSC_ARROW_MIDDLE);
+        tmp = style.read().arrow.EntityLineCover(XY(xPos[i], yPos+centerline), sx<dx, bidir, 
+                                                 skip[i] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE);
         if (!tmp.IsEmpty()) {
             tmp.RotateAround(c, slant_angle);
             chart->HideEntityLines(tmp);
@@ -2435,7 +2487,7 @@ void ArcBigArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
     margins.push_back(sp_left_end);
     for (unsigned i=0; i<middle.size(); i++) 
         margins.push_back(style.read().arrow.getBigWidthsForSpace(
-                             fw, bidir, MSC_ARROW_MIDDLE, 
+                             fw, bidir, skip[i+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, 
                              dy-sy, act_size[i+1], segment_lines[i]));
     margins.push_back(sp_right_end);
 

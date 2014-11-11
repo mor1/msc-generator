@@ -52,7 +52,7 @@ ADDED: Color to recognize #010203 rgb spec
 ADDED: mscgen color names (W3C color names indeed)
 ADDED: Text background color
 ADDED: alternative forms of attribute names
-ADDED: style to apply to arrows starting from an entity
+ADDED: style to apply to arrows starting from an entity, but not blockarrows
 ADDED: Arrows to actually take the atext aline and arrow attribute of the src entity
 ADDED: Global attribute for arcgradient
 ADDED: Wordwraparcs & word wrapping defaults

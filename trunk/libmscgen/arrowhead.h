@@ -50,6 +50,7 @@ enum EArrowType {
     MSC_ARROW_TRIPLE_EMPTY, ///<Line only: Three empty triangles
     MSC_ARROW_TRIPLE_LINE,  ///<Line only: Three set of lines
     MSC_ARROW_TRIPLE_HALF,  ///<Line only: Three single lines
+    MSC_ARROW_JUMPOVER,     ///<Line only: jump over line: used for skip
     //Block arrows only
     MSC_ARROW_EMPTY_INV,    ///<Block only: Inward trinagle as wide as body
     MSC_ARROW_STRIPES,      ///<Block only: Three rectangles of increasing size
@@ -57,7 +58,7 @@ enum EArrowType {
 };
 
 /** True if the type is applicable for line arrows */
-inline bool MSC_ARROW_OK_FOR_ARROWS(EArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_OK_FOR_ARROWS(EArrowType t) { return t>0 && t<=MSC_ARROW_JUMPOVER; }
 /** True if type is of double. */
 inline bool MSC_ARROW_IS_DOUBLE(EArrowType t) {return t>=MSC_ARROW_DOUBLE && t<=MSC_ARROW_DOUBLE_HALF;}
 /** True if type is of triple */
@@ -69,7 +70,7 @@ inline bool MSC_ARROW_IS_LINE(EArrowType t) {return t==MSC_ARROW_LINE || t==MSC_
 /** True if the type is applicable for block arrows */
 inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(EArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
 /** True if the type symmetric to a horizontal line. */
-inline bool MSC_ARROW_IS_SYMMETRIC(EArrowType t) {return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY);}
+inline bool MSC_ARROW_IS_SYMMETRIC(EArrowType t) { return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY) || t==MSC_ARROW_JUMPOVER; }
 
 /** Describes the size of the arrowhead, see ArrowHead::arrowSizePercentage*/
 enum EArrowSize {
@@ -85,6 +86,7 @@ enum EArrowSize {
 enum EArrowEnd {
     MSC_ARROW_END,   ///<The arrowhead in the 'to' direction, e.g., in case of 'a->b', the arrowhead at 'b'. Both ends are like this for bidirectional arrows.
     MSC_ARROW_MIDDLE,///<An arrowhead at the middle of a multi-segment arrow, e.g., for 'a->b->c' the one at 'b'.
+    MSC_ARROW_SKIP,  ///<An arrowhead at entities we jump over arrow, e.g., for 'a->c' the one at 'b' (if we have three entities: a, b and c).
     MSC_ARROW_START  ///<The arrowhead in the 'from' direction, e.g., in case of 'a->b', the arrowhead at 'a'.
 };
 
@@ -115,6 +117,7 @@ public:
     std::pair<bool, double>     ymul;     ///<The y-size multipler of the arrowhead. Not set if `first` is false.
     std::pair<bool, EArrowType> endType;  ///<The type of the arrowhead at the end of the arrow (also start for bidirectional arrows). Not set if `first` is false.
     std::pair<bool, EArrowType> midType;  ///<The type of the arrowhead at the midpoint of a multi-segment of the arrow. Not set if `first` is false.
+    std::pair<bool, EArrowType> skipType; ///<The type of the arrowhead at entities jumped over by the arrow. Not set if `first` is false.
     std::pair<bool, EArrowType> startType;///<The type of the arrowhead at the start of the arrow. Not set if `first` is false.
 
     /** Creates a default arrowhead style.
@@ -123,7 +126,7 @@ public:
      * and in the middle, no arrowhead at the start and default line style
      * (black, solid, width of 1).*/
     explicit ArrowHead(EArcArrowType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1),
-        endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
+        endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID), skipType(true, MSC_ARROW_NONE), startType(true, MSC_ARROW_NONE) {}
     /** Deletes all content, by setting all `first` to false*/
     void Empty();
     /** True if all attributes are set*/
