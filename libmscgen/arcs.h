@@ -497,6 +497,8 @@ protected:
     mutable double cx_text;   ///<Calculated value of the middle of the label (usually middle of sx and dx)
     mutable double cx_lsym;   ///<Calculated value of the middle of the loss symbol (if any)
     mutable XY lsym_size;     ///<Calculates size of the lost symbol (if any loss)
+    mutable bool has_skip;    ///<True if any in skip is true (is so, if the arrowhead has a skipType != ARROW_NONE & we actually skip over entities
+    mutable std::vector<bool> skip;          ///<True, if this entity is inserted as a skip entity. src and dst are never skip.
     mutable std::vector<double> xPos;        ///<X coordinates of arrowheads (sorted to increase, [0] is for left end of the arrow). Always the middle of the entity line.
     mutable std::vector<double> act_size;    ///<Activation size of the entities (sorted from left to right). ==0 if not active
     mutable std::vector<DoublePair> margins; ///<How much of the arrow line is covered by the arrowhead (sorted left to right), see ArrowHead::getWidths()
@@ -521,6 +523,7 @@ public:
     ArcArrow *AddSegment(ArrowSegmentData data, const char *m, const FileLineColRange &ml,
                          const FileLineColRange &l) override;
     ArcArrow *AddLostPos(VertXPos *pos, const FileLineColRange &l) override;
+    bool IsMscgenBroadcastArrow() const; 
     void SetStyleBeforeAttributes() override;
     void AddAttributeList(AttributeList *l) override;
     bool AddAttribute(const Attribute &) override;

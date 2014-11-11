@@ -174,16 +174,15 @@ bool CshErrorList::AddHelper(CshPos pos, const char *t)
     //we need to replace to pos, whereas i is the last element of that range. 
     //If i==j, pos does not overlap with any entries and needs to be 
     //inserted *after* j.
+    //Note: both 'i' and 'j' can be -1.
     if (i==j) {
-        if (i==-1)
-            error_ranges.emplace(error_ranges.begin(), pos, COLOR_ERROR);
-        else 
-            error_ranges.emplace(error_ranges.begin()+j+1, pos, COLOR_ERROR);
+        error_ranges.emplace(error_ranges.begin()+(j+1), pos, COLOR_ERROR);
     } else {
-        static_cast<CshPos&>(error_ranges[i]) = pos;
+        error_ranges[i].first_pos = pos.first_pos;
+        error_ranges[i].last_pos = pos.last_pos;
         error_ranges[i].color = COLOR_ERROR;
         if (i-j > 1) 
-            error_ranges.erase(error_ranges.begin()+j+1, error_ranges.begin()+i); //deletes parts before i
+            error_ranges.erase(error_ranges.begin()+(j+1), error_ranges.begin()+i); //deletes parts before i
     }
     _ASSERT(error_ranges.CheckOrderedAndNonOverlapping());
     return true;

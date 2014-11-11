@@ -35,7 +35,7 @@ template<> const char EnumEncapsulator<EArrowType>::names[][ENUM_STRING_LEN] =
      "empty_dot", 
      "sharp", "empty_sharp",
      "double", "double_empty", "double_line", "double_half",
-     "triple", "triple_empty", "triple_line", "triple_half",
+     "triple", "triple_empty", "triple_line", "triple_half", "jumpover",
      "empty_inv", "stripes", "triangle_stripes", ""};
 template<> const char * const EnumEncapsulator<EArrowType>::descriptions[] =
     {NULL, "No arrowhead, just a line (or rectangle for block arrows).", "Arrows: a filled equilateral triangle.\nBlock arrows: a triangle wider than the body.", 
@@ -50,6 +50,7 @@ template<> const char * const EnumEncapsulator<EArrowType>::descriptions[] =
      "Arrows: A line-only acute triangle.\nBlock arrows: A triangle of same with as the body.",
      "Two filled triangles.", "Two line-only triangles.", "Two times two lines.", "Two times just one line.",
      "Three filled triangles.", "Three line-only triangles.", "Three times two lines.", "Three times just one line.",
+     "A little half circle, jumping over the entity line indicating that we skip this entity. Best used for arrow.skipType.",
      "An inverse (cut-out) equilateral triangle.", "Two straight stripes.", "Two bent stripes.", ""};
 
 template<> const char EnumEncapsulator<EArrowSize>::names[][ENUM_STRING_LEN] =
@@ -79,6 +80,7 @@ void ArrowHead::Empty() {
     size.first = false;
     endType.first = false;
     midType.first = false;
+    skipType.first = false;
     startType.first = false;
     xmul.first = false;
     ymul.first = false;
@@ -91,18 +93,21 @@ void ArrowHead::MakeComplete()
     if (!xmul.first) {xmul.first = true; xmul.second= 1;}
     if (!ymul.first) {ymul.first = true; ymul.second= 1;}
     if (!endType.first) {endType.first = true; endType.second= MSC_ARROW_SOLID;}
-    if (!midType.first) {midType.first = true; midType.second= MSC_ARROW_SOLID;}
-    if (!startType.first) {startType.first = true; startType.second= MSC_ARROW_NONE;}
+    if (!midType.first) { midType.first = true; midType.second = MSC_ARROW_SOLID; }
+    if (!skipType.first) { skipType.first = true; midType.second = MSC_ARROW_NONE; }
+    if (!startType.first) { startType.first = true; startType.second = MSC_ARROW_NONE; }
     line.MakeComplete();
 }
 
 ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 {
+    //in all ernesty we strive to keep skipType NONE for bigarrows.
     const ArrowHead &a = static_cast<const ArrowHead&>(toadd);
     line += a.line;
     if (a.size.first) size = a.size;
     if (a.endType.first) endType = a.endType;
     if (a.midType.first) midType = a.midType;
+    if (a.skipType.first && type != BIGARROW) skipType = a.skipType;
     if (a.startType.first) startType = a.startType;
     if (a.xmul.first) xmul = a.xmul;
     if (a.ymul.first) ymul = a.ymul;
@@ -130,10 +135,15 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
         a.EndsWith("line.type")) {
         return line.AddAttribute(a, msc, t);
     }
+    if (type == BIGARROW && a.EndsWith("skiptype")) {
+        msc->Error.Error(a, false, "Attribute 'skipType' is not applicable to block arrows. Ignoring it.");
+        return true;
+    }
     std::pair<bool, EArrowType> *pType = NULL, *pType2 = NULL;
     if (a.Is("arrow") || a.EndsWith("type") || a.EndsWith("endtype")) {pType = &endType; pType2=&midType;}
     else if (a.EndsWith("starttype")) pType = &startType;
-    else if (a.EndsWith("midtype")) pType = &midType;
+    else if (a.EndsWith("midtype")) pType = &midType; 
+    else if (a.EndsWith("skiptype")) pType = &skipType;
     if (pType) {
         if (a.Is("arrow"))
             msc->Error.Warning(a, false, "Attribute 'arrow' is deprecated, but understood.",
@@ -211,7 +221,8 @@ void ArrowHead::AttributeNames(Csh &csh, const string &prefix)
         "size", "The size of the arrowhead.",
         "color", "The color of the arrowheads",
         "starttype", "The arrowhead type used where the arrow starts.",
-        "midtype", "The arrowhead type to use where the arrow touches an intermediate entity.",
+        "midtype", "The arrowhead type to use for multi-segment arrows, where the arrow stops an intermediate entity.",
+        "skiptype", "The arrowhead type to use where the arrow goes over, but does not touch an entity.",
         "endtype", "The arrowhead type to use at the destination of the arrow.",
         "line.width", "The line with of line-like arrowheads.",
         "line.color", "The color of the line of the arrwhead.",
@@ -305,6 +316,7 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, EArcArrowType
         CaseInsensitiveEndsWith(attr, "type") ||
         CaseInsensitiveEndsWith(attr, "starttype") ||
         CaseInsensitiveEndsWith(attr, "midtype") ||
+        CaseInsensitiveEndsWith(attr, "skiptype") ||
         CaseInsensitiveEndsWith(attr, "endtype")) {
         for (int i=1; EnumEncapsulator<EArrowType>::names[i][0]; i++)
             if (t==ANY || (t==BIGARROW && MSC_ARROW_OK_FOR_BIG_ARROWS(EArrowType(i))) || 
@@ -355,6 +367,9 @@ EArrowType ArrowHead::GetType(bool bidir, EArrowEnd which) const
     case MSC_ARROW_MIDDLE:
         if (midType.first) return midType.second;
         else return MSC_ARROW_SOLID;
+    case MSC_ARROW_SKIP:
+        if (midType.first) return skipType.second;
+        else return MSC_ARROW_NONE;
     case MSC_ARROW_START:
         if (startType.first) return startType.second;
         else return MSC_ARROW_NONE;
@@ -379,6 +394,9 @@ EArrowType ArrowHead::GetType(bool forward, bool bidir, EArrowEnd which, bool le
     case MSC_ARROW_START: 
         return forward == left ? MSC_ARROW_INVALID : ret;
     case MSC_ARROW_MIDDLE:
+        if (bidir) return ret;
+        return forward == left ? ret : MSC_ARROW_NONE;
+    case MSC_ARROW_SKIP:
         if (bidir) return ret;
         return forward == left ? ret : MSC_ARROW_NONE;
     case MSC_ARROW_END:
@@ -483,6 +501,10 @@ XY ArrowHead::getWidthHeight(bool bidir, EArrowEnd which) const
     case MSC_ARROW_DOT_EMPTY:
         xy.x = xy.y = baseDotSize*sizePercentage/100;
         break;
+
+    case MSC_ARROW_JUMPOVER:
+        xy.x = xy.y = baseDotSize*sizePercentage/100;
+        break;
     default:
         _ASSERT(0);
     }
@@ -544,7 +566,7 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which, const
         //Now see if we put the value to the right of first/second
         if (bidir && (which==MSC_ARROW_MIDDLE))
             ret.second = ret.first;
-        else if ( (!forward) ^ (which==MSC_ARROW_START)) //if reverse or start, but not if both
+        else if ( (!forward) ^ (which==MSC_ARROW_START || which==MSC_ARROW_SKIP)) //if reverse or start, but not if both
             ret.swap();
         break;
 
@@ -552,6 +574,7 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which, const
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
+    case MSC_ARROW_JUMPOVER:
     default:
         ret.second = ret.first = getWidthHeight(bidir, which).x;
     }
@@ -649,7 +672,8 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     case MSC_ARROW_SHARP:
     case MSC_ARROW_SHARP_EMPTY:
         area = tri_sharp1;
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri_sharp2;
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            area += tri_sharp2;
         /* Fallthrough for calculating r */
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
@@ -658,7 +682,8 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     case MSC_ARROW_TRIPLE:
     case MSC_ARROW_TRIPLE_EMPTY:
         r.from = xy.x + act.x + w ;
-        r.till = (bidir && (which==MSC_ARROW_MIDDLE)) ? xy.x - act.x - w : xy.x - act.x;
+        r.till = (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) ? 
+            xy.x - act.x - w : xy.x - act.x;
         if (r.from>r.till) std::swap(r.from, r.till);
         break;
 
@@ -672,7 +697,7 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
         //Fallthrough
     case MSC_ARROW_LINE: /* Two lines */
         area = tri1;
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) area += tri2;
         r = area.GetBoundingBox().x;
         r += xy.x; //expand range so that it includes the vertical line
         break;
@@ -685,7 +710,7 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
         //Fallthrough
     case MSC_ARROW_HALF: /* Unfilled half */
         area = Contour(xy+act+wh+half_offset, xy+act+half_offset, xy+act + XY(wh.x, 0)+half_offset);
-        if (bidir && (which==MSC_ARROW_MIDDLE))
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP))
             area += Contour(xy-act + XY(-wh.x, wh.y)-half_offset, xy-act-half_offset, xy-act - XY(wh.x, 0)-half_offset);
         r = area.GetBoundingBox().x;
         r += xy.x; //expand so that it includes the vertical line
@@ -712,6 +737,11 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(total) - Contour(xy, fabs(wh.x), fabs(wh.y));
         r = total.x;
+        break;
+
+    case MSC_ARROW_JUMPOVER:
+        r.from = xy.x-wh.x;
+        r.till = xy.x+wh.x;
         break;
     }
     //now expand returned area to cover from total.x.from to total.x.till,
@@ -766,19 +796,22 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, EArro
     case MSC_ARROW_TRIPLE:
     case MSC_ARROW_TRIPLE_EMPTY:
         area += tri1.CreateShifted(XY(wh.x*2, 0));
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2.CreateShifted(XY(-wh.x*2, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            area += tri2.CreateShifted(XY(-wh.x*2, 0));
         /*Fallthrough*/
     case MSC_ARROW_DOUBLE:
     case MSC_ARROW_DOUBLE_EMPTY:
         area += tri1.CreateShifted(XY(wh.x, 0));
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2.CreateShifted(XY(-wh.x, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            area += tri2.CreateShifted(XY(-wh.x, 0));
         /*Fallthrough*/
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
         area += tri1;
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP))
+            area += tri2;
         break;
 
     case MSC_ARROW_TRIPLE_LINE:
@@ -786,14 +819,15 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, EArro
     case MSC_ARROW_DOUBLE_HALF:
     case MSC_ARROW_TRIPLE_HALF:
         area += Contour(xy.x+act.x+w, xy.x+act.x+wh.x, xy.y-wh.y, xy.y+wh.y) + tri1;
-        if (bidir && (which==MSC_ARROW_MIDDLE)) 
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP))
             area += Contour(xy.x-act.x-wh.x, xy.x-act.x-w, xy.y-wh.y, xy.y+wh.y) + tri2;
         break;
 
     case MSC_ARROW_SHARP:
     case MSC_ARROW_SHARP_EMPTY:
         area = tri1 - tri_sharp1;
-        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2 - tri_sharp2;
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            area += tri2 - tri_sharp2;
         break;
 
     case MSC_ARROW_DIAMOND:
@@ -804,6 +838,10 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, EArro
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(xy, fabs(wh.x), fabs(wh.y));
+        break;
+    
+    case MSC_ARROW_JUMPOVER:
+        area = Contour(xy, fabs(wh.x), fabs(wh.y)) * Block(xy.x-wh.x*2, xy.x+wh.x*2, xy.y-wh.y*2, xy.y);
         break;
     default:
         _ASSERT(0);
@@ -868,6 +906,13 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd
         canvas->Line(cover, line);
         return;
     }
+    //Do jumpover
+    if (arrow_type == MSC_ARROW_JUMPOVER) {
+        Contour cover = Contour(xy, fabs(wh.x), fabs(wh.y)) + Block(xy.x-wh.x*2-lw2*2, xy.x+wh.x*2+lw2*2, xy.y, xy.y+wh.y*2+lw2*10);
+        canvas->Clip(Block(xy.x-wh.x, xy.x+wh.x, xy.y-wh.y*4-lw2*2, xy.y+wh.y*4+lw2*2));
+        canvas->Line(cover, line);
+        canvas->UnClip();
+    }
 
     Contour tri1, tri2, tri_sharp1, tri_sharp2;
     if (forward) {
@@ -909,12 +954,14 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd
     case MSC_ARROW_TRIPLE_LINE:
     case MSC_ARROW_TRIPLE_HALF:
         canvas->Line(tri1.CreateShifted(XY(wh.x, 0)), line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->Line(tri2.CreateShifted(XY(-wh.x, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            canvas->Line(tri2.CreateShifted(XY(-wh.x, 0)), line);
         /*Fallthrough*/
     case MSC_ARROW_DOUBLE_LINE:
     case MSC_ARROW_DOUBLE_HALF:
         canvas->Line(tri1.CreateShifted(XY(wh.x/2, 0)), line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->Line(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            canvas->Line(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
         /*Fallthrough*/
         if (arrow_type == MSC_ARROW_DOUBLE_HALF || arrow_type == MSC_ARROW_TRIPLE_HALF)
             canvas->UnClip();
@@ -926,7 +973,8 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd
             canvas->Clip(ext);
         }
         canvas->Line(tri1, line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->Line(tri2, line);
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP)) 
+            canvas->Line(tri2, line);
         break;
     default:
         _ASSERT(0);
@@ -997,7 +1045,7 @@ DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, EArrowEnd w
     switch(type) {
     case MSC_ARROW_DIAMOND_EMPTY: /* Half diamond at ends nothing in the middle.*/
     case MSC_ARROW_DOT_EMPTY:     /* Half circle at ends nothing in the middle.*/
-        if (which!=MSC_ARROW_MIDDLE) {
+        if (which==MSC_ARROW_START || which==MSC_ARROW_END) {
             ret.first = act_size+getBigWidthHeight(type, ltype).x;
             if ((which==MSC_ARROW_END) == forward) //only on the right side if (-> and END) or (<- and START)
                 ret.swap();
@@ -1024,7 +1072,7 @@ DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, EArrowEnd w
     case MSC_ARROW_EMPTY_INV: /* Inverse small triangle */
     case MSC_ARROW_HALF: /* Half triangle */
         ret.first += act_size+getBigWidthHeight(type, ltype).x;
-        if (bidir && which==MSC_ARROW_MIDDLE)
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP))
             ret.second = ret.first;
         else if ((which==MSC_ARROW_START && forward) || //only on the left side if (-> and END) or (<- and START)
                  (which==MSC_ARROW_END && !forward))

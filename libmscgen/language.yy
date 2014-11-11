@@ -381,7 +381,7 @@ msckey:       TOK_MSC
   #endif
     free($1);
 }
-              | TOK_MSC TOK_EQUAL string
+              | TOK_MSC TOK_EQUAL alpha_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -1425,7 +1425,7 @@ arc:           arcrel
   #endif
     free($1);
 }
-              | TOK_COMMAND_MARK string
+              | TOK_COMMAND_MARK alpha_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -1442,7 +1442,7 @@ arc:           arcrel
     free($1);
     free($2);
 }
-              | TOK_COMMAND_MARK string full_arcattrlist
+              | TOK_COMMAND_MARK alpha_string full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -2212,7 +2212,7 @@ styledeflist: styledef
 #endif
 };
 
-styledef : stylenamelist full_arcattrlist
+styledef: stylenamelist full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
     for (auto &str : *($1))
@@ -2271,7 +2271,7 @@ styledef : stylenamelist full_arcattrlist
 };
 
 /* 'string' does not match "++", so we list it separately */
-stylenamelist : string
+stylenamelist: string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_STYLENAME);
@@ -4774,8 +4774,10 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
     free($1);
 };
 
+ /** Here we allow entity string for 'arc' and 'rectange', symbol_string for '...' 
+  * and COMMAND TEXT for 'text'*/
 symbol_type_string: entity_string | symbol_string | TOK_COMMAND_TEXT;
-
+ 
 symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
@@ -5433,6 +5435,17 @@ arcattr:         alpha_string TOK_EQUAL color_string
         $$ = new Attribute($1, MSC_POS(@$));
   #endif
     free($1);
+}
+ /* 'string' does not match "++", so we list it separately */
+        | TOK_EMPH_PLUS_PLUS
+{
+  //here we accept non alpha strings for "->" and similar style names
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH_StyleOrAttrName(@1, "++");
+        csh.CheckHintAt(@1, EHintSourceType::ATTR_NAME);
+  #else
+        $$ = new Attribute("++", MSC_POS(@$));
+  #endif
 };
 
 vertical_shape: TOK_VERTICAL_SHAPE 
@@ -5486,13 +5499,24 @@ reserved_word_string: TOK_MSC
     | TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE
     | TOK_MSCGEN_RBOX | TOK_MSCGEN_ABOX;
 
-symbol_string : TOK_REL_TO  
+symbol_string: TOK_REL_TO  
 {
     switch ($1) {
     case EArcSymbol::ARC_DOTTED: $$ = strdup(">"); break;
     case EArcSymbol::ARC_DASHED: $$ = strdup(">>"); break;
     case EArcSymbol::ARC_SOLID:  $$ = strdup("->"); break;
     case EArcSymbol::ARC_DOUBLE: $$ = strdup("=>"); break;
+    case EArcSymbol::ARC_DBLDBL: $$ = strdup("=>>"); break;
+    case EArcSymbol::ARC_DOUBLE2:
+  #ifdef C_S_H_IS_COMPILED
+        if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #else
+        if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #endif
+            $$ = strdup(":>"); 
+        else 
+            $$ = strdup("==>");
+        break;
     default: _ASSERT(0);
     }
 }
@@ -5503,6 +5527,17 @@ symbol_string : TOK_REL_TO
     case EArcSymbol::ARC_DASHED: $$ = strdup("<<"); break;
     case EArcSymbol::ARC_SOLID:  $$ = strdup("<-"); break;
     case EArcSymbol::ARC_DOUBLE: $$ = strdup("<="); break;
+    case EArcSymbol::ARC_DBLDBL: $$ = strdup("=>>"); break;
+    case EArcSymbol::ARC_DOUBLE2:
+  #ifdef C_S_H_IS_COMPILED
+        if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #else
+        if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #endif
+            $$ = strdup("<:"); 
+        else 
+            $$ = strdup("<==");
+        break;
     default: _ASSERT(0);
     }
 }
@@ -5514,6 +5549,28 @@ symbol_string : TOK_REL_TO
     case EArcSymbol::ARC_DASHED: $$ = strdup("<<>>"); break;
     case EArcSymbol::ARC_SOLID:  $$ = strdup("<->"); break;
     case EArcSymbol::ARC_DOUBLE: $$ = strdup("<=>"); break;
+    case EArcSymbol::ARC_DBLDBL: $$ = strdup("=>>"); break;
+    case EArcSymbol::ARC_DOUBLE2:
+  #ifdef C_S_H_IS_COMPILED
+        if (csh.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #else
+        if (msc.mscgen_compat == EMscgenCompat::FORCE_MSCGEN)
+  #endif
+            $$ = strdup("<:>"); 
+        else 
+            $$ = strdup("<==>");
+        break;
+    default: _ASSERT(0);
+    }
+}
+       | TOK_REL_MSCGEN
+{
+    //This can only come in mscgen mode
+    switch ($1) {
+    case EArcSymbol::ARC_DOTTED: $$ = strdup(".."); break;
+    case EArcSymbol::ARC_SOLID:  $$ = strdup("--"); break;
+    case EArcSymbol::ARC_DOUBLE: $$ = strdup("=="); break;
+    case EArcSymbol::ARC_DOUBLE2: $$ = strdup("::"); break;
     default: _ASSERT(0);
     }
 }
@@ -5522,6 +5579,7 @@ symbol_string : TOK_REL_TO
     switch ($1) {
     case EArcSymbol::DIV_DIVIDER:  $$ = strdup("---"); break;
     case EArcSymbol::DIV_DISCO:    $$ = strdup("..."); break;
+    case EArcSymbol::DIV_VSPACE:   $$ = strdup("|||"); break;
     default: _ASSERT(0);
     }
 }
