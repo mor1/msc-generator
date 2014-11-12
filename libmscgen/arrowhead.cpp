@@ -276,7 +276,7 @@ bool CshHintGraphicCallbackForArrows(Canvas *canvas, EArrowType type, EArrowSize
     ah.line += ColorType(0,192,32); //green-blue
     ah.endType.second = type;
     ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, left, false, MSC_ARROW_END).GetBoundingBox().y;
+    Range cover = ah.EntityLineCover(xy, left, false, MSC_ARROW_END, eLine, eLine).GetBoundingBox().y;
     canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
         canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
@@ -442,7 +442,7 @@ void ArrowHead::UnTransformCanvas(Canvas &canvas) const
     canvas.UnClip();
 }
 
-XY ArrowHead::getWidthHeight(bool bidir, EArrowEnd which) const
+XY ArrowHead::getWidthHeight(bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
     XY xy;
     double sizePercentage;
@@ -503,7 +503,8 @@ XY ArrowHead::getWidthHeight(bool bidir, EArrowEnd which) const
         break;
 
     case MSC_ARROW_JUMPOVER:
-        xy.x = xy.y = baseDotSize*sizePercentage/100;
+        xy.x = xy.y = baseDotSize*0.66*sizePercentage/100 + 
+            std::max(mainline_left.LineWidth(), mainline_right.LineWidth());
         break;
     default:
         _ASSERT(0);
@@ -513,9 +514,9 @@ XY ArrowHead::getWidthHeight(bool bidir, EArrowEnd which) const
     return xy;
 }
 
-double ArrowHead::getTriWidth(bool bidir, EArrowEnd which) const
+double ArrowHead::getTriWidth(bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
-    const double w = getWidthHeight(bidir, which).x;
+    const double w = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
     switch(GetType(bidir, which)) {
     case MSC_ARROW_TRIPLE_LINE:
     case MSC_ARROW_TRIPLE_HALF:
@@ -540,8 +541,11 @@ double ArrowHead::getTriWidth(bool bidir, EArrowEnd which) const
  * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
  * @param [in] bidir True if the arrow is bi-directional, that is like a<->b and not a->b.
  * @param [in] which Tells us which end are we interested in (or middle).
+ * @param [in] mainline_left The line style of the arrow line on the left side.
+ * @param [in] mainline_right The line style of the arrow line on the right side.
  * @return `first` is the extent on the left side of the entity line, `second` is on the right side. */
-DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which, const LineAttr &) const
+DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which,
+                                const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
     DoublePair ret(0,0);
     const EArrowType t = GetType(bidir, which);
@@ -562,7 +566,7 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which, const
     case MSC_ARROW_TRIPLE_EMPTY:
     case MSC_ARROW_TRIPLE_LINE:
     case MSC_ARROW_TRIPLE_HALF:
-        ret.first = getWidthHeight(bidir, which).x;
+        ret.first = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
         //Now see if we put the value to the right of first/second
         if (bidir && (which==MSC_ARROW_MIDDLE))
             ret.second = ret.first;
@@ -576,7 +580,7 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which, const
     case MSC_ARROW_DOT_EMPTY:
     case MSC_ARROW_JUMPOVER:
     default:
-        ret.second = ret.first = getWidthHeight(bidir, which).x;
+        ret.second = ret.first = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
     }
     return ret;
 }
@@ -597,11 +601,13 @@ Contour diamond(XY xy, XY wh)
  * @param [in] xy The tip of the arrowhead.
  * @param [in] bidir If the arrowhead is bidirectional
  * @param [in] which Which end of the arrow (or middle).
- * @returns The contour of the dot or diamond.
- */
-Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, EArrowEnd which) const
+ * @param [in] mainline_left The line style of the arrow line on the left side.
+ * @param [in] mainline_right The line style of the arrow line on the right side.
+ * @returns The contour of the dot or diamond.*/
+Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, EArrowEnd which,
+                                   const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
-    XY wh = getWidthHeight(bidir, which);
+    XY wh = getWidthHeight(bidir, which, mainline_left, mainline_right);
     Contour ret;
     switch(GetType(bidir, which)) {
     case MSC_ARROW_DIAMOND_EMPTY:
@@ -639,8 +645,8 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
     XY act(act_size, 0);
-    XY wh = getWidthHeight(bidir, which);
-    double w = getTriWidth(bidir, which);
+    XY wh = getWidthHeight(bidir, which, mainline_left, mainline_right);
+    double w = getTriWidth(bidir, which, mainline_left, mainline_right);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
     if (forward) {
@@ -740,8 +746,8 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
         break;
 
     case MSC_ARROW_JUMPOVER:
-        r.from = xy.x-wh.x;
-        r.till = xy.x+wh.x;
+        r.from = xy.x-fabs(wh.x)-mainline_left.LineWidth()/2;
+        r.till = xy.x+fabs(wh.x)+mainline_right.LineWidth()/2;
         break;
     }
     //now expand returned area to cover from total.x.from to total.x.till,
@@ -767,11 +773,11 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
  *                      half-width of the activated entity line.
  * @returns the contour of the arrowhead.*/
 Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which,
-                         const LineAttr &/*mainline_left*/, const LineAttr &/*mainline_right*/) const
+                         const LineAttr &mainline_left, const LineAttr &mainline_right) const
 {
     XY act(act_size, 0);
-    XY wh = getWidthHeight(bidir, which);
-    double w = getTriWidth(bidir, which);
+    XY wh = getWidthHeight(bidir, which, mainline_left, mainline_right);
+    double w = getTriWidth(bidir, which, mainline_left, mainline_right);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
     if (forward) {
@@ -873,8 +879,8 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd
     if (arrow_type == MSC_ARROW_NONE) return;
 
     XY act(act_size, 0);
-    XY wh = getWidthHeight(bidir, which);
-    double w = getTriWidth(bidir, which);
+    XY wh = getWidthHeight(bidir, which, mainline_left, mainline_right);
+    double w = getTriWidth(bidir, which, mainline_left, mainline_right);
     const bool forward_orig = forward;
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
@@ -908,10 +914,23 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd
     }
     //Do jumpover
     if (arrow_type == MSC_ARROW_JUMPOVER) {
-        Contour cover = Contour(xy, fabs(wh.x), fabs(wh.y)) + Block(xy.x-wh.x*2-lw2*2, xy.x+wh.x*2+lw2*2, xy.y, xy.y+wh.y*2+lw2*10);
-        canvas->Clip(Block(xy.x-wh.x, xy.x+wh.x, xy.y-wh.y*4-lw2*2, xy.y+wh.y*4+lw2*2));
-        canvas->Line(cover, line);
-        canvas->UnClip();
+        const Contour cover = Contour(xy, fabs(wh.x), fabs(wh.y)) + Block(xy.x-wh.x*2-lw2*2, xy.x+wh.x*2+lw2*2, xy.y, xy.y+wh.y*2+lw2*10);
+        if (mainline_left == mainline_right) {
+            const double w = fabs(wh.x) + mainline_left.LineWidth()/2;
+            canvas->Clip(Block(xy.x-w, xy.x+w, 0, xy.y+mainline_left.LineWidth()/2));
+            canvas->Line(cover, mainline_left);
+            canvas->UnClip();
+        } else {
+            double w = fabs(wh.x) + mainline_left.LineWidth()/2;
+            canvas->Clip(Block(xy.x-w, xy.x, 0, xy.y+mainline_left.LineWidth()/2));
+            canvas->Line(cover, mainline_left);
+            canvas->UnClip();
+            w = fabs(wh.x) + mainline_right.LineWidth()/2;
+            canvas->Clip(Block(xy.x, xy.x+w, 0, xy.y+mainline_right.LineWidth()/2));
+            canvas->Line(cover, mainline_right);
+            canvas->UnClip();
+        }
+        return;
     }
 
     Contour tri1, tri2, tri_sharp1, tri_sharp2;

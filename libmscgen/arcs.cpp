@@ -1182,8 +1182,8 @@ void ArcSelfArrow::Layout(Canvas &canvas, AreaList *cover)
     height = 0;
     if (!valid) return;
     yPos = 0;
-    xy_s = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START);
-    xy_e = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END);
+    xy_s = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START, style.read().line, style.read().line);
+    xy_e = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END, style.read().line, style.read().line);
     xy_s.y = ceil(xy_s.y);
     xy_e.y = ceil(xy_e.y);
     wh.x = ceil(chart->XCoord(XSizeUnit));
@@ -1556,8 +1556,8 @@ EDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, Element **target, ArcBase *vertical_target)
+ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+    Numbering &number, Element **target, ArcBase *vertical_target)
 {
     if (!valid) return NULL;
     bool error = false;
@@ -1571,19 +1571,19 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     if (middle.size()) {
         const bool dir = (*src)->pos_exp < (*dst)->pos_exp; //true for ->, false for <-
         if (dir != ((*src)->pos_exp < ((*middle[0])->pos_exp))) goto problem;
-        for (unsigned i=0; i<middle.size()-1; i++)
+        for (unsigned i = 0; i<middle.size()-1; i++)
             if (dir != ((*middle[i])->pos_exp < (*middle[i+1])->pos_exp)) goto problem;
         if (dir != (((*middle[middle.size()-1])->pos_exp < (*dst)->pos_exp))) goto problem;
         goto no_problem;
 
     problem:
-        const char *arrow_string = bidir?"<->":dir?"->":"<-";
+        const char *arrow_string = bidir ? "<->" : dir ? "->" : "<-";
         string ss;
         EntityList e(false);
         ss << "Multi-segment arrow specified as ";
         e.push_back(*src);
         for (unsigned f = 0; f<middle.size(); f++)
-             e.push_back(*(middle[f]));
+            e.push_back(*(middle[f]));
         e.push_back(*dst);
         if (!dir) e.reverse();
         EntityList::iterator ii = e.begin();
@@ -1598,10 +1598,10 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
             ss << arrow_string << (*ii++)->name;
         ss << ". Ignoring arc.";
         valid = false;
-		chart->Error.Error(file_pos.start, ss);
+        chart->Error.Error(file_pos.start, ss);
         return NULL; //Remove this arrow.
     }
-    no_problem:
+no_problem:
 
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(canvas, hide, left, right, number, target, vertical_target);
@@ -1649,13 +1649,13 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     //(else we are good only by checkind the endpoints above
     if (chart->IsVirtualEntity(*src) || chart->IsVirtualEntity(*dst))
         for (auto iMiddle : middle) {
-            left = chart->EntityMinByPos(left, iMiddle);
-            right = chart->EntityMaxByPos(right, iMiddle);
+        left = chart->EntityMinByPos(left, iMiddle);
+        right = chart->EntityMaxByPos(right, iMiddle);
         }
 
     if (hide) return NULL;
     if (src == dst) //We became a degenerate arrow, do not show us, but an indicator
-        return new ArcIndicator(chart, src, indicator_style, file_pos); 
+        return new ArcIndicator(chart, src, indicator_style, file_pos);
 
     //Find the visible parent of each middle point and remove it if equals to
     //an end or to any other middle visible parent
@@ -1665,12 +1665,12 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
             //if the replacement parent equals to an end, delete it
             //sub now is an iterator to AllEntities, src and dst is to ActiveEntities
             if (*sub == *src || *sub == *dst) {
-                erase:
+            erase:
                 middle.erase(middle.begin()+ii);
                 //XX should we not delete segment_lines and segment_types and linenum_middle, too?
                 continue;
             }
-            for (unsigned jj=0; jj<ii; jj++) 
+            for (unsigned jj = 0; jj<ii; jj++)
                 if (middle[jj] == sub) goto erase;
             middle[ii] = sub;
         }
@@ -1683,11 +1683,11 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     }
 
     //set angle to zero if a bidirectional arrow and negative if a<-b
-    if (bidir) 
+    if (bidir)
         slant_depth = slant_angle = 0;
-    else if ((*src)->index > (*dst)->index) 
-            slant_angle = -slant_angle;
-    
+    else if ((*src)->index >(*dst)->index)
+        slant_angle = -slant_angle;
+
     //At this point if the user specified a slant_depth of nonzero,
     //slant_angle will be zero (which is not the final slant). 
     //Nevertheless, we will proceed to calculate 'act_size' and go on
@@ -1701,35 +1701,34 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     cos_slant = slant_angle ? cos(slant_angle*M_PI/180.) : 1.;
 
     //Add skip entities
-    //temporarily add src and dst
-    //Here src, dst and all middle[] (if any) points to chart->ActiveEntities
-    middle.insert(middle.begin(), src);
-    middle.push_back(dst);
-    skip.resize(middle.size(), false);
-    for (unsigned u = 0; u<middle.size()-1; /* nope */) {
-        const EIterator till = middle[u+1];
-        unsigned before = u+1;
-        for (EIterator i = middle[u]; i!=till; specified_as_forward ? i++ : i--)
-            if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn()) {
-                middle.insert(middle.begin()+before, i);
-                skip.insert(skip.begin()+before, true);
-                has_skip = true;
-                //we use before-1 as index, because these arrays do not temporarily include 'src' at index 0
-                linenum_middle.insert(linenum_middle.begin()+(before-1), FileLineCol());
-                segment_types.insert(segment_types.begin()+(before-1), EArcSymbol::BOX_UNDETERMINED_FOLLOW);
-                segment_lines.insert(segment_lines.begin()+(before-1), segment_lines[u]);
-                before++;
-            }
-        u = before;
+    skip.resize(middle.size()+2, false); //add as many false indicators, as many entities we touch
+    if (style.read().arrow.skipType.second != MSC_ARROW_NONE) {
+        //temporarily add src and dst
+        //Here src, dst and all middle[] (if any) points to chart->ActiveEntities
+        middle.insert(middle.begin(), src);
+        middle.push_back(dst);
+        skip.resize(middle.size(), false);
+        for (unsigned u = 0; u<middle.size()-1; /* nope */) {
+            EIterator from = middle[u];
+            const EIterator till = middle[u+1];
+            unsigned before = u+1;
+            for (EIterator i = specified_as_forward ? ++from : --from; i!=till; specified_as_forward ? i++ : i--)
+                if (i!=src && !chart->IsVirtualEntity(*i) && (*i)->running_shown.IsOn()) {
+                    middle.insert(middle.begin()+before, i);
+                    skip.insert(skip.begin()+before, true);
+                    has_skip = true;
+                    //we use before-1 as index, because these arrays do not temporarily include 'src' at index 0
+                    linenum_middle.insert(linenum_middle.begin()+(before-1), FileLineCol());
+                    segment_types.insert(segment_types.begin()+(before-1), EArcSymbol::BOX_UNDETERMINED_FOLLOW);
+                    segment_lines.insert(segment_lines.begin()+(before-1), segment_lines[u]);
+                    before++;
+                }
+            u = before;
+        }
+        //remover temporarily added src and dst from middle
+        middle.pop_back();
+        middle.erase(middle.begin());
     }
-    //remover temporarily added src and dst from middle
-    middle.pop_back();
-    middle.erase(middle.begin());
-    //This is, how it shall look like:
-    _ASSERT(linenum_middle.size()==middle.size()  );  //one for each middle entity
-    _ASSERT(segment_types.size() ==middle.size()+1);  //one for each line segment
-    _ASSERT(segment_lines.size() ==middle.size()+1);  //one for each line segment
-    _ASSERT(skip.size()          ==middle.size()+2);  //one for each entity including src and dst
 
     //record what entities are active at the arrow (already consider slant)
     act_size.clear();
@@ -1738,6 +1737,13 @@ ArcBase *ArcDirArrow::PostParseProcess(Canvas &canvas, bool hide, EIterator &lef
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
         act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     act_size.push_back(std::max(0., (*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
+
+    //This is, how it shall look like:
+    _ASSERT(linenum_middle.size()==middle.size());  //one for each middle entity
+    _ASSERT(segment_types.size() ==middle.size()+1);  //one for each line segment
+    _ASSERT(segment_lines.size() ==middle.size()+1);  //one for each line segment
+    _ASSERT(skip.size()          ==middle.size()+2);  //one for each entity including src and dst
+    _ASSERT(act_size.size()      ==middle.size()+2);  //one for each entity including src and dst
 
     //If the message are lost and the user specified no 'at' clause,
     //fill in which entities it is lost between.
@@ -1834,8 +1840,9 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
             i = floor(i);
 
     //we lie about us being forward (we do not check), so we know which of first/second to use
-    const DoublePair end = style.read().arrow.getWidths(true, bidir, MSC_ARROW_END, style.read().line);
-    const DoublePair start = style.read().arrow.getWidths(true, bidir, MSC_ARROW_START, style.read().line);
+    //Here segment_lines is in the order of src->dst irrespective of left_right
+    const DoublePair end = style.read().arrow.getWidths(true, bidir, MSC_ARROW_END, segment_lines.back(), segment_lines.back());
+    const DoublePair start = style.read().arrow.getWidths(true, bidir, MSC_ARROW_START, segment_lines.front(), segment_lines.front());
     //Expand margins so that we avoid arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
     parsed_label.EnsureMargins(fw ? start.second : end.first, fw ? end.first : start.second);
@@ -1854,7 +1861,7 @@ void ArcDirArrow::Width(Canvas &canvas, EntityDistanceMap &distances, DistanceMa
         EntityDistanceMap dmap;
         for (unsigned i = 0; i<middle.size(); i++) {
             DoublePair mid = style.read().arrow.getWidths(fw, bidir, 
-                skip[i+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, style.read().line);
+                skip[i+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, segment_lines[i], segment_lines[i+1]);
             const double left = (mid.first  + act_size[i+1])*cos_slant;
             const double right = (mid.second + act_size[i+1])*cos_slant;
             distances.Insert((*middle[i])->index, DISTANCE_LEFT, left);
@@ -1968,19 +1975,18 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     double lw_max = style.read().line.LineWidth();
     for (auto i : segment_lines)
         lw_max = std::max(lw_max, i.LineWidth());
-    const double y_e = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END).y;
-    const double y_s = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START).y;
+    //Here segment_lines is still ordered from src->dst irrespective of left or right
+    const double y_e = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END, segment_lines.back(), segment_lines.back()).y;
+    const double y_s = style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START, segment_lines.front(), segment_lines.front()).y;
     //If there are middle arrows, make aH be the highest of endType/startType
     //and midType arrows.
     //If not use endType/startType only
     //aH.y is _half_ the height of the arrowhead (the height above/below the centerline)
     //aH.x is the width on one side on the entity line only.
     double aH = std::max(std::max(y_e, y_s), lsym_size.y/2);
-    if (middle.size()>0) {
-        aH = max(aH, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_MIDDLE).y);
-        if (has_skip)
-            aH = max(aH, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_SKIP).y);
-    }
+    for (unsigned i = 0; i<middle.size(); i++) 
+        aH = max(aH, style.read().arrow.getWidthHeight(bidir, skip[i+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, 
+                                                       segment_lines[i], segment_lines[i+1]).y);
 
     double y = chart->arcVGapAbove;
     XY text_wh = parsed_label.getTextWidthHeight();
@@ -2017,14 +2023,17 @@ void ArcDirArrow::Layout(Canvas &canvas, AreaList *cover)
     xPos.clear(); xPos.reserve(2+middle.size());
     margins.clear(); margins.reserve(2+middle.size());
     xPos.push_back(sx);
-    margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_START, style.read().line));
+    margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_START, 
+                                                   segment_lines.front(), segment_lines.front()));
     for (unsigned u = 0; u<middle.size(); u++) {
         xPos.push_back(sx + (chart->XCoord(middle[u])-sx)/cos_slant);
         margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, 
-            skip[u+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, style.read().line));
+            skip[u+1] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE, 
+            segment_lines[u], segment_lines[u+1]));
     }
     xPos.push_back(dx);
-    margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_END, style.read().line));
+    margins.push_back(style.read().arrow.getWidths(sx<dx, bidir, MSC_ARROW_END, 
+                                                   segment_lines.back(), segment_lines.back()));
     const double s_act = *act_size.begin();
     const double d_act = *act_size.rbegin();
     if (sx>=dx) {
@@ -2200,12 +2209,16 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
     //Exclude the areas covered by the arrow heads from entity lines
     const XY c(sx, yPos+centerline);
     Contour tmp;
-    tmp = style.read().arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, bidir, MSC_ARROW_START);
+    tmp = style.read().arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, bidir, MSC_ARROW_START,
+                                             sx<dx ? segment_lines.front() : segment_lines.back(),
+                                             sx<dx ? segment_lines.front() : segment_lines.back());
     if (!tmp.IsEmpty()) {
         tmp.RotateAround(c, slant_angle);
         chart->HideEntityLines(tmp);
     }
-    tmp = style.read().arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, bidir, MSC_ARROW_END);
+    tmp = style.read().arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, bidir, MSC_ARROW_END,
+                                             sx>dx ? segment_lines.front() : segment_lines.back(),
+                                             sx>dx ? segment_lines.front() : segment_lines.back());
     if (!tmp.IsEmpty()) {
         tmp.RotateAround(c, slant_angle);
         chart->HideEntityLines(tmp);
@@ -2213,7 +2226,8 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
     //for multi-segment arrows
     for (unsigned i=1; i<xPos.size()-1; i++) {
         tmp = style.read().arrow.EntityLineCover(XY(xPos[i], yPos+centerline), sx<dx, bidir, 
-                                                 skip[i] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE);
+                                                 skip[i] ? MSC_ARROW_SKIP : MSC_ARROW_MIDDLE,
+                                                 segment_lines[i-1], segment_lines[i]);
         if (!tmp.IsEmpty()) {
             tmp.RotateAround(c, slant_angle);
             chart->HideEntityLines(tmp);
@@ -3056,8 +3070,8 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
         double w = lw/2;
         //getWidthHeight().y is _half_ the height of the arrowhead 
         //(the height above/below the centerline)
-        w = std::max(w, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END).y);
-        w = std::max(w, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START).y);
+        w = std::max(w, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END, style.read().line, style.read().line).y);
+        w = std::max(w, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START, style.read().line, style.read().line).y);
         width = std::max(width + text_distance + lw/2, //space between text and range
                          style.read().line.radius.second);
         width = std::max(width, w);
@@ -3144,9 +3158,9 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances, Dista
     if (shape == POINTER) {
         const double ah_width = std::max(
             style.read().arrow.getWidths(true, bidir, MSC_ARROW_START, 
-                  style.read().line).second,
+                  style.read().line, style.read().line).second,
             style.read().arrow.getWidths(true, bidir, MSC_ARROW_END, 
-                  style.read().line).first);
+                  style.read().line, style.read().line).first);
         displace = std::max(fabs(displace), ah_width); //positive
         //We do not move pos.offset here, instead, we enlarge the vertical's width
         width += displace;
@@ -3290,8 +3304,8 @@ void ArcVerticalArrow::PlaceWithMarkers(Canvas &/*canvas*/)
                                                  bidir, style.read().arrow.endType.second, style.read().line);
             break;
         case RANGE:
-            sm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START).x);
-            dm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END).x);
+            sm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_START, style.read().line, style.read().line).x);
+            dm = lw + std::max(lw/2, style.read().arrow.getWidthHeight(bidir, MSC_ARROW_END, style.read().line, style.read().line).x);
             break;
         case POINTER:
             sm = 0;

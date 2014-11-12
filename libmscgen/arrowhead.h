@@ -150,15 +150,15 @@ public:
     /** @name Functions for line arrowheads
      * @{ */
     /** Tells how wide and high a specific arrowhead. The y coordinate is just half the height.*/
-    XY getWidthHeight(bool bidir, EArrowEnd which) const;
+    XY getWidthHeight(bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const;
     /** Tells how wide one triangle is. Same as getWidthHeight() for simple arrowheads, but differs from it for DOUBLE and TRIPLE ones.*/
-    double getTriWidth(bool bidir, EArrowEnd which) const;
-    DoublePair getWidths(bool forward, bool bidir, EArrowEnd which, const LineAttr &) const;
-    Contour EntityLineCover(XY xy, bool /*forward*/, bool bidir, EArrowEnd which) const;
+    double getTriWidth(bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const;
+    DoublePair getWidths(bool forward, bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const;
+    Contour EntityLineCover(XY xy, bool /*forward*/, bool bidir, EArrowEnd which, const LineAttr &mainline_left, const LineAttr &mainline_right) const;
     Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which, const Block &total,
                         const LineAttr &mainline_left, const LineAttr &mainline_right) const;
     Contour Cover(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which,
-                  const LineAttr &/*mainline_left*/, const LineAttr &/*mainline_right*/) const;
+                  const LineAttr &mainline_left, const LineAttr &mainline_right) const;
     //This actually draws an arrowhead
     void Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which, 
               const LineAttr &mainline_left, const LineAttr &mainline_right, Canvas *) const;

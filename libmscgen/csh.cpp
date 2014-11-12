@@ -722,7 +722,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", "text.wrap", "text.width",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
-"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
+"arrow.skiptype", "arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "arrow.line.color", "arrow.line.type", "arrow.line.width",
 "line.color", "line.type", "line.width", "line.corner", "line.radius",
 "vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner",
