@@ -355,7 +355,7 @@ public:
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;} ///<True if all of the line attributes are set.
     void MakeComplete();
     LineAttr &operator +=(const LineAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const LineAttr &a);
+    bool operator == (const LineAttr &a) const;
 
     //functions about line style
     bool IsFullyTransparent() const { _ASSERT(type.first && color.first);  return type.second<=LINE_NONE || color.second.IsFullyTransparent(); } ///<True if no line will be drawn

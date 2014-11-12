@@ -322,7 +322,7 @@ LineAttr &LineAttr::operator +=(const LineAttr&a)
     return *this;
 };
 
-bool LineAttr::operator == (const LineAttr &a)
+bool LineAttr::operator == (const LineAttr &a) const
 {
     if (a.type.first != type.first) return false;
     if (type.first && a.type.second != type.second) return false;
