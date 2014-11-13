@@ -74,9 +74,14 @@ ADDED: command-line and GUI switches for compatibility mode
 FIXED: Warn for abox rbox, textbgcolour in non mscgen mode 
 ADDED: Different coloring for abox, rbox, textgbcolor in non-mscgen mode
 FIXED: CSH error indication badly updated.
+FIXED: Undetermined follow with =>> and ==>
+DOC: new attributes: text.bgcolor
+DOC: |||
+DOC: new arrow symbol (==> and =>>)
+DOC: new entity attributes (atext, aline, arrow)
+DOC: exactly how multisegment style is calculated
+DOC: skipType
 DOC: Mscgen backwards compatibility
-DOC: new arrow symbols
-FIX: Undetermined follow with =>> and ==>
 
 This is how it works.
 - Three modes: signalling, signalling-warning (for mscgen constructs) and

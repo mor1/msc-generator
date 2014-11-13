@@ -94,7 +94,7 @@ void ArrowHead::MakeComplete()
     if (!ymul.first) {ymul.first = true; ymul.second= 1;}
     if (!endType.first) {endType.first = true; endType.second= MSC_ARROW_SOLID;}
     if (!midType.first) { midType.first = true; midType.second = MSC_ARROW_SOLID; }
-    if (!skipType.first) { skipType.first = true; midType.second = MSC_ARROW_NONE; }
+    if (!skipType.first) { skipType.first = true; skipType.second = MSC_ARROW_NONE; }
     if (!startType.first) { startType.first = true; startType.second = MSC_ARROW_NONE; }
     line.MakeComplete();
 }
@@ -568,9 +568,9 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which,
     case MSC_ARROW_TRIPLE_HALF:
         ret.first = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
         //Now see if we put the value to the right of first/second
-        if (bidir && (which==MSC_ARROW_MIDDLE))
+        if (bidir && (which==MSC_ARROW_MIDDLE || which==MSC_ARROW_SKIP))
             ret.second = ret.first;
-        else if ( (!forward) ^ (which==MSC_ARROW_START || which==MSC_ARROW_SKIP)) //if reverse or start, but not if both
+        else if ( (!forward) ^ (which==MSC_ARROW_START)) //if reverse or start, but not if both
             ret.swap();
         break;
 
@@ -578,9 +578,14 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, EArrowEnd which,
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-    case MSC_ARROW_JUMPOVER:
     default:
         ret.second = ret.first = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
+        break;
+    case MSC_ARROW_JUMPOVER:
+        ret.second = ret.first = getWidthHeight(bidir, which, mainline_left, mainline_right).x;
+        ret.first += mainline_left.LineWidth();
+        ret.second += mainline_right.LineWidth();
+        break;
     }
     return ret;
 }
