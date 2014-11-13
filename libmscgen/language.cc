@@ -9322,7 +9322,7 @@ yyreduce:
   //here we accept non alpha strings for "->" and similar style names
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_StyleOrAttrName((yylsp[0]), "++");
-        csh.CheckHintAt("++", EHintSourceType::ATTR_NAME);
+        csh.CheckHintAt((yylsp[0]), EHintSourceType::ATTR_NAME);
   #else
         (yyval.attrib) = new Attribute("++", MSC_POS((yyloc)));
   #endif

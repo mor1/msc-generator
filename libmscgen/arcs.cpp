@@ -2757,7 +2757,7 @@ double VertXPos::CalculatePos(Msc &chart, double width, double gap, double gap2)
 //The 'shape' can be later modified if the parser finds some 
 //vertical type keyword before the symbol, such as 'bracket' or 'pointer'
 ArcVerticalArrow::ArcVerticalArrow(ArcTypePlusDir t, const char *s, const char *d, Msc *msc) :
-    ArcArrow(IsArcSymbolBidir(t.arc.type), MscProgress::VERTICAL, msc), 
+    ArcArrow(IsArcSymbolBox(t.arc.type) ? false : IsArcSymbolBidir(t.arc.type), MscProgress::VERTICAL, msc), 
     type(t.arc.type), 
     src(s ? s : ""), dst(d ? d : ""), lost(t.arc.lost!=EArrowLost::NOT), 
     lost_pos(t.arc.lost_pos.CopyTo().start), shape(ARROW_OR_BOX),
